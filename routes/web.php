@@ -8,6 +8,11 @@ use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/about', [HomeController::class, 'about'])->name('about');
+Route::get('/terms-of-use', [HomeController::class, 'termsOfUse'])->name('terms-of-use');
+Route::get('/privacy-policy', [HomeController::class, 'privacyPolicy'])->name('privacy-policy');
+Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
+Route::post('/contact', [HomeController::class, 'contactSubmit'])->name('contact.submit');
 Route::get('/cart', [CheckoutController::class, 'cart'])->name('cart');
 Route::get('/cart/order_checkout', [CheckoutController::class, 'orderCheckout'])->name('checkout');
 Route::get('/select', [CheckoutController::class, 'selectPayment'])->name('select-payment');

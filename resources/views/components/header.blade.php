@@ -8,6 +8,8 @@
                 </a>
                 <div class="hidden md:flex items-center space-x-6">
                     <a href="{{ route('home') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">Home</a>
+                    <a href="{{ route('about') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">About Us</a>
+                    <a href="{{ route('contact') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">Contact Us</a>
                 </div>
             </div>
             

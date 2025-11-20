@@ -22,9 +22,9 @@
             <div>
                 <h4 class="text-white font-semibold mb-4">Support</h4>
                 <ul class="space-y-2 text-sm">
-                    <li><a href="#" class="hover:text-purple-400 transition-colors">Contact Us</a></li>
-                    <li><a href="#" class="hover:text-purple-400 transition-colors">Terms of Service</a></li>
-                    <li><a href="#" class="hover:text-purple-400 transition-colors">Privacy Policy</a></li>
+                    <li><a href="{{ route('contact') }}" class="hover:text-purple-400 transition-colors">Contact Us</a></li>
+                    <li><a href="{{ route('terms-of-use') }}" class="hover:text-purple-400 transition-colors">Terms of Use</a></li>
+                    <li><a href="{{ route('privacy-policy') }}" class="hover:text-purple-400 transition-colors">Privacy Policy</a></li>
                     <li><a href="#" class="hover:text-purple-400 transition-colors">Refund Policy</a></li>
                 </ul>
             </div>

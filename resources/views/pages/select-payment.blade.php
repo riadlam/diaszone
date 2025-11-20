@@ -167,8 +167,8 @@
                         <p class="text-xs text-gray-600 leading-relaxed font-medium">
                             By proceeding, I acknowledge I have read and agreed to 
                             <a href="#" class="text-purple-600 hover:text-purple-700 font-bold underline">Terms of sale</a>, 
-                            <a href="#" class="text-purple-600 hover:text-purple-700 font-bold underline">Terms of use</a> & 
-                            <a href="#" class="text-purple-600 hover:text-purple-700 font-bold underline">Privacy Policy</a>.
+                            <a href="{{ route('terms-of-use') }}" class="text-purple-600 hover:text-purple-700 font-bold underline">Terms of use</a> & 
+                            <a href="{{ route('privacy-policy') }}" class="text-purple-600 hover:text-purple-700 font-bold underline">Privacy Policy</a>.
                         </p>
                         <p class="text-xs text-gray-500 mt-2 font-semibold">Effective November 1, 2023</p>
                     </div>
