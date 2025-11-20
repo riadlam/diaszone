@@ -524,6 +524,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Envoyer';
                 }
+            } else if (paymentMethod === 'baridimob') {
+                // Baridimob is coming soon - show message and do nothing
+                alert('Coming Soon!\n\nBaridimob payment method will be available soon. Please select another payment method.');
+                return;
             } else {
                 // For other payment methods, handle accordingly
                 console.log('Selected payment method:', paymentMethod);
