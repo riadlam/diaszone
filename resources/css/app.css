@@ -1,0 +1,523 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Cairo', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* Custom Animations */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slide-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.6s ease-out;
+}
+
+.animate-fade-in-delay {
+    animation: fade-in 0.6s ease-out 0.2s both;
+}
+
+.animate-fade-in-delay-2 {
+    animation: fade-in 0.6s ease-out 0.4s both;
+}
+
+.animate-slide-in-right {
+    animation: slide-in-right 0.5s ease-out;
+}
+
+/* Smooth transitions for interactive elements */
+.diamond-pack-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.diamond-pack-item .SKU_type {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.diamond-pack-item:hover .SKU_type {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.diamond-pack-item input:checked + .SKU_type {
+    border-color: rgb(124, 58, 237) !important;
+    background-color: rgb(250, 245, 255) !important;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+    transform: translateX(4px);
+}
+
+/* Ensure images are visible - override everything */
+.diamond-pack-item img {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    max-width: 48px !important;
+    max-height: 48px !important;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+.diamond-pack-item .SKU_type > div:first-child {
+    display: flex !important;
+    visibility: visible !important;
+}
+
+/* Radio button styling */
+.diamond-pack-item input[type="radio"]:checked + .SKU_type {
+    position: relative;
+}
+
+.diamond-pack-item input[type="radio"]:checked + .SKU_type::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to bottom, rgb(124, 58, 237), rgb(147, 51, 234));
+    border-radius: 0.5rem 0 0 0.5rem;
+}
+
+/* Hero slider transitions */
+.slider-container {
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slider-dot.active {
+    opacity: 1 !important;
+    transform: scale(1.2);
+}
+
+/* Gaming Hero Slider Styles */
+.gaming-hero-slider {
+    position: relative;
+    overflow-x: hidden;
+    overflow-y: visible;
+    width: 100%;
+    max-width: 100%;
+}
+
+.gaming-hero-slider .slider-wrapper {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    min-height: 100%;
+    width: 100%;
+    max-width: 100%;
+}
+
+.gaming-hero-slider .slider-container {
+    display: flex;
+    align-items: stretch;
+    will-change: transform;
+    /* Initial positioning - will be overridden by JS */
+    transform: translateX(0px);
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Better initial centering using CSS before JS loads */
+@media (min-width: 1024px) {
+    .gaming-hero-slider .slider-container {
+        transform: translateX(12.5%); /* Approximate centering for 75% width slide */
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .gaming-hero-slider .slider-container {
+        transform: translateX(10%); /* Approximate centering for 80% width slide */
+    }
+}
+
+@media (max-width: 767px) {
+    .gaming-hero-slider .slider-container {
+        transform: translateX(7.5%); /* Approximate centering for 85% width slide */
+    }
+}
+
+/* Ensure slides don't cause overflow */
+.gaming-hero-slider .slider-container > div {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.gaming-hero-slider img {
+    animation: zoom-in 20s ease-in-out infinite alternate;
+}
+
+@keyframes zoom-in {
+    0% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(1.1);
+    }
+}
+
+.gaming-slide-content {
+    animation: slide-in-left 0.8s ease-out;
+}
+
+@keyframes slide-in-left {
+    from {
+        opacity: 0;
+        transform: translateX(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.gaming-title span {
+    display: inline-block;
+    animation: fade-in-up 0.8s ease-out backwards;
+}
+
+.gaming-title span:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.gaming-title span:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.gaming-title span:nth-child(3) {
+    animation-delay: 0.5s;
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.gaming-subtitle {
+    animation: fade-in 1s ease-out 0.7s backwards;
+}
+
+.gaming-btn {
+    animation: fade-in 1s ease-out 0.9s backwards;
+    position: relative;
+    overflow: hidden;
+}
+
+.gaming-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.gaming-btn:hover::before {
+    left: 100%;
+}
+
+.gaming-badge {
+    animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(147, 51, 234, 0);
+    }
+}
+
+.gaming-particles {
+    background-image: 
+        radial-gradient(2px 2px at 20% 30%, rgba(255, 255, 255, 0.3), transparent),
+        radial-gradient(2px 2px at 60% 70%, rgba(147, 51, 234, 0.3), transparent),
+        radial-gradient(1px 1px at 50% 50%, rgba(255, 255, 255, 0.2), transparent),
+        radial-gradient(1px 1px at 80% 10%, rgba(236, 72, 153, 0.3), transparent),
+        radial-gradient(2px 2px at 90% 40%, rgba(147, 51, 234, 0.2), transparent);
+    background-size: 200% 200%;
+    animation: particle-move 20s ease infinite;
+    opacity: 0.6;
+}
+
+@keyframes particle-move {
+    0%, 100% {
+        background-position: 0% 0%, 100% 100%, 50% 50%, 80% 10%, 90% 40%;
+    }
+    50% {
+        background-position: 100% 100%, 0% 0%, 50% 50%, 20% 90%, 10% 60%;
+    }
+}
+
+/* Gaming slider dot active state */
+.gaming-hero-slider .slider-dot.active {
+    opacity: 1 !important;
+    transform: scale(1.3);
+    background: linear-gradient(135deg, rgba(147, 51, 234, 1), rgba(236, 72, 153, 1));
+    box-shadow: 0 0 10px rgba(147, 51, 234, 0.8);
+}
+
+/* Gaming slider navigation arrows */
+.gaming-hero-slider .slider-prev,
+.gaming-hero-slider .slider-next {
+    transition: all 0.3s ease;
+}
+
+.gaming-hero-slider .slider-prev:hover,
+.gaming-hero-slider .slider-next:hover {
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Header Dropdown Styles */
+.language-dropdown-menu,
+.currency-dropdown-menu {
+    transform: translateY(-10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+}
+
+.language-dropdown-menu.opacity-100,
+.currency-dropdown-menu.opacity-100 {
+    transform: translateY(0) scale(1);
+}
+
+.language-dropdown button:hover svg,
+.currency-dropdown button:hover svg {
+    transform: rotate(180deg);
+}
+
+.language-dropdown button.dropdown-open svg,
+.currency-dropdown button.dropdown-open svg {
+    transform: rotate(180deg);
+}
+
+.language-option,
+.currency-option {
+    position: relative;
+    border-left: 3px solid transparent;
+}
+
+.language-option:hover,
+.currency-option:hover {
+    border-left-color: rgb(147, 51, 234);
+    transform: translateX(2px);
+}
+
+.language-option:active,
+.currency-option:active {
+    transform: translateX(0);
+    background: rgb(250, 245, 255);
+}
+
+/* Flag emoji fix for Algeria */
+.language-dropdown-menu span[style*="1.5rem"] {
+    display: inline-block;
+    line-height: 1;
+    vertical-align: middle;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* Ensure proper spacing and alignment */
+.language-dropdown-menu .language-option,
+.currency-dropdown-menu .currency-option {
+    margin: 0 4px;
+    border-radius: 8px;
+}
+
+.language-dropdown-menu .language-option:first-of-type,
+.currency-dropdown-menu .currency-option:first-of-type {
+    margin-top: 4px;
+}
+
+.language-dropdown-menu .language-option:last-of-type,
+.currency-dropdown-menu .currency-option:last-of-type {
+    margin-bottom: 4px;
+}
+
+/* Order form sticky positioning - ensure all parents allow sticky */
+#app {
+    overflow: visible !important;
+}
+
+main {
+    overflow: visible !important;
+}
+
+/* Ensure offers section allows sticky */
+#offers-section {
+    overflow: visible !important;
+    position: relative !important;
+    min-height: 100vh; /* Ensure it has enough height */
+    transform: none !important;
+    will-change: auto !important;
+}
+
+/* Order form sticky - checkout page style */
+#order-form-wrapper {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 80px !important;
+    align-self: flex-start !important;
+    max-height: calc(100vh - 100px) !important;
+    overflow-y: auto !important;
+    z-index: 10 !important;
+    will-change: position !important;
+}
+
+@media (max-width: 1023px) {
+    #order-form-wrapper {
+        position: relative !important;
+        top: auto !important;
+    }
+}
+
+/* Form input focus styles */
+input:focus,
+select:focus {
+    outline: none;
+    ring: 2px;
+    ring-color: rgb(147, 51, 234);
+}
+
+/* Loading state */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Smooth scroll behavior */
+html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 100%;
+}
+
+body {
+    overflow: visible !important;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Performance optimizations */
+.diamond-pack-card,
+.slider-container,
+button,
+input,
+select {
+    will-change: transform;
+}
+
+/* Lazy loading placeholder */
+img[loading="lazy"] {
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+img[loading="lazy"].loaded {
+    opacity: 1;
+}
+
+/* Cart Dropdown Styles */
+.cart-dropdown {
+    position: relative;
+}
+
+.cart-dropdown-menu {
+    min-width: 320px;
+    max-height: 500px;
+}
+
+.cart-dropdown:hover .cart-dropdown-menu,
+.cart-dropdown-menu:hover {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+#cart-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+#cart-items::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#cart-items::-webkit-scrollbar-thumb {
+    background: #a855f7;
+    border-radius: 10px;
+}
+
+#cart-items::-webkit-scrollbar-thumb:hover {
+    background: #9333ea;
+}
