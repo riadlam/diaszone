@@ -13,6 +13,7 @@ class Order extends Model
         'diamond_pack_id',
         'status',
         'flexy_id',
+        'nowpayments_payment_id',
         'user_id_ml',
         'zone_id_ml',
         'notes',

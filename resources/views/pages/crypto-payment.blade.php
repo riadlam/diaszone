@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Binance Crypto Payment - DiasZone')
+@section('title', 'Cryptocurrency Payment - DiasZone')
 
 @section('content')
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-blue-50/20 min-h-screen pt-6 pb-12">
     <div class="container mx-auto px-4 max-w-4xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-1">Binance Crypto Payment</h1>
-            <p class="text-sm text-gray-600">Complete your payment using Binance Pay</p>
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">Cryptocurrency Payment</h1>
+            <p class="text-sm text-gray-600">Complete your payment using cryptocurrency</p>
         </div>
 
         @if(session('error'))
@@ -24,9 +24,9 @@
                     </svg>
                     <div>
                         <p class="font-semibold mb-1">Localhost/Testing Mode</p>
-                        <p class="text-sm">Binance Pay API is not configured for localhost. This is a test view. In production, the Binance Pay checkout will work normally.</p>
-                        @if(isset($binance_error))
-                            <p class="text-xs mt-1 italic">Error: {{ $binance_error }}</p>
+                        <p class="text-sm">NOWPayments API is not configured for localhost. This is a test view. In production, the cryptocurrency checkout will work normally.</p>
+                        @if(isset($payment_error))
+                            <p class="text-xs mt-1 italic">Error: {{ $payment_error }}</p>
                         @endif
                     </div>
                 </div>
@@ -62,72 +62,75 @@
             </div>
         </div>
 
-        <!-- Binance Payment Instructions -->
+        <!-- Cryptocurrency Payment Instructions -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
             <div class="flex items-center gap-3 mb-4">
-                <div class="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center">
+                <div class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
                     <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <h2 class="text-xl font-bold text-gray-900">Pay with Binance Pay</h2>
+                <h2 class="text-xl font-bold text-gray-900">Pay with Cryptocurrency</h2>
             </div>
             
             <div class="space-y-4">
-                @if(isset($checkout_url) && $checkout_url && !isset($is_localhost))
-                    <!-- QR Code -->
-                    @if(isset($qr_code_url) && $qr_code_url)
-                    <div class="bg-white border-2 border-gray-200 rounded-lg p-6 text-center">
-                        <p class="text-sm font-semibold text-gray-700 mb-3">Scan QR Code with Binance App</p>
-                        <div class="bg-white border-2 border-gray-200 rounded-lg p-4 inline-block">
-                            <img src="{{ $qr_code_url }}" alt="Binance Pay QR Code" class="w-64 h-64 mx-auto">
+                @if(isset($payment_url) && $payment_url && !isset($is_localhost))
+                    <!-- Payment Address (if available) -->
+                    @if(isset($pay_address) && $pay_address)
+                    <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                        <p class="text-sm font-semibold text-gray-700 mb-2">Payment Address</p>
+                        <div class="flex items-center gap-2 bg-white border border-gray-300 rounded p-2">
+                            <code class="text-xs font-mono text-gray-800 flex-1 break-all">{{ $pay_address }}</code>
+                            <button onclick="copyAddress('{{ $pay_address }}')" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-semibold transition-colors">
+                                Copy
+                            </button>
                         </div>
-                        <p class="text-xs text-gray-500 mt-3">Scan this QR code with your Binance app to complete payment</p>
+                        <p class="text-xs text-gray-500 mt-2">Send the exact amount to this address</p>
                     </div>
                     @endif
 
                     <!-- Checkout Button -->
                     <div class="text-center">
-                        <a href="{{ $checkout_url }}" 
+                        <a href="{{ $payment_url }}" 
                            target="_blank"
-                           class="inline-flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 px-8 rounded-lg transition-colors shadow-lg hover:shadow-xl text-lg">
+                           class="inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-8 rounded-lg transition-colors shadow-lg hover:shadow-xl text-lg">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            Pay with Binance Pay
+                            Pay with Cryptocurrency
                         </a>
-                        <p class="text-xs text-gray-500 mt-2">Click to open Binance Pay checkout page</p>
+                        <p class="text-xs text-gray-500 mt-2">Click to open payment page</p>
                     </div>
                 @else
-                    <!-- Localhost/Testing Mode or No Checkout URL -->
+                    <!-- Localhost/Testing Mode or No Payment URL -->
                     <div class="bg-gray-50 border-2 border-gray-300 border-dashed rounded-lg p-6 text-center">
                         <svg class="w-16 h-16 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <p class="text-sm font-semibold text-gray-700 mb-1">
                             @if(isset($is_localhost) && $is_localhost)
-                                Binance Pay Checkout (Test Mode)
+                                Cryptocurrency Payment (Test Mode)
                             @else
-                                Binance Pay Checkout Unavailable
+                                Payment Unavailable
                             @endif
                         </p>
                         <p class="text-xs text-gray-500">
                             @if(isset($is_localhost) && $is_localhost)
-                                In production, this button will open the Binance Pay checkout page.
+                                In production, this button will open the cryptocurrency payment page.
                             @else
-                                Failed to initialize Binance Pay. Please try again or contact support.
+                                Failed to initialize payment. Please try again or contact support.
                             @endif
                         </p>
                     </div>
                 @endif
 
                 <!-- Payment Instructions -->
-                <div class="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
+                <div class="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
                     <p class="text-sm text-gray-700 mb-2">
-                        <strong class="text-gray-900">Step 1:</strong> Click "Pay with Binance Pay" button or scan the QR code
+                        <strong class="text-gray-900">Step 1:</strong> Click "Pay with Cryptocurrency" button
                     </p>
                     <p class="text-sm text-gray-700 mb-2">
-                        <strong class="text-gray-900">Step 2:</strong> Complete the payment in Binance Pay
+                        <strong class="text-gray-900">Step 2:</strong> Complete the payment using your preferred cryptocurrency
                     </p>
                     <p class="text-sm text-gray-700">
                         <strong class="text-gray-900">Step 3:</strong> Your order will be processed automatically after payment confirmation
@@ -169,6 +172,15 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const encryptedOrderId = '{{ $encrypted_order_id }}';
+    
+    // Copy address to clipboard
+    window.copyAddress = function(address) {
+        navigator.clipboard.writeText(address).then(function() {
+            alert('Address copied to clipboard!');
+        }, function(err) {
+            console.error('Failed to copy address:', err);
+        });
+    };
     
     // Check payment status
     window.checkPaymentStatus = function() {

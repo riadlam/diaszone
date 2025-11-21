@@ -1,19 +1,33 @@
 <header class="bg-white shadow-sm sticky top-0 z-50">
     <div class="container mx-auto px-4">
         <nav class="flex items-center justify-between h-16">
-            <!-- Logo -->
-            <div class="flex items-center space-x-8">
+            <!-- Left: Mobile Menu Button (mobile only) -->
+            <button id="mobile-menu-btn" class="lg:hidden p-2 text-gray-700 hover:text-purple-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+            
+            <!-- Desktop: Logo + Menu Items -->
+            <div class="hidden lg:flex items-center space-x-8">
                 <a href="{{ route('home') }}" class="flex items-center space-x-2">
                     <span class="text-2xl font-bold text-purple-600">DiasZone</span>
                 </a>
-                <div class="hidden md:flex items-center space-x-6">
+                <div class="flex items-center space-x-6">
                     <a href="{{ route('home') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">Home</a>
                     <a href="{{ route('about') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">About Us</a>
                     <a href="{{ route('contact') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">Contact Us</a>
                 </div>
             </div>
             
-            <!-- Search Bar -->
+            <!-- Center: Logo (mobile only) -->
+            <div class="lg:hidden flex-1 flex justify-center">
+                <a href="{{ route('home') }}" class="flex items-center space-x-2">
+                    <span class="text-xl font-bold text-purple-600">DiasZone</span>
+                </a>
+            </div>
+            
+            <!-- Search Bar (desktop only) -->
             <div class="hidden lg:flex flex-1 max-w-md mx-8">
                 <div class="relative w-full">
                     <input type="text" 
@@ -27,8 +41,43 @@
                 </div>
             </div>
             
-            <!-- Right Side: Language, Currency, Cart, Auth -->
-            <div class="flex items-center space-x-4">
+            <!-- Right Side: Cart (mobile) / Full menu (desktop) -->
+            <div class="flex items-center space-x-2 lg:space-x-4">
+                <!-- Cart Icon (visible on all screens) -->
+                @if(!request()->routeIs('select-payment'))
+                <div class="relative cart-dropdown group">
+                    <a href="#" class="relative inline-flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <span id="cart-count" class="absolute -top-0.5 -right-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-tight hidden">0</span>
+                    </a>
+                    
+                    <!-- Cart Dropdown -->
+                    <div class="cart-dropdown-menu absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-gray-100">
+                            <h3 class="text-sm font-semibold text-gray-900">Shopping Cart</h3>
+                        </div>
+                        <div id="cart-items" class="max-h-96 overflow-y-auto">
+                            <!-- Cart items will be inserted here -->
+                            <div class="px-4 py-8 text-center">
+                                <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                                <p class="text-sm text-gray-500">Your cart is empty</p>
+                            </div>
+                        </div>
+                        <div id="cart-footer" class="hidden px-4 py-3 border-t border-gray-100 bg-gray-50">
+                            <a href="{{ route('cart') }}" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg text-center transition-colors">
+                                View Cart
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                @endif
+                
+                <!-- Desktop: Language, Profile (desktop only) -->
+                <div class="hidden lg:flex items-center space-x-4">
                 <!-- My Orders Button (shown when encrypted_order_id exists) -->
                 <a href="{{ route('dashboard.orders') }}" 
                    id="my-orders-btn" 
@@ -150,48 +199,179 @@
                         @endauth
                     </div>
                 </div>
-                
-                <!-- Cart Icon with Dropdown -->
-                @if(!request()->routeIs('select-payment'))
-                <div class="relative cart-dropdown group">
-                    <a href="#" class="relative inline-flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
-                        <span id="cart-count" class="absolute -top-0.5 -right-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-tight hidden">0</span>
-                    </a>
-                    
-                    <!-- Cart Dropdown -->
-                    <div class="cart-dropdown-menu absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
-                        <div class="px-4 py-3 border-b border-gray-100">
-                            <h3 class="text-sm font-semibold text-gray-900">Shopping Cart</h3>
-                        </div>
-                        <div id="cart-items" class="max-h-96 overflow-y-auto">
-                            <!-- Cart items will be inserted here -->
-                            <div class="px-4 py-8 text-center">
-                                <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                                <p class="text-sm text-gray-500">Your cart is empty</p>
-                            </div>
-                        </div>
-                        <div id="cart-footer" class="hidden px-4 py-3 border-t border-gray-100 bg-gray-50">
-                            <a href="{{ route('cart') }}" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg text-center transition-colors">
-                                View Cart
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                @endif
-                
-                <!-- Mobile Search Icon -->
-                <button class="lg:hidden p-2 text-gray-700 hover:text-purple-600 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
-                </button>
             </div>
         </nav>
     </div>
 </header>
+
+<!-- Mobile Side Drawer -->
+<div id="mobile-drawer" class="fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-xl transform -translate-x-full transition-transform duration-300 ease-in-out lg:hidden" style="transform: translateX(-100%);">
+    <div class="flex flex-col h-full">
+        <!-- Drawer Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-purple-600">Menu</h2>
+            <button id="close-drawer-btn" class="p-2 text-gray-700 hover:text-purple-600 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Drawer Content -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- Search Bar -->
+            <div class="relative">
+                <input type="text" 
+                       placeholder="Search products..." 
+                       class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- Menu Items -->
+            <div class="space-y-2">
+                <a href="{{ route('home') }}" class="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors font-medium">
+                    Home
+                </a>
+                <a href="{{ route('about') }}" class="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors font-medium">
+                    About Us
+                </a>
+                <a href="{{ route('contact') }}" class="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors font-medium">
+                    Contact Us
+                </a>
+            </div>
+            
+            <!-- My Orders Button (mobile) -->
+            <a href="{{ route('dashboard.orders') }}" 
+               id="mobile-my-orders-btn" 
+               class="hidden block w-full items-center space-x-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md">
+                <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <span>My Orders</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Drawer Overlay -->
+<div id="drawer-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden" style="display: none;"></div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mobile drawer toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const closeDrawerBtn = document.getElementById('close-drawer-btn');
+        const mobileDrawer = document.getElementById('mobile-drawer');
+        const drawerOverlay = document.getElementById('drawer-overlay');
+        
+        // Ensure drawer starts closed (force with inline style)
+        if (mobileDrawer) {
+            mobileDrawer.style.transform = 'translateX(-100%)';
+            mobileDrawer.classList.add('-translate-x-full');
+        }
+        if (drawerOverlay) {
+            drawerOverlay.style.display = 'none';
+            drawerOverlay.classList.add('hidden');
+        }
+        
+        function openDrawer() {
+            if (mobileDrawer) {
+                mobileDrawer.style.transform = 'translateX(0)';
+                mobileDrawer.classList.remove('-translate-x-full');
+            }
+            if (drawerOverlay) {
+                drawerOverlay.style.display = 'block';
+                drawerOverlay.classList.remove('hidden');
+            }
+            // Prevent body scroll when drawer is open
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.width = '100%';
+            // Store scroll position
+            const scrollY = window.scrollY;
+            document.body.style.top = `-${scrollY}px`;
+            document.body.dataset.scrollY = scrollY;
+        }
+        
+        function closeDrawer() {
+            if (mobileDrawer) {
+                mobileDrawer.style.transform = 'translateX(-100%)';
+                mobileDrawer.classList.add('-translate-x-full');
+            }
+            if (drawerOverlay) {
+                drawerOverlay.style.display = 'none';
+                drawerOverlay.classList.add('hidden');
+            }
+            // Restore body scroll
+            const scrollY = document.body.dataset.scrollY || 0;
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.width = '';
+            document.body.style.top = '';
+            window.scrollTo(0, parseInt(scrollY) || 0);
+            delete document.body.dataset.scrollY;
+        }
+        
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                openDrawer();
+            });
+        }
+        
+        if (closeDrawerBtn) {
+            closeDrawerBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeDrawer();
+            });
+        }
+        
+        if (drawerOverlay) {
+            drawerOverlay.addEventListener('click', function(e) {
+                e.preventDefault();
+                closeDrawer();
+            });
+        }
+        
+        // Sync My Orders button visibility between desktop and mobile drawer
+        function updateMyOrdersButton() {
+            const encryptedOrderIds = localStorage.getItem('diaszone_encrypted_order_ids');
+            const hasOrders = encryptedOrderIds && encryptedOrderIds !== '[]' && encryptedOrderIds !== '';
+            
+            const desktopBtn = document.getElementById('my-orders-btn');
+            const mobileDrawerBtn = document.getElementById('mobile-my-orders-btn');
+            
+            if (desktopBtn) {
+                if (hasOrders) {
+                    desktopBtn.classList.remove('hidden');
+                    desktopBtn.classList.add('flex');
+                } else {
+                    desktopBtn.classList.add('hidden');
+                    desktopBtn.classList.remove('flex');
+                }
+            }
+            
+            if (mobileDrawerBtn) {
+                if (hasOrders) {
+                    mobileDrawerBtn.classList.remove('hidden');
+                    mobileDrawerBtn.classList.add('block');
+                } else {
+                    mobileDrawerBtn.classList.add('hidden');
+                    mobileDrawerBtn.classList.remove('block');
+                }
+            }
+        }
+        
+        // Check on page load and when localStorage changes
+        updateMyOrdersButton();
+        window.addEventListener('storage', updateMyOrdersButton);
+        
+        // Also check periodically (for same-tab updates)
+        setInterval(updateMyOrdersButton, 1000);
+    });
+</script>
 

@@ -60,8 +60,23 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/notifications', [DashboardController::class, 'notifications'])->name('dashboard.notifications');
 });
 
-// Test route for Binance Pay credentials
-Route::get('/test/binance', [CheckoutController::class, 'testBinanceCredentials'])->name('test.binance');
+// Test routes for NOWPayments
+Route::get('/test/nowpayments', [CheckoutController::class, 'testNowPaymentsCredentials'])->name('test.nowpayments');
+Route::get('/test/nowpayments/payment', [CheckoutController::class, 'testNowPaymentsPayment'])->name('test.nowpayments.payment');
+Route::get('/test/nowpayments/status/{payment_id}', [CheckoutController::class, 'testNowPaymentsStatus'])->name('test.nowpayments.status');
+
+// NOWPayments webhook route (no CSRF protection needed for webhooks)
+Route::post('/webhook/nowpayments', [CheckoutController::class, 'nowPaymentsWebhook'])->name('nowpayments.webhook');
+
+// GET route for webhook testing/info (not used by NOWPayments, but helpful for debugging)
+Route::get('/webhook/nowpayments', function() {
+    return response()->json([
+        'message' => 'NOWPayments webhook endpoint',
+        'note' => 'This endpoint only accepts POST requests from NOWPayments servers',
+        'webhook_url' => route('nowpayments.webhook'),
+        'test_credentials' => route('test.nowpayments'),
+    ], 200);
+});
 
 // Admin routes (protected by auth and admin middleware)
 Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin'])->group(function () {

@@ -1,5 +1,5 @@
-<div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6">
-    <h2 class="text-lg font-semibold text-gray-800 mb-4">Order Information</h2>
+<div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 lg:p-6" style="padding: 20px;">
+    <h2 class="text-lg font-semibold text-gray-800 mb-3 lg:mb-4">Order Information</h2>
     
     <form id="order-form" class="space-y-4">
         <!-- User ID -->

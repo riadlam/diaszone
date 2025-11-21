@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\DiamondPack;
 use App\Models\Order;
 use App\Models\Flexy;
-use App\Services\BinancePayService;
+use App\Services\NowPaymentsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 
 class CheckoutController extends Controller
 {
@@ -342,7 +343,7 @@ class CheckoutController extends Controller
     }
     
     /**
-     * Show crypto payment form page (order confirmation before Binance payment)
+     * Show crypto payment form page (order confirmation before cryptocurrency payment)
      */
     public function cryptoForm($encryptedOrderId)
     {
@@ -376,7 +377,7 @@ class CheckoutController extends Controller
     }
     
     /**
-     * Show Binance crypto payment page
+     * Show NOWPayments crypto payment page
      */
     public function cryptoPayment($encryptedOrderId)
     {
@@ -404,108 +405,143 @@ class CheckoutController extends Controller
                        str_contains(request()->getHost(), 'localhost') ||
                        str_contains(request()->getHost(), '127.0.0.1');
         
-        // Static Binance Pay credentials
-        $binanceApiKey = 'sWrdDnMyALYAo03Zz36gG5PkWxOuAw0hxIQ973UVAQBXc8u22244KTccmRExFxwG';
-        $binanceSecretKey = 'Wg3kYgj1H9uhiDWGOZ1EEHjOAo83AfXCjHn7cZAATXhYbUQQoZ0bJrbsLnE34O55';
-        $binanceEndpoint = 'https://bpay.binanceapi.com/binancepay/openapi/';
+        // NOWPayments API key (will be set from env or static later)
+        $nowPaymentsApiKey = null; // Will be set from env or static later
+        $nowPaymentsEndpoint = 'https://api.nowpayments.io/v1/';
         
-        // Initialize Binance Pay service with static credentials
-        $binancePayService = new BinancePayService($binanceApiKey, $binanceSecretKey, $binanceEndpoint);
-        $binanceConfigured = $binancePayService->hasCredentials();
+        // Initialize NOWPayments service
+        $nowPaymentsService = new NowPaymentsService($nowPaymentsApiKey, $nowPaymentsEndpoint);
+        $nowPaymentsConfigured = $nowPaymentsService->hasCredentials();
         
         // Prepare order data
+        // Use usdttrc20 (USDT on TRC20) as default - it's usually the cheapest option
         $orderData = [
-            'merchant_trade_no' => $order->order_number . '_' . time(), // Unique merchant trade number
+            'order_id' => $order->order_number . '_' . time(), // Unique order number
             'amount' => number_format($totalAmount, 2, '.', ''),
-            'reference_goods_id' => (string) $order->diamondPack->id,
+            'price_currency' => 'usd',
             'goods_name' => $order->diamondPack->diamonds . ' Diamonds + ' . $order->diamondPack->bonus_diamonds . ' Bonus',
-            'buyer_id' => $order->user_id ? (string) $order->user_id : $order->user_id_ml,
-            'buyer_name' => Auth::check() ? Auth::user()->name : 'Guest',
+            'pay_currency' => 'usdttrc20', // USDT on TRC20 network (low fees)
             'return_url' => route('crypto-payment-success', ['encrypted_order_id' => $encryptedOrderId]),
             'cancel_url' => route('home'),
+            'ipn_callback_url' => route('nowpayments.webhook'),
         ];
         
         // If credentials are not configured, show mock page on localhost
-        if (!$binanceConfigured) {
+        if (!$nowPaymentsConfigured) {
             if ($isLocalhost) {
-                $mockBinanceData = [
-                    'checkoutUrl' => '#',
-                    'qrCodeUrl' => null,
-                    'walletAddress' => '0x0000000000000000000000000000000000000000',
+                $mockPaymentData = [
+                    'payment_id' => 'test_' . time(),
+                    'payment_status' => 'waiting',
+                    'pay_address' => '0x0000000000000000000000000000000000000000',
+                    'pay_amount' => $totalAmount,
+                    'pay_currency' => 'usdt',
+                    'invoice_url' => '#',
                 ];
                 
                 return view('pages.crypto-payment', [
                     'order' => $order,
                     'encrypted_order_id' => $encryptedOrderId,
                     'total_amount' => $totalAmount,
-                    'binance_data' => $mockBinanceData,
-                    'checkout_url' => null,
-                    'qr_code_url' => null,
-                    'merchant_trade_no' => $orderData['merchant_trade_no'],
+                    'payment_data' => $mockPaymentData,
+                    'payment_url' => null,
+                    'pay_address' => null,
+                    'payment_id' => $orderData['order_id'],
                     'is_localhost' => true,
-                    'binance_error' => 'Binance Pay API credentials not configured. Add BINANCE_PAY_API_KEY and BINANCE_PAY_SECRET_KEY to your .env file.',
+                    'payment_error' => 'NOWPayments API key is not configured. Add NOWPAYMENTS_API_KEY to your .env file.',
                 ]);
             }
             
             // On production without credentials, redirect with error
-            return redirect()->route('select-payment')->with('error', 'Binance Pay is not configured. Please contact support.');
+            return redirect()->route('select-payment')->with('error', 'Cryptocurrency payment is not configured. Please contact support.');
         }
         
-        // Credentials exist - try to create Binance Pay order
-        $binanceResponse = $binancePayService->createOrder($orderData);
+        // Credentials exist - try to create NOWPayments invoice (returns invoice_url)
+        $paymentResponse = $nowPaymentsService->createInvoice($orderData);
         
-        if (!$binanceResponse['success']) {
+        // If invoice creation fails due to currency issue, try alternative currencies
+        if (!$paymentResponse['success'] && 
+            (str_contains($paymentResponse['error'], 'estimate') || 
+             str_contains($paymentResponse['error'], 'currency'))) {
+            // Get available currencies and try alternatives
+            $currenciesResponse = $nowPaymentsService->getAvailableCurrencies();
+            $availableCurrencies = [];
+            if ($currenciesResponse['success']) {
+                $availableCurrencies = $currenciesResponse['data']['currencies'] ?? [];
+            }
+            
+            // Try alternative USDT options
+            $alternativeCurrencies = ['usdterc20', 'usdtbsc', 'usdtmatic', 'usdtsol'];
+            foreach ($alternativeCurrencies as $altCurrency) {
+                if (in_array($altCurrency, $availableCurrencies)) {
+                    $orderData['pay_currency'] = $altCurrency;
+                    $paymentResponse = $nowPaymentsService->createInvoice($orderData);
+                    if ($paymentResponse['success']) {
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (!$paymentResponse['success']) {
             // On localhost, show payment page with error details for debugging
             if ($isLocalhost) {
-                $mockBinanceData = [
-                    'checkoutUrl' => '#',
-                    'qrCodeUrl' => null,
-                    'walletAddress' => '0x0000000000000000000000000000000000000000',
+                $mockPaymentData = [
+                    'payment_id' => 'test_' . time(),
+                    'payment_status' => 'waiting',
+                    'pay_address' => '0x0000000000000000000000000000000000000000',
+                    'pay_amount' => $totalAmount,
+                    'pay_currency' => 'usdt',
+                    'invoice_url' => '#',
                 ];
                 
                 // Get detailed error message
-                $errorMessage = $binanceResponse['error'] ?? 'Binance Pay API call failed';
-                
-                // Check if it's a credential issue
-                if (str_contains($errorMessage, 'Certificate-SN') || 
-                    str_contains($errorMessage, 'Signature') ||
-                    str_contains($errorMessage, 'Unauthorized')) {
-                    $errorMessage = 'Binance Pay API credentials are invalid or incorrect. Please check your BINANCE_PAY_API_KEY and BINANCE_PAY_SECRET_KEY in .env file.';
-                }
+                $errorMessage = $paymentResponse['error'] ?? 'NOWPayments API call failed';
                 
                 return view('pages.crypto-payment', [
                     'order' => $order,
                     'encrypted_order_id' => $encryptedOrderId,
                     'total_amount' => $totalAmount,
-                    'binance_data' => $mockBinanceData,
-                    'checkout_url' => null,
-                    'qr_code_url' => null,
-                    'merchant_trade_no' => $orderData['merchant_trade_no'],
+                    'payment_data' => $mockPaymentData,
+                    'payment_url' => null,
+                    'pay_address' => null,
+                    'payment_id' => $orderData['order_id'],
                     'is_localhost' => true,
-                    'binance_error' => $errorMessage,
+                    'payment_error' => $errorMessage,
                 ]);
             }
             
             // On production, redirect with error
-            return redirect()->route('select-payment')->with('error', 'Failed to initialize payment: ' . ($binanceResponse['error'] ?? 'Unknown error'));
+            return redirect()->route('select-payment')->with('error', 'Failed to initialize payment: ' . ($paymentResponse['error'] ?? 'Unknown error'));
         }
         
-        $binanceData = $binanceResponse['data'];
+        $paymentData = $paymentResponse['data'];
+        
+        // Store the NOWPayments invoice_id or payment_id in the order for future status checks
+        if (isset($paymentData['invoice_id'])) {
+            $order->nowpayments_payment_id = $paymentData['invoice_id'];
+            $order->save();
+        } elseif (isset($paymentData['payment_id'])) {
+            $order->nowpayments_payment_id = $paymentData['payment_id'];
+            $order->save();
+        }
+        
+        // Invoice endpoint returns invoice_url directly
+        $paymentUrl = $paymentData['invoice_url'] ?? null;
         
         return view('pages.crypto-payment', [
             'order' => $order,
             'encrypted_order_id' => $encryptedOrderId,
             'total_amount' => $totalAmount,
-            'binance_data' => $binanceData,
-            'checkout_url' => $binanceData['checkoutUrl'] ?? null,
-            'qr_code_url' => $binanceData['qrCodeUrl'] ?? null,
-            'merchant_trade_no' => $orderData['merchant_trade_no'],
+            'payment_data' => $paymentData,
+            'payment_url' => $paymentUrl,
+            'pay_address' => $paymentData['pay_address'] ?? null,
+            'payment_id' => $paymentData['payment_id'] ?? $orderData['order_id'],
             'is_localhost' => false,
         ]);
     }
     
     /**
-     * Handle Binance Pay success callback
+     * Handle cryptocurrency payment success callback
      */
     public function cryptoPaymentSuccess($encryptedOrderId)
     {
@@ -547,23 +583,30 @@ class CheckoutController extends Controller
                 ], 404);
             }
             
-            // Static Binance Pay credentials
-            $binanceApiKey = 'sWrdDnMyALYAo03Zz36gG5PkWxOuAw0hxIQ973UVAQBXc8u22244KTccmRExFxwG';
-            $binanceSecretKey = 'Wg3kYgj1H9uhiDWGOZ1EEHjOAo83AfXCjHn7cZAATXhYbUQQoZ0bJrbsLnE34O55';
-            $binanceEndpoint = 'https://bpay.binanceapi.com/binancepay/openapi/';
+            // Check if order has a NOWPayments payment_id stored
+            if (!$order->nowpayments_payment_id) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Payment ID not found for this order',
+                    'paid' => false,
+                    'status' => 'PENDING',
+                ]);
+            }
             
-            // Query Binance Pay for order status
-            $binancePayService = new BinancePayService($binanceApiKey, $binanceSecretKey, $binanceEndpoint);
-            // Extract merchant trade no from order (you may need to store this in the order)
-            $merchantTradeNo = $order->order_number . '_' . strtotime($order->created_at);
+            // NOWPayments API key (will be set from env or static later)
+            $nowPaymentsApiKey = null; // Will be set from env or static later
+            $nowPaymentsEndpoint = 'https://api.nowpayments.io/v1/';
             
-            $binanceResponse = $binancePayService->queryOrder($merchantTradeNo);
+            // Query NOWPayments for payment status using the stored payment_id
+            $nowPaymentsService = new NowPaymentsService($nowPaymentsApiKey, $nowPaymentsEndpoint);
+            $paymentResponse = $nowPaymentsService->getPaymentStatus($order->nowpayments_payment_id);
             
-            if ($binanceResponse['success']) {
-                $binanceData = $binanceResponse['data'];
-                $status = $binanceData['status'] ?? 'UNKNOWN';
+            if ($paymentResponse['success']) {
+                $paymentData = $paymentResponse['data'];
+                $status = $paymentData['payment_status'] ?? 'waiting';
                 
-                if ($status === 'PAID' || $status === 'SUCCESS') {
+                // NOWPayments statuses: waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
+                if ($status === 'finished' || $status === 'confirmed') {
                     // Update order status
                     $order->status = 'completed';
                     $order->save();
@@ -590,19 +633,240 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Test Binance Pay credentials
-     * Route: /test/binance
+     * Test NOWPayments credentials
+     * Route: /test/nowpayments
      */
-    public function testBinanceCredentials()
+    public function testNowPaymentsCredentials()
     {
-        // Static credentials for testing
-        $apiKey = 'sWrdDnMyALYAo03Zz36gG5PkWxOuAw0hxIQ973UVAQBXc8u22244KTccmRExFxwG';
-        $secretKey = 'Wg3kYgj1H9uhiDWGOZ1EEHjOAo83AfXCjHn7cZAATXhYbUQQoZ0bJrbsLnE34O55';
-        $endpoint = 'https://bpay.binanceapi.com/binancepay/openapi/';
+        // API key will be set from env or static later
+        $apiKey = null; // Will be set from env or static later
+        $endpoint = 'https://api.nowpayments.io/v1/';
         
-        $binancePayService = new BinancePayService($apiKey, $secretKey, $endpoint);
-        $testResult = $binancePayService->testConnection();
+        $nowPaymentsService = new NowPaymentsService($apiKey, $endpoint);
+        $testResult = $nowPaymentsService->testConnection();
         
         return response()->json($testResult, $testResult['success'] ? 200 : 400);
+    }
+    
+    /**
+     * Test NOWPayments payment creation with $10
+     * Route: /test/nowpayments/payment
+     */
+    public function testNowPaymentsPayment(Request $request)
+    {
+        // Check if this is an AJAX request for JSON, or regular request for HTML dialog
+        if ($request->wantsJson() || $request->ajax()) {
+            // Return JSON for AJAX requests
+            return $this->testNowPaymentsPaymentJson();
+        }
+        
+        // Return HTML page with dialog
+        return view('pages.crypto-payment-dialog');
+    }
+    
+    /**
+     * Test NOWPayments payment creation (JSON response)
+     */
+    private function testNowPaymentsPaymentJson()
+    {
+        // API key will be set from env or static later
+        $apiKey = null; // Will be set from env or static later
+        $endpoint = 'https://api.nowpayments.io/v1/';
+        
+        $nowPaymentsService = new NowPaymentsService($apiKey, $endpoint);
+        
+        // Check if credentials are configured
+        if (!$nowPaymentsService->hasCredentials()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'NOWPayments API key is not configured',
+                'message' => 'Add NOWPAYMENTS_API_KEY to your .env file',
+                'test_payment_data' => [
+                    'price_amount' => '10.00',
+                    'price_currency' => 'usd',
+                    'pay_currency' => 'usdt',
+                    'order_id' => 'TEST_' . time(),
+                    'order_description' => 'Test Payment - $10',
+                ],
+            ], 400);
+        }
+        
+        // First, get available currencies to see what's supported
+        $currenciesResponse = $nowPaymentsService->getAvailableCurrencies();
+        $availableCurrencies = [];
+        if ($currenciesResponse['success']) {
+            $availableCurrencies = $currenciesResponse['data']['currencies'] ?? [];
+        }
+        
+        // Create a test payment for $10
+        // Use usdttrc20 (USDT on TRC20) as default - it's usually the cheapest option
+        // You can change this to any currency from the available_currencies list
+        $orderData = [
+            'order_id' => 'TEST_' . time(),
+            'amount' => '10.00',
+            'price_currency' => 'usd',
+            'goods_name' => 'Test Payment - $10',
+            'pay_currency' => 'usdttrc20', // USDT on TRC20 network (low fees)
+            'return_url' => route('home'),
+            'cancel_url' => route('home'),
+            'ipn_callback_url' => route('nowpayments.webhook'),
+        ];
+        
+        $paymentResponse = $nowPaymentsService->createInvoice($orderData);
+        
+        // If invoice creation fails due to currency issue, try alternative currencies
+        if (!$paymentResponse['success'] && 
+            (str_contains($paymentResponse['error'], 'estimate') || 
+             str_contains($paymentResponse['error'], 'currency'))) {
+            // Try alternative USDT options
+            $alternativeCurrencies = ['usdterc20', 'usdtbsc', 'usdtmatic', 'usdtsol'];
+            foreach ($alternativeCurrencies as $altCurrency) {
+                if (in_array($altCurrency, $availableCurrencies)) {
+                    $orderData['pay_currency'] = $altCurrency;
+                    $paymentResponse = $nowPaymentsService->createInvoice($orderData);
+                    if ($paymentResponse['success']) {
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if ($paymentResponse['success']) {
+            $paymentData = $paymentResponse['data'];
+            
+            $response = [
+                'success' => true,
+                'message' => 'Test payment created successfully!',
+                'payment' => [
+                    'payment_id' => $paymentData['payment_id'] ?? null,
+                    'payment_status' => $paymentData['payment_status'] ?? null,
+                    'pay_address' => $paymentData['pay_address'] ?? null,
+                    'pay_amount' => $paymentData['pay_amount'] ?? null,
+                    'pay_currency' => $paymentData['pay_currency'] ?? null,
+                    'price_amount' => $paymentData['price_amount'] ?? null,
+                    'price_currency' => $paymentData['price_currency'] ?? null,
+                    'amount_received' => $paymentData['amount_received'] ?? 0,
+                    'invoice_url' => $paymentData['invoice_url'] ?? null,
+                    'payment_url' => $paymentData['invoice_url'] ?? $paymentData['payment_url'] ?? null,
+                ],
+                'available_currencies' => $availableCurrencies,
+                'full_response' => $paymentData,
+            ];
+            
+            // Add direct properties for easier access in dialog
+            $response['pay_address'] = $paymentData['pay_address'] ?? null;
+            $response['pay_amount'] = $paymentData['pay_amount'] ?? null;
+            $response['pay_currency'] = $paymentData['pay_currency'] ?? null;
+            $response['price_amount'] = $paymentData['price_amount'] ?? null;
+            $response['price_currency'] = $paymentData['price_currency'] ?? null;
+            $response['payment_id'] = $paymentData['invoice_id'] ?? $paymentData['payment_id'] ?? null;
+            // Invoice endpoint returns invoice_url directly - use it as payment_url
+            $response['invoice_url'] = $paymentData['invoice_url'] ?? null;
+            $response['payment_url'] = $paymentData['invoice_url'] ?? $paymentData['payment_url'] ?? null;
+            
+            return response()->json($response, 200);
+        } else {
+            return response()->json([
+                'success' => false,
+                'error' => $paymentResponse['error'] ?? 'Failed to create payment',
+                'response_data' => $paymentResponse['response_data'] ?? null,
+                'test_request' => $orderData,
+                'available_currencies' => $availableCurrencies,
+                'suggestion' => 'Try removing pay_currency from the request to let NOWPayments suggest available payment options, or check available currencies first.',
+            ], 400);
+        }
+    }
+    
+    /**
+     * Test NOWPayments payment status check
+     * Route: /test/nowpayments/status/{payment_id}
+     */
+    public function testNowPaymentsStatus($paymentId)
+    {
+        // API key will be set from env or static later
+        $apiKey = null; // Will be set from env or static later
+        $endpoint = 'https://api.nowpayments.io/v1/';
+        
+        $nowPaymentsService = new NowPaymentsService($apiKey, $endpoint);
+        
+        // Check if credentials are configured
+        if (!$nowPaymentsService->hasCredentials()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'NOWPayments API key is not configured',
+                'message' => 'Add NOWPAYMENTS_API_KEY to your .env file',
+            ], 400);
+        }
+        
+        // Get payment status
+        $statusResponse = $nowPaymentsService->getPaymentStatus($paymentId);
+        
+        if ($statusResponse['success']) {
+            $paymentData = $statusResponse['data'];
+            
+            return response()->json([
+                'success' => true,
+                'payment_id' => $paymentId,
+                'payment_status' => $paymentData['payment_status'] ?? 'unknown',
+                'payment_data' => $paymentData,
+                'status_meaning' => [
+                    'waiting' => 'Waiting for payment',
+                    'confirming' => 'Payment is being confirmed',
+                    'confirmed' => 'Payment confirmed',
+                    'sending' => 'Sending payment',
+                    'partially_paid' => 'Partially paid',
+                    'finished' => 'Payment completed',
+                    'failed' => 'Payment failed',
+                    'refunded' => 'Payment refunded',
+                    'expired' => 'Payment expired',
+                ],
+            ], 200);
+        } else {
+            return response()->json([
+                'success' => false,
+                'error' => $statusResponse['error'] ?? 'Failed to get payment status',
+                'payment_id' => $paymentId,
+            ], 400);
+        }
+    }
+    
+    /**
+     * Handle NOWPayments IPN (Instant Payment Notification)
+     * This is called by NOWPayments when payment status changes
+     * Note: IPN is optional - we primarily use API polling for status checks
+     */
+    public function nowPaymentsWebhook(Request $request)
+    {
+        // Handle NOWPayments IPN (Instant Payment Notification)
+        // This will be called by NOWPayments when payment status changes
+        
+        $paymentData = $request->all();
+        
+        // Log IPN for debugging
+        Log::info('NOWPayments IPN Received', $paymentData);
+        
+        // Extract payment_id from IPN data
+        $paymentId = $paymentData['payment_id'] ?? null;
+        
+        if ($paymentId) {
+            // Find order by payment_id
+            $order = Order::where('nowpayments_payment_id', $paymentId)->first();
+            
+            if ($order) {
+                // Update order status based on payment status
+                $paymentStatus = $paymentData['payment_status'] ?? 'waiting';
+                
+                // NOWPayments statuses: waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
+                if ($paymentStatus === 'finished' || $paymentStatus === 'confirmed') {
+                    $order->status = 'completed';
+                    $order->save();
+                } elseif ($paymentStatus === 'failed' || $paymentStatus === 'expired') {
+                    // Keep as pending or mark as failed based on your business logic
+                    // $order->status = 'failed';
+                }
+            }
+        }
+        
+        return response()->json(['status' => 'ok'], 200);
     }
 }
