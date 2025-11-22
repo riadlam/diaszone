@@ -65,7 +65,7 @@ class ChargilyPayV2Service
     {
         try {
             $requestBody = [
-                'amount' => $checkoutData['amount'], // Amount in smallest currency unit (centimes for DZD)
+                'amount' => $checkoutData['amount'], // Amount in DZD (Chargily Pay v2 expects DZD, not centimes)
                 'currency' => $checkoutData['currency'] ?? 'dzd',
                 'payment_method' => $checkoutData['payment_method'] ?? 'edahabia', // edahabia, cib, or chargily_app
                 'success_url' => $checkoutData['success_url'],

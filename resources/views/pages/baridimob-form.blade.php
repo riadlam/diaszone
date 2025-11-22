@@ -117,14 +117,24 @@
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
             <div class="space-y-3">
+                @php
+                    // Convert USD to DZD: 1 USD = 260 DZD
+                    $usdPrice = (float) $order->diamondPack->price;
+                    $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+                    $discountAmount = ($usdPrice * $discountPercentage) / 100;
+                    $finalUsdPrice = $usdPrice - $discountAmount;
+                    $dzdPrice = $finalUsdPrice * 260; // Convert to DZD
+                @endphp
+                @if($discountPercentage > 0)
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Subtotal</span>
-                    <span class="text-sm font-semibold text-gray-900">{{ number_format($order->diamondPack->price, 2) }} DZD</span>
+                    <span class="text-sm text-gray-600">Discount</span>
+                    <span class="text-sm font-semibold text-green-600">-{{ $discountPercentage }}%</span>
                 </div>
+                @endif
                 <div class="border-t-2 border-purple-200 pt-3 mt-3">
                     <div class="flex justify-between items-center">
-                        <span class="text-lg font-bold text-gray-900">Total</span>
-                        <span class="text-lg font-bold text-purple-600">{{ number_format($order->diamondPack->price, 2) }} DZD</span>
+                        <span class="text-lg font-bold text-gray-900">Total Amount</span>
+                        <span class="text-lg font-bold text-purple-600">{{ number_format($dzdPrice, 0) }} DZD</span>
                     </div>
                 </div>
             </div>

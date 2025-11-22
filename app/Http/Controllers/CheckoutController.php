@@ -466,9 +466,12 @@ class CheckoutController extends Controller
         }
         
         try {
-            // DEBUG: Use fixed amount for testing
-            $amount = 500.00; // Fixed 500 DZD for debugging
-            // $amount = (float) $order->diamondPack->price; // Original amount
+            // Calculate amount in DZD: Convert from USD (1 USD = 260 DZD)
+            $usdPrice = (float) $order->diamondPack->price;
+            $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+            $discountAmount = ($usdPrice * $discountPercentage) / 100;
+            $finalUsdPrice = $usdPrice - $discountAmount;
+            $amount = $finalUsdPrice * 260; // Convert to DZD
             
             // Minimum amount is 75 DZD
             if ($amount < 75) {
@@ -523,8 +526,9 @@ class CheckoutController extends Controller
             $order->save();
             
             // Prepare checkout data for Chargily Pay v2
+            // Note: Chargily Pay v2 expects amount in DZD (not centimes)
             $checkoutData = [
-                'amount' => (int) round($amount * 100), // Amount in centimes (DZD * 100)
+                'amount' => (int) round($amount), // Amount in DZD
                 'currency' => 'dzd',
                 'payment_method' => 'edahabia', // Baridimob uses EDAHABIA
                 'success_url' => route('baridimob-form', ['encrypted_order_id' => $request->encrypted_order_id]) . '?success=1',
@@ -548,7 +552,7 @@ class CheckoutController extends Controller
                 'secret_exists' => !empty($apiSecret),
                 'secret_length' => $apiSecret ? strlen($apiSecret) : 0,
                 'amount' => $amount,
-                'amount_centimes' => (int) round($amount * 100),
+                'amount_dzd' => (int) round($amount),
                 'payment_method' => 'edahabia',
                 'checkout_data' => $checkoutData,
             ]);
