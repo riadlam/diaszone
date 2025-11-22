@@ -334,7 +334,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 variations: variations,
                                 arrayBefore: orderIdsArray,
                                 arrayAfter: filteredArray,
-                                removed: originalLength - filteredArray.length
+                                removed: removedCount,
+                                originalLength: originalLength,
+                                finalLength: filteredArray.length
                             });
                             
                             if (filteredArray.length > 0) {
