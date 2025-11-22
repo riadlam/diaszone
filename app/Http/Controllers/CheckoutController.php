@@ -150,7 +150,7 @@ class CheckoutController extends Controller
     {
         try {
             $request->validate([
-                'cart_items' => 'required|array|min:1',
+                'cart_items' => 'required|array|min:1|max:1', // Single item limit enforced
                 'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
                 'cart_items.*.user_id' => 'nullable|string',
                 'cart_items.*.zone_id' => 'nullable|string',

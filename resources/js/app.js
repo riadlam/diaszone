@@ -105,11 +105,26 @@ document.addEventListener('DOMContentLoaded', () => {
         
         getCart: function() {
             const cart = localStorage.getItem('diaszone_cart');
-            return cart ? JSON.parse(cart) : [];
+            const parsed = cart ? JSON.parse(cart) : [];
+            // Enforce single-item limit: if multiple items, keep only the newest (last added)
+            if (Array.isArray(parsed) && parsed.length > 1) {
+                // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
+                const sorted = parsed.sort((a, b) => {
+                    if (a.timestamp && b.timestamp) {
+                        return new Date(b.timestamp) - new Date(a.timestamp);
+                    }
+                    // Fallback: use id (higher number = newer)
+                    return parseInt(b.id || 0) - parseInt(a.id || 0);
+                });
+                const newestItem = [sorted[0]];
+                localStorage.setItem('diaszone_cart', JSON.stringify(newestItem));
+                return newestItem;
+            }
+            return parsed;
         },
         
         addToCart: function(item) {
-            const cart = this.getCart();
+            // Single item limit: replace existing item if cart already has one
             const cartItem = {
                 id: Date.now().toString(),
                 user_id: item.user_id || null,
@@ -124,8 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 pack_id: item.pack_id, // Only store pack ID, not full pack data
                 timestamp: new Date().toISOString()
             };
-            cart.push(cartItem);
-            localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+            
+            // Replace entire cart with single item
+            const newCart = [cartItem];
+            localStorage.setItem('diaszone_cart', JSON.stringify(newCart));
             this.updateCartUI();
             return cartItem;
         },

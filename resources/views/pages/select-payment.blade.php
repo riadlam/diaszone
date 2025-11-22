@@ -252,8 +252,17 @@ function showStyledAlert(title, message, type = 'error') {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize page directly without validation
+    // Check if cart exists in localStorage
+    const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
     
+    // If cart is empty, redirect to home
+    if (!cart || cart.length === 0) {
+        console.log('Cart is empty, redirecting to home...');
+        window.location.href = '{{ route("home") }}';
+        return;
+    }
+    
+    // Initialize page if cart exists
     async function initializePage() {
         // Fetch cart data and calculate totals
         async function loadPaymentInfo() {

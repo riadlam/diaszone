@@ -8,6 +8,15 @@
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-900 mb-1">Shopping Cart</h1>
             <p class="text-sm text-gray-600">Review your order before checkout</p>
+            <!-- Single Item Limit Notice -->
+            <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-xs text-blue-800">
+                    <span class="font-semibold">Note:</span> Only one item can be in your cart at a time. Adding a new item will replace the current one.
+                </p>
+            </div>
         </div>
 
         <div class="flex flex-col lg:flex-row gap-6">
@@ -70,6 +79,24 @@ function waitForCartManager(callback, maxAttempts = 50) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Enforce single-item cart limit - cleanup if multiple items exist
+    (function enforceSingleItemCart() {
+        const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
+        if (Array.isArray(cart) && cart.length > 1) {
+            console.log('Multiple items detected in cart, keeping only the newest item');
+            // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
+            const sorted = cart.sort((a, b) => {
+                if (a.timestamp && b.timestamp) {
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                }
+                // Fallback: use id (higher number = newer)
+                return parseInt(b.id || 0) - parseInt(a.id || 0);
+            });
+            const newestItem = [sorted[0]];
+            localStorage.setItem('diaszone_cart', JSON.stringify(newestItem));
+        }
+    })();
+    
     waitForCartManager(() => {
         const cartItemsList = document.getElementById('cart-items-list');
         const emptyCart = document.getElementById('empty-cart');
@@ -80,7 +107,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const CartManager = window.CartManager || {
             getCart: function() {
                 const cart = localStorage.getItem('diaszone_cart');
-                return cart ? JSON.parse(cart) : [];
+                const parsed = cart ? JSON.parse(cart) : [];
+                // Enforce single-item limit: if multiple items, keep only the newest (last added)
+                if (Array.isArray(parsed) && parsed.length > 1) {
+                    // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
+                    const sorted = parsed.sort((a, b) => {
+                        if (a.timestamp && b.timestamp) {
+                            return new Date(b.timestamp) - new Date(a.timestamp);
+                        }
+                        // Fallback: use id (higher number = newer)
+                        return parseInt(b.id || 0) - parseInt(a.id || 0);
+                    });
+                    const newestItem = [sorted[0]];
+                    localStorage.setItem('diaszone_cart', JSON.stringify(newestItem));
+                    return newestItem;
+                }
+                return parsed;
             },
             removeFromCart: function(itemId) {
                 const cart = this.getCart();
@@ -178,7 +220,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         async function loadCart() {
-            const cart = CartManager.getCart();
+            let cart = CartManager.getCart();
+            
+            // Enforce single-item limit: if multiple items exist, keep only the newest (last added)
+            if (Array.isArray(cart) && cart.length > 1) {
+                console.log('Multiple items in cart detected, keeping only the newest item');
+                // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
+                const sorted = cart.sort((a, b) => {
+                    if (a.timestamp && b.timestamp) {
+                        return new Date(b.timestamp) - new Date(a.timestamp);
+                    }
+                    // Fallback: use id (higher number = newer)
+                    return parseInt(b.id || 0) - parseInt(a.id || 0);
+                });
+                cart = [sorted[0]];
+                localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+            }
             
             if (cart.length === 0) {
                 emptyCart.classList.remove('hidden');
@@ -209,7 +266,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let totalCredits = 0;
             
             // Display cart items in same format as checkout
-            cartItemsList.innerHTML = cart.map((item, index) => {
+            // Only show first item if multiple exist (shouldn't happen, but safety check)
+            const itemsToShow = cart.slice(0, 1);
+            cartItemsList.innerHTML = itemsToShow.map((item, index) => {
                 const pack = packsMap[item.pack_id];
                 
                 if (!pack) {

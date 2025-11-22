@@ -434,23 +434,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             timestamp: new Date().toISOString()
                         };
                         
-                        // Get existing cart or create new array
-                        const existingCart = localStorage.getItem('diaszone_cart');
-                        let cart = [];
-                        if (existingCart) {
-                            try {
-                                cart = JSON.parse(existingCart);
-                                if (!Array.isArray(cart)) {
-                                    cart = [];
-                                }
-                            } catch (e) {
-                                cart = [];
-                            }
-                        }
-                        
-                        // Add the cart item
-                        cart.push(cartItem);
-                        localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+                        // Single item limit: replace entire cart with new item
+                        const newCart = [cartItem];
+                        localStorage.setItem('diaszone_cart', JSON.stringify(newCart));
                     }
                     
                     // Update "My Orders" button visibility
