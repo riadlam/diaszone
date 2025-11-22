@@ -7,6 +7,9 @@
     
     <title>@yield('title', 'DiasZone - Mobile Legends Top Up')</title>
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ asset('storage/images_homepage/favicon.png') }}">
+    
     <!-- Google Fonts - Cairo -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

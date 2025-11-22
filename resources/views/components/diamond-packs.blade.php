@@ -1,5 +1,5 @@
 <div class="space-y-4" id="diamond-packs-wrapper">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6 hidden lg:block">Diamond Packs</h2>
+    <h2 class="text-2xl font-bold text-gray-900 mb-6 hidden lg:block">{{ $gameTitle ?? 'Diamond Packs' }}</h2>
     
     <!-- Desktop: Grid Layout (hidden on mobile) -->
     <div class="hidden lg:block" id="desktop-grid-wrapper">
@@ -19,33 +19,117 @@
                 
                 <div class="SKU_type bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-500 transition-all">
                     <div class="flex items-start gap-4">
-                        <!-- Diamond Image -->
-                        <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-50 rounded-lg">
-                            @php
-                                $imageName = 'diaslow.webp';
-                                if ($pack->diamonds >= 2000) {
-                                    $imageName = 'diasbigbig.webp';
-                                } elseif ($pack->diamonds >= 500) {
-                                    $imageName = 'diaslarge.webp';
-                                } elseif ($pack->diamonds >= 100) {
-                                    $imageName = 'diasmid.webp';
-                                }
-                            @endphp
-                            <img src="{{ url('storage/images_homepage/' . $imageName) }}" 
-                                 alt="{{ $pack->diamonds }} Diamonds" 
-                                 class="w-full h-full object-contain"
-                                 style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
-                        </div>
+                        <!-- Image (empty space for PUBG Mobile, Honor of Kings, Blood Strike) -->
+                        @if(($gameType ?? 'mobilelegends') === 'pubgmobile' || ($gameType ?? 'mobilelegends') === 'bloodstrike')
+                            <!-- PUBG Mobile / Blood Strike: Empty space to maintain layout -->
+                            <div class="flex-shrink-0 w-12 h-12"></div>
+                        @elseif(($gameType ?? 'mobilelegends') === 'honorofkings')
+                            <!-- Honor of Kings: Images from honorofkings folder (empty for 0 token packs) -->
+                            @if($pack->diamonds == 0)
+                                <!-- Empty space for packs with 0 tokens -->
+                                <div class="flex-shrink-0 w-12 h-12"></div>
+                            @else
+                                <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-50 rounded-lg">
+                                    @php
+                                        // Honor of Kings image selection based on token quantity
+                                        // Available images: bigtoken.webp, laargetoken.webp, midtokne.webp, smalltoken.webp, weeklycard.webp, weeklycardplus.webp
+                                        if ($pack->price == 2.99 && $pack->diamonds <= 2) {
+                                            // Weekly Card Plus
+                                            $imageName = 'honorofkings/weeklycardplus.webp';
+                                        } elseif ($pack->price == 0.96 && $pack->diamonds <= 2) {
+                                            // Weekly Card
+                                            $imageName = 'honorofkings/weeklycard.webp';
+                                        } elseif ($pack->diamonds >= 4000) {
+                                            $imageName = 'honorofkings/bigtoken.webp';
+                                        } elseif ($pack->diamonds >= 1200) {
+                                            $imageName = 'honorofkings/laargetoken.webp';
+                                        } elseif ($pack->diamonds >= 400) {
+                                            $imageName = 'honorofkings/midtokne.webp';
+                                        } elseif ($pack->diamonds >= 16) {
+                                            $imageName = 'honorofkings/smalltoken.webp';
+                                        } else {
+                                            // Default for other special packs
+                                            $imageName = 'honorofkings/weeklycard.webp';
+                                        }
+                                    @endphp
+                                    <img src="{{ url('storage/images_homepage/' . $imageName) }}" 
+                                         alt="{{ $pack->diamonds }} Tokens" 
+                                         class="w-full h-full object-contain"
+                                         style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
+                                </div>
+                            @endif
+                        @else
+                            <!-- Other Games: Diamond Image -->
+                            <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-50 rounded-lg">
+                                @php
+                                    $gameType = $gameType ?? 'mobilelegends';
+                                    if ($gameType === 'freefire') {
+                                        // Free Fire diamond images
+                                        if ($pack->diamonds >= 5000) {
+                                            $imageName = 'freefirelaaargediamonds.webp';
+                                        } elseif ($pack->diamonds >= 2000) {
+                                            $imageName = 'bigfreefirediamonds.webp';
+                                        } elseif ($pack->diamonds >= 500) {
+                                            $imageName = 'diamondslargefreefire.webp';
+                                        } elseif ($pack->diamonds >= 100) {
+                                            $imageName = 'diamondsmidfreefire.webp';
+                                        } else {
+                                            $imageName = 'diamondssmallfreefire.webp';
+                                        }
+                                    } else {
+                                        // Mobile Legends (default)
+                                        $imageName = 'diaslow.webp';
+                                        if ($pack->diamonds >= 2000) {
+                                            $imageName = 'diasbigbig.webp';
+                                        } elseif ($pack->diamonds >= 500) {
+                                            $imageName = 'diaslarge.webp';
+                                        } elseif ($pack->diamonds >= 100) {
+                                            $imageName = 'diasmid.webp';
+                                        }
+                                    }
+                                @endphp
+                                <img src="{{ url('storage/images_homepage/' . $imageName) }}" 
+                                     alt="{{ $pack->diamonds }} Diamonds" 
+                                     class="w-full h-full object-contain"
+                                     style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
+                            </div>
+                        @endif
                         
                         <!-- Pack Info -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1">
-                                <h3 class="text-sm font-semibold text-gray-900">{{ $pack->diamonds }} Diamonds</h3>
+                                <h3 class="text-sm font-semibold text-gray-900">
+                                    @if(($gameType ?? 'mobilelegends') === 'honorofkings')
+                                        @if($pack->diamonds == 0)
+                                            @if($pack->price == 0.32 && $pack->sort_order == 130)
+                                                Double Token Lucky Bag
+                                            @elseif($pack->price == 0.32 && $pack->sort_order == 140)
+                                                Standard Purchase Rebate Pack
+                                            @elseif($pack->price == 0.32 && $pack->sort_order == 160)
+                                                Honor Point Value Pack
+                                            @elseif($pack->price == 1.18)
+                                                Premium Purchase Rebate Pack
+                                            @else
+                                                Special Pack
+                                            @endif
+                                        @elseif($pack->diamonds == 1 && $pack->price == 0.96)
+                                            Weekly Card
+                                        @elseif($pack->diamonds == 2 && $pack->price == 2.99)
+                                            Weekly Card Plus
+                                        @else
+                                            {{ $pack->diamonds }} Tokens
+                                        @endif
+                                    @else
+                                        {{ $pack->diamonds }} {{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}
+                                    @endif
+                                </h3>
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% OFF</span>
                                 @endif
                             </div>
-                            <p class="text-xs text-gray-600 mb-2">+ {{ $pack->bonus_diamonds }} Bonus Diamonds</p>
+                            @if($pack->bonus_diamonds > 0)
+                                <p class="text-xs text-gray-600 mb-2">+ {{ $pack->bonus_diamonds }} Bonus {{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}</p>
+                            @endif
                             <div class="flex items-center justify-between">
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs text-gray-400 line-through">US$ {{ number_format($pack->price, 2) }}</span>
@@ -286,8 +370,11 @@
                 const priceAfterDiscount = parseFloat(packPrice) - discountAmount;
                 
                 if (selectedPackText) {
+                    const gameType = '{{ $gameType ?? "mobilelegends" }}';
+                    const currencyText = gameType === 'pubgmobile' ? 'UC' : 'Diamonds';
+                    const bonusText = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} Bonus` : '';
                     selectedPackText.innerHTML = `
-                        <span class="block text-sm font-semibold">${parseInt(packDiamonds).toLocaleString()} Diamonds + ${parseInt(packBonus).toLocaleString()} Bonus</span>
+                        <span class="block text-sm font-semibold">${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusText}</span>
                         <span class="text-xs text-white/90 font-medium">US$ ${priceAfterDiscount.toFixed(2)}</span>
                     `;
                 }

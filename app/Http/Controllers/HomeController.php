@@ -9,12 +9,36 @@ class HomeController extends Controller
 {
     public function index()
     {
-        $packs = DiamondPack::where('is_active', true)
+        // New home page with game cards
+        return view('pages.new-home');
+    }
+
+    public function gameTopUp($gameType)
+    {
+        // Reusable game top-up page
+        $packs = DiamondPack::where('game_type', $gameType)
+            ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('price')
             ->get();
 
-        return view('pages.home', compact('packs'));
+        $gameTitles = [
+            'mobilelegends' => 'Mobile Legends',
+            'freefire' => 'Free Fire',
+            'pubgmobile' => 'PUBG Mobile',
+            'honorofkings' => 'Honor of Kings',
+            'bloodstrike' => 'Blood Strike',
+        ];
+
+        $gameTitle = $gameTitles[$gameType] ?? ucfirst($gameType);
+
+        return view('pages.game-topup', compact('packs', 'gameType', 'gameTitle'));
+    }
+
+    public function mobileLegends()
+    {
+        // Mobile Legends page (old home page) - redirect to new structure
+        return $this->gameTopUp('mobilelegends');
     }
 
     public function about()

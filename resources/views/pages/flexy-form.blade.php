@@ -12,26 +12,98 @@
 
         <!-- Order Summary Card -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Order Summary</h2>
-            <div class="space-y-3">
+            <button id="toggle-order-summary" class="flex justify-between items-center w-full text-lg font-semibold text-gray-800 mb-4 focus:outline-none">
+                <span>Order Summary</span>
+                <svg id="order-summary-chevron" class="w-5 h-5 text-gray-500 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </button>
+            <div id="order-summary-content" class="space-y-3 hidden">
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Order Number</span>
                     <span class="text-sm font-semibold text-gray-900">{{ $order->order_number }}</span>
                 </div>
+                
+                @php
+                    $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                    $currencyText = 'Diamonds';
+                    $gameName = 'Mobile Legends';
+                    
+                    if ($gameType === 'freefire') {
+                        $currencyText = 'Diamonds';
+                        $gameName = 'Free Fire';
+                    } elseif ($gameType === 'pubgmobile') {
+                        $currencyText = 'UC';
+                        $gameName = 'PUBG Mobile';
+                    } elseif ($gameType === 'honorofkings') {
+                        $currencyText = 'Tokens';
+                        $gameName = 'Honor of Kings';
+                    } elseif ($gameType === 'bloodstrike') {
+                        $currencyText = 'Golds';
+                        $gameName = 'Blood Strike';
+                    }
+                    
+                    // Determine pack display name
+                    $packDisplayName = '';
+                    if ($order->diamondPack->name) {
+                        $packDisplayName = $order->diamondPack->name;
+                    } else {
+                        $packDisplayName = $order->diamondPack->diamonds . ' ' . $currencyText;
+                    }
+                    
+                    // Bonus display
+                    $bonus = $order->diamondPack->bonus_diamonds ?? 0;
+                    $bonusText = $bonus > 0 ? ' + ' . $bonus . ' Bonus' : '';
+                    $packDisplayText = $packDisplayName . $bonusText;
+                @endphp
+                
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Diamonds</span>
+                    <span class="text-sm text-gray-600">Game</span>
+                    <span class="text-sm font-semibold text-gray-900">{{ $gameName }}</span>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">{{ $currencyText }}</span>
                     <span class="text-sm font-semibold text-purple-600">
-                        {{ $order->diamondPack->diamonds }} + {{ $order->diamondPack->bonus_diamonds }} Bonus
+                        {{ $packDisplayText }}
                     </span>
                 </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">User ID</span>
-                    <span class="text-sm font-mono text-gray-900">{{ $order->user_id_ml }}</span>
-                </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Zone ID</span>
-                    <span class="text-sm font-mono text-gray-900">{{ $order->zone_id_ml }}</span>
-                </div>
+                
+                @if($gameType === 'bloodstrike')
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">User ID</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->user_id_bs ?? 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Server</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->server_bs ?? 'Global' }}</span>
+                    </div>
+                @elseif($gameType === 'freefire')
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Player ID</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->player_id_ff ?? 'N/A' }}</span>
+                    </div>
+                @elseif($gameType === 'pubgmobile')
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Player ID</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->player_id_pubg ?? 'N/A' }}</span>
+                    </div>
+                @elseif($gameType === 'honorofkings')
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Player ID</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->player_id_hok ?? 'N/A' }}</span>
+                    </div>
+                @else
+                    {{-- Mobile Legends (default) --}}
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">User ID</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->user_id_ml ?? 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Zone ID</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->zone_id_ml ?? 'N/A' }}</span>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -130,10 +202,10 @@
             
             <!-- Change Payment Gateway Link -->
             <div class="border-t-2 border-purple-200 pt-4 text-center">
-                <a href="{{ route('home') }}" 
-                   class="text-sm text-purple-600 hover:text-purple-700 font-semibold underline">
+                <button id="change-payment-btn" 
+                        class="text-sm text-purple-600 hover:text-purple-700 font-semibold underline bg-transparent border-none cursor-pointer">
                     Change Payment Gateway
-                </a>
+                </button>
             </div>
         </div>
     </div>
@@ -143,6 +215,18 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Order Summary toggle functionality
+    const toggleButton = document.getElementById('toggle-order-summary');
+    const content = document.getElementById('order-summary-content');
+    const chevron = document.getElementById('order-summary-chevron');
+
+    if (toggleButton && content && chevron) {
+        toggleButton.addEventListener('click', function() {
+            content.classList.toggle('hidden');
+            chevron.classList.toggle('rotate-180');
+        });
+    }
+    
     // Image preview functionality
     const receiptInput = document.getElementById('receipt_image');
     const imagePreview = document.getElementById('image-preview');
@@ -192,6 +276,202 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('diaszone_cart');
         // Note: We keep diaszone_encrypted_order_id so user can view their order later
     @endif
+    
+    // Handle Change Payment Gateway button
+    const changePaymentBtn = document.getElementById('change-payment-btn');
+    if (changePaymentBtn) {
+        changePaymentBtn.addEventListener('click', async function() {
+            const encryptedOrderIdInput = document.querySelector('input[name="encrypted_order_id"]');
+            const encryptedOrderId = encryptedOrderIdInput ? encryptedOrderIdInput.value : null;
+            
+            if (!encryptedOrderId) {
+                window.location.href = '{{ route("select-payment") }}';
+                return;
+            }
+            
+            // Disable button to prevent double clicks
+            changePaymentBtn.disabled = true;
+            changePaymentBtn.textContent = 'Processing...';
+            
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                
+                // Delete the order via API
+                const response = await fetch('{{ route("api.orders.delete") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        encrypted_order_id: encryptedOrderId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Use the encrypted_order_id returned from backend (exact match)
+                    const orderIdToRemove = data.encrypted_order_id || encryptedOrderId;
+                    
+                    // Remove encrypted order ID from localStorage array
+                    const existingOrderIds = localStorage.getItem('diaszone_encrypted_order_ids');
+                    if (existingOrderIds) {
+                        try {
+                            let orderIdsArray = JSON.parse(existingOrderIds);
+                            if (!Array.isArray(orderIdsArray)) {
+                                orderIdsArray = [];
+                            }
+                            
+                            // Create all possible variations of the order ID to match
+                            // Include variations from backend response if available
+                            const backendVariations = data.encrypted_order_id_variations || {};
+                            const variations = [
+                                orderIdToRemove,
+                                encryptedOrderId,
+                                backendVariations.original,
+                                backendVariations.url_encoded,
+                                backendVariations.url_decoded,
+                                decodeURIComponent(orderIdToRemove),
+                                decodeURIComponent(encryptedOrderId),
+                                encodeURIComponent(orderIdToRemove),
+                                encodeURIComponent(encryptedOrderId)
+                            ].filter((v, i, arr) => v && v !== null && v !== undefined && arr.indexOf(v) === i); // Remove duplicates, nulls, and undefined
+                            
+                            // Remove the encrypted order ID from the array (try all variations)
+                            const originalLength = orderIdsArray.length;
+                            let removedCount = 0;
+                            const filteredArray = orderIdsArray.filter(id => {
+                                if (!id || typeof id !== 'string') return true; // Skip null/undefined/non-string
+                                
+                                const trimmedId = id.trim();
+                                
+                                // Try exact match with all variations
+                                for (const variation of variations) {
+                                    if (!variation || typeof variation !== 'string') continue;
+                                    const trimmedVariation = variation.trim();
+                                    
+                                    // Exact match
+                                    if (trimmedId === trimmedVariation) {
+                                        console.log('Matched (exact) and removing:', { id: trimmedId, variation: trimmedVariation });
+                                        removedCount++;
+                                        return false; // Remove this item
+                                    }
+                                    
+                                    // Try with URL decoding
+                                    try {
+                                        const decodedId = decodeURIComponent(trimmedId);
+                                        const decodedVariation = decodeURIComponent(trimmedVariation);
+                                        if (decodedId === trimmedVariation || trimmedId === decodedVariation || decodedId === decodedVariation) {
+                                            console.log('Matched (decoded) and removing:', { id: trimmedId, variation: trimmedVariation, decodedId, decodedVariation });
+                                            removedCount++;
+                                            return false; // Remove this item
+                                        }
+                                    } catch (e) {
+                                        // If decoding fails, continue
+                                    }
+                                    
+                                    // Try case-insensitive match (though encrypted IDs shouldn't have case issues)
+                                    if (trimmedId.toLowerCase() === trimmedVariation.toLowerCase()) {
+                                        console.log('Matched (case-insensitive) and removing:', { id: trimmedId, variation: trimmedVariation });
+                                        removedCount++;
+                                        return false; // Remove this item
+                                    }
+                                }
+                                return true; // Keep this item
+                            });
+                            
+                            // If no match found but we have order_id from backend, try one more time with all IDs
+                            if (removedCount === 0 && data.order_id && orderIdsArray.length > 0) {
+                                console.warn('No match found with variations, trying alternative approach...', {
+                                    orderIdToRemove,
+                                    variations,
+                                    allIds: orderIdsArray
+                                });
+                            }
+                            
+                            // Log for debugging
+                            console.log('Removing order ID from localStorage', {
+                                orderIdToRemove: orderIdToRemove,
+                                originalInput: encryptedOrderId,
+                                variations: variations,
+                                arrayBefore: orderIdsArray,
+                                arrayAfter: filteredArray,
+                                removed: removedCount,
+                                originalLength: originalLength,
+                                finalLength: filteredArray.length
+                            });
+                            
+                            if (filteredArray.length > 0) {
+                                localStorage.setItem('diaszone_encrypted_order_ids', JSON.stringify(filteredArray));
+                            } else {
+                                // If array is empty, remove the key entirely
+                                localStorage.removeItem('diaszone_encrypted_order_ids');
+                            }
+                            
+                            // Update "My Orders" button visibility
+                            if (window.updateMyOrdersButton) {
+                                window.updateMyOrdersButton();
+                            }
+                        } catch (e) {
+                            console.error('Error parsing order IDs:', e);
+                        }
+                    }
+                    
+                    // Restore order to cart before redirecting
+                    if (data.cart_item) {
+                        const cartItem = {
+                            id: Date.now().toString(),
+                            pack_id: data.cart_item.pack_id,
+                            user_id: data.cart_item.user_id || null,
+                            zone_id: data.cart_item.zone_id || null,
+                            player_id_ff: data.cart_item.player_id_ff || null,
+                            player_id_pubg: data.cart_item.player_id_pubg || null,
+                            player_id_hok: data.cart_item.player_id_hok || null,
+                            user_id_bs: data.cart_item.user_id_bs || null,
+                            server_bs: data.cart_item.server_bs || null,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Get existing cart or create new array
+                        const existingCart = localStorage.getItem('diaszone_cart');
+                        let cart = [];
+                        if (existingCart) {
+                            try {
+                                cart = JSON.parse(existingCart);
+                                if (!Array.isArray(cart)) {
+                                    cart = [];
+                                }
+                            } catch (e) {
+                                cart = [];
+                            }
+                        }
+                        
+                        // Add the cart item
+                        cart.push(cartItem);
+                        localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+                    }
+                    
+                    // Update "My Orders" button visibility
+                    if (window.updateMyOrdersButton) {
+                        window.updateMyOrdersButton();
+                    }
+                    
+                    // Redirect to select payment page
+                    window.location.href = '{{ route("select-payment") }}';
+                } else {
+                    // If deletion fails, still redirect (order might not exist)
+                    console.error('Failed to delete order:', data.message);
+                    window.location.href = '{{ route("select-payment") }}';
+                }
+            } catch (error) {
+                console.error('Error deleting order:', error);
+                // Still redirect even if there's an error
+                window.location.href = '{{ route("select-payment") }}';
+            }
+        });
+    }
     
     // Copy phone number to clipboard
     window.copyPhoneNumber = function() {

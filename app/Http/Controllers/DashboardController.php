@@ -9,10 +9,10 @@ class DashboardController extends Controller
 {
     private function getDashboardData()
     {
-        // Get authenticated user data (should always exist since route is protected by auth middleware)
+        // Get authenticated user data (may be null for public routes)
         $authUser = Auth::user();
         
-        // Use real user data
+        // Use real user data if authenticated, otherwise empty
         $user = [
             'email' => $authUser ? ($authUser->email ?? '') : '',
             'phone' => $authUser && isset($authUser->phone) ? $authUser->phone : '', // Phone may not exist in users table
@@ -93,139 +93,11 @@ class DashboardController extends Controller
             ],
         ];
 
-        // Dummy invoices data
-        $invoices = [
-            [
-                'id' => 'INV-001',
-                'invoice_number' => 'INV-2025-001',
-                'order_id' => 'ORD-001',
-                'amount' => 0.92,
-                'status' => 'paid',
-                'issue_date' => '2025-01-15',
-                'due_date' => '2025-01-22',
-                'payment_method' => 'Credit Card',
-            ],
-            [
-                'id' => 'INV-002',
-                'invoice_number' => 'INV-2025-002',
-                'order_id' => 'ORD-002',
-                'amount' => 1.84,
-                'status' => 'pending',
-                'issue_date' => '2025-01-16',
-                'due_date' => '2025-01-23',
-                'payment_method' => 'PayPal',
-            ],
-            [
-                'id' => 'INV-003',
-                'invoice_number' => 'INV-2025-003',
-                'order_id' => 'ORD-003',
-                'amount' => 2.76,
-                'status' => 'paid',
-                'issue_date' => '2025-01-17',
-                'due_date' => '2025-01-24',
-                'payment_method' => 'Cryptocurrency',
-            ],
-            [
-                'id' => 'INV-004',
-                'invoice_number' => 'INV-2025-004',
-                'order_id' => 'ORD-004',
-                'amount' => 3.68,
-                'status' => 'paid',
-                'issue_date' => '2025-01-18',
-                'due_date' => '2025-01-25',
-                'payment_method' => 'Credit Card',
-            ],
-            [
-                'id' => 'INV-005',
-                'invoice_number' => 'INV-2025-005',
-                'order_id' => 'ORD-005',
-                'amount' => 4.60,
-                'status' => 'overdue',
-                'issue_date' => '2025-01-19',
-                'due_date' => '2025-01-26',
-                'payment_method' => 'Bank Transfer',
-            ],
-            [
-                'id' => 'INV-006',
-                'invoice_number' => 'INV-2025-006',
-                'order_id' => 'ORD-006',
-                'amount' => 5.52,
-                'status' => 'pending',
-                'issue_date' => '2025-01-20',
-                'due_date' => '2025-01-27',
-                'payment_method' => 'PayPal',
-            ],
-            [
-                'id' => 'INV-007',
-                'invoice_number' => 'INV-2025-007',
-                'order_id' => 'ORD-007',
-                'amount' => 18.40,
-                'status' => 'paid',
-                'issue_date' => '2025-01-21',
-                'due_date' => '2025-01-28',
-                'payment_method' => 'Credit Card',
-            ],
-        ];
+        // Empty invoices data - no invoices found
+        $invoices = [];
 
-        // Dummy notifications data
-        $notifications = [
-            [
-                'id' => 'NOTIF-001',
-                'type' => 'error',
-                'title' => 'Bank Transfer Issue',
-                'message' => 'The bank transfer information you provided is incorrect. Please update your payment details or contact support for assistance.',
-                'date' => '2025-01-21 14:30:00',
-                'read' => false,
-            ],
-            [
-                'id' => 'NOTIF-002',
-                'type' => 'warning',
-                'title' => 'Payment Required',
-                'message' => 'Your order ORD-002 is pending payment. Please complete the payment within 24 hours to avoid cancellation.',
-                'date' => '2025-01-20 10:15:00',
-                'read' => false,
-            ],
-            [
-                'id' => 'NOTIF-003',
-                'type' => 'info',
-                'title' => 'Order Status Update',
-                'message' => 'Your order ORD-003 is now being processed and will be delivered shortly. You will receive a confirmation email once completed.',
-                'date' => '2025-01-19 16:45:00',
-                'read' => true,
-            ],
-            [
-                'id' => 'NOTIF-004',
-                'type' => 'warning',
-                'title' => 'Action Required',
-                'message' => 'Please verify your account email address. Click the verification link sent to your email to continue using all features.',
-                'date' => '2025-01-18 09:20:00',
-                'read' => true,
-            ],
-            [
-                'id' => 'NOTIF-005',
-                'type' => 'error',
-                'title' => 'Payment Failed',
-                'message' => 'Your payment for order ORD-005 has failed. Please check your payment method and try again, or contact your bank for more information.',
-                'date' => '2025-01-17 11:30:00',
-                'read' => false,
-            ],
-            [
-                'id' => 'NOTIF-006',
-                'type' => 'success',
-                'title' => 'Order Completed',
-                'message' => 'Your order ORD-001 has been successfully completed. The diamonds have been added to your account. Thank you for your purchase!',
-                'date' => '2025-01-16 13:15:00',
-                'read' => true,
-            ],
-            [
-                'id' => 'NOTIF-007',
-                'type' => 'info',
-                'title' => 'Invoice Available',
-                'message' => 'Your invoice INV-2025-007 is now available for download. You can access it from the My Invoices section.',
-                'date' => '2025-01-15 08:00:00',
-                'read' => true,
-            ],
-        ];
+        // Empty notifications data - no notifications found
+        $notifications = [];
 
         return [
             'user' => $user,
@@ -237,8 +109,8 @@ class DashboardController extends Controller
 
     public function index()
     {
-        // Redirect to myaccount by default
-        return redirect()->route('dashboard.myaccount');
+        // Redirect to orders by default (public access)
+        return redirect()->route('dashboard.orders');
     }
 
     public function myAccount()

@@ -234,17 +234,145 @@ document.addEventListener('DOMContentLoaded', () => {
                 totalAmount += itemTotal;
                 totalCredits += Math.round(itemTotal * 416);
                 
+                // Determine game type and currency
+                const gameType = pack.game_type || 'mobilelegends';
+                let currencyText = 'Diamonds';
+                let gameName = 'Mobile Legends';
+                let gameTitle = 'Mobile Legends Diamonds';
+                
+                if (gameType === 'freefire') {
+                    currencyText = 'Diamonds';
+                    gameName = 'Free Fire';
+                    gameTitle = 'Free Fire Diamonds';
+                } else if (gameType === 'pubgmobile') {
+                    currencyText = 'UC';
+                    gameName = 'PUBG Mobile';
+                    gameTitle = 'PUBG Mobile UC';
+                } else if (gameType === 'honorofkings') {
+                    currencyText = 'Tokens';
+                    gameName = 'Honor of Kings';
+                    gameTitle = 'Honor of Kings Tokens';
+                } else if (gameType === 'bloodstrike') {
+                    currencyText = 'Golds';
+                    gameName = 'Blood Strike';
+                    gameTitle = 'Blood Strike Golds';
+                }
+                
+                // Determine pack display name
+                let packDisplayName = '';
+                if (pack.name) {
+                    packDisplayName = pack.name;
+                } else {
+                    packDisplayName = `${pack.diamonds} ${currencyText}`;
+                }
+                
                 // Determine image
                 let imageName = 'diaslow.webp';
-                if (pack.diamonds >= 2000) {
-                    imageName = 'diasbigbig.webp';
-                } else if (pack.diamonds >= 500) {
-                    imageName = 'diaslarge.webp';
-                } else if (pack.diamonds >= 100) {
-                    imageName = 'diasmid.webp';
+                let imageUrl = '';
+                let showImage = true;
+                
+                if (gameType === 'freefire') {
+                    imageName = 'diamondslargefreefire.webp';
+                } else if (gameType === 'pubgmobile') {
+                    // No image for PUBG Mobile
+                    showImage = false;
+                    imageUrl = '';
+                } else if (gameType === 'honorofkings' && pack.diamonds === 0) {
+                    // No image for 0-token Honor of Kings packs
+                    showImage = false;
+                    imageUrl = '';
+                } else if (gameType === 'honorofkings') {
+                    // Honor of Kings specific images
+                    if (pack.price === 0.96) {
+                        imageName = 'weeklycard.webp';
+                    } else if (pack.price === 2.99) {
+                        imageName = 'weeklycardplus.webp';
+                    } else if (pack.diamonds >= 800) {
+                        imageName = 'diasbigbig.webp';
+                    } else if (pack.diamonds >= 400) {
+                        imageName = 'diaslarge.webp';
+                    } else if (pack.diamonds >= 80) {
+                        imageName = 'diasmid.webp';
+                    } else {
+                        imageName = 'diaslow.webp';
+                    }
+                } else if (gameType === 'bloodstrike') {
+                    // Blood Strike - no specific images, use default logic or no image
+                    showImage = false;
+                    imageUrl = '';
+                } else {
+                    // Mobile Legends default logic
+                    if (pack.diamonds >= 2000) {
+                        imageName = 'diasbigbig.webp';
+                    } else if (pack.diamonds >= 500) {
+                        imageName = 'diaslarge.webp';
+                    } else if (pack.diamonds >= 100) {
+                        imageName = 'diasmid.webp';
+                    }
                 }
-                const baseUrl = window.location.origin;
-                const imageUrl = baseUrl + '/storage/images_homepage/' + imageName;
+                
+                if (showImage && !imageUrl) {
+                    const baseUrl = window.location.origin;
+                    imageUrl = baseUrl + '/storage/images_homepage/' + imageName;
+                }
+                
+                // Determine order information fields based on game type
+                let orderInfoHTML = '';
+                if (gameType === 'bloodstrike') {
+                    // Blood Strike: User ID and Server
+                    const userIdBs = item.user_id_bs || '';
+                    const serverBs = item.server_bs || 'Global';
+                    orderInfoHTML = `
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1.5">User ID</label>
+                                <div class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 text-gray-700 font-mono text-xs">
+                                    ${userIdBs || 'N/A'}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1.5">Server</label>
+                                <div class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 text-gray-700 font-mono text-xs">
+                                    ${serverBs}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                    // Free Fire / PUBG Mobile / Honor of Kings: Player ID
+                    const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || '';
+                    orderInfoHTML = `
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1.5">Player ID</label>
+                            <div class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 text-gray-700 font-mono text-xs">
+                                ${playerId || 'N/A'}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Mobile Legends: User ID and Zone ID
+                    orderInfoHTML = `
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1.5">User ID</label>
+                                <div class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 text-gray-700 font-mono text-xs">
+                                    ${item.user_id || 'N/A'}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1.5">Zone ID</label>
+                                <div class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 text-gray-700 font-mono text-xs">
+                                    ${item.zone_id || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Bonus display
+                const bonus = pack.bonus || pack.bonus_diamonds || 0;
+                const bonusText = bonus > 0 ? ` + ${bonus} Bonus ${currencyText}` : '';
+                const packDisplayText = packDisplayName + bonusText;
                 
                 return `
                 <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
@@ -253,16 +381,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <!-- Row 1: Product with Image -->
                     <div class="flex items-start gap-4 pb-5 border-b border-gray-100 mb-5">
                         <div class="flex-shrink-0" style="width: 56px; height: 56px; min-width: 56px; min-height: 56px; display: flex !important; align-items: center; justify-content: center; background-color: #f9fafb; border-radius: 10px;">
-                            <img src="${imageUrl}" 
-                                 alt="${pack.diamonds} Diamonds" 
-                                 style="width: 100% !important; height: 100% !important; max-width: 56px !important; max-height: 56px !important; object-fit: contain !important; display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1 !important;"
-                                 loading="lazy"
-                                 decoding="async">
+                            ${showImage && imageUrl ? `
+                                <img src="${imageUrl}" 
+                                     alt="${packDisplayName}" 
+                                     style="width: 100% !important; height: 100% !important; max-width: 56px !important; max-height: 56px !important; object-fit: contain !important; display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1 !important;"
+                                     loading="lazy"
+                                     decoding="async">
+                            ` : `
+                                <div style="width: 100%; height: 100%; background-color: #f9fafb;"></div>
+                            `}
                         </div>
                         <div class="flex-1 min-w-0">
-                            <h3 class="text-base font-medium text-gray-800 mb-1">Mobile Legends Diamonds</h3>
-                            <p class="text-sm text-gray-600 mb-0.5">Mobile Legends Diamonds <span class="text-purple-600 font-medium">${pack.diamonds} Diamonds + ${pack.bonus} Bonus</span></p>
-                            <p class="text-xs text-gray-500"><span class="text-purple-600">${pack.diamonds} Diamonds + ${pack.bonus} Bonus</span></p>
+                            <h3 class="text-base font-medium text-gray-800 mb-1">${gameTitle}</h3>
+                            <p class="text-sm text-gray-600 mb-0.5">${gameName} <span class="text-purple-600 font-medium">${packDisplayText}</span></p>
+                            <p class="text-xs text-gray-500"><span class="text-purple-600">${packDisplayText}</span></p>
                         </div>
                         <button onclick="removeCartItem('${item.id}')" 
                                 class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
@@ -284,21 +416,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                     
-                    <!-- Row 3: User ID and Zone ID -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1.5">User ID</label>
-                            <div class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 text-gray-700 font-mono text-xs">
-                                ${item.user_id}
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1.5">Zone ID</label>
-                            <div class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 text-gray-700 font-mono text-xs">
-                                ${item.zone_id}
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Row 3: Order Information (Dynamic based on game type) -->
+                    ${orderInfoHTML}
                 </div>
                 `;
             }).join('');
@@ -353,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle "Pay Now" button click - redirect to payment selection
         const proceedCheckoutBtn = document.getElementById('proceed-checkout-btn');
         if (proceedCheckoutBtn) {
-            proceedCheckoutBtn.addEventListener('click', (e) => {
+            proceedCheckoutBtn.addEventListener('click', async (e) => {
                 // Validate cart before redirecting
                 const cart = CartManager.getCart();
                 if (cart.length === 0) {
@@ -363,12 +482,51 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                // Validate each item has required fields
+                // Validate each item has required fields based on game type
+                const packIds = cart.map(item => item.pack_id).filter(Boolean);
+                const packs = await CartManager.fetchPacks(packIds);
+                const packsMap = {};
+                packs.forEach(pack => {
+                    packsMap[pack.id] = pack;
+                });
+                
                 for (const item of cart) {
-                    if (!item.pack_id || !item.user_id || !item.zone_id) {
+                    if (!item.pack_id) {
                         e.preventDefault();
-                        alert('Some cart items are missing required information. Please check your cart.');
+                        alert('Some cart items are missing pack information. Please check your cart.');
                         return;
+                    }
+                    
+                    const pack = packsMap[item.pack_id];
+                    if (!pack) {
+                        e.preventDefault();
+                        alert('Some cart items have invalid pack information. Please check your cart.');
+                        return;
+                    }
+                    
+                    const gameType = pack.game_type || 'mobilelegends';
+                    
+                    // Validate based on game type
+                    if (gameType === 'bloodstrike') {
+                        if (!item.user_id_bs || !item.server_bs) {
+                            e.preventDefault();
+                            alert('Some cart items are missing required information (User ID or Server). Please check your cart.');
+                            return;
+                        }
+                    } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok;
+                        if (!playerId) {
+                            e.preventDefault();
+                            alert('Some cart items are missing required information (Player ID). Please check your cart.');
+                            return;
+                        }
+                    } else {
+                        // Mobile Legends
+                        if (!item.user_id || !item.zone_id) {
+                            e.preventDefault();
+                            alert('Some cart items are missing required information (User ID or Zone ID). Please check your cart.');
+                            return;
+                        }
                     }
                 }
                 

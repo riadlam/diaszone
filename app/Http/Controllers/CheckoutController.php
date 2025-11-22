@@ -6,6 +6,10 @@ use App\Models\DiamondPack;
 use App\Models\Order;
 use App\Models\Flexy;
 use App\Services\NowPaymentsService;
+use App\Services\MixPayService;
+use App\Services\ChargilyPayV2Service;
+use TheHocineSaad\LaravelChargilyEPay\Models\Epay_Invoice;
+use TheHocineSaad\LaravelChargilyEPay\Epay_Webhook;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -41,6 +45,9 @@ class CheckoutController extends Controller
                     'bonus' => $pack->bonus_diamonds,
                     'price' => (float) $pack->price,
                     'discount' => (float) $pack->discount_percentage,
+                    'game_type' => $pack->game_type ?? 'mobilelegends',
+                    'name' => $pack->name ?? null,
+                    'sort_order' => $pack->sort_order ?? 0,
                 ];
             })
             ->keyBy('id');
@@ -141,46 +148,149 @@ class CheckoutController extends Controller
      */
     public function createOrder(Request $request)
     {
-        $request->validate([
-            'cart_items' => 'required|array|min:1',
-            'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
-            'cart_items.*.user_id' => 'required|string',
-            'cart_items.*.zone_id' => 'required|string',
-        ]);
-        
-        $cartItems = $request->input('cart_items');
-        $userId = Auth::check() ? Auth::id() : null;
-        $createdOrders = [];
-        
-        foreach ($cartItems as $item) {
-            $order = Order::create([
-                'order_number' => Order::generateOrderNumber(),
-                'user_id' => $userId,
-                'diamond_pack_id' => $item['pack_id'],
-                'status' => 'pending',
-                'user_id_ml' => $item['user_id'],
-                'zone_id_ml' => $item['zone_id'],
+        try {
+            $request->validate([
+                'cart_items' => 'required|array|min:1',
+                'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
+                'cart_items.*.user_id' => 'nullable|string',
+                'cart_items.*.zone_id' => 'nullable|string',
+                'cart_items.*.player_id' => 'nullable|string',
+                'cart_items.*.player_id_ff' => 'nullable|string',
+                'cart_items.*.player_id_pubg' => 'nullable|string',
+                'cart_items.*.player_id_hok' => 'nullable|string',
+                'cart_items.*.user_id_bs' => 'nullable|string',
+                'cart_items.*.server_bs' => 'nullable|string',
+                'cart_items.*.server' => 'nullable|string',
+                'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency',
             ]);
             
-            $createdOrders[] = [
-                'id' => $order->id,
-                'order_number' => $order->order_number,
-            ];
+            $cartItems = $request->input('cart_items');
+            $paymentMethod = $request->input('payment_method'); // flexy, bmccp, or cryptocurrency
+            $userId = Auth::check() ? Auth::id() : null;
+            $createdOrders = [];
+            
+            // Determine status based on payment method
+            $orderStatus = 'pending'; // Default
+            if ($paymentMethod === 'flexy') {
+                $orderStatus = 'pending_flexy';
+            } elseif ($paymentMethod === 'bmccp') {
+                $orderStatus = 'pending_bmccp';
+            } elseif ($paymentMethod === 'cryptocurrency') {
+                $orderStatus = 'pending_cryptopay';
+            }
+            
+            foreach ($cartItems as $item) {
+                // Determine which player_id field to use based on game type
+                $pack = \App\Models\DiamondPack::find($item['pack_id']);
+                
+                if (!$pack) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Pack not found'
+                    ], 404);
+                }
+                
+                $playerIdFf = null;
+                $playerIdPubg = null;
+                $playerIdHok = null;
+                $userIdBs = null;
+                $serverBs = null;
+                
+                // Validate that required fields are provided based on game type
+                if ($pack->game_type === 'freefire') {
+                    $playerIdFf = $item['player_id_ff'] ?? $item['player_id'] ?? null;
+                    if (empty($playerIdFf)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Player ID is required for Free Fire'
+                        ], 422);
+                    }
+                } elseif ($pack->game_type === 'pubgmobile') {
+                    $playerIdPubg = $item['player_id_pubg'] ?? $item['player_id'] ?? null;
+                    if (empty($playerIdPubg)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Player ID is required for PUBG Mobile'
+                        ], 422);
+                    }
+                } elseif ($pack->game_type === 'honorofkings') {
+                    $playerIdHok = $item['player_id_hok'] ?? $item['player_id'] ?? null;
+                    if (empty($playerIdHok)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Player ID is required for Honor of Kings'
+                        ], 422);
+                    }
+                } elseif ($pack->game_type === 'bloodstrike') {
+                    $userIdBs = $item['user_id_bs'] ?? $item['user_id'] ?? null;
+                    $serverBs = $item['server_bs'] ?? $item['server'] ?? null;
+                    if (empty($userIdBs) || empty($serverBs)) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'User ID and Server are required for Blood Strike'
+                        ], 422);
+                    }
+                } else {
+                    // Mobile Legends - default
+                    if (empty($item['user_id']) || empty($item['zone_id'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'User ID and Zone ID are required for Mobile Legends'
+                        ], 422);
+                    }
+                }
+                
+                $order = Order::create([
+                    'order_number' => Order::generateOrderNumber(),
+                    'user_id' => $userId,
+                    'diamond_pack_id' => $item['pack_id'],
+                    'status' => $orderStatus, // Set status based on payment method
+                    'user_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['user_id'] ?? null) : null,
+                    'zone_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['zone_id'] ?? null) : null,
+                    'player_id_ff' => $playerIdFf,
+                    'player_id_pubg' => $playerIdPubg,
+                    'player_id_hok' => $playerIdHok,
+                    'user_id_bs' => $userIdBs,
+                    'server_bs' => $serverBs,
+                ]);
+                
+                $createdOrders[] = [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                ];
+            }
+        
+            // Encrypt order IDs before returning
+            $encryptedOrders = array_map(function($order) {
+                return [
+                    'id' => $order['id'],
+                    'order_number' => $order['order_number'],
+                    'encrypted_id' => Crypt::encryptString($order['id']),
+                ];
+            }, $createdOrders);
+            
+            return response()->json([
+                'success' => true,
+                'orders' => $encryptedOrders,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Order creation error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create order: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getTraceAsString() : 'Internal server error',
+            ], 500);
         }
-        
-        // Encrypt order IDs before returning
-        $encryptedOrders = array_map(function($order) {
-            return [
-                'id' => $order['id'],
-                'order_number' => $order['order_number'],
-                'encrypted_id' => Crypt::encryptString($order['id']),
-            ];
-        }, $createdOrders);
-        
-        return response()->json([
-            'success' => true,
-            'orders' => $encryptedOrders,
-        ]);
     }
     
     /**
@@ -210,6 +320,11 @@ class CheckoutController extends Controller
                 'flexy_id' => $order->flexy_id, // Include flexy_id to check if payment receipt is uploaded
                 'user_id_ml' => $order->user_id_ml,
                 'zone_id_ml' => $order->zone_id_ml,
+                'player_id_ff' => $order->player_id_ff,
+                'player_id_pubg' => $order->player_id_pubg,
+                'player_id_hok' => $order->player_id_hok,
+                'user_id_bs' => $order->user_id_bs,
+                'server_bs' => $order->server_bs,
                 'notes' => $order->notes,
                 'created_at' => $order->created_at->format('Y-m-d H:i:s'),
                 'updated_at' => $order->updated_at->format('Y-m-d H:i:s'),
@@ -219,6 +334,8 @@ class CheckoutController extends Controller
                     'bonus_diamonds' => $order->diamondPack->bonus_diamonds,
                     'price' => (float) $order->diamondPack->price,
                     'discount_percentage' => (float) $order->diamondPack->discount_percentage,
+                    'game_type' => $order->diamondPack->game_type ?? 'mobilelegends',
+                    'name' => $order->diamondPack->name ?? null,
                 ],
             ];
             
@@ -271,6 +388,340 @@ class CheckoutController extends Controller
     }
     
     /**
+     * Show Baridimob form page
+     */
+    public function baridimobForm($encryptedOrderId)
+    {
+        if (!$encryptedOrderId) {
+            return redirect()->route('select-payment')->with('error', 'Order ID is required');
+        }
+        
+        try {
+            // Decrypt the order ID
+            $orderId = Crypt::decryptString($encryptedOrderId);
+        } catch (\Exception $e) {
+            return redirect()->route('select-payment')->with('error', 'Invalid order ID');
+        }
+        
+        $order = Order::with('diamondPack')->find($orderId);
+        
+        if (!$order) {
+            return redirect()->route('select-payment')->with('error', 'Order not found');
+        }
+        
+        return view('pages.baridimob-form', [
+            'order' => $order,
+            'encrypted_order_id' => $encryptedOrderId,
+        ]);
+    }
+    
+    /**
+     * Handle Baridimob payment (Chargily Pay)
+     */
+    public function processBaridimobPayment(Request $request)
+    {
+        $request->validate([
+            'encrypted_order_id' => 'required|string',
+        ]);
+        
+        try {
+            $orderId = Crypt::decryptString($request->encrypted_order_id);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid order ID'
+            ], 400);
+        }
+        
+        $order = Order::with('diamondPack')->find($orderId);
+        
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found'
+            ], 404);
+        }
+        
+        // Initialize Chargily Pay v2 service
+        $chargilyService = new ChargilyPayV2Service();
+        
+        if (!$chargilyService->hasCredentials()) {
+            // Check what's actually in the environment
+            $v2Secret = env('CHARGILY_PAY_V2_SECRET');
+            $epaySecret = env('CHARGILY_EPAY_SECRET');
+            
+            Log::error('Chargily Pay v2 credentials not found', [
+                'CHARGILY_PAY_V2_SECRET_exists' => !empty($v2Secret),
+                'CHARGILY_EPAY_SECRET_exists' => !empty($epaySecret),
+                'v2_secret_length' => $v2Secret ? strlen($v2Secret) : 0,
+                'epay_secret_length' => $epaySecret ? strlen($epaySecret) : 0,
+                'v2_secret_preview' => $v2Secret ? (substr($v2Secret, 0, 10) . '...') : 'NOT SET',
+                'epay_secret_preview' => $epaySecret ? (substr($epaySecret, 0, 10) . '...') : 'NOT SET',
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Baridimob payment is not configured. Please check your .env file and ensure CHARGILY_PAY_V2_SECRET (or CHARGILY_EPAY_SECRET) is set. After updating .env, run: php artisan config:clear'
+            ], 500);
+        }
+        
+        try {
+            // DEBUG: Use fixed amount for testing
+            $amount = 500.00; // Fixed 500 DZD for debugging
+            // $amount = (float) $order->diamondPack->price; // Original amount
+            
+            // Minimum amount is 75 DZD
+            if ($amount < 75) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Minimum payment amount is 75 DZD'
+                ], 400);
+            }
+            
+            // Get client info (use order data or default)
+            $clientName = 'Customer';
+            $clientEmail = 'customer@example.com';
+            
+            if (Auth::check()) {
+                $user = Auth::user();
+                $clientName = $user->name ?? 'Customer';
+                $clientEmail = $user->email ?? 'customer@example.com';
+            }
+            
+            // Determine game type for description
+            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            $gameName = 'Mobile Legends';
+            $currencyText = 'Diamonds';
+            
+            if ($gameType === 'freefire') {
+                $gameName = 'Free Fire';
+                $currencyText = 'Diamonds';
+            } elseif ($gameType === 'pubgmobile') {
+                $gameName = 'PUBG Mobile';
+                $currencyText = 'UC';
+            } elseif ($gameType === 'honorofkings') {
+                $gameName = 'Honor of Kings';
+                $currencyText = 'Tokens';
+            } elseif ($gameType === 'bloodstrike') {
+                $gameName = 'Blood Strike';
+                $currencyText = 'Golds';
+            }
+            
+            $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
+            $description = "DiasZone - {$gameName} - {$packName}";
+            
+            // Create invoice in bmccp table first
+            $bmccp = \App\Models\Bmccp::create([
+                'diamond_pack_id' => $order->diamond_pack_id,
+                'status' => 'pending',
+                'notes' => $description,
+            ]);
+            
+            // Update order with bmccp_id and status before creating checkout
+            $order->bmccp_id = $bmccp->id;
+            $order->status = 'pending_bmccp';
+            $order->save();
+            
+            // Prepare checkout data for Chargily Pay v2
+            $checkoutData = [
+                'amount' => (int) round($amount * 100), // Amount in centimes (DZD * 100)
+                'currency' => 'dzd',
+                'payment_method' => 'edahabia', // Baridimob uses EDAHABIA
+                'success_url' => route('baridimob-form', ['encrypted_order_id' => $request->encrypted_order_id]) . '?success=1',
+                'failure_url' => route('baridimob-form', ['encrypted_order_id' => $request->encrypted_order_id]) . '?failed=1',
+                'description' => $description,
+                'locale' => 'en', // ar, en, or fr
+            ];
+            
+            // Add webhook endpoint if not on localhost
+            $isLocalhost = in_array(config('app.env'), ['local', 'testing']) || 
+                          str_contains(request()->getHost(), 'localhost') ||
+                          str_contains(request()->getHost(), '127.0.0.1');
+            
+            if (!$isLocalhost) {
+                $checkoutData['webhook_endpoint'] = route('baridimob.webhook');
+            }
+            
+            // Log configuration for debugging
+            $apiSecret = env('CHARGILY_PAY_V2_SECRET') ?? env('CHARGILY_EPAY_SECRET');
+            Log::info('Creating Chargily Pay v2 checkout', [
+                'secret_exists' => !empty($apiSecret),
+                'secret_length' => $apiSecret ? strlen($apiSecret) : 0,
+                'amount' => $amount,
+                'amount_centimes' => (int) round($amount * 100),
+                'payment_method' => 'edahabia',
+                'checkout_data' => $checkoutData,
+            ]);
+            
+            // Create checkout using Chargily Pay v2 API
+            $checkoutResponse = $chargilyService->createCheckout($checkoutData);
+            
+            if (!$checkoutResponse['success']) {
+                Log::error('Chargily Pay v2 checkout creation failed', [
+                    'error' => $checkoutResponse['error'] ?? 'Unknown error',
+                    'response_data' => $checkoutResponse['response_data'] ?? [],
+                    'http_status' => $checkoutResponse['http_status'] ?? null,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create payment: ' . ($checkoutResponse['error'] ?? 'Unknown error')
+                ], 500);
+            }
+            
+            // Store checkout ID in bmccp record
+            $checkoutId = $checkoutResponse['checkout_id'] ?? null;
+            if ($checkoutId) {
+                $bmccp->invoice_number = $checkoutId; // Store checkout ID as invoice_number for reference
+                $bmccp->save();
+            }
+            
+            $checkoutUrl = $checkoutResponse['checkout_url'] ?? null;
+            
+            // If checkout URL is valid, return it
+            if ($checkoutUrl && filter_var($checkoutUrl, FILTER_VALIDATE_URL)) {
+                return response()->json([
+                    'success' => true,
+                    'checkout_url' => $checkoutUrl,
+                ]);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create payment. Please try again.'
+            ], 500);
+            
+        } catch (\Exception $e) {
+            $errorMessage = $e->getMessage();
+            $is401Error = str_contains($errorMessage, '401') || str_contains($errorMessage, 'Unauthorized');
+            $configKey = config('laravel-chargily-epay.key');
+            $isTestKey = $configKey && str_starts_with($configKey, 'test_');
+            
+            \Log::error('Baridimob payment error: ' . $errorMessage, [
+                'trace' => $e->getTraceAsString(),
+                'order_id' => $orderId,
+                'is_401_error' => $is401Error,
+                'is_test_key' => $isTestKey,
+            ]);
+            
+            // Provide helpful error message for 401 errors
+            if ($is401Error) {
+                $userMessage = 'Payment authentication failed. ';
+                if ($isTestKey) {
+                    $userMessage .= 'Test API keys may not work for API calls. Please verify you are using production credentials from your Chargily dashboard at https://epay.chargily.com.dz';
+                } else {
+                    $userMessage .= 'Please verify your Chargily API credentials are correct and active in your dashboard.';
+                }
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => $userMessage,
+                    'error_details' => '401 Unauthorized - Invalid API credentials'
+                ], 401);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment processing failed: ' . $errorMessage
+            ], 500);
+        }
+    }
+    
+    /**
+     * Handle Baridimob webhook from Chargily Pay v2
+     */
+    public function baridimobWebhook(Request $request)
+    {
+        try {
+            // Log incoming webhook for debugging
+            Log::info('Chargily Pay v2 webhook received', [
+                'headers' => $request->headers->all(),
+                'body' => $request->all(),
+            ]);
+            
+            // Chargily Pay v2 webhook payload structure
+            $webhookData = $request->all();
+            $checkoutId = $webhookData['id'] ?? $webhookData['checkout_id'] ?? null;
+            $status = $webhookData['status'] ?? null;
+            
+            // Also check for nested checkout object
+            if (isset($webhookData['checkout'])) {
+                $checkout = $webhookData['checkout'];
+                $checkoutId = $checkout['id'] ?? $checkoutId;
+                $status = $checkout['status'] ?? $status;
+            }
+            
+            if ($checkoutId) {
+                // Find bmccp by checkout_id (stored as invoice_number)
+                $bmccp = \App\Models\Bmccp::where('invoice_number', $checkoutId)->first();
+                
+                // If not found, try to retrieve checkout from API to get more info
+                if (!$bmccp && $checkoutId) {
+                    $chargilyService = new ChargilyPayV2Service();
+                    $checkoutResponse = $chargilyService->retrieveCheckout($checkoutId);
+                    
+                    if ($checkoutResponse['success'] && isset($checkoutResponse['data']['description'])) {
+                        $description = $checkoutResponse['data']['description'];
+                        $bmccp = \App\Models\Bmccp::where('status', 'pending')
+                            ->where('notes', $description)
+                            ->first();
+                    }
+                }
+                
+                if ($bmccp) {
+                    // Update invoice_number if not set
+                    if (!$bmccp->invoice_number) {
+                        $bmccp->invoice_number = $checkoutId;
+                    }
+                    
+                    $order = Order::where('bmccp_id', $bmccp->id)->first();
+                    
+                    if ($order) {
+                        // Chargily Pay v2 status values: pending, paid, expired, canceled, failed
+                        if ($status === 'paid') {
+                            // Payment was successful
+                            $bmccp->status = 'approved';
+                            $bmccp->save();
+                            
+                            $order->status = 'completed';
+                            $order->save();
+                            
+                            Log::info('Chargily Pay v2 payment successful', [
+                                'checkout_id' => $checkoutId,
+                                'order_id' => $order->id,
+                                'bmccp_id' => $bmccp->id,
+                            ]);
+                        } elseif (in_array($status, ['expired', 'canceled', 'failed'])) {
+                            // Payment failed or was canceled
+                            $bmccp->status = 'rejected';
+                            $bmccp->save();
+                            
+                            $order->status = 'cancelled';
+                            $order->save();
+                            
+                            Log::info('Chargily Pay v2 payment failed/canceled', [
+                                'checkout_id' => $checkoutId,
+                                'status' => $status,
+                                'order_id' => $order->id,
+                            ]);
+                        }
+                    }
+                }
+            }
+            
+            return response()->json(['success' => true], 200);
+            
+        } catch (\Exception $e) {
+            Log::error('Baridimob webhook error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all(),
+            ]);
+            
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+    
+    /**
      * Handle Flexy form submission
      */
     public function submitFlexy(Request $request)
@@ -300,8 +751,9 @@ class CheckoutController extends Controller
             'status' => 'pending',
         ]);
         
-        // Link order to flexy
+        // Link order to flexy and update status
         $order->flexy_id = $flexy->id;
+        $order->status = 'pending_flexy';
         $order->notes = $request->input('notes');
         $order->save();
         
@@ -343,6 +795,78 @@ class CheckoutController extends Controller
     }
     
     /**
+     * Delete an order by encrypted ID
+     */
+    public function deleteOrder(Request $request)
+    {
+        $request->validate([
+            'encrypted_order_id' => 'required|string',
+        ]);
+        
+        try {
+            // Decrypt the order ID
+            $orderId = Crypt::decryptString($request->encrypted_order_id);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid order ID'
+            ], 400);
+        }
+        
+        $order = Order::with('diamondPack')->find($orderId);
+        
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found'
+            ], 404);
+        }
+        
+        // Get order data before deleting (to restore to cart)
+        $orderData = [
+            'pack_id' => $order->diamond_pack_id,
+            'user_id' => $order->user_id_ml,
+            'zone_id' => $order->zone_id_ml,
+            'player_id_ff' => $order->player_id_ff,
+            'player_id_pubg' => $order->player_id_pubg,
+            'player_id_hok' => $order->player_id_hok,
+            'user_id_bs' => $order->user_id_bs,
+            'server_bs' => $order->server_bs,
+        ];
+        
+        // Log before deletion
+        Log::info('Deleting order', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'status' => $order->status,
+        ]);
+        
+        // Delete the order from database
+        $order->delete();
+        
+        // Log after deletion
+        Log::info('Order deleted successfully', [
+            'order_id' => $orderId,
+            'encrypted_order_id_received' => $request->encrypted_order_id,
+        ]);
+        
+        // Return multiple formats of the encrypted ID to help frontend match
+        $encryptedId = $request->encrypted_order_id;
+        return response()->json([
+            'success' => true,
+            'message' => 'Order deleted successfully',
+            'encrypted_order_id' => $encryptedId, // Return the exact encrypted ID that was deleted
+            'encrypted_order_id_variations' => [
+                'original' => $encryptedId,
+                'url_encoded' => urlencode($encryptedId),
+                'url_decoded' => urldecode($encryptedId),
+            ],
+            'order_id' => $orderId, // Also return the decrypted order ID for reference
+            'cart_item' => $orderData // Return order data to restore to cart
+        ]);
+    }
+    
+    /**
      * Show crypto payment form page (order confirmation before cryptocurrency payment)
      */
     public function cryptoForm($encryptedOrderId)
@@ -377,7 +901,7 @@ class CheckoutController extends Controller
     }
     
     /**
-     * Show NOWPayments crypto payment page
+     * Show MixPay crypto payment page
      */
     public function cryptoPayment($encryptedOrderId)
     {
@@ -400,144 +924,72 @@ class CheckoutController extends Controller
         $discountAmount = ($unitPrice * $discountPercentage) / 100;
         $totalAmount = $unitPrice - $discountAmount;
         
-        // Check if we're on localhost/testing
+        // Initialize MixPay service
+        $mixPayService = new MixPayService();
+        $mixPayConfigured = $mixPayService->hasCredentials();
+        
+        if (!$mixPayConfigured) {
+            return redirect()->route('select-payment')->with('error', 'Cryptocurrency payment is not configured. Please contact support.');
+        }
+        
+        // Prepare order data for MixPay
+        // orderId must be 6-36 chars, unique, containing only letters, numbers, dashes and underscores
+        $orderIdForMixPay = preg_replace('/[^a-zA-Z0-9_-]/', '_', $order->order_number) . '_' . time();
+        // Ensure it's between 6-36 characters
+        if (strlen($orderIdForMixPay) > 36) {
+            $orderIdForMixPay = substr($orderIdForMixPay, 0, 36);
+        }
+        if (strlen($orderIdForMixPay) < 6) {
+            $orderIdForMixPay = str_pad($orderIdForMixPay, 6, '0', STR_PAD_RIGHT);
+        }
+        
+        // Check if we're on localhost/testing (MixPay requires HTTPS for callback)
         $isLocalhost = in_array(config('app.env'), ['local', 'testing']) || 
                        str_contains(request()->getHost(), 'localhost') ||
                        str_contains(request()->getHost(), '127.0.0.1');
         
-        // NOWPayments API key (will be set from env or static later)
-        $nowPaymentsApiKey = null; // Will be set from env or static later
-        $nowPaymentsEndpoint = 'https://api.nowpayments.io/v1/';
-        
-        // Initialize NOWPayments service
-        $nowPaymentsService = new NowPaymentsService($nowPaymentsApiKey, $nowPaymentsEndpoint);
-        $nowPaymentsConfigured = $nowPaymentsService->hasCredentials();
-        
-        // Prepare order data
-        // Use usdttrc20 (USDT on TRC20) as default - it's usually the cheapest option
         $orderData = [
-            'order_id' => $order->order_number . '_' . time(), // Unique order number
-            'amount' => number_format($totalAmount, 2, '.', ''),
-            'price_currency' => 'usd',
-            'goods_name' => $order->diamondPack->diamonds . ' Diamonds + ' . $order->diamondPack->bonus_diamonds . ' Bonus',
-            'pay_currency' => 'usdttrc20', // USDT on TRC20 network (low fees)
-            'return_url' => route('crypto-payment-success', ['encrypted_order_id' => $encryptedOrderId]),
-            'cancel_url' => route('home'),
-            'ipn_callback_url' => route('nowpayments.webhook'),
+            'order_id' => $orderIdForMixPay,
+            'quote_amount' => number_format($totalAmount, 2, '.', ''), // Amount in USD
+            'quote_asset_id' => 'usd', // Quote currency is USD
+            'settlement_asset_id' => '4d8c508b-91c5-375b-92b0-ee702ed2dac5', // USDT ERC20
+            'payment_asset_id' => '4d8c508b-91c5-375b-92b0-ee702ed2dac5', // USDT ERC20 - restrict to only this
+            'return_to' => route('crypto-payment-success', ['encrypted_order_id' => $encryptedOrderId]),
+            'failed_return_to' => route('select-payment'),
+            'remark' => 'DiasZone - Payment Crypto: ' . $order->diamondPack->diamonds . ' Diamonds + ' . $order->diamondPack->bonus_diamonds . ' Bonus',
         ];
         
-        // If credentials are not configured, show mock page on localhost
-        if (!$nowPaymentsConfigured) {
-            if ($isLocalhost) {
-                $mockPaymentData = [
-                    'payment_id' => 'test_' . time(),
-                    'payment_status' => 'waiting',
-                    'pay_address' => '0x0000000000000000000000000000000000000000',
-                    'pay_amount' => $totalAmount,
-                    'pay_currency' => 'usdt',
-                    'invoice_url' => '#',
-                ];
-                
-                return view('pages.crypto-payment', [
-                    'order' => $order,
-                    'encrypted_order_id' => $encryptedOrderId,
-                    'total_amount' => $totalAmount,
-                    'payment_data' => $mockPaymentData,
-                    'payment_url' => null,
-                    'pay_address' => null,
-                    'payment_id' => $orderData['order_id'],
-                    'is_localhost' => true,
-                    'payment_error' => 'NOWPayments API key is not configured. Add NOWPAYMENTS_API_KEY to your .env file.',
-                ]);
-            }
-            
-            // On production without credentials, redirect with error
-            return redirect()->route('select-payment')->with('error', 'Cryptocurrency payment is not configured. Please contact support.');
+        // Only set callback URL if not on localhost (MixPay requires HTTPS)
+        if (!$isLocalhost) {
+            $orderData['callback_url'] = route('mixpay.webhook');
         }
         
-        // Credentials exist - try to create NOWPayments invoice (returns invoice_url)
-        $paymentResponse = $nowPaymentsService->createInvoice($orderData);
-        
-        // If invoice creation fails due to currency issue, try alternative currencies
-        if (!$paymentResponse['success'] && 
-            (str_contains($paymentResponse['error'], 'estimate') || 
-             str_contains($paymentResponse['error'], 'currency'))) {
-            // Get available currencies and try alternatives
-            $currenciesResponse = $nowPaymentsService->getAvailableCurrencies();
-            $availableCurrencies = [];
-            if ($currenciesResponse['success']) {
-                $availableCurrencies = $currenciesResponse['data']['currencies'] ?? [];
-            }
-            
-            // Try alternative USDT options
-            $alternativeCurrencies = ['usdterc20', 'usdtbsc', 'usdtmatic', 'usdtsol'];
-            foreach ($alternativeCurrencies as $altCurrency) {
-                if (in_array($altCurrency, $availableCurrencies)) {
-                    $orderData['pay_currency'] = $altCurrency;
-                    $paymentResponse = $nowPaymentsService->createInvoice($orderData);
-                    if ($paymentResponse['success']) {
-                        break;
-                    }
-                }
-            }
-        }
+        // Create MixPay payment
+        $paymentResponse = $mixPayService->createOneTimePayment($orderData);
         
         if (!$paymentResponse['success']) {
-            // On localhost, show payment page with error details for debugging
-            if ($isLocalhost) {
-                $mockPaymentData = [
-                    'payment_id' => 'test_' . time(),
-                    'payment_status' => 'waiting',
-                    'pay_address' => '0x0000000000000000000000000000000000000000',
-                    'pay_amount' => $totalAmount,
-                    'pay_currency' => 'usdt',
-                    'invoice_url' => '#',
-                ];
-                
-                // Get detailed error message
-                $errorMessage = $paymentResponse['error'] ?? 'NOWPayments API call failed';
-                
-                return view('pages.crypto-payment', [
-                    'order' => $order,
-                    'encrypted_order_id' => $encryptedOrderId,
-                    'total_amount' => $totalAmount,
-                    'payment_data' => $mockPaymentData,
-                    'payment_url' => null,
-                    'pay_address' => null,
-                    'payment_id' => $orderData['order_id'],
-                    'is_localhost' => true,
-                    'payment_error' => $errorMessage,
-                ]);
-            }
+            Log::error('MixPay Payment Creation Failed', [
+                'order_id' => $orderId,
+                'error' => $paymentResponse['error'] ?? 'Unknown error',
+                'response' => $paymentResponse['response_data'] ?? [],
+            ]);
             
-            // On production, redirect with error
-            return redirect()->route('select-payment')->with('error', 'Failed to initialize payment: ' . ($paymentResponse['error'] ?? 'Unknown error'));
+            return redirect()->route('select-payment')->with('error', 'Failed to create payment. Please try again or contact support.');
         }
         
-        $paymentData = $paymentResponse['data'];
+        // Store payment code in order for reference
+        $order->nowpayments_payment_id = $paymentResponse['data']['code'] ?? null;
+        $order->status = 'pending_cryptopay';
+        $order->save();
         
-        // Store the NOWPayments invoice_id or payment_id in the order for future status checks
-        if (isset($paymentData['invoice_id'])) {
-            $order->nowpayments_payment_id = $paymentData['invoice_id'];
-            $order->save();
-        } elseif (isset($paymentData['payment_id'])) {
-            $order->nowpayments_payment_id = $paymentData['payment_id'];
-            $order->save();
+        // Redirect to MixPay payment URL
+        $paymentUrl = $paymentResponse['data']['payment_url'] ?? null;
+        
+        if ($paymentUrl) {
+            return redirect($paymentUrl);
         }
         
-        // Invoice endpoint returns invoice_url directly
-        $paymentUrl = $paymentData['invoice_url'] ?? null;
-        
-        return view('pages.crypto-payment', [
-            'order' => $order,
-            'encrypted_order_id' => $encryptedOrderId,
-            'total_amount' => $totalAmount,
-            'payment_data' => $paymentData,
-            'payment_url' => $paymentUrl,
-            'pay_address' => $paymentData['pay_address'] ?? null,
-            'payment_id' => $paymentData['payment_id'] ?? $orderData['order_id'],
-            'is_localhost' => false,
-        ]);
+        return redirect()->route('select-payment')->with('error', 'Payment URL not generated. Please try again.');
     }
     
     /**
@@ -868,5 +1320,71 @@ class CheckoutController extends Controller
         }
         
         return response()->json(['status' => 'ok'], 200);
+    }
+    
+    /**
+     * Handle MixPay payment callback
+     * This is called by MixPay when payment status changes
+     * See: https://mixpay.me/developers/api/payments/payment-callback
+     */
+    public function mixPayWebhook(Request $request)
+    {
+        // Handle MixPay payment callback
+        $paymentData = $request->all();
+        
+        // Log callback for debugging
+        Log::info('MixPay Webhook Received', $paymentData);
+        
+        // Extract orderId from callback data
+        $orderId = $paymentData['orderId'] ?? null;
+        
+        if ($orderId) {
+            // Find order by orderId (MixPay uses orderId, not payment_id)
+            // We stored the MixPay code in nowpayments_payment_id field
+            // But we need to match by orderId which is stored in order_number
+            // MixPay orderId format: order_number_timestamp
+            $order = Order::where('order_number', 'like', explode('_', $orderId)[0] . '%')
+                          ->orWhere('nowpayments_payment_id', $paymentData['code'] ?? null)
+                          ->first();
+            
+            if ($order) {
+                // Update order status based on payment status
+                $paymentStatus = $paymentData['status'] ?? 'pending';
+                
+                // MixPay statuses: pending, paid, success, failed
+                // See: https://mixpay.me/developers/api/payments/payment-callback
+                if ($paymentStatus === 'success' || $paymentStatus === 'paid') {
+                    $order->status = 'completed';
+                    $order->save();
+                } elseif ($paymentStatus === 'failed') {
+                    // Keep as pending or mark as failed based on your business logic
+                    // $order->status = 'failed';
+                }
+            }
+        }
+        
+        return response()->json(['status' => 'ok'], 200);
+    }
+    
+    /**
+     * Test Chargily Pay credentials
+     */
+    public function testChargilyCredentials()
+    {
+        $key = env('CHARGILY_EPAY_KEY') ?? config('laravel-chargily-epay.key');
+        $secret = env('CHARGILY_EPAY_SECRET') ?? config('laravel-chargily-epay.secret');
+        $backUrl = env('CHARGILY_EPAY_BACK_URL') ?? config('laravel-chargily-epay.back_url');
+        $webhookUrl = env('CHARGILY_EPAY_WEBHOOK_URL') ?? config('laravel-chargily-epay.webhook_url');
+        
+        return response()->json([
+            'credentials_configured' => !empty($key) && !empty($secret),
+            'key_exists' => !empty($key),
+            'secret_exists' => !empty($secret),
+            'back_url' => $backUrl,
+            'webhook_url' => $webhookUrl,
+            'key_preview' => $key ? (substr($key, 0, 10) . '...' . substr($key, -5)) : 'NOT SET',
+            'secret_preview' => $secret ? (substr($secret, 0, 10) . '...' . substr($secret, -5)) : 'NOT SET',
+            'note' => 'If credentials are set but you get 401, the API key/secret might be incorrect. Verify them in your Chargily Pay dashboard.',
+        ]);
     }
 }

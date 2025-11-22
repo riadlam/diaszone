@@ -28,6 +28,10 @@ class DatabaseSeeder extends Seeder
         $this->call([
             DiamondPackSeeder::class,
             AdminUserSeeder::class,
+            FreeFireDiamondPackSeeder::class,
+            PubgMobileUcPackSeeder::class,
+            HonorOfKingsPackSeeder::class,
+            BloodStrikePackSeeder::class,
         ]);
     }
 }

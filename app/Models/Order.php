@@ -13,9 +13,16 @@ class Order extends Model
         'diamond_pack_id',
         'status',
         'flexy_id',
+        'bmccp_id',
+        'cryptopay_id',
         'nowpayments_payment_id',
         'user_id_ml',
         'zone_id_ml',
+        'player_id_ff',
+        'player_id_pubg',
+        'player_id_hok',
+        'user_id_bs',
+        'server_bs',
         'notes',
     ];
 
@@ -41,6 +48,22 @@ class Order extends Model
     public function flexy(): BelongsTo
     {
         return $this->belongsTo(Flexy::class);
+    }
+
+    /**
+     * Get the bmccp payment for this order.
+     */
+    public function bmccp(): BelongsTo
+    {
+        return $this->belongsTo(Bmccp::class);
+    }
+
+    /**
+     * Get the cryptopay payment for this order.
+     */
+    public function cryptopay(): BelongsTo
+    {
+        return $this->belongsTo(Cryptopay::class);
     }
 
     /**

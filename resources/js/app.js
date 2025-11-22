@@ -78,7 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update selected pack info
         if (packName) {
-            packName.textContent = `${selectedPack.diamonds} Diamonds + ${selectedPack.bonus} Bonus`;
+            // Get game type from order form wrapper
+            const orderFormWrapper = document.getElementById('order-form-wrapper');
+            const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
+            const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
+            
+            if (selectedPack.bonus > 0) {
+                packName.textContent = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} Bonus`;
+            } else {
+                packName.textContent = `${selectedPack.diamonds} ${currencyText}`;
+            }
         }
         
         if (packPrice) {
@@ -103,8 +112,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const cart = this.getCart();
             const cartItem = {
                 id: Date.now().toString(),
-                user_id: item.user_id,
-                zone_id: item.zone_id,
+                user_id: item.user_id || null,
+                zone_id: item.zone_id || null,
+                player_id: item.player_id || null,
+                player_id_ff: item.player_id_ff || null,
+                player_id_pubg: item.player_id_pubg || null,
+                player_id_hok: item.player_id_hok || null,
+                user_id_bs: item.user_id_bs || null,
+                server_bs: item.server_bs || null,
+                server: item.server || null,
                 pack_id: item.pack_id, // Only store pack ID, not full pack data
                 timestamp: new Date().toISOString()
             };
@@ -231,16 +247,36 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             `;
                         }
+                        
+                        // Determine game type and display appropriate fields
+                        const gameType = packInfo.game_type || 'mobilelegends';
+                        let gameInfo = '';
+                        
+                        if (gameType === 'bloodstrike') {
+                            // Blood Strike: User ID and Server
+                            const userIdBs = item.user_id_bs || item.user_id;
+                            const serverBs = item.server_bs || item.server;
+                            if (userIdBs) gameInfo += `<p><span class="font-medium">User ID:</span> ${userIdBs}</p>`;
+                            if (serverBs) gameInfo += `<p><span class="font-medium">Server:</span> ${serverBs}</p>`;
+                        } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                            // Free Fire / PUBG Mobile / Honor of Kings: Player ID
+                            const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id;
+                            if (playerId) gameInfo += `<p><span class="font-medium">Player ID:</span> ${playerId}</p>`;
+                        } else {
+                            // Mobile Legends: User ID and Zone ID
+                            if (item.user_id) gameInfo += `<p><span class="font-medium">User ID:</span> ${item.user_id}</p>`;
+                            if (item.zone_id) gameInfo += `<p><span class="font-medium">Zone ID:</span> ${item.zone_id}</p>`;
+                        }
+                        
                         return `
                             <div class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="flex-1 min-w-0">
                                         <h4 class="text-sm font-semibold text-gray-900 mb-1">
-                                            ${packInfo.diamonds} Diamonds + ${packInfo.bonus} Bonus
+                                            ${packInfo.diamonds} ${gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'))}${packInfo.bonus > 0 ? ` + ${packInfo.bonus} Bonus` : ''}
                                         </h4>
                                         <div class="text-xs text-gray-600 space-y-1">
-                                            <p><span class="font-medium">User ID:</span> ${item.user_id}</p>
-                                            <p><span class="font-medium">Zone ID:</span> ${item.zone_id}</p>
+                                            ${gameInfo}
                                             <p class="text-purple-600 font-semibold">US$ ${parseFloat(packInfo.price).toFixed(2)}</p>
                                         </div>
                                     </div>
@@ -346,39 +382,152 @@ document.addEventListener('DOMContentLoaded', () => {
         orderForm.addEventListener('submit', (e) => {
             e.preventDefault();
             
-            const userId = document.getElementById('user_id').value.trim();
-            const zoneId = document.getElementById('zone_id').value.trim();
+            try {
+                // Check if pack is selected first
+                if (!selectedPack || !selectedPack.id) {
+                    alert('Please select a pack first');
+                    return;
+                }
+                
+                // Get game type from order form wrapper
+                const orderFormWrapper = document.getElementById('order-form-wrapper');
+                const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
+                
+                // Handle different game types - get the correct fields
+                let cartData = {
+                    pack_id: selectedPack.id
+                };
             
-            if (!userId || !zoneId) {
-                return;
+            if (gameType === 'bloodstrike') {
+                // Blood Strike - User ID and Server
+                const userIdBsField = document.getElementById('user_id_bs');
+                const serverBsField = document.getElementById('server_bs');
+                
+                if (!userIdBsField || !serverBsField) {
+                    alert('Form fields not found. Please refresh the page.');
+                    return;
+                }
+                
+                const userIdBs = (userIdBsField && userIdBsField.value) ? userIdBsField.value.trim() : '';
+                const serverBs = (serverBsField && serverBsField.value) ? serverBsField.value.trim() : '';
+                
+                if (!userIdBs || !serverBs) {
+                    alert('Please enter your User ID and select a Server');
+                    return;
+                }
+                
+                if (!/^\d+$/.test(userIdBs)) {
+                    alert('User ID must contain only numbers');
+                    return;
+                }
+                
+                cartData.user_id_bs = userIdBs;
+                cartData.server_bs = serverBs;
+                // Also store as user_id and server for backend compatibility
+                cartData.user_id = userIdBs;
+                cartData.server = serverBs;
+                
+                // Clear form
+                userIdBsField.value = '';
+                serverBsField.value = 'global';
+                
+            } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                // Free Fire / PUBG Mobile / Honor of Kings - Player ID only
+                const playerIdField = document.getElementById('player_id');
+                
+                if (!playerIdField) {
+                    console.error('Player ID field not found for game type:', gameType);
+                    alert('Player ID field not found. Please refresh the page.');
+                    return;
+                }
+                
+                // Safely get value
+                let playerId = '';
+                try {
+                    playerId = playerIdField.value ? String(playerIdField.value).trim() : '';
+                } catch (error) {
+                    console.error('Error accessing player_id field value:', error);
+                    alert('Error reading Player ID field. Please refresh the page.');
+                    return;
+                }
+                
+                if (!playerId) {
+                    alert('Please enter your Player ID');
+                    return;
+                }
+                
+                if (!/^\d+$/.test(playerId)) {
+                    alert('Player ID must contain only numbers');
+                    return;
+                }
+                
+                cartData.player_id = playerId;
+                
+                // Store in game-specific field for clarity
+                if (gameType === 'freefire') {
+                    cartData.player_id_ff = playerId;
+                } else if (gameType === 'pubgmobile') {
+                    cartData.player_id_pubg = playerId;
+                } else if (gameType === 'honorofkings') {
+                    cartData.player_id_hok = playerId;
+                }
+                
+                // Clear form
+                try {
+                    playerIdField.value = '';
+                } catch (error) {
+                    console.error('Error clearing player_id field:', error);
+                }
+                
+            } else {
+                // Mobile Legends - User ID and Zone ID
+                const userIdField = document.getElementById('user_id');
+                const zoneIdField = document.getElementById('zone_id');
+                
+                if (!userIdField || !zoneIdField) {
+                    alert('Form fields not found. Please refresh the page.');
+                    return;
+                }
+                
+                const userId = (userIdField && userIdField.value) ? userIdField.value.trim() : '';
+                const zoneId = (zoneIdField && zoneIdField.value) ? zoneIdField.value.trim() : '';
+                
+                if (!userId || !zoneId) {
+                    alert('Please enter both User ID and Zone ID');
+                    return;
+                }
+                
+                if (!/^\d+$/.test(userId)) {
+                    alert('User ID must contain only numbers');
+                    return;
+                }
+                
+                if (!/^\d+$/.test(zoneId)) {
+                    alert('Zone ID must contain only numbers');
+                    return;
+                }
+                
+                cartData.user_id = userId;
+                cartData.zone_id = zoneId;
+                
+                // Clear form
+                userIdField.value = '';
+                zoneIdField.value = '';
             }
             
-            if (!selectedPack) {
-                return;
+            // Add to cart
+            const cartItem = CartManager.addToCart(cartData);
+            
+            // Redirect to cart page
+            window.location.href = '/cart';
+            } catch (error) {
+                console.error('Error in form submission:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack
+                });
+                alert('An error occurred while adding to cart. Please try again or refresh the page.');
             }
-            
-            // Validate User ID and Zone ID format (basic validation)
-            if (!/^\d+$/.test(userId)) {
-                return;
-            }
-            
-            if (!/^\d+$/.test(zoneId)) {
-                return;
-            }
-            
-            // Add to cart - Only store pack_id for security
-            const cartItem = CartManager.addToCart({
-                user_id: userId,
-                zone_id: zoneId,
-                pack_id: selectedPack.id // Only store ID, not full pack data
-            });
-            
-            // Reset form after adding to cart
-            document.getElementById('user_id').value = '';
-            document.getElementById('zone_id').value = '';
-            
-            // Optionally redirect to checkout
-            // window.location.href = '/cart/order_checkout';
         });
     }
     
@@ -519,9 +668,17 @@ document.addEventListener('DOMContentLoaded', () => {
         reviewForm.addEventListener('submit', (e) => {
             e.preventDefault();
 
-            const name = document.getElementById('review-name').value.trim();
-            const rating = parseInt(ratingInput.value);
-            const comment = document.getElementById('review-comment').value.trim();
+            const nameField = document.getElementById('review-name');
+            const commentField = document.getElementById('review-comment');
+            
+            if (!nameField || !commentField || !ratingInput) {
+                alert('Review form fields not found. Please refresh the page.');
+                return;
+            }
+            
+            const name = nameField.value ? nameField.value.trim() : '';
+            const rating = ratingInput.value ? parseInt(ratingInput.value) : 0;
+            const comment = commentField.value ? commentField.value.trim() : '';
 
             if (!name) {
                 return;

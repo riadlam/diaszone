@@ -8,6 +8,23 @@ use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/mobilelegends', [HomeController::class, 'mobileLegends'])->name('mobilelegends');
+Route::get('/free-fire-diamonds-top-up', function() {
+    $controller = app(HomeController::class);
+    return $controller->gameTopUp('freefire');
+})->name('freefire');
+Route::get('/pubg-mobile-uc-top-up-global', function() {
+    $controller = app(HomeController::class);
+    return $controller->gameTopUp('pubgmobile');
+})->name('pubgmobile');
+Route::get('/honor-of-kings-tokens-top-up-global', function() {
+    $controller = app(HomeController::class);
+    return $controller->gameTopUp('honorofkings');
+})->name('honorofkings');
+Route::get('/blood-strike-golds-top-up-global', function() {
+    $controller = app(HomeController::class);
+    return $controller->gameTopUp('bloodstrike');
+})->name('bloodstrike');
 Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/terms-of-use', [HomeController::class, 'termsOfUse'])->name('terms-of-use');
 Route::get('/privacy-policy', [HomeController::class, 'privacyPolicy'])->name('privacy-policy');
@@ -27,6 +44,14 @@ Route::get('/select/flexy/success', [CheckoutController::class, 'flexySuccess'])
 Route::get('/select/crypto/{encrypted_order_id}', [CheckoutController::class, 'cryptoForm'])
     ->middleware('throttle:20,1') // 20 requests per minute
     ->name('crypto-form');
+Route::get('/select/bmccp/{encrypted_order_id}', [CheckoutController::class, 'baridimobForm'])
+    ->middleware('throttle:20,1') // 20 requests per minute
+    ->name('baridimob-form');
+Route::post('/api/baridimob/process', [CheckoutController::class, 'processBaridimobPayment'])
+    ->middleware('throttle:5,1') // 5 requests per minute
+    ->name('api.baridimob.process');
+Route::post('/webhook/baridimob', [CheckoutController::class, 'baridimobWebhook'])
+    ->name('baridimob.webhook');
 Route::get('/crypto/{encrypted_order_id}', [CheckoutController::class, 'cryptoPayment'])->name('crypto-payment');
 Route::get('/crypto/{encrypted_order_id}/success', [CheckoutController::class, 'cryptoPaymentSuccess'])->name('crypto-payment-success');
 
@@ -43,6 +68,9 @@ Route::post('/api/orders/get-by-encrypted-id', [CheckoutController::class, 'getO
 Route::post('/api/orders/check-crypto-payment', [CheckoutController::class, 'checkCryptoPayment'])
     ->middleware('throttle:20,1') // 20 requests per minute
     ->name('api.orders.check-crypto-payment');
+Route::post('/api/orders/delete', [CheckoutController::class, 'deleteOrder'])
+    ->middleware('throttle:10,1') // 10 requests per minute
+    ->name('api.orders.delete');
 
 // Authentication routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -51,22 +79,28 @@ Route::get('/signup', [AuthController::class, 'showSignupForm'])->name('signup')
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Dashboard routes (protected by auth middleware)
+// Dashboard routes - orders, invoices, notifications accessible without auth
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+Route::get('/dashboard/orders', [DashboardController::class, 'orders'])->name('dashboard.orders');
+Route::get('/dashboard/invoices', [DashboardController::class, 'invoices'])->name('dashboard.invoices');
+Route::get('/dashboard/notifications', [DashboardController::class, 'notifications'])->name('dashboard.notifications');
+
+// Dashboard routes (protected by auth middleware) - only myaccount requires auth
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/myaccount', [DashboardController::class, 'myAccount'])->name('dashboard.myaccount');
-    Route::get('/dashboard/orders', [DashboardController::class, 'orders'])->name('dashboard.orders');
-    Route::get('/dashboard/invoices', [DashboardController::class, 'invoices'])->name('dashboard.invoices');
-    Route::get('/dashboard/notifications', [DashboardController::class, 'notifications'])->name('dashboard.notifications');
 });
 
 // Test routes for NOWPayments
 Route::get('/test/nowpayments', [CheckoutController::class, 'testNowPaymentsCredentials'])->name('test.nowpayments');
+Route::get('/test/chargily', [CheckoutController::class, 'testChargilyCredentials'])->name('test.chargily');
 Route::get('/test/nowpayments/payment', [CheckoutController::class, 'testNowPaymentsPayment'])->name('test.nowpayments.payment');
 Route::get('/test/nowpayments/status/{payment_id}', [CheckoutController::class, 'testNowPaymentsStatus'])->name('test.nowpayments.status');
 
 // NOWPayments webhook route (no CSRF protection needed for webhooks)
 Route::post('/webhook/nowpayments', [CheckoutController::class, 'nowPaymentsWebhook'])->name('nowpayments.webhook');
+
+// MixPay webhook route (no CSRF protection needed for webhooks)
+Route::post('/webhook/mixpay', [CheckoutController::class, 'mixPayWebhook'])->name('mixpay.webhook');
 
 // GET route for webhook testing/info (not used by NOWPayments, but helpful for debugging)
 Route::get('/webhook/nowpayments', function() {

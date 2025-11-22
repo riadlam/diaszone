@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class DiamondPack extends Model
 {
     protected $fillable = [
+        'game_type',
+        'name',
         'diamonds',
         'bonus_diamonds',
         'price',

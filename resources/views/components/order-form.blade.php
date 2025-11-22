@@ -1,30 +1,70 @@
 <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 lg:p-6" style="padding: 20px;">
     <h2 class="text-lg font-semibold text-gray-800 mb-3 lg:mb-4">Order Information</h2>
+    @if(isset($gameTitle))
+        <p class="text-sm text-gray-600 mb-3">{{ $gameTitle }} Top-Up</p>
+    @endif
     
     <form id="order-form" class="space-y-4">
-        <!-- User ID -->
-        <div>
-            <label for="user_id" class="block text-sm font-medium text-gray-700 mb-2">User ID</label>
-            <input type="text" 
-                   id="user_id" 
-                   name="user_id" 
-                   required
-                   pattern="[0-9]+"
-                   class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
-                   placeholder="Enter your User ID">
-        </div>
-        
-        <!-- Zone ID -->
-        <div>
-            <label for="zone_id" class="block text-sm font-medium text-gray-700 mb-2">Zone ID</label>
-            <input type="text" 
-                   id="zone_id" 
-                   name="zone_id" 
-                   required
-                   pattern="[0-9]+"
-                   class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
-                   placeholder="Enter your Zone ID">
-        </div>
+        @if(isset($gameType) && $gameType === 'bloodstrike')
+            <!-- User ID and Server (Blood Strike) -->
+            <div>
+                <label for="user_id_bs" class="block text-sm font-medium text-gray-700 mb-2">User ID</label>
+                <input type="text" 
+                       id="user_id_bs" 
+                       name="user_id_bs" 
+                       required
+                       pattern="[0-9]+"
+                       class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                       placeholder="Enter your User ID">
+            </div>
+            
+            <!-- Server Selection (Blood Strike) -->
+            <div>
+                <label for="server_bs" class="block text-sm font-medium text-gray-700 mb-2">Server</label>
+                <select id="server_bs" 
+                        name="server_bs" 
+                        required
+                        class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
+                    <option value="global" selected>Global</option>
+                </select>
+            </div>
+        @elseif(isset($gameType) && ($gameType === 'freefire' || $gameType === 'pubgmobile' || $gameType === 'honorofkings'))
+            <!-- Player ID (Free Fire / PUBG Mobile / Honor of Kings) -->
+            <div>
+                <label for="player_id" class="block text-sm font-medium text-gray-700 mb-2">Player ID</label>
+                <input type="text" 
+                       id="player_id" 
+                       name="player_id" 
+                       required
+                       pattern="[0-9]+"
+                       class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                       placeholder="Please enter Player ID">
+            </div>
+        @else
+            <!-- User ID (Mobile Legends) -->
+            <div>
+                <label for="user_id" class="block text-sm font-medium text-gray-700 mb-2">User ID</label>
+                <input type="text" 
+                       id="user_id" 
+                       name="user_id" 
+                       required
+                       pattern="[0-9]+"
+                       class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                       placeholder="Enter your User ID">
+            </div>
+            
+            <!-- Zone ID (Mobile Legends) -->
+            <div>
+                <label for="zone_id" class="block text-sm font-medium text-gray-700 mb-2">Zone ID</label>
+                <input type="text" 
+                       id="zone_id" 
+                       name="zone_id" 
+                       required
+                       pattern="[0-9]+"
+                       class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                       placeholder="Enter your Zone ID">
+            </div>
+        @endif
         
         <!-- Selected Pack Info -->
         <div id="selected-pack-info" class="hidden bg-purple-50 border border-purple-200 rounded-lg p-4">

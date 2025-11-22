@@ -5,9 +5,9 @@
                 <!-- Slide 1 -->
                 <div class="slide flex-shrink-0" style="width: 100%; max-width: 100%; box-sizing: border-box;">
                     <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <img src="{{ asset('storage/images_homepage/testslide.webp') }}" 
+                        <img src="{{ url('storage/images_homepage/testslide.webp') }}" 
                              alt="Gaming Slide 1" 
-                             class="w-full h-full object-cover"
+                             class="w-full h-full object-contain"
                              loading="eager">
                         <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center">
                             <div class="px-8 md:px-12 text-white">
@@ -22,13 +22,14 @@
                     </div>
                 </div>
                 
-                <!-- Slide 2 -->
+                {{-- Slide 2 - Commented out
                 <div class="slide flex-shrink-0" style="width: 100%; max-width: 100%; box-sizing: border-box;">
-                    <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2">
                         <img src="{{ asset('storage/images_homepage/testtowslide.webp') }}" 
                              alt="Gaming Slide 2" 
-                             class="w-full h-full object-cover"
-                             loading="lazy">
+                             class="w-full h-full object-contain"
+                             loading="eager"
+                             onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';">
                         <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center">
                             <div class="px-8 md:px-12 text-white">
                                 <span class="inline-block px-4 py-2 bg-pink-600/80 backdrop-blur-sm rounded-full text-sm font-bold mb-4 animate-pulse">SPECIAL OFFER</span>
@@ -41,14 +42,16 @@
                         </div>
                     </div>
                 </div>
+                --}}
                 
-                <!-- Slide 3 -->
+                {{-- Slide 3 - Commented out
                 <div class="slide flex-shrink-0" style="width: 100%; max-width: 100%; box-sizing: border-box;">
-                    <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2">
                         <img src="{{ asset('storage/images_homepage/testthreeslide.webp') }}" 
                              alt="Gaming Slide 3" 
-                             class="w-full h-full object-cover"
-                             loading="lazy">
+                             class="w-full h-full object-contain"
+                             loading="eager"
+                             onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';">
                         <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center">
                             <div class="px-8 md:px-12 text-white">
                                 <span class="inline-block px-4 py-2 bg-blue-600/80 backdrop-blur-sm rounded-full text-sm font-bold mb-4 animate-pulse">FAST DELIVERY</span>
@@ -61,25 +64,14 @@
                         </div>
                     </div>
                 </div>
+                --}}
             </div>
-            
-            <!-- Navigation Arrows -->
-            <button id="prev-slide" class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all z-10">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-            </button>
-            <button id="next-slide" class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all z-10">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                </svg>
-            </button>
             
             <!-- Dots Indicator -->
             <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
                 <button class="slider-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all active-dot" data-slide="0"></button>
-                <button class="slider-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all" data-slide="1"></button>
-                <button class="slider-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all" data-slide="2"></button>
+                {{-- <button class="slider-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all" data-slide="1"></button>
+                <button class="slider-dot w-3 h-3 rounded-full bg-white/50 hover:bg-white transition-all" data-slide="2"></button> --}}
             </div>
         </div>
     </div>
