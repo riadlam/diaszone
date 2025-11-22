@@ -215,6 +215,10 @@
         if (bottomSheet) {
             bottomSheet.style.transform = 'translateY(100%)';
             bottomSheet.style.display = 'none'; // Keep it hidden until button is clicked
+            bottomSheet.style.zIndex = '9999';
+            bottomSheet.style.backgroundColor = '#ffffff';
+            bottomSheet.style.opacity = '1';
+            bottomSheet.style.visibility = 'visible';
         }
         
         // Ensure scrollable content can scroll
@@ -238,14 +242,125 @@
         
         // Open bottom sheet
         function openBottomSheet() {
-            if (bottomSheet) {
-                bottomSheet.style.display = 'flex'; // Ensure it's visible as flex
-                bottomSheet.style.transform = 'translateY(0)';
+            console.log('Opening bottom sheet...', {
+                bottomSheet: !!bottomSheet,
+                bottomSheetOverlay: !!bottomSheetOverlay,
+                bottomSheetElement: bottomSheet
+            });
+            
+            if (!bottomSheet) {
+                console.error('Bottom sheet element not found!');
+                return;
             }
+            
+            // Show overlay first
             if (bottomSheetOverlay) {
                 bottomSheetOverlay.style.display = 'block';
+                bottomSheetOverlay.style.zIndex = '9998';
                 bottomSheetOverlay.classList.remove('hidden');
             }
+            
+            // Force display to flex and remove any hidden classes
+            bottomSheet.style.display = 'flex';
+            bottomSheet.style.zIndex = '9999';
+            bottomSheet.style.backgroundColor = '#ffffff';
+            bottomSheet.style.opacity = '1';
+            bottomSheet.style.visibility = 'visible';
+            bottomSheet.style.pointerEvents = 'auto';
+            bottomSheet.style.position = 'fixed';
+            bottomSheet.style.width = '100%';
+            bottomSheet.style.left = '0';
+            bottomSheet.style.right = '0';
+            bottomSheet.style.bottom = '0';
+            // Remove any classes that might hide it
+            bottomSheet.classList.remove('hidden', 'lg:hidden');
+            
+            // Use requestAnimationFrame to ensure the display change is applied before transform
+            requestAnimationFrame(() => {
+                // Force visibility with multiple methods BEFORE transform
+                bottomSheet.style.display = 'flex';
+                bottomSheet.style.visibility = 'visible';
+                bottomSheet.style.opacity = '1';
+                bottomSheet.style.pointerEvents = 'auto';
+                
+                // Small delay to ensure display is applied
+                setTimeout(() => {
+                    // Force transform to 0 using !important via setProperty
+                    bottomSheet.style.setProperty('transform', 'translateY(0)', 'important');
+                    bottomSheet.style.setProperty('-webkit-transform', 'translateY(0)', 'important');
+                    
+                    // Also remove the translate-y-full class if it exists
+                    bottomSheet.classList.remove('translate-y-full');
+                    
+                    // Check computed styles
+                    const computedStyle = window.getComputedStyle(bottomSheet);
+                    const rect = bottomSheet.getBoundingClientRect();
+                    console.log('Bottom sheet opened', {
+                        display: bottomSheet.style.display,
+                        computedDisplay: computedStyle.display,
+                        transform: bottomSheet.style.transform,
+                        computedTransform: computedStyle.transform,
+                        zIndex: bottomSheet.style.zIndex,
+                        computedZIndex: computedStyle.zIndex,
+                        backgroundColor: bottomSheet.style.backgroundColor,
+                        computedBackgroundColor: computedStyle.backgroundColor,
+                        visibility: bottomSheet.style.visibility,
+                        computedVisibility: computedStyle.visibility,
+                        opacity: bottomSheet.style.opacity,
+                        computedOpacity: computedStyle.opacity,
+                        height: computedStyle.height,
+                        width: computedStyle.width,
+                        top: computedStyle.top,
+                        bottom: computedStyle.bottom,
+                        left: computedStyle.left,
+                        right: computedStyle.right,
+                        position: computedStyle.position,
+                        rect: rect,
+                        viewportHeight: window.innerHeight,
+                        isVisible: rect.top < window.innerHeight && rect.bottom > 0
+                    });
+                    
+                    // If still not visible or transform is wrong, force correct position
+                    if (rect.top >= window.innerHeight || rect.bottom <= 0 || computedStyle.transform.includes('737')) {
+                        console.warn('Bottom sheet transform issue detected, forcing correct position...', {
+                            computedTransform: computedStyle.transform,
+                            rectTop: rect.top,
+                            viewportHeight: window.innerHeight
+                        });
+                        // Force the transform to be exactly 0px
+                        bottomSheet.style.setProperty('transform', 'translateY(0px)', 'important');
+                        bottomSheet.style.setProperty('-webkit-transform', 'translateY(0px)', 'important');
+                        // Also ensure bottom is 0
+                        bottomSheet.style.setProperty('bottom', '0', 'important');
+                        bottomSheet.style.setProperty('top', 'auto', 'important');
+                        // Force a reflow
+                        void bottomSheet.offsetHeight;
+                        // Check again
+                        const newRect = bottomSheet.getBoundingClientRect();
+                        const newComputed = window.getComputedStyle(bottomSheet);
+                        console.log('After fix attempt', {
+                            newTransform: newComputed.transform,
+                            newRect: newRect,
+                            isNowVisible: newRect.top < window.innerHeight && newRect.bottom > 0
+                        });
+                    }
+                    
+                    // Check if content is visible
+                    const content = bottomSheet.querySelector('.overflow-y-auto');
+                    if (content) {
+                        console.log('Bottom sheet content found', {
+                            contentHeight: content.offsetHeight,
+                            contentScrollHeight: content.scrollHeight,
+                            contentDisplay: window.getComputedStyle(content).display,
+                            packItems: document.querySelectorAll('.mobile-pack-item').length,
+                            contentRect: content.getBoundingClientRect()
+                        });
+                    } else {
+                        console.error('Bottom sheet content not found!');
+                    }
+                }, 10);
+            });
+            
             // Prevent body scroll (but allow bottom sheet to scroll)
             const scrollY = window.scrollY;
             document.body.style.overflow = 'hidden';
@@ -258,6 +373,8 @@
             if (scrollableContent) {
                 scrollableContent.style.overflowY = 'auto';
                 scrollableContent.style.webkitOverflowScrolling = 'touch';
+            } else {
+                console.warn('Scrollable content not found in bottom sheet');
             }
         }
         
@@ -265,7 +382,12 @@
         function closeBottomSheet() {
             if (bottomSheet) {
                 bottomSheet.style.transform = 'translateY(100%)';
-                // Keep display: block so transition works
+                // Hide after transition completes
+                setTimeout(() => {
+                    if (bottomSheet.style.transform === 'translateY(100%)' || bottomSheet.style.transform.includes('100%')) {
+                        bottomSheet.style.display = 'none';
+                    }
+                }, 300); // Match transition duration
             }
             if (bottomSheetOverlay) {
                 bottomSheetOverlay.style.display = 'none';

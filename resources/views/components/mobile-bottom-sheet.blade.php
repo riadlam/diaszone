@@ -1,17 +1,17 @@
 <!-- Mobile Bottom Sheet -->
-<div id="mobile-pack-bottom-sheet" class="fixed left-0 right-0 bottom-0 w-full bg-white shadow-2xl z-50 transform translate-y-full transition-transform duration-300 ease-out lg:hidden" style="height: 85vh; border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15); display: none !important; flex-direction: column;">
+<div id="mobile-pack-bottom-sheet" class="fixed left-0 right-0 bottom-0 w-full bg-white shadow-2xl transition-transform duration-300 ease-out" style="height: 85vh; max-height: 85vh; border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15); display: none; flex-direction: column; z-index: 9999 !important; background-color: #ffffff !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; position: fixed !important; width: 100% !important; left: 0 !important; right: 0 !important; bottom: 0 !important; transform: translateY(100%) !important;">
     <!-- Drag Handle Indicator -->
     <div class="flex justify-center pt-3 pb-2 flex-shrink-0">
         <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
     </div>
     
     <!-- Bottom Sheet Header -->
-    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0 bg-white">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0 bg-white" style="background-color: #ffffff !important; z-index: 1;">
         <div>
-            <h3 class="text-xl font-bold text-gray-900">Select Top-Up Amount</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Choose your {{ strtolower($gameTitle ?? 'diamond') }} pack</p>
+            <h3 class="text-xl font-bold text-gray-900" style="color: #111827 !important;">Select Top-Up Amount</h3>
+            <p class="text-xs text-gray-500 mt-0.5" style="color: #6b7280 !important;">Choose your {{ strtolower($gameTitle ?? 'diamond') }} pack</p>
         </div>
-        <button id="close-bottom-sheet-btn" class="p-2 -mr-2 text-gray-400 hover:text-gray-600 active:bg-gray-100 rounded-full transition-colors">
+        <button id="close-bottom-sheet-btn" class="p-2 -mr-2 text-gray-400 hover:text-gray-600 active:bg-gray-100 rounded-full transition-colors" style="z-index: 2;">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -19,7 +19,12 @@
     </div>
     
     <!-- Bottom Sheet Content (Scrollable) -->
-    <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3" style="overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;">
+    <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3" style="overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background-color: #ffffff !important; min-height: 200px;">
+        @if(empty($packs) || count($packs) === 0)
+            <div class="text-center py-8">
+                <p class="text-gray-500">No packs available</p>
+            </div>
+        @else
         @foreach($packs as $index => $pack)
             @php
                 $discountAmount = ($pack->price * $pack->discount_percentage) / 100;
@@ -184,9 +189,10 @@
                 </div>
             </button>
         @endforeach
+        @endif
     </div>
 </div>
 
 <!-- Bottom Sheet Overlay -->
-<div id="bottom-sheet-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden" style="display: none;"></div>
+<div id="bottom-sheet-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden lg:hidden" style="display: none; z-index: 9998;"></div>
 
