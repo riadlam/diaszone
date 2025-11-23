@@ -101,20 +101,43 @@
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
             <div class="space-y-3">
+                @php
+                    $unitPriceUsd = (float) ($order->diamondPack->price_usd ?? $unit_price);
+                    $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($unit_price * 260));
+                    $discountAmountUsd = ($unitPriceUsd * $discount_percentage) / 100;
+                    $discountAmountDzd = ($unitPriceDzd * $discount_percentage) / 100;
+                    $totalAmountUsd = $unitPriceUsd - $discountAmountUsd;
+                    $totalAmountDzd = $unitPriceDzd - $discountAmountDzd;
+                @endphp
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Unit Price</span>
-                    <span class="text-sm font-semibold text-gray-900">US$ {{ number_format($unit_price, 2) }}</span>
+                    <span class="text-sm font-semibold text-gray-900" 
+                          id="crypto-unit-price"
+                          data-price-usd="{{ $unitPriceUsd }}"
+                          data-price-dzd="{{ $unitPriceDzd }}">
+                        US$ {{ number_format($unitPriceUsd, 2) }}
+                    </span>
                 </div>
                 @if($discount_percentage > 0)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Discount ({{ $discount_percentage }}%)</span>
-                        <span class="text-sm font-semibold text-red-500">- US$ {{ number_format($discount_amount, 2) }}</span>
+                        <span class="text-sm font-semibold text-red-500" 
+                              id="crypto-discount"
+                              data-discount-usd="{{ $discountAmountUsd }}"
+                              data-discount-dzd="{{ $discountAmountDzd }}">
+                            - US$ {{ number_format($discountAmountUsd, 2) }}
+                        </span>
                     </div>
                 @endif
                 <div class="border-t border-gray-200 pt-3">
                     <div class="flex justify-between items-center">
                         <span class="text-base font-semibold text-gray-900">Total Amount</span>
-                        <span class="text-lg font-bold text-purple-600">US$ {{ number_format($total_amount, 2) }}</span>
+                        <span class="text-lg font-bold text-purple-600" 
+                              id="crypto-total-price"
+                              data-price-usd="{{ $totalAmountUsd }}"
+                              data-price-dzd="{{ $totalAmountDzd }}">
+                            US$ {{ number_format($totalAmountUsd, 2) }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -340,6 +363,52 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Update price based on selected currency
+    function updateCryptoPrice() {
+        const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+        
+        const unitPriceEl = document.getElementById('crypto-unit-price');
+        const discountEl = document.getElementById('crypto-discount');
+        const totalPriceEl = document.getElementById('crypto-total-price');
+        
+        if (unitPriceEl) {
+            const priceUsd = parseFloat(unitPriceEl.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(unitPriceEl.getAttribute('data-price-dzd')) || 0;
+            const price = currency === 'DZD' ? priceDzd : priceUsd;
+            unitPriceEl.textContent = currency === 'DZD' 
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : 'US$ ' + price.toFixed(2);
+        }
+        
+        if (discountEl) {
+            const discountUsd = parseFloat(discountEl.getAttribute('data-discount-usd')) || 0;
+            const discountDzd = parseFloat(discountEl.getAttribute('data-discount-dzd')) || 0;
+            const discount = currency === 'DZD' ? discountDzd : discountUsd;
+            discountEl.textContent = '- ' + (currency === 'DZD' 
+                ? Math.round(discount).toLocaleString() + ' DZD'
+                : 'US$ ' + discount.toFixed(2));
+        }
+        
+        if (totalPriceEl) {
+            const priceUsd = parseFloat(totalPriceEl.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(totalPriceEl.getAttribute('data-price-dzd')) || 0;
+            const price = currency === 'DZD' ? priceDzd : priceUsd;
+            totalPriceEl.textContent = currency === 'DZD' 
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : 'US$ ' + price.toFixed(2);
+        }
+    }
+    
+    // Listen for currency changes
+    window.addEventListener('currencyChanged', function(e) {
+        updateCryptoPrice();
+    });
+    
+    // Update on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateCryptoPrice();
+    });
 });
 </script>
 @endpush

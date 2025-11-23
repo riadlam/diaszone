@@ -19,16 +19,21 @@
                         @endphp
                         
                         @foreach($paymentMethods as $index => $method)
-                            <label class="payment-method-card block cursor-pointer group">
+                            @php
+                                $isComingSoon = isset($method['coming_soon']) && $method['coming_soon'];
+                                $isChecked = !$isComingSoon && $index === 1;
+                            @endphp
+                            <label class="payment-method-card block {{ $isComingSoon ? 'cursor-not-allowed' : 'cursor-pointer' }} group relative">
                                 <input type="radio" 
                                        name="payment_method" 
                                        value="{{ $method['id'] }}"
                                        class="hidden peer"
-                                       @if($index === 1) checked @endif>
+                                       @if($isComingSoon) disabled @endif
+                                       @if($isChecked) checked @endif>
                                 
-                                <div class="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-purple-400 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 peer-checked:border-purple-600 peer-checked:bg-gradient-to-br peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:shadow-2xl peer-checked:shadow-purple-200/50 flex items-center gap-3">
+                                <div class="bg-white border-2 border-gray-200 rounded-xl p-4 {{ $isComingSoon ? 'opacity-60 grayscale pointer-events-none' : 'hover:border-purple-400 hover:shadow-xl hover:scale-[1.02]' }} transition-all duration-300 peer-checked:border-purple-600 peer-checked:bg-gradient-to-br peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:shadow-2xl peer-checked:shadow-purple-200/50 flex items-center gap-3">
                                     <!-- Payment Icon -->
-                                    <div class="flex-shrink-0 group-hover:scale-110 transition-transform duration-300" style="width: 57.6px; height: 57.6px; min-width: 57.6px; min-height: 57.6px; display: flex !important; align-items: center; justify-center; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 12.8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                    <div class="flex-shrink-0 {{ $isComingSoon ? '' : 'group-hover:scale-110' }} transition-transform duration-300" style="width: 57.6px; height: 57.6px; min-width: 57.6px; min-height: 57.6px; display: flex !important; align-items: center; justify-center; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 12.8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                                         <img src="{{ $baseUrl }}/storage/images_homepage/{{ $method['icon'] }}" 
                                              alt="{{ $method['name'] }}" 
                                              style="width: 100% !important; height: 100% !important; max-width: 57.6px !important; max-height: 57.6px !important; object-fit: contain !important; display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1 !important;"
@@ -38,9 +43,16 @@
                                     
                                     <!-- Payment Info -->
                                     <div class="flex-1 min-w-0">
-                                        <h3 class="text-base font-bold text-gray-900 mb-1 group-hover:text-purple-600 transition-colors">{{ $method['name'] }}</h3>
+                                        <h3 class="text-base font-bold text-gray-900 mb-1 {{ $isComingSoon ? '' : 'group-hover:text-purple-600' }} transition-colors">{{ $method['name'] }}</h3>
                                         <p class="text-xs text-gray-600 font-medium">{{ $method['description'] }}</p>
                                     </div>
+                                    
+                                    <!-- Coming Soon Overlay -->
+                                    @if($isComingSoon)
+                                    <div class="absolute inset-0 flex items-center justify-center bg-gray-300 bg-opacity-30 rounded-xl">
+                                        <span class="bg-gray-600 text-white px-3 py-1 rounded-lg text-xs font-bold">Coming Soon</span>
+                                    </div>
+                                    @endif
                                 </div>
                             </label>
                         @endforeach
@@ -114,6 +126,12 @@
                             <div class="flex justify-between items-center mb-2" id="discount-row" style="display: none;">
                                 <span class="text-xs font-semibold text-gray-600">Discount</span>
                                 <span class="text-xs font-medium text-red-500" id="discount-amount">- USD 0.00</span>
+                            </div>
+                            
+                            <!-- Flexy Fee -->
+                            <div class="flex justify-between items-center mb-2" id="flexy-fee-row" style="display: none;">
+                                <span class="text-xs font-semibold text-gray-600">Flexy Processing Fee</span>
+                                <span class="text-xs font-medium text-gray-700" id="flexy-fee-amount">0 DZD</span>
                             </div>
                             
                             <!-- Total -->
@@ -398,18 +416,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (paymentInfoSection) paymentInfoSection.style.display = 'block';
             }
             
+            // Get selected currency
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+            
+            // Get selected payment method
+            const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value || '';
+            
             // Calculate totals
             let totalBeforeDiscount = 0;
             let totalDiscount = 0;
             let totalAmount = 0;
             let totalCredits = 0;
+            let flexyFee = 0; // 50 DZD fee for Flexy
             
             cart.forEach(item => {
                 const pack = packsMap[item.pack_id];
                 if (!pack) return;
                 
                 const quantity = 1;
-                const unitPrice = parseFloat(pack.price);
+                // Use price_usd or price_dzd based on selected currency
+                const unitPrice = currency === 'DZD' 
+                    ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
+                    : (parseFloat(pack.price_usd) || parseFloat(pack.price));
                 const discountPercentage = parseFloat(pack.discount) || 0;
                 const discountAmount = (unitPrice * discountPercentage) / 100;
                 const priceAfterDiscount = unitPrice - discountAmount;
@@ -424,20 +452,62 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalCredits += Math.round(itemTotal * 416);
             });
             
+            // Add Flexy fee if Flexy is selected (50 DZD)
+            if (selectedPaymentMethod === 'flexy') {
+                flexyFee = 50; // Always 50 DZD
+                totalAmount += flexyFee;
+            }
+            
+            // Format prices based on currency
+            const formatPrice = (price) => {
+                return currency === 'DZD' 
+                    ? Math.round(price).toLocaleString() + ' DZD'
+                    : '$' + price.toFixed(2) + ' USD';
+            };
+            
             // Update UI
-            if (totalBeforeDiscount > totalAmount) {
+            if (totalBeforeDiscount > totalAmount - flexyFee) {
                 document.getElementById('total-before-discount-row').style.display = 'flex';
-                document.getElementById('total-before-discount').textContent = `USD ${totalBeforeDiscount.toFixed(2)}`;
+                document.getElementById('total-before-discount').textContent = formatPrice(totalBeforeDiscount);
+                document.getElementById('total-before-discount').setAttribute('data-value', totalBeforeDiscount);
             }
             
             if (totalDiscount > 0) {
                 document.getElementById('discount-row').style.display = 'flex';
-                document.getElementById('discount-amount').textContent = `- USD ${totalDiscount.toFixed(2)}`;
+                document.getElementById('discount-amount').textContent = '- ' + formatPrice(totalDiscount);
+                document.getElementById('discount-amount').setAttribute('data-value', totalDiscount);
             }
             
-            document.getElementById('total-amount').textContent = `USD ${totalAmount.toFixed(2)}`;
-            document.getElementById('pay-now-amount').textContent = `USD ${totalAmount.toFixed(2)}`;
+            // Show Flexy fee if applicable
+            const flexyFeeRow = document.getElementById('flexy-fee-row');
+            if (flexyFeeRow) {
+                if (selectedPaymentMethod === 'flexy') {
+                    flexyFeeRow.style.display = 'flex';
+                    const flexyFeeAmount = document.getElementById('flexy-fee-amount');
+                    if (flexyFeeAmount) {
+                        flexyFeeAmount.textContent = formatPrice(flexyFee);
+                        flexyFeeAmount.setAttribute('data-value', flexyFee);
+                    }
+                } else {
+                    flexyFeeRow.style.display = 'none';
+                }
+            }
+            
+            document.getElementById('total-amount').textContent = formatPrice(totalAmount);
+            document.getElementById('total-amount').setAttribute('data-value', totalAmount);
+            document.getElementById('pay-now-amount').textContent = formatPrice(totalAmount);
+            document.getElementById('pay-now-amount').setAttribute('data-value', totalAmount);
             document.getElementById('diaszone-credit').textContent = `diaszone credit ${totalCredits.toLocaleString()}`;
+            
+            // Update payment method text
+            const payWithText = document.getElementById('pay-with-text');
+            if (payWithText) {
+                const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
+                if (selectedMethod) {
+                    const methodName = selectedMethod.closest('label')?.querySelector('h3')?.textContent || 'Payment';
+                    payWithText.textContent = `${methodName} (${currency})`;
+                }
+            }
             
             // Hide skeleton, show content
             if (skeleton) skeleton.style.display = 'none';
@@ -475,8 +545,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const checkedRadio = document.querySelector('input[name="payment_method"]:checked');
         if (checkedRadio) {
             const methodName = paymentMethods[checkedRadio.value] || checkedRadio.value;
-            payWithText.textContent = methodName;
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+            payWithText.textContent = `${methodName} (${currency})`;
         }
+        
+        // Function to update prices when currency or payment method changes
+        function updatePaymentPrices() {
+            // Reload payment info to recalculate with new currency and payment method
+            loadPaymentInfo();
+        }
+        
+        // Listen for currency changes
+        window.addEventListener('currencyChanged', function(e) {
+            updatePaymentPrices();
+        });
+        
+        // Update payment method text when selection changes
+        paymentRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    const methodName = paymentMethods[this.value] || this.value;
+                    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+                    payWithText.textContent = `${methodName} (${currency})`;
+                    // Recalculate prices when payment method changes (to add/remove Flexy fee)
+                    updatePaymentPrices();
+                }
+            });
+        });
         
         // Handle submit button
         const submitBtn = document.getElementById('pay-submit-btn');
@@ -611,115 +706,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitBtn.textContent = 'Envoyer';
                 }
                 } else if (paymentMethod === 'cryptocurrency') {
-                    // If Cryptocurrency is selected, create order and navigate to crypto payment page
-                    submitBtn.disabled = true;
-                    submitBtn.textContent = 'Processing...';
-                    
-                    try {
-                    // Prepare cart items for API - include all game-specific fields
-                    const cartItems = cart.map(item => {
-                        const cartItem = { pack_id: item.pack_id };
-                        
-                        // Include all possible fields - backend will validate based on game type
-                        if (item.user_id) cartItem.user_id = item.user_id;
-                        if (item.zone_id) cartItem.zone_id = item.zone_id;
-                        if (item.player_id_ff) cartItem.player_id_ff = item.player_id_ff;
-                        if (item.player_id_pubg) cartItem.player_id_pubg = item.player_id_pubg;
-                        if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
-                        if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
-                        if (item.server_bs) cartItem.server_bs = item.server_bs;
-                        
-                        return cartItem;
-                    });
-                    
-                    // Create a new order via API
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                    const response = await fetch('{{ route("api.orders.create") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({ 
-                            cart_items: cartItems,
-                            payment_method: 'cryptocurrency'
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        // Check for rate limiting (429)
-                        if (response.status === 429) {
-                            const errorData = await response.json().catch(() => ({}));
-                            throw new Error('RATE_LIMIT: Too many requests. Please wait a moment before trying again.');
-                        }
-                        throw new Error('Failed to create order');
-                    }
-                    
-                    const data = await response.json();
-                    
-                    if (data.success && data.orders && data.orders.length > 0) {
-                        // Store the new encrypted order ID in localStorage array
-                        const encryptedOrderId = data.orders[0].encrypted_id;
-                        
-                        // Get existing encrypted order IDs or create new array
-                        const existingOrderIds = localStorage.getItem('diaszone_encrypted_order_ids');
-                        let orderIdsArray = [];
-                        
-                        if (existingOrderIds) {
-                            try {
-                                const parsed = JSON.parse(existingOrderIds);
-                                if (Array.isArray(parsed)) {
-                                    orderIdsArray = parsed;
-                                } else {
-                                    orderIdsArray = [parsed];
-                                }
-                            } catch (e) {
-                                orderIdsArray = [];
-                            }
-                        }
-                        
-                        // Add the new encrypted order ID to the array (avoid duplicates)
-                        if (!orderIdsArray.includes(encryptedOrderId)) {
-                            orderIdsArray.push(encryptedOrderId);
-                        }
-                        
-                        // Store the updated array back to localStorage
-                        localStorage.setItem('diaszone_encrypted_order_ids', JSON.stringify(orderIdsArray));
-                        
-                        // Update "My Orders" button visibility
-                        if (window.updateMyOrdersButton) {
-                            window.updateMyOrdersButton();
-                        }
-                        
-                        // Clear cart from localStorage after order is created
-                        localStorage.removeItem('diaszone_cart');
-                        
-                        // Navigate to crypto form page with encrypted order ID
-                        const encodedOrderId = encodeURIComponent(encryptedOrderId);
-                        window.location.href = '/select/crypto/' + encodedOrderId;
-                    } else {
-                        throw new Error('Order creation failed');
-                    }
-                } catch (error) {
-                    console.error('Error creating order:', error);
-                    
-                    // Show styled alert based on error type
-                    try {
-                        if (error.message && error.message.includes('RATE_LIMIT')) {
-                            showStyledAlert('Too Many Requests', 'You are making requests too quickly. Please wait a moment before trying again.', 'warning');
-                        } else {
-                            showStyledAlert('Order Creation Failed', 'Failed to create order. Please try again.', 'error');
-                        }
-                    } catch (alertError) {
-                        // Fallback if showStyledAlert fails
-                        console.error('Error showing alert:', alertError);
-                        alert('Failed to create order. Please try again.');
-                    }
-                    
+                    // Cryptocurrency is coming soon - prevent selection
+                    alert('Cryptocurrency payment is coming soon. Please select another payment method.');
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Envoyer';
-                }
+                    return;
                 } else if (paymentMethod === 'baridimob') {
                     // If Baridimob is selected, create order and navigate to baridimob payment page
                     submitBtn.disabled = true;

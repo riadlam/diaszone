@@ -220,6 +220,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         async function loadCart() {
+            // Get selected currency at the start
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+            
+            // Format prices based on currency
+            const formatPrice = (price) => {
+                return currency === 'DZD' 
+                    ? Math.round(price).toLocaleString() + ' DZD'
+                    : '$' + price.toFixed(2) + ' USD';
+            };
+            
             let cart = CartManager.getCart();
             
             // Enforce single-item limit: if multiple items exist, keep only the newest (last added)
@@ -279,12 +289,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
                 const quantity = 1;
-                const unitPrice = parseFloat(pack.price);
+                // Use price_usd or price_dzd based on selected currency
+                const unitPriceBase = currency === 'DZD' 
+                    ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
+                    : (parseFloat(pack.price_usd) || parseFloat(pack.price));
                 const discountPercentage = parseFloat(pack.discount) || 0;
-                const discountAmount = (unitPrice * discountPercentage) / 100;
-                const priceAfterDiscount = unitPrice - discountAmount;
+                const discountAmount = (unitPriceBase * discountPercentage) / 100;
+                const priceAfterDiscount = unitPriceBase - discountAmount;
                 
-                const itemTotalBeforeDiscount = unitPrice * quantity;
+                const itemTotalBeforeDiscount = unitPriceBase * quantity;
                 const itemTotalDiscount = discountAmount * quantity;
                 const itemTotal = priceAfterDiscount * quantity;
                 
@@ -470,8 +483,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${discountPercentage > 0 ? `<span class="text-xs font-medium text-purple-500">Discount: ${discountPercentage.toFixed(1)}%</span>` : ''}
                             <span class="text-xs text-gray-500">× ${quantity}</span>
                         </div>
-                        <div class="text-base font-semibold text-purple-600">
-                            US$ ${unitPrice.toFixed(2)}
+                        <div class="text-base font-semibold text-purple-600 cart-item-price" 
+                             data-price-usd="${pack.price_usd || pack.price}" 
+                             data-price-dzd="${pack.price_dzd || (pack.price * 260)}" 
+                             data-discount="${discountPercentage}">
+                            ${currency === 'DZD' 
+                                ? Math.round(unitPriceBase).toLocaleString() + ' DZD'
+                                : '$' + unitPriceBase.toFixed(2) + ' USD'}
                         </div>
                     </div>
                     
@@ -483,18 +501,18 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Update payment details (same format as checkout)
             paymentDetails.innerHTML = `
-            <div class="space-y-3 mb-5">
+            <div class="space-y-3 mb-5" id="payment-details-content">
                 <!-- Total Before Discounts -->
                 <div class="flex justify-between items-center">
                     <span class="text-xs text-gray-600">Total Before Discounts</span>
-                    <span class="text-xs font-medium text-gray-700">US$ ${totalBeforeDiscount.toFixed(2)}</span>
+                    <span class="text-xs font-medium text-gray-700 cart-total-before" data-value="${totalBeforeDiscount}">${formatPrice(totalBeforeDiscount)}</span>
                 </div>
                 
                 <!-- Discount -->
                 ${totalDiscount > 0 ? `
                     <div class="flex justify-between items-center">
                         <span class="text-xs text-gray-600">Discount</span>
-                        <span class="text-xs font-medium text-red-500">- US$ ${totalDiscount.toFixed(2)}</span>
+                        <span class="text-xs font-medium text-red-500 cart-discount" data-value="${totalDiscount}">- ${formatPrice(totalDiscount)}</span>
                     </div>
                 ` : ''}
                 
@@ -505,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="flex flex-col">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm font-medium text-purple-600">Total</span>
-                                <span class="text-base font-semibold text-purple-600">US$ ${totalAmount.toFixed(2)}</span>
+                                <span class="text-base font-semibold text-purple-600 cart-total" data-value="${totalAmount}">${formatPrice(totalAmount)}</span>
                             </div>
                             <!-- DiasZone Credit - Under Total, as part of the same cell -->
                             <div class="text-xs text-gray-500 lowercase mt-1 ml-0">
@@ -519,6 +537,101 @@ document.addEventListener('DOMContentLoaded', () => {
             
             checkoutButton.classList.remove('hidden');
         }
+        
+        // Function to update prices when currency changes
+        function updateCartPrices() {
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+            
+            // Update item prices
+            document.querySelectorAll('.cart-item-price').forEach(element => {
+                const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+                const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+                const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+                
+                let price = currency === 'DZD' ? priceDzd : priceUsd;
+                if (discount > 0) {
+                    const discountAmount = (price * discount) / 100;
+                    price = price - discountAmount;
+                }
+                
+                element.textContent = currency === 'DZD' 
+                    ? Math.round(price).toLocaleString() + ' DZD'
+                    : '$' + price.toFixed(2) + ' USD';
+            });
+            
+            // Recalculate totals based on new currency
+            const cart = CartManager.getCart();
+            if (cart.length > 0) {
+                // Get pack IDs and fetch fresh data
+                const packIds = cart.map(item => item.pack_id).filter(Boolean);
+                CartManager.fetchPacks(packIds).then(packs => {
+                    const packsMap = {};
+                    packs.forEach(pack => {
+                        packsMap[pack.id] = pack;
+                    });
+                    
+                    // Recalculate totals
+                    let totalBeforeDiscount = 0;
+                    let totalDiscount = 0;
+                    let totalAmount = 0;
+                    
+                    cart.forEach(item => {
+                        const pack = packsMap[item.pack_id];
+                        if (!pack) return;
+                        
+                        const quantity = 1;
+                        const unitPriceBase = currency === 'DZD' 
+                            ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
+                            : (parseFloat(pack.price_usd) || parseFloat(pack.price));
+                        const discountPercentage = parseFloat(pack.discount) || 0;
+                        const discountAmount = (unitPriceBase * discountPercentage) / 100;
+                        const priceAfterDiscount = unitPriceBase - discountAmount;
+                        
+                        totalBeforeDiscount += unitPriceBase * quantity;
+                        totalDiscount += discountAmount * quantity;
+                        totalAmount += priceAfterDiscount * quantity;
+                    });
+                    
+                    // Format prices based on currency
+                    const formatPrice = (price) => {
+                        return currency === 'DZD' 
+                            ? Math.round(price).toLocaleString() + ' DZD'
+                            : '$' + price.toFixed(2) + ' USD';
+                    };
+                    
+                    // Update totals
+                    const totalBeforeEl = document.querySelector('.cart-total-before');
+                    const discountEl = document.querySelector('.cart-discount');
+                    const totalEl = document.querySelector('.cart-total');
+                    
+                    if (totalBeforeEl) {
+                        totalBeforeEl.setAttribute('data-value', totalBeforeDiscount);
+                        totalBeforeEl.textContent = formatPrice(totalBeforeDiscount);
+                    }
+                    
+                    if (discountEl && totalDiscount > 0) {
+                        discountEl.setAttribute('data-value', totalDiscount);
+                        discountEl.textContent = '- ' + formatPrice(totalDiscount);
+                    }
+                    
+                    if (totalEl) {
+                        totalEl.setAttribute('data-value', totalAmount);
+                        totalEl.textContent = formatPrice(totalAmount);
+                    }
+                });
+            }
+        }
+        
+        // Listen for currency changes - reload cart to recalculate everything
+        window.addEventListener('currencyChanged', function(e) {
+            // Reload the entire cart to recalculate all prices with new currency
+            loadCart();
+        });
+        
+        // Update prices on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(updateCartPrices, 100);
+        });
         
         function removeCartItem(itemId) {
             CartManager.removeFromCart(itemId);

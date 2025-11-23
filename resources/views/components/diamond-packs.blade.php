@@ -15,6 +15,9 @@
                        data-pack-diamonds="{{ $pack->diamonds }}"
                        data-pack-bonus="{{ $pack->bonus_diamonds }}"
                        data-pack-price="{{ $pack->price }}"
+                       data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
+                       data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
+                       data-pack-name="{{ $pack->name }}"
                        data-pack-discount="{{ $pack->discount_percentage }}">
                 
                 <div class="SKU_type bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-500 transition-all">
@@ -78,13 +81,21 @@
                                         }
                                     } else {
                                         // Mobile Legends (default)
-                                        $imageName = 'diaslow.webp';
-                                        if ($pack->diamonds >= 2000) {
-                                            $imageName = 'diasbigbig.webp';
-                                        } elseif ($pack->diamonds >= 500) {
-                                            $imageName = 'diaslarge.webp';
-                                        } elseif ($pack->diamonds >= 100) {
-                                            $imageName = 'diasmid.webp';
+                                        // Check for special passes first
+                                        if (stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false) {
+                                            $imageName = 'weeklymlbb.webp';
+                                        } elseif (stripos($pack->name, 'Twilight Pass') !== false) {
+                                            $imageName = 'twlilightpass.jpg';
+                                        } else {
+                                            // Regular diamond packs
+                                            $imageName = 'diaslow.webp';
+                                            if ($pack->diamonds >= 2000) {
+                                                $imageName = 'diasbigbig.webp';
+                                            } elseif ($pack->diamonds >= 500) {
+                                                $imageName = 'diaslarge.webp';
+                                            } elseif ($pack->diamonds >= 100) {
+                                                $imageName = 'diasmid.webp';
+                                            }
                                         }
                                     }
                                 @endphp
@@ -120,7 +131,13 @@
                                             {{ $pack->diamonds }} Tokens
                                         @endif
                                     @else
-                                        {{ $pack->diamonds }} {{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}
+                                        @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
+                                            1x Weekly Diamond Pass
+                                        @elseif(stripos($pack->name, 'Twilight Pass') !== false)
+                                            Twilight Pass
+                                        @else
+                                            {{ $pack->diamonds }} {{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}
+                                        @endif
                                     @endif
                                 </h3>
                                 @if($pack->discount_percentage > 0)
@@ -132,9 +149,9 @@
                             @endif
                             <div class="flex items-center justify-between">
                                 @if($pack->discount_percentage > 0)
-                                    <span class="text-xs text-gray-400 line-through">US$ {{ number_format($pack->price, 2) }}</span>
+                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}">US$ {{ number_format($pack->price_usd ?? $pack->price, 2) }}</span>
                                 @endif
-                                <span class="text-sm font-bold text-purple-600">US$ {{ number_format($pack->price * (1 - $pack->discount_percentage / 100), 2) }}</span>
+                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}" data-discount="{{ $pack->discount_percentage }}">US$ {{ number_format(($pack->price_usd ?? $pack->price) * (1 - $pack->discount_percentage / 100), 2) }}</span>
                             </div>
                         </div>
                     </div>
@@ -146,6 +163,99 @@
 </div>
 
 <script>
+// Currency price update function
+window.updatePricesOnPage = function() {
+    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'USD');
+    
+    // Update all pack prices
+    document.querySelectorAll('.pack-final-price').forEach(element => {
+        const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+        const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+        const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+        
+        let price = currency === 'DZD' ? priceDzd : priceUsd;
+        if (discount > 0) {
+            const discountAmount = (price * discount) / 100;
+            price = price - discountAmount;
+        }
+        
+        if (currency === 'DZD') {
+            element.textContent = Math.round(price).toLocaleString() + ' DZD';
+        } else {
+            element.textContent = '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+    });
+    
+    // Update original prices (strikethrough)
+    document.querySelectorAll('.pack-original-price').forEach(element => {
+        const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+        const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+        
+        const price = currency === 'DZD' ? priceDzd : priceUsd;
+        
+        if (currency === 'DZD') {
+            element.textContent = Math.round(price).toLocaleString() + ' DZD';
+        } else {
+            element.textContent = '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+    });
+    
+    // Update mobile bottom sheet prices
+    const selectedPackText = document.querySelector('#selected-pack-text');
+    if (selectedPackText) {
+        const packCard = document.querySelector('input[name="diamond_pack"]:checked');
+        if (packCard) {
+            const packPriceUsd = parseFloat(packCard.getAttribute('data-pack-price-usd')) || 0;
+            const packPriceDzd = parseFloat(packCard.getAttribute('data-pack-price-dzd')) || 0;
+            const packDiscount = parseFloat(packCard.getAttribute('data-pack-discount')) || 0;
+            const packDiamonds = packCard.getAttribute('data-pack-diamonds');
+            const packBonus = packCard.getAttribute('data-pack-bonus');
+            const packName = packCard.closest('.SKU_type')?.querySelector('h3')?.textContent || '';
+            
+            let price = currency === 'DZD' ? packPriceDzd : packPriceUsd;
+            if (packDiscount > 0) {
+                const discountAmount = (price * packDiscount) / 100;
+                price = price - discountAmount;
+            }
+            
+            let packDisplayName = '';
+            if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
+                packDisplayName = '1x Weekly Diamond Pass';
+            } else if (packName && packName.includes('Twilight Pass')) {
+                packDisplayName = 'Twilight Pass';
+            } else {
+                const gameType = '{{ $gameType ?? "mobilelegends" }}';
+                const currencyText = gameType === 'pubgmobile' ? 'UC' : 'Diamonds';
+                const bonusText = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} Bonus` : '';
+                packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusText}`;
+            }
+            
+            const priceText = currency === 'DZD' 
+                ? `${Math.round(price).toLocaleString()} DZD`
+                : `$${parseFloat(price).toFixed(2)} USD`;
+            
+            selectedPackText.innerHTML = `
+                <span class="block text-sm font-semibold">${packDisplayName}</span>
+                <span class="text-xs text-white/90 font-medium">${priceText}</span>
+            `;
+        }
+    }
+};
+
+// Listen for currency changes
+window.addEventListener('currencyChanged', function(e) {
+    if (typeof updatePricesOnPage === 'function') {
+        updatePricesOnPage();
+    }
+});
+
+// Update prices on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof updatePricesOnPage === 'function') {
+        updatePricesOnPage();
+    }
+});
+
 // Ensure desktop grid visibility (runs on all screens)
 (function() {
     'use strict';
@@ -457,6 +567,9 @@
                 const packDiamonds = this.dataset.packDiamonds;
                 const packBonus = this.dataset.packBonus;
                 const packPrice = this.dataset.packPrice;
+                const packPriceUsd = this.dataset.packPriceUsd || packPrice;
+                const packPriceDzd = this.dataset.packPriceDzd || (packPrice * 260);
+                const packName = this.dataset.packName || '';
                 const packDiscount = this.dataset.packDiscount || 0;
                 
                 // Remove previous selection indicator
@@ -488,16 +601,31 @@
                 this.classList.add('border-purple-500', 'bg-purple-50/50');
                 
                 // Update mobile button text
-                const discountAmount = (parseFloat(packPrice) * parseFloat(packDiscount)) / 100;
-                const priceAfterDiscount = parseFloat(packPrice) - discountAmount;
+                const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+                let price = currency === 'DZD' ? parseFloat(packPriceDzd) : parseFloat(packPriceUsd);
+                const discountAmount = (price * parseFloat(packDiscount)) / 100;
+                const priceAfterDiscount = price - discountAmount;
                 
                 if (selectedPackText) {
-                    const gameType = '{{ $gameType ?? "mobilelegends" }}';
-                    const currencyText = gameType === 'pubgmobile' ? 'UC' : 'Diamonds';
-                    const bonusText = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} Bonus` : '';
+                    let packDisplayName = '';
+                    if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
+                        packDisplayName = '1x Weekly Diamond Pass';
+                    } else if (packName && packName.includes('Twilight Pass')) {
+                        packDisplayName = 'Twilight Pass';
+                    } else {
+                        const gameType = '{{ $gameType ?? "mobilelegends" }}';
+                        const currencyText = gameType === 'pubgmobile' ? 'UC' : 'Diamonds';
+                        const bonusText = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} Bonus` : '';
+                        packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusText}`;
+                    }
+                    
+                    const priceText = currency === 'DZD' 
+                        ? `${Math.round(priceAfterDiscount).toLocaleString()} DZD`
+                        : `$${priceAfterDiscount.toFixed(2)} USD`;
+                    
                     selectedPackText.innerHTML = `
-                        <span class="block text-sm font-semibold">${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusText}</span>
-                        <span class="text-xs text-white/90 font-medium">US$ ${priceAfterDiscount.toFixed(2)}</span>
+                        <span class="block text-sm font-semibold">${packDisplayName}</span>
+                        <span class="text-xs text-white/90 font-medium">${priceText}</span>
                     `;
                 }
                 

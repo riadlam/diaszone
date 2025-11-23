@@ -107,6 +107,46 @@
             </div>
         </div>
 
+        <!-- Price Breakdown Card -->
+        <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
+            <div class="space-y-3">
+                @php
+                    $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
+                    $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
+                    $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+                    $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
+                    $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
+                    $finalUsdPrice = $usdPrice - $discountAmountUsd;
+                    $finalDzdPrice = $dzdPrice - $discountAmountDzd;
+                    $flexyFee = 50; // 50 DZD processing fee
+                    $totalWithFee = $finalDzdPrice + $flexyFee;
+                @endphp
+                @if($discountPercentage > 0)
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Discount</span>
+                    <span class="text-sm font-semibold text-green-600">-{{ $discountPercentage }}%</span>
+                </div>
+                @endif
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Flexy Processing Fee</span>
+                    <span class="text-sm font-semibold text-gray-700">{{ number_format($flexyFee, 0) }} DZD</span>
+                </div>
+                <div class="border-t-2 border-purple-200 pt-3 mt-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-lg font-bold text-gray-900">Total Amount</span>
+                        <span class="text-lg font-bold text-purple-600" 
+                              id="flexy-total-price"
+                              data-price-usd="{{ $finalUsdPrice }}"
+                              data-price-dzd="{{ $finalDzdPrice }}"
+                              data-fee="{{ $flexyFee }}">
+                            {{ number_format($totalWithFee, 0) }} DZD
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Flexy Phone Number Notice - Very Prominent -->
         <div class="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-xl shadow-2xl border-4 border-purple-400 p-6 mb-6 transform hover:scale-[1.01] transition-all duration-300 ring-4 ring-purple-300 ring-opacity-50">
             <div class="flex items-center justify-center gap-4">
@@ -502,6 +542,33 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.removeChild(textArea);
         });
     };
+    
+    // Update price based on selected currency (default to DZD for Flexy)
+    function updateFlexyPrice() {
+        // Flexy always uses DZD, but we'll support currency changes if needed
+        const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+        const totalPriceEl = document.getElementById('flexy-total-price');
+        
+        if (totalPriceEl) {
+            const priceUsd = parseFloat(totalPriceEl.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(totalPriceEl.getAttribute('data-price-dzd')) || 0;
+            const fee = parseFloat(totalPriceEl.getAttribute('data-fee')) || 50; // 50 DZD fee
+            // Always use DZD for Flexy payments, add fee
+            const price = priceDzd + fee;
+            
+            totalPriceEl.textContent = Math.round(price).toLocaleString() + ' DZD';
+        }
+    }
+    
+    // Listen for currency changes (though Flexy always uses DZD)
+    window.addEventListener('currencyChanged', function(e) {
+        updateFlexyPrice();
+    });
+    
+    // Update on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateFlexyPrice();
+    });
 });
 </script>
 @endpush

@@ -2,6 +2,47 @@ import './bootstrap';
 import './slider';
 
 // Pack Selection and Order Form Functionality
+// Currency Utility Functions
+window.CurrencyManager = {
+    getCurrency: function() {
+        return localStorage.getItem('diaszone_currency') || 'DZD';
+    },
+    
+    formatPrice: function(priceUsd, priceDzd, discountPercentage = 0) {
+        const currency = this.getCurrency();
+        let price = currency === 'DZD' ? priceDzd : priceUsd;
+        
+        // Apply discount if provided
+        if (discountPercentage > 0) {
+            const discountAmount = (price * discountPercentage) / 100;
+            price = price - discountAmount;
+        }
+        
+        // Format based on currency
+        if (currency === 'DZD') {
+            return Math.round(price).toLocaleString() + ' DZD';
+        } else {
+            return '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+    },
+    
+    getPriceValue: function(priceUsd, priceDzd, discountPercentage = 0) {
+        const currency = this.getCurrency();
+        let price = currency === 'DZD' ? priceDzd : priceUsd;
+        
+        if (discountPercentage > 0) {
+            const discountAmount = (price * discountPercentage) / 100;
+            price = price - discountAmount;
+        }
+        
+        return currency === 'DZD' ? Math.round(price) : parseFloat(price).toFixed(2);
+    },
+    
+    getCurrencySymbol: function() {
+        return this.getCurrency() === 'DZD' ? 'DZD' : 'USD';
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     let selectedPack = null;
     
@@ -255,6 +296,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         packsMap[pack.id] = pack;
                     });
                     
+                    // Get selected currency
+                    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+                    
                     cartItems.innerHTML = cart.map(item => {
                         const packInfo = packsMap[item.pack_id];
                         if (!packInfo) {
@@ -263,6 +307,38 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <p class="text-sm text-red-500">Pack not found (ID: ${item.pack_id})</p>
                                 </div>
                             `;
+                        }
+                        
+                        // Get price based on currency
+                        const priceUsd = parseFloat(packInfo.price_usd || packInfo.price || 0);
+                        const priceDzd = parseFloat(packInfo.price_dzd || (packInfo.price * 260) || 0);
+                        const discount = parseFloat(packInfo.discount || 0);
+                        
+                        let price = currency === 'DZD' ? priceDzd : priceUsd;
+                        if (discount > 0) {
+                            const discountAmount = (price * discount) / 100;
+                            price = price - discountAmount;
+                        }
+                        
+                        // Format price
+                        const formattedPrice = currency === 'DZD' 
+                            ? Math.round(price).toLocaleString() + ' DZD'
+                            : '$' + price.toFixed(2) + ' USD';
+                        
+                        // Determine pack display name
+                        let packDisplayName = '';
+                        if (packInfo.name) {
+                            if (packInfo.name.includes('Weekly Diamond Pass') || packInfo.name.includes('Event Topup')) {
+                                packDisplayName = '1x Weekly Diamond Pass';
+                            } else if (packInfo.name.includes('Twilight Pass')) {
+                                packDisplayName = 'Twilight Pass';
+                            } else {
+                                packDisplayName = packInfo.name;
+                            }
+                        } else {
+                            const gameType = packInfo.game_type || 'mobilelegends';
+                            const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
+                            packDisplayName = `${packInfo.diamonds} ${currencyText}`;
                         }
                         
                         // Determine game type and display appropriate fields
@@ -290,11 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="flex-1 min-w-0">
                                         <h4 class="text-sm font-semibold text-gray-900 mb-1">
-                                            ${packInfo.diamonds} ${gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'))}${packInfo.bonus > 0 ? ` + ${packInfo.bonus} Bonus` : ''}
+                                            ${packDisplayName}${packInfo.bonus > 0 ? ` + ${packInfo.bonus} Bonus` : ''}
                                         </h4>
                                         <div class="text-xs text-gray-600 space-y-1">
                                             ${gameInfo}
-                                            <p class="text-purple-600 font-semibold">US$ ${parseFloat(packInfo.price).toFixed(2)}</p>
+                                            <p class="text-purple-600 font-semibold cart-item-price-dropdown" 
+                                               data-price-usd="${priceUsd}" 
+                                               data-price-dzd="${priceDzd}" 
+                                               data-discount="${discount}">${formattedPrice}</p>
                                         </div>
                                     </div>
                                     <button onclick="CartManager.removeFromCart('${item.id}')" 
@@ -316,21 +395,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize cart UI
     CartManager.updateCartUI();
     
-    // Cart dropdown hover functionality
-    const cartDropdown = document.querySelector('.cart-dropdown');
-    const cartMenu = document.querySelector('.cart-dropdown-menu');
+    // Cart dropdown hover functionality - DISABLED
+    // Hover is disabled, cart dropdown will only show on click
     
-    if (cartDropdown && cartMenu) {
-        cartDropdown.addEventListener('mouseenter', () => {
-            cartMenu.classList.remove('opacity-0', 'invisible');
-            cartMenu.classList.add('opacity-100', 'visible');
-        });
+    // Update cart dropdown prices when currency changes
+    function updateCartDropdownPricesApp() {
+        const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
         
-        cartDropdown.addEventListener('mouseleave', () => {
-            cartMenu.classList.remove('opacity-100', 'visible');
-            cartMenu.classList.add('opacity-0', 'invisible');
+        document.querySelectorAll('.cart-item-price-dropdown').forEach(element => {
+            const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+            const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+            
+            let price = currency === 'DZD' ? priceDzd : priceUsd;
+            if (discount > 0) {
+                const discountAmount = (price * discount) / 100;
+                price = price - discountAmount;
+            }
+            
+            element.textContent = currency === 'DZD' 
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : '$' + price.toFixed(2) + ' USD';
         });
     }
+    
+    // Listen for currency changes
+    window.addEventListener('currencyChanged', function(e) {
+        updateCartDropdownPricesApp();
+        CartManager.updateCartUI(); // Refresh entire cart UI
+    });
     
     // Make CartManager globally available
     window.CartManager = CartManager;
@@ -551,8 +644,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
+            const href = this.getAttribute('href');
+            // Skip if href is just "#" (invalid selector)
+            if (href === '#' || !href || href.length <= 1) {
+                return; // Let default behavior or other handlers take over
+            }
             e.preventDefault();
-            const target = document.querySelector(this.getAttribute('href'));
+            const target = document.querySelector(href);
             if (target) {
                 target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }

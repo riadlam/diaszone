@@ -44,6 +44,8 @@ class CheckoutController extends Controller
                     'diamonds' => $pack->diamonds,
                     'bonus' => $pack->bonus_diamonds,
                     'price' => (float) $pack->price,
+                    'price_usd' => (float) ($pack->price_usd ?? $pack->price),
+                    'price_dzd' => (float) ($pack->price_dzd ?? ($pack->price * 260)),
                     'discount' => (float) $pack->discount_percentage,
                     'game_type' => $pack->game_type ?? 'mobilelegends',
                     'name' => $pack->name ?? null,
@@ -122,19 +124,22 @@ class CheckoutController extends Controller
                 'id' => 'baridimob',
                 'name' => 'Baridimob',
                 'icon' => 'baridimob.png',
-                'description' => 'Mobile payment method'
+                'description' => 'Mobile payment method',
+                'coming_soon' => false
             ],
             [
                 'id' => 'cryptocurrency',
                 'name' => 'Cryptocurrency',
                 'icon' => 'cryptocurrency.webp',
-                'description' => 'Pay with crypto (USD)'
+                'description' => 'Pay with crypto (USD)',
+                'coming_soon' => true
             ],
             [
                 'id' => 'flexy',
                 'name' => 'Flexy',
                 'icon' => 'flexy.webp',
-                'description' => 'Flexible payment option'
+                'description' => 'Flexible payment option',
+                'coming_soon' => false
             ]
         ];
         
@@ -333,6 +338,8 @@ class CheckoutController extends Controller
                     'diamonds' => $order->diamondPack->diamonds,
                     'bonus_diamonds' => $order->diamondPack->bonus_diamonds,
                     'price' => (float) $order->diamondPack->price,
+                    'price_usd' => (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price),
+                    'price_dzd' => (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260)),
                     'discount_percentage' => (float) $order->diamondPack->discount_percentage,
                     'game_type' => $order->diamondPack->game_type ?? 'mobilelegends',
                     'name' => $order->diamondPack->name ?? null,

@@ -57,13 +57,21 @@
                     }
                 } else {
                     // Mobile Legends (default)
-                    $imageName = 'diaslow.webp';
-                    if ($pack->diamonds >= 2000) {
-                        $imageName = 'diasbigbig.webp';
-                    } elseif ($pack->diamonds >= 500) {
-                        $imageName = 'diaslarge.webp';
-                    } elseif ($pack->diamonds >= 100) {
-                        $imageName = 'diasmid.webp';
+                    // Check for special passes first
+                    if (stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false) {
+                        $imageName = 'weeklymlbb.webp';
+                    } elseif (stripos($pack->name, 'Twilight Pass') !== false) {
+                        $imageName = 'twlilightpass.jpg';
+                    } else {
+                        // Regular diamond packs
+                        $imageName = 'diaslow.webp';
+                        if ($pack->diamonds >= 2000) {
+                            $imageName = 'diasbigbig.webp';
+                        } elseif ($pack->diamonds >= 500) {
+                            $imageName = 'diaslarge.webp';
+                        } elseif ($pack->diamonds >= 100) {
+                            $imageName = 'diasmid.webp';
+                        }
                     }
                 }
             @endphp
@@ -73,6 +81,9 @@
                     data-pack-diamonds="{{ $pack->diamonds }}"
                     data-pack-bonus="{{ $pack->bonus_diamonds }}"
                     data-pack-price="{{ $pack->price }}"
+                    data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
+                    data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
+                    data-pack-name="{{ $pack->name }}"
                     data-pack-discount="{{ $pack->discount_percentage }}">
                 <div class="flex items-center gap-4">
                     <!-- Image (empty space for PUBG Mobile, Honor of Kings, Blood Strike) -->
@@ -150,8 +161,14 @@
                                         <span class="text-sm font-medium text-gray-600">Tokens</span>
                                     @endif
                                 @else
-                                    <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                    <span class="text-sm font-medium text-gray-600">{{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}</span>
+                                    @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
+                                        <h3 class="text-base font-bold text-gray-900">1x Weekly Diamond Pass</h3>
+                                    @elseif(stripos($pack->name, 'Twilight Pass') !== false)
+                                        <h3 class="text-base font-bold text-gray-900">Twilight Pass</h3>
+                                    @else
+                                        <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
+                                        <span class="text-sm font-medium text-gray-600">{{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}</span>
+                                    @endif
                                 @endif
                             </div>
                             @if($pack->discount_percentage > 0)

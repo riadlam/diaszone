@@ -498,11 +498,12 @@ img[loading="lazy"].loaded {
     max-height: 500px;
 }
 
-.cart-dropdown:hover .cart-dropdown-menu,
+/* Cart dropdown hover functionality - DISABLED */
+/* .cart-dropdown:hover .cart-dropdown-menu,
 .cart-dropdown-menu:hover {
     opacity: 1 !important;
     visibility: visible !important;
-}
+} */
 
 #cart-items::-webkit-scrollbar {
     width: 6px;

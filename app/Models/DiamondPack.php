@@ -9,9 +9,12 @@ class DiamondPack extends Model
     protected $fillable = [
         'game_type',
         'name',
+        'code',
         'diamonds',
         'bonus_diamonds',
         'price',
+        'price_dzd',
+        'price_usd',
         'discount_percentage',
         'is_active',
         'sort_order',
@@ -19,6 +22,8 @@ class DiamondPack extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'price_dzd' => 'decimal:2',
+        'price_usd' => 'decimal:2',
         'discount_percentage' => 'decimal:2',
         'is_active' => 'boolean',
     ];

@@ -418,6 +418,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
             
+            // Calculate price display based on order status and payment method
+            let priceDisplay = '';
+            const isFlexyOrder = order.status === 'pending_flexy';
+            
+            if (isFlexyOrder) {
+                // For Flexy orders: use price_dzd from pack, then add 50 DZD fee
+                const priceDzd = parseFloat(order.diamond_pack?.price_dzd || 0);
+                
+                if (!priceDzd || priceDzd <= 0) {
+                    console.error('Flexy order missing price_dzd:', order);
+                    priceDisplay = `US$ ${order.amount.toFixed(2)}`;
+                } else {
+                    const discountPercentage = parseFloat(order.diamond_pack?.discount_percentage || 0);
+                    let finalPrice = priceDzd;
+                    
+                    if (discountPercentage > 0) {
+                        const discountAmount = (priceDzd * discountPercentage) / 100;
+                        finalPrice = priceDzd - discountAmount;
+                    }
+                    
+                    const flexyFee = 50; // 50 DZD processing fee
+                    const totalWithFee = finalPrice + flexyFee;
+                    
+                    priceDisplay = `${Math.round(totalWithFee).toLocaleString()} DZD`;
+                }
+            } else {
+                // For other orders, use selected currency
+                const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+                const priceUsd = parseFloat(order.diamond_pack?.price_usd || order.amount);
+                const priceDzd = parseFloat(order.diamond_pack?.price_dzd || (order.amount * 260));
+                const discountPercentage = parseFloat(order.diamond_pack?.discount_percentage || 0);
+                
+                let finalPrice = currency === 'DZD' ? priceDzd : priceUsd;
+                
+                if (discountPercentage > 0) {
+                    const discountAmount = (finalPrice * discountPercentage) / 100;
+                    finalPrice = finalPrice - discountAmount;
+                }
+                
+                if (currency === 'DZD') {
+                    priceDisplay = `${Math.round(finalPrice).toLocaleString()} DZD`;
+                } else {
+                    priceDisplay = `$${finalPrice.toFixed(2)} USD`;
+                }
+            }
+            
             return `
                 <div class="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all">
                     <div class="flex justify-between items-start mb-4">
@@ -427,7 +473,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${gameInfo}
                         </div>
                         <div class="text-right">
-                            <p class="text-2xl font-bold text-purple-600 mb-2">US$ ${order.amount.toFixed(2)}</p>
+                            <p class="text-2xl font-bold text-purple-600 mb-2 order-price-display" 
+                               data-order-id="${order.id}" 
+                               data-status="${order.status}"
+                               data-price-usd="${order.diamond_pack?.price_usd || 0}"
+                               data-price-dzd="${order.diamond_pack?.price_dzd || 0}"
+                               data-discount="${order.diamond_pack?.discount_percentage || 0}"
+                               data-is-flexy="${isFlexyOrder}">${priceDisplay}</p>
                             <span class="inline-block px-4 py-2 rounded-full text-sm font-semibold ${statusColor}">
                                 ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                             </span>
@@ -440,6 +492,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
         }).join('');
+        
+        // Update prices when currency changes (but keep Flexy orders in DZD)
+        function updateDashboardPrices() {
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+            
+            document.querySelectorAll('.order-price-display').forEach(element => {
+                const isFlexy = element.getAttribute('data-is-flexy') === 'true';
+                
+                // Flexy orders always show in DZD with fee, don't update
+                if (isFlexy) {
+                    return; // Skip Flexy orders, they stay in DZD
+                }
+                
+                // Update other orders based on selected currency
+                const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+                const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+                const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+                
+                let finalPrice = currency === 'DZD' ? priceDzd : priceUsd;
+                
+                if (discount > 0) {
+                    const discountAmount = (finalPrice * discount) / 100;
+                    finalPrice = finalPrice - discountAmount;
+                }
+                
+                if (currency === 'DZD') {
+                    element.textContent = `${Math.round(finalPrice).toLocaleString()} DZD`;
+                } else {
+                    element.textContent = `$${finalPrice.toFixed(2)} USD`;
+                }
+            });
+        }
+        
+        // Listen for currency changes (but Flexy orders won't change)
+        window.addEventListener('currencyChanged', function(e) {
+            updateDashboardPrices();
+        });
     });
 });
 </script>

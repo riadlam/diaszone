@@ -118,12 +118,13 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
             <div class="space-y-3">
                 @php
-                    // Convert USD to DZD: 1 USD = 260 DZD
-                    $usdPrice = (float) $order->diamondPack->price;
+                    $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
+                    $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
                     $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-                    $discountAmount = ($usdPrice * $discountPercentage) / 100;
-                    $finalUsdPrice = $usdPrice - $discountAmount;
-                    $dzdPrice = $finalUsdPrice * 260; // Convert to DZD
+                    $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
+                    $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
+                    $finalUsdPrice = $usdPrice - $discountAmountUsd;
+                    $finalDzdPrice = $dzdPrice - $discountAmountDzd;
                 @endphp
                 @if($discountPercentage > 0)
                 <div class="flex justify-between items-center">
@@ -134,7 +135,12 @@
                 <div class="border-t-2 border-purple-200 pt-3 mt-3">
                     <div class="flex justify-between items-center">
                         <span class="text-lg font-bold text-gray-900">Total Amount</span>
-                        <span class="text-lg font-bold text-purple-600">{{ number_format($dzdPrice, 0) }} DZD</span>
+                        <span class="text-lg font-bold text-purple-600" 
+                              id="baridimob-total-price"
+                              data-price-usd="{{ $finalUsdPrice }}"
+                              data-price-dzd="{{ $finalDzdPrice }}">
+                            {{ number_format($finalDzdPrice, 0) }} DZD
+                        </span>
                     </div>
                 </div>
             </div>
@@ -404,6 +410,32 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Update price based on selected currency
+    function updateBaridimobPrice() {
+        const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+        const totalPriceEl = document.getElementById('baridimob-total-price');
+        
+        if (totalPriceEl) {
+            const priceUsd = parseFloat(totalPriceEl.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(totalPriceEl.getAttribute('data-price-dzd')) || 0;
+            const price = currency === 'DZD' ? priceDzd : priceUsd;
+            
+            totalPriceEl.textContent = currency === 'DZD' 
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : '$' + price.toFixed(2) + ' USD';
+        }
+    }
+    
+    // Listen for currency changes
+    window.addEventListener('currencyChanged', function(e) {
+        updateBaridimobPrice();
+    });
+    
+    // Update on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateBaridimobPrice();
+    });
 });
 </script>
 @endpush

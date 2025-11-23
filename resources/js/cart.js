@@ -49,11 +49,14 @@ const CartManager = {
         this.updateCartUI();
     },
     
-    updateCartUI: function() {
+    updateCartUI: async function() {
         const cart = this.getCart();
         const cartCount = document.getElementById('cart-count');
         const cartItems = document.getElementById('cart-items');
         const cartFooter = document.getElementById('cart-footer');
+        
+        // Get selected currency
+        const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
         
         // Update count
         if (cartCount) {
@@ -74,19 +77,117 @@ const CartManager = {
                 `;
                 if (cartFooter) cartFooter.classList.add('hidden');
             } else {
+                // Show loading state
+                cartItems.innerHTML = cart.map(() => `
+                    <div class="px-4 py-3 border-b border-gray-100 animate-pulse">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0 space-y-2">
+                                <div class="h-4 bg-gray-200 rounded w-32"></div>
+                                <div class="space-y-1">
+                                    <div class="h-3 bg-gray-200 rounded w-24"></div>
+                                    <div class="h-3 bg-gray-200 rounded w-16"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Fetch pack data from server
+                const packIds = cart.map(item => item.pack_id).filter(Boolean);
+                let packsMap = {};
+                
+                if (packIds.length > 0) {
+                    try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                        const response = await fetch('/api/packs', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ ids: packIds })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            packsMap = data.packs || {};
+                        }
+                    } catch (error) {
+                        console.error('Error fetching packs for cart dropdown:', error);
+                    }
+                }
+                
                 cartItems.innerHTML = cart.map(item => {
-                    const packInfo = item.pack;
+                    const packInfo = packsMap[item.pack_id] || item.pack || {};
+                    
+                    // Get price based on currency
+                    const priceUsd = parseFloat(packInfo.price_usd || packInfo.price || 0);
+                    const priceDzd = parseFloat(packInfo.price_dzd || (packInfo.price * 260) || 0);
+                    const discount = parseFloat(packInfo.discount || packInfo.discount_percentage || 0);
+                    
+                    let price = currency === 'DZD' ? priceDzd : priceUsd;
+                    if (discount > 0) {
+                        const discountAmount = (price * discount) / 100;
+                        price = price - discountAmount;
+                    }
+                    
+                    // Format price
+                    const formattedPrice = currency === 'DZD' 
+                        ? Math.round(price).toLocaleString() + ' DZD'
+                        : '$' + price.toFixed(2) + ' USD';
+                    
+                    // Determine pack display name
+                    let packDisplayName = '';
+                    if (packInfo.name) {
+                        if (packInfo.name.includes('Weekly Diamond Pass') || packInfo.name.includes('Event Topup')) {
+                            packDisplayName = '1x Weekly Diamond Pass';
+                        } else if (packInfo.name.includes('Twilight Pass')) {
+                            packDisplayName = 'Twilight Pass';
+                        } else {
+                            packDisplayName = packInfo.name;
+                        }
+                    } else {
+                        const gameType = packInfo.game_type || 'mobilelegends';
+                        const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
+                        const diamonds = packInfo.diamonds || 0;
+                        packDisplayName = `${diamonds} ${currencyText}`;
+                    }
+                    
+                    // Get game-specific fields
+                    const gameType = packInfo.game_type || 'mobilelegends';
+                    let orderInfoHTML = '';
+                    
+                    if (gameType === 'bloodstrike') {
+                        orderInfoHTML = `
+                            <p><span class="font-medium">User ID:</span> ${item.user_id_bs || 'N/A'}</p>
+                            <p><span class="font-medium">Server:</span> ${item.server_bs || 'Global'}</p>
+                        `;
+                    } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || 'N/A';
+                        orderInfoHTML = `<p><span class="font-medium">Player ID:</span> ${playerId}</p>`;
+                    } else {
+                        orderInfoHTML = `
+                            <p><span class="font-medium">User ID:</span> ${item.user_id || 'N/A'}</p>
+                            <p><span class="font-medium">Zone ID:</span> ${item.zone_id || 'N/A'}</p>
+                        `;
+                    }
+                    
+                    const bonus = packInfo.bonus || packInfo.bonus_diamonds || 0;
+                    
                     return `
                         <div class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex-1 min-w-0">
                                     <h4 class="text-sm font-semibold text-gray-900 mb-1">
-                                        ${packInfo.diamonds} Diamonds + ${packInfo.bonus} Bonus
+                                        ${packDisplayName}${bonus > 0 ? ` + ${bonus} Bonus` : ''}
                                     </h4>
                                     <div class="text-xs text-gray-600 space-y-1">
-                                        <p><span class="font-medium">User ID:</span> ${item.user_id}</p>
-                                        <p><span class="font-medium">Zone ID:</span> ${item.zone_id}</p>
-                                        <p class="text-purple-600 font-semibold">US$ ${parseFloat(packInfo.price).toFixed(2)}</p>
+                                        ${orderInfoHTML}
+                                        <p class="text-purple-600 font-semibold cart-item-price-dropdown" 
+                                           data-price-usd="${priceUsd}" 
+                                           data-price-dzd="${priceDzd}" 
+                                           data-discount="${discount}">${formattedPrice}</p>
                                     </div>
                                 </div>
                                 <button onclick="CartManager.removeFromCart('${item.id}')" 
@@ -114,21 +215,35 @@ if (document.readyState === 'loading') {
     CartManager.updateCartUI();
 }
 
-// Cart dropdown hover functionality
-const cartDropdown = document.querySelector('.cart-dropdown');
-const cartMenu = document.querySelector('.cart-dropdown-menu');
+// Cart dropdown hover functionality - DISABLED
+// Hover is disabled, cart dropdown will only show on click
 
-if (cartDropdown && cartMenu) {
-    cartDropdown.addEventListener('mouseenter', () => {
-        cartMenu.classList.remove('opacity-0', 'invisible');
-        cartMenu.classList.add('opacity-100', 'visible');
-    });
+// Update cart prices when currency changes
+function updateCartDropdownPrices() {
+    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
     
-    cartDropdown.addEventListener('mouseleave', () => {
-        cartMenu.classList.remove('opacity-100', 'visible');
-        cartMenu.classList.add('opacity-0', 'invisible');
+    document.querySelectorAll('.cart-item-price-dropdown').forEach(element => {
+        const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+        const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+        const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+        
+        let price = currency === 'DZD' ? priceDzd : priceUsd;
+        if (discount > 0) {
+            const discountAmount = (price * discount) / 100;
+            price = price - discountAmount;
+        }
+        
+        element.textContent = currency === 'DZD' 
+            ? Math.round(price).toLocaleString() + ' DZD'
+            : '$' + price.toFixed(2) + ' USD';
     });
 }
+
+// Listen for currency changes
+window.addEventListener('currencyChanged', function(e) {
+    updateCartDropdownPrices();
+    CartManager.updateCartUI(); // Refresh entire cart UI
+});
 
 // Make CartManager globally available
 window.CartManager = CartManager;

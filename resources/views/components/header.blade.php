@@ -46,7 +46,7 @@
                 <!-- Cart Icon (visible on all screens) -->
                 @if(!request()->routeIs('select-payment'))
                 <div class="relative cart-dropdown group">
-                    <a href="#" class="relative inline-flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors">
+                    <a href="{{ route('cart') }}" class="relative inline-flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                         </svg>
@@ -87,6 +87,35 @@
                     </svg>
                     <span>My Orders</span>
                 </a>
+                
+                <!-- Currency Dropdown -->
+                <div class="relative currency-dropdown">
+                    <button id="currency-dropdown-btn" class="currency-dropdown-btn flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+                        <span class="text-sm font-semibold text-gray-800 currency-symbol">USD</span>
+                        <svg class="w-4 h-4 text-gray-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div class="currency-dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
+                        <div class="px-3 py-2 border-b border-gray-100">
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Currency</span>
+                        </div>
+                        <a href="#" data-currency="USD" class="currency-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
+                            <div class="flex-1">
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">US Dollar</div>
+                                <div class="text-xs text-gray-500">USD</div>
+                            </div>
+                            <span class="text-xs font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded currency-badge">USD</span>
+                        </a>
+                        <a href="#" data-currency="DZD" class="currency-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
+                            <div class="flex-1">
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Algerian Dinar</div>
+                                <div class="text-xs text-gray-500">DZD</div>
+                            </div>
+                            <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded currency-badge">DZD</span>
+                        </a>
+                    </div>
+                </div>
                 
                 <!-- Language Dropdown -->
                 <div class="relative language-dropdown">
@@ -372,6 +401,110 @@
         
         // Also check periodically (for same-tab updates)
         setInterval(updateMyOrdersButton, 1000);
+        
+        // Currency Dropdown
+        const currencyDropdown = document.querySelector('.currency-dropdown');
+        const currencyButton = document.getElementById('currency-dropdown-btn');
+        const currencyMenu = document.querySelector('.currency-dropdown-menu');
+        
+        // Get other dropdown elements
+        const languageDropdown = document.querySelector('.language-dropdown');
+        const languageButton = languageDropdown ? languageDropdown.querySelector('button') : null;
+        const languageMenu = languageDropdown ? languageDropdown.querySelector('.language-dropdown-menu') : null;
+        const profileDropdown = document.querySelector('.profile-dropdown');
+        const profileMenu = profileDropdown ? profileDropdown.querySelector('.profile-dropdown-menu') : null;
+        
+        // Initialize currency from localStorage or default to DZD
+        const savedCurrency = localStorage.getItem('diaszone_currency') || 'DZD';
+        updateCurrencyDisplay(savedCurrency);
+        
+        // Currency dropdown toggle
+        if (currencyButton && currencyMenu) {
+            currencyButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = currencyMenu.classList.contains('opacity-100');
+                
+                // Close other dropdowns
+                if (languageMenu) {
+                    languageMenu.classList.remove('opacity-100', 'visible');
+                    languageMenu.classList.add('opacity-0', 'invisible');
+                }
+                if (languageButton) {
+                    languageButton.classList.remove('dropdown-open');
+                }
+                if (profileMenu) {
+                    profileMenu.classList.remove('opacity-100', 'visible');
+                    profileMenu.classList.add('opacity-0', 'invisible');
+                }
+                
+                // Toggle currency dropdown
+                if (isOpen) {
+                    currencyMenu.classList.remove('opacity-100', 'visible');
+                    currencyMenu.classList.add('opacity-0', 'invisible');
+                } else {
+                    currencyMenu.classList.remove('opacity-0', 'invisible');
+                    currencyMenu.classList.add('opacity-100', 'visible');
+                }
+            });
+        }
+        
+        // Handle currency selection
+        if (currencyMenu) {
+            currencyMenu.querySelectorAll('.currency-option').forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const currency = option.getAttribute('data-currency');
+                    localStorage.setItem('diaszone_currency', currency);
+                    updateCurrencyDisplay(currency);
+                    currencyMenu.classList.remove('opacity-100', 'visible');
+                    currencyMenu.classList.add('opacity-0', 'invisible');
+                    
+                    // Trigger currency change event
+                    window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency } }));
+                    
+                    // Reload prices on the page
+                    if (typeof updatePricesOnPage === 'function') {
+                        updatePricesOnPage();
+                    }
+                });
+            });
+        }
+        
+        // Update currency display
+        function updateCurrencyDisplay(currency) {
+            if (currencyButton) {
+                const currencySymbol = currencyButton.querySelector('.currency-symbol');
+                if (currencySymbol) {
+                    currencySymbol.textContent = currency;
+                }
+            }
+            
+            // Update badges
+            if (currencyMenu) {
+                currencyMenu.querySelectorAll('.currency-badge').forEach(badge => {
+                    const option = badge.closest('.currency-option');
+                    if (option && option.getAttribute('data-currency') === currency) {
+                        badge.classList.remove('text-gray-600', 'bg-gray-100');
+                        badge.classList.add('text-purple-600', 'bg-purple-100');
+                    } else {
+                        badge.classList.remove('text-purple-600', 'bg-purple-100');
+                        badge.classList.add('text-gray-600', 'bg-gray-100');
+                    }
+                });
+            }
+        }
+        
+        // Close currency dropdown when clicking outside (if not already handled by app.js)
+        if (currencyDropdown) {
+            document.addEventListener('click', (e) => {
+                if (!currencyDropdown.contains(e.target)) {
+                    if (currencyMenu) {
+                        currencyMenu.classList.remove('opacity-100', 'visible');
+                        currencyMenu.classList.add('opacity-0', 'invisible');
+                    }
+                }
+            });
+        }
     });
 </script>
 
