@@ -65,6 +65,9 @@ Route::post('/api/orders/create', [CheckoutController::class, 'createOrder'])
 Route::post('/api/orders/get-by-encrypted-id', [CheckoutController::class, 'getOrderByEncryptedId'])
     ->middleware('throttle:10,1') // 10 requests per minute (prevent brute force)
     ->name('api.orders.get-by-encrypted-id');
+Route::post('/api/validate-nickname', [CheckoutController::class, 'validateNickname'])
+    ->middleware('throttle:10,1') // 10 requests per minute
+    ->name('api.validate-nickname');
 Route::post('/api/orders/check-crypto-payment', [CheckoutController::class, 'checkCryptoPayment'])
     ->middleware('throttle:20,1') // 20 requests per minute
     ->name('api.orders.check-crypto-payment');

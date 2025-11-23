@@ -590,9 +590,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
             } else {
-                // Mobile Legends - User ID and Zone ID
+                // Mobile Legends - User ID and Zone ID with nickname validation
                 const userIdField = document.getElementById('user_id');
                 const zoneIdField = document.getElementById('zone_id');
+                const buyNowBtn = document.getElementById('buy-now-btn');
                 
                 if (!userIdField || !zoneIdField) {
                     alert('Form fields not found. Please refresh the page.');
@@ -603,28 +604,82 @@ document.addEventListener('DOMContentLoaded', () => {
                 const zoneId = (zoneIdField && zoneIdField.value) ? zoneIdField.value.trim() : '';
                 
                 if (!userId || !zoneId) {
-                    alert('Please enter both User ID and Zone ID');
+                    showValidationError('Please enter both User ID and Zone ID');
                     return;
                 }
                 
                 if (!/^\d+$/.test(userId)) {
-                    alert('User ID must contain only numbers');
+                    showValidationError('User ID must contain only numbers');
                     return;
                 }
                 
                 if (!/^\d+$/.test(zoneId)) {
-                    alert('Zone ID must contain only numbers');
+                    showValidationError('Zone ID must contain only numbers');
                     return;
                 }
                 
-                cartData.user_id = userId;
-                cartData.zone_id = zoneId;
+                // Disable button and show loading
+                if (buyNowBtn) {
+                    buyNowBtn.disabled = true;
+                    buyNowBtn.textContent = 'Validating...';
+                }
                 
-                // Clear form
-                userIdField.value = '';
-                zoneIdField.value = '';
+                // Validate nickname via API
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                fetch('/api/validate-nickname', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        zone_id: zoneId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (buyNowBtn) {
+                        buyNowBtn.disabled = false;
+                        buyNowBtn.textContent = 'Buy Now';
+                    }
+                    
+                    if (data.success && data.nickname) {
+                        // Show success popup with nickname
+                        showNicknameSuccess(data.nickname, () => {
+                            // After popup, add to cart and redirect
+                            cartData.user_id = userId;
+                            cartData.zone_id = zoneId;
+                            
+                            // Clear form
+                            userIdField.value = '';
+                            zoneIdField.value = '';
+                            
+                            // Add to cart
+                            const cartItem = CartManager.addToCart(cartData);
+                            
+                            // Redirect to cart page
+                            window.location.href = '/cart';
+                        });
+                    } else {
+                        // Show error message
+                        showValidationError(data.message || 'Invalid User ID or Zone ID. Please check and try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error validating nickname:', error);
+                    if (buyNowBtn) {
+                        buyNowBtn.disabled = false;
+                        buyNowBtn.textContent = 'Buy Now';
+                    }
+                    showValidationError('Error validating nickname. Please try again.');
+                });
+                
+                return; // Don't proceed until validation is complete
             }
             
+            // For non-Mobile Legends games, proceed directly
             // Add to cart
             const cartItem = CartManager.addToCart(cartData);
             
@@ -639,6 +694,115 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('An error occurred while adding to cart. Please try again or refresh the page.');
             }
         });
+    }
+    
+    // Function to show validation error with proper UI/UX
+    function showValidationError(message) {
+        // Remove existing error messages
+        const existingError = document.getElementById('nickname-validation-error');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        // Create error message element
+        const errorDiv = document.createElement('div');
+        errorDiv.id = 'nickname-validation-error';
+        errorDiv.className = 'mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg';
+        errorDiv.innerHTML = `
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-red-800 mb-1">Validation Failed</p>
+                    <p class="text-sm text-red-700">${message}</p>
+                </div>
+                <button onclick="this.closest('#nickname-validation-error').remove()" 
+                        class="text-red-400 hover:text-red-600 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+        
+        // Insert error message after the form
+        const orderForm = document.getElementById('order-form');
+        if (orderForm) {
+            orderForm.appendChild(errorDiv);
+            
+            // Scroll to error
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+        }
+    }
+    
+    // Function to show success popup with nickname
+    function showNicknameSuccess(nickname, callback) {
+        // Remove existing popups
+        const existingPopup = document.getElementById('nickname-success-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+        
+        // Create success popup
+        const popup = document.createElement('div');
+        popup.id = 'nickname-success-popup';
+        popup.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+        popup.innerHTML = `
+            <div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 transform transition-all animate-scale-in">
+                <div class="text-center">
+                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                        <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">Nickname Verified</h3>
+                    <p class="text-sm text-gray-600 mb-1">Your nickname:</p>
+                    <p class="text-xl font-bold text-purple-600 mb-4">${nickname}</p>
+                    <p class="text-xs text-gray-500">Adding to cart...</p>
+                </div>
+            </div>
+        `;
+        
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes scale-in {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+            .animate-scale-in {
+                animation: scale-in 0.2s ease-out;
+            }
+        `;
+        if (!document.getElementById('nickname-popup-style')) {
+            style.id = 'nickname-popup-style';
+            document.head.appendChild(style);
+        }
+        
+        // Add to body
+        document.body.appendChild(popup);
+        
+        // Call callback after 1 second
+        setTimeout(() => {
+            popup.remove();
+            if (callback) {
+                callback();
+            }
+        }, 1000);
     }
     
     // Smooth scroll for anchor links

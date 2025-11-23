@@ -8,6 +8,7 @@ use App\Models\Flexy;
 use App\Services\NowPaymentsService;
 use App\Services\MixPayService;
 use App\Services\ChargilyPayV2Service;
+use App\Services\VipResellerService;
 use TheHocineSaad\LaravelChargilyEPay\Models\Epay_Invoice;
 use TheHocineSaad\LaravelChargilyEPay\Epay_Webhook;
 use Illuminate\Http\Request;
@@ -361,6 +362,45 @@ class CheckoutController extends Controller
                 'success' => false,
                 'message' => 'Invalid or expired order ID',
             ], 400);
+        }
+    }
+    
+    /**
+     * API endpoint to validate nickname for Mobile Legends
+     */
+    public function validateNickname(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|string',
+            'zone_id' => 'required|string',
+        ]);
+
+        try {
+            $vipResellerService = new VipResellerService();
+            $result = $vipResellerService->checkNickname($request->user_id, $request->zone_id);
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'nickname' => $result['nickname'] ?? null,
+                    'message' => 'Nickname validated successfully',
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'] ?? 'Failed to validate nickname',
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Nickname validation error: ' . $e->getMessage(), [
+                'user_id' => $request->user_id,
+                'zone_id' => $request->zone_id,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error validating nickname. Please try again.',
+            ], 500);
         }
     }
     

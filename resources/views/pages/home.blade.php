@@ -16,7 +16,7 @@
             </div>
             
             <!-- Right Column: Order Form (Sticky on desktop, full width on mobile) -->
-            <div id="order-form-wrapper" class="w-full lg:w-96 lg:mt-0">
+            <div id="order-form-wrapper" class="w-full lg:w-96 lg:mt-0" data-game-type="mobilelegends">
                 <!-- Mobile: Select Pack Button (moved here to be in same column) -->
                 <div class="lg:hidden mb-4" id="mobile-select-pack-container">
                     <button id="mobile-select-pack-btn" 
