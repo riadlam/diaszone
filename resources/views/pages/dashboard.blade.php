@@ -297,6 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'pending_flexy': 'bg-yellow-100 text-yellow-800',
                 'pending_bmccp': 'bg-yellow-100 text-yellow-800',
                 'pending_cryptopay': 'bg-yellow-100 text-yellow-800',
+                'pending_confirmation': 'bg-orange-100 text-orange-800',
                 'completed': 'bg-green-100 text-green-800',
                 'sending': 'bg-blue-100 text-blue-800',
                 'refunded': 'bg-red-100 text-red-800',
@@ -420,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Calculate price display based on order status and payment method
             let priceDisplay = '';
-            const isFlexyOrder = order.status === 'pending_flexy';
+            const isFlexyOrder = order.status === 'pending_flexy' || order.status === 'pending_confirmation';
             
             if (isFlexyOrder) {
                 // For Flexy orders: use price_dzd from pack, then add 50 DZD fee

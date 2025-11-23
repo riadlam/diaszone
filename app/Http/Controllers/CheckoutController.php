@@ -796,9 +796,9 @@ class CheckoutController extends Controller
             'status' => 'pending',
         ]);
         
-        // Link order to flexy and update status
+        // Link order to flexy and update status to pending_confirmation
         $order->flexy_id = $flexy->id;
-        $order->status = 'pending_flexy';
+        $order->status = 'pending_confirmation';
         $order->notes = $request->input('notes');
         $order->save();
         
