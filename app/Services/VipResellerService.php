@@ -18,6 +18,16 @@ class VipResellerService
         $this->apiKey = env('VIP_RESELLER_API_KEY');
         $this->sign = env('VIP_RESELLER_SIGN');
         $this->baseUrl = env('VIP_RESELLER_BASE_URL', 'https://vip-reseller.co.id/api');
+        
+        // Log credentials check (without exposing full values)
+        Log::info('VIP Reseller Service initialized', [
+            'api_id_set' => !empty($this->apiId),
+            'api_key_set' => !empty($this->apiKey),
+            'api_key_length' => strlen($this->apiKey ?? ''),
+            'sign_set' => !empty($this->sign),
+            'sign_length' => strlen($this->sign ?? ''),
+            'base_url' => $this->baseUrl,
+        ]);
     }
 
     /**
@@ -30,6 +40,19 @@ class VipResellerService
     public function checkNickname($userId, $zoneId)
     {
         try {
+            // Validate credentials are set
+            if (empty($this->apiKey) || empty($this->sign)) {
+                Log::error('VIP Reseller credentials missing', [
+                    'api_key_empty' => empty($this->apiKey),
+                    'sign_empty' => empty($this->sign),
+                ]);
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'API credentials not configured. Please contact support.',
+                ];
+            }
+            
             // Prepare form data exactly as curl example
             $formData = [
                 'key' => $this->apiKey,
@@ -40,12 +63,17 @@ class VipResellerService
                 'additional_target' => $zoneId,
             ];
             
-            // Log request data
+            // Log request data (without exposing full credentials)
             Log::info('VIP Reseller nickname check request', [
                 'url' => $this->baseUrl . '/game-feature',
-                'data' => $formData,
-                'api_key_length' => strlen($this->apiKey ?? ''),
-                'sign_length' => strlen($this->sign ?? ''),
+                'type' => $formData['type'],
+                'code' => $formData['code'],
+                'target' => $formData['target'],
+                'additional_target' => $formData['additional_target'],
+                'key_set' => !empty($formData['key']),
+                'key_length' => strlen($formData['key'] ?? ''),
+                'sign_set' => !empty($formData['sign']),
+                'sign_length' => strlen($formData['sign'] ?? ''),
             ]);
             
             // Use asForm() which sends as application/x-www-form-urlencoded
