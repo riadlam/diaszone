@@ -435,6 +435,84 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateBaridimobPrice();
+        
+        // Check for success/failure query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const success = urlParams.get('success');
+        const failed = urlParams.get('failed');
+        
+        if (success === '1') {
+            // Payment was successful
+            // Clear cart
+            localStorage.removeItem('diaszone_cart');
+            
+            // Show success message
+            const successMessage = document.createElement('div');
+            successMessage.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+            successMessage.innerHTML = `
+                <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center">
+                    <div class="mb-4">
+                        <svg class="w-16 h-16 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
+                    <p class="text-gray-600 mb-6">Your payment has been processed successfully. Your order will be completed shortly.</p>
+                    <p class="text-sm text-gray-500 mb-4">Redirecting to your orders in <span id="redirect-countdown">5</span> seconds...</p>
+                    <button onclick="window.location.href='{{ route('dashboard.orders') }}'" 
+                            class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                        View My Orders
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(successMessage);
+            
+            // Countdown and redirect
+            let countdown = 5;
+            const countdownElement = document.getElementById('redirect-countdown');
+            const countdownInterval = setInterval(function() {
+                countdown--;
+                if (countdownElement) {
+                    countdownElement.textContent = countdown;
+                }
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    window.location.href = '{{ route('dashboard.orders') }}';
+                }
+            }, 1000);
+            
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (failed === '1') {
+            // Payment failed
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+            errorMessage.innerHTML = `
+                <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center">
+                    <div class="mb-4">
+                        <svg class="w-16 h-16 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Payment Failed</h2>
+                    <p class="text-gray-600 mb-6">Your payment could not be processed. Please try again or choose a different payment method.</p>
+                    <div class="flex gap-3">
+                        <button onclick="this.closest('.fixed').remove(); window.history.replaceState({}, document.title, window.location.pathname);" 
+                                class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg transition-colors">
+                            Close
+                        </button>
+                        <button onclick="window.location.href='{{ route('select-payment') }}'" 
+                                class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(errorMessage);
+            
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     });
 });
 </script>

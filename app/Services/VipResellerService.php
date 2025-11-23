@@ -124,5 +124,113 @@ class VipResellerService
             ];
         }
     }
+
+    /**
+     * Place an order/recharge for Mobile Legends
+     * 
+     * @param string $code Package code from diamond_packs table
+     * @param string $userId User ID (data_no)
+     * @param string $zoneId Zone ID (data_zone)
+     * @return array
+     */
+    public function placeOrder($code, $userId, $zoneId)
+    {
+        try {
+            // Validate credentials are set
+            if (empty($this->apiKey) || empty($this->sign)) {
+                Log::error('VIP Reseller credentials missing for order placement', [
+                    'api_key_empty' => empty($this->apiKey),
+                    'sign_empty' => empty($this->sign),
+                ]);
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'API credentials not configured. Please contact support.',
+                ];
+            }
+            
+            // Validate required parameters
+            if (empty($code) || empty($userId) || empty($zoneId)) {
+                Log::error('VIP Reseller order placement missing parameters', [
+                    'code' => $code,
+                    'user_id' => $userId,
+                    'zone_id' => $zoneId,
+                ]);
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'Missing required parameters: code, user_id, or zone_id',
+                ];
+            }
+            
+            // Prepare form data exactly as curl example
+            $formData = [
+                'key' => $this->apiKey,
+                'sign' => $this->sign,
+                'type' => 'order',
+                'code' => $code,
+                'service' => $code, // Using code as service, adjust if service is different
+                'data_no' => $userId,
+                'data_zone' => $zoneId,
+            ];
+            
+            // Log request data (without exposing full credentials)
+            Log::info('VIP Reseller order placement request', [
+                'url' => $this->baseUrl . '/game-feature',
+                'type' => $formData['type'],
+                'code' => $formData['code'],
+                'service' => $formData['service'],
+                'data_no' => $formData['data_no'],
+                'data_zone' => $formData['data_zone'],
+                'key_set' => !empty($formData['key']),
+                'sign_set' => !empty($formData['sign']),
+            ]);
+            
+            // Use asForm() which sends as application/x-www-form-urlencoded
+            $response = Http::asForm()
+                ->withHeaders([
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ])
+                ->post($this->baseUrl . '/game-feature', $formData);
+
+            $data = $response->json();
+
+            // Log response for debugging
+            Log::info('VIP Reseller order placement response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'data' => $data,
+            ]);
+
+            // API returns: {"result": true, "data": {...}, "message": "Success"}
+            if ($response->successful() && isset($data['result']) && $data['result'] === true) {
+                return [
+                    'result' => true,
+                    'data' => $data['data'] ?? null,
+                    'message' => $data['message'] ?? 'Order placed successfully',
+                ];
+            }
+
+            // API returns: {"result": false, "message": "error message"}
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => $data['message'] ?? 'Failed to place order. Please try again.',
+            ];
+        } catch (\Exception $e) {
+            Log::error('VIP Reseller order placement error: ' . $e->getMessage(), [
+                'code' => $code,
+                'user_id' => $userId,
+                'zone_id' => $zoneId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => 'Error placing order: ' . $e->getMessage(),
+            ];
+        }
+    }
 }
 

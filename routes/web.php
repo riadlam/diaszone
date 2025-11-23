@@ -121,5 +121,7 @@ Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin'])->group(funct
     Route::get('/users', [AdminController::class, 'users'])->name('users');
     Route::patch('/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('users.toggle-status');
     Route::get('/orders', [AdminController::class, 'orders'])->name('orders');
+    Route::get('/orders/{orderNumber}', [AdminController::class, 'getOrderDetails'])->name('orders.details');
+    Route::patch('/orders/{orderNumber}/status', [AdminController::class, 'updateOrderStatus'])->name('orders.update-status');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
 });
