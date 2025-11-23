@@ -589,8 +589,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.error('Error clearing player_id field:', error);
                 }
                 
-            } else {
+            } else if (gameType === 'mobilelegends') {
                 // Mobile Legends - User ID and Zone ID with nickname validation
+                console.log('Mobile Legends detected - starting nickname validation');
                 const userIdField = document.getElementById('user_id');
                 const zoneIdField = document.getElementById('zone_id');
                 const buyNowBtn = document.getElementById('buy-now-btn');
@@ -605,17 +606,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (!userId || !zoneId) {
                     showValidationError('Please enter both User ID and Zone ID');
-                    return;
+                    return; // Stop here - don't add to cart
                 }
                 
                 if (!/^\d+$/.test(userId)) {
                     showValidationError('User ID must contain only numbers');
-                    return;
+                    return; // Stop here - don't add to cart
                 }
                 
                 if (!/^\d+$/.test(zoneId)) {
                     showValidationError('Zone ID must contain only numbers');
-                    return;
+                    return; // Stop here - don't add to cart
                 }
                 
                 // Disable button and show loading
@@ -624,8 +625,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     buyNowBtn.textContent = 'Validating...';
                 }
                 
-                // Validate nickname via API
+                // Validate nickname via API - MUST succeed before adding to cart
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                console.log('Validating nickname for User ID:', userId, 'Zone ID:', zoneId);
+                
                 fetch('/api/validate-nickname', {
                     method: 'POST',
                     headers: {
@@ -638,17 +641,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         zone_id: zoneId
                     })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Validation response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Validation response data:', data);
+                    
                     if (buyNowBtn) {
                         buyNowBtn.disabled = false;
                         buyNowBtn.textContent = 'Buy Now';
                     }
                     
                     if (data.success && data.nickname) {
+                        console.log('Validation successful, nickname:', data.nickname);
                         // Show success popup with nickname
                         showNicknameSuccess(data.nickname, () => {
                             // After popup, add to cart and redirect
+                            console.log('Adding to cart after successful validation');
                             cartData.user_id = userId;
                             cartData.zone_id = zoneId;
                             
@@ -663,9 +673,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             window.location.href = '/cart';
                         });
                     } else {
+                        console.log('Validation failed:', data.message);
                         // Show error message - prevent purchase
                         showValidationError('Please enter valid User ID and Zone ID to continue.');
-                        return; // Stop here, don't proceed to cart
+                        // DO NOT add to cart - validation failed
+                        // Return early to prevent any further execution
+                        return;
                     }
                 })
                 .catch(error => {
@@ -675,9 +688,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         buyNowBtn.textContent = 'Buy Now';
                     }
                     showValidationError('Please enter valid User ID and Zone ID to continue.');
+                    // DO NOT add to cart - validation error
+                    // Return early to prevent any further execution
+                    return;
                 });
                 
-                return; // Don't proceed until validation is complete
+                // IMPORTANT: Return here to prevent the code below from executing
+                // The cart will only be added in the success callback above
+                return;
+            } else {
+                // Other games (fallback) - proceed directly without validation
+                console.warn('Unknown game type:', gameType, '- proceeding without validation');
             }
             
             // For non-Mobile Legends games, proceed directly
