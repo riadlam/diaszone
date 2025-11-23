@@ -379,18 +379,12 @@ class CheckoutController extends Controller
             $vipResellerService = new VipResellerService();
             $result = $vipResellerService->checkNickname($request->user_id, $request->zone_id);
 
-            if ($result['success']) {
-                return response()->json([
-                    'success' => true,
-                    'nickname' => $result['nickname'] ?? null,
-                    'message' => 'Nickname validated successfully',
-                ]);
-            }
-
+            // Return the API response directly: {"result": true/false, "data": "nickname", "message": "..."}
             return response()->json([
-                'success' => false,
-                'message' => $result['message'] ?? 'Failed to validate nickname',
-            ], 400);
+                'result' => $result['result'] ?? false,
+                'data' => $result['data'] ?? null,
+                'message' => $result['message'] ?? 'Validation failed',
+            ], $result['result'] === true ? 200 : 400);
         } catch (\Exception $e) {
             Log::error('Nickname validation error: ' . $e->getMessage(), [
                 'user_id' => $request->user_id,

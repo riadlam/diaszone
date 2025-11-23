@@ -30,38 +30,58 @@ class VipResellerService
     public function checkNickname($userId, $zoneId)
     {
         try {
-            $response = Http::asForm()->post($this->baseUrl . '/game-feature', [
+            // Prepare form data exactly as curl example
+            $formData = [
                 'key' => $this->apiKey,
                 'sign' => $this->sign,
                 'type' => 'get-nickname',
                 'code' => 'mobile-legends',
                 'target' => $userId,
                 'additional_target' => $zoneId,
+            ];
+            
+            // Log request data
+            Log::info('VIP Reseller nickname check request', [
+                'url' => $this->baseUrl . '/game-feature',
+                'data' => $formData,
+                'api_key_length' => strlen($this->apiKey ?? ''),
+                'sign_length' => strlen($this->sign ?? ''),
             ]);
+            
+            // Use asForm() which sends as application/x-www-form-urlencoded
+            $response = Http::asForm()
+                ->withHeaders([
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ])
+                ->post($this->baseUrl . '/game-feature', $formData);
 
             $data = $response->json();
 
             // Log response for debugging
             Log::info('VIP Reseller nickname check response', [
                 'status' => $response->status(),
+                'headers' => $response->headers(),
+                'body' => $response->body(),
                 'data' => $data,
             ]);
 
+            // API returns: {"result": true, "data": "nickname", "message": "Success"}
             if ($response->successful() && isset($data['result']) && $data['result'] === true) {
-                // The nickname might be in data array or directly in data
-                $nickname = $data['data']['nickname'] ?? $data['nickname'] ?? $data['data'][0]['nickname'] ?? null;
+                // The nickname is in the 'data' field directly (string)
+                $nickname = $data['data'] ?? null;
                 
                 return [
-                    'success' => true,
-                    'nickname' => $nickname,
-                    'data' => $data['data'] ?? [],
+                    'result' => true,
+                    'data' => $nickname,
+                    'message' => $data['message'] ?? 'Success',
                 ];
             }
 
+            // API returns: {"result": false, "message": "error message"}
             return [
-                'success' => false,
+                'result' => false,
+                'data' => null,
                 'message' => $data['message'] ?? 'Failed to validate nickname. Please check your User ID and Zone ID.',
-                'data' => $data ?? [],
             ];
         } catch (\Exception $e) {
             Log::error('VIP Reseller nickname check error: ' . $e->getMessage(), [
