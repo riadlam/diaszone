@@ -507,12 +507,35 @@ class CheckoutController extends Controller
         }
         
         try {
-            // Calculate amount in DZD: Convert from USD (1 USD = 260 DZD)
-            $usdPrice = (float) $order->diamondPack->price;
+            // Calculate amount in DZD: Use price_dzd directly from the diamond pack
+            $priceDzd = (float) ($order->diamondPack->price_dzd ?? 0);
+            
+            // Fallback: if price_dzd is not set, calculate from price_usd or price
+            if (!$priceDzd || $priceDzd <= 0) {
+                $priceUsd = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price ?? 0);
+                $priceDzd = $priceUsd * 260; // Convert USD to DZD as fallback
+                Log::warning('Chargily payment: price_dzd not found, using fallback calculation', [
+                    'order_id' => $order->id,
+                    'diamond_pack_id' => $order->diamond_pack_id,
+                    'price_usd' => $priceUsd,
+                    'calculated_price_dzd' => $priceDzd,
+                ]);
+            }
+            
+            // Apply discount
             $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-            $discountAmount = ($usdPrice * $discountPercentage) / 100;
-            $finalUsdPrice = $usdPrice - $discountAmount;
-            $amount = $finalUsdPrice * 260; // Convert to DZD
+            $discountAmount = ($priceDzd * $discountPercentage) / 100;
+            $amount = $priceDzd - $discountAmount;
+            
+            // Log the amount calculation for debugging
+            Log::info('Chargily payment amount calculation', [
+                'order_id' => $order->id,
+                'diamond_pack_id' => $order->diamond_pack_id,
+                'price_dzd' => $priceDzd,
+                'discount_percentage' => $discountPercentage,
+                'discount_amount' => $discountAmount,
+                'final_amount_dzd' => $amount,
+            ]);
             
             // Minimum amount is 75 DZD
             if ($amount < 75) {
