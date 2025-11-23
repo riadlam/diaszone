@@ -663,8 +663,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             window.location.href = '/cart';
                         });
                     } else {
-                        // Show error message
-                        showValidationError(data.message || 'Invalid User ID or Zone ID. Please check and try again.');
+                        // Show error message - prevent purchase
+                        showValidationError('Please enter valid User ID and Zone ID to continue.');
+                        return; // Stop here, don't proceed to cart
                     }
                 })
                 .catch(error => {
@@ -673,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         buyNowBtn.disabled = false;
                         buyNowBtn.textContent = 'Buy Now';
                     }
-                    showValidationError('Error validating nickname. Please try again.');
+                    showValidationError('Please enter valid User ID and Zone ID to continue.');
                 });
                 
                 return; // Don't proceed until validation is complete
@@ -707,7 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create error message element
         const errorDiv = document.createElement('div');
         errorDiv.id = 'nickname-validation-error';
-        errorDiv.className = 'mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg';
+        errorDiv.className = 'mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg animate-shake';
         errorDiv.innerHTML = `
             <div class="flex items-start gap-3">
                 <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -716,6 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="flex-1">
                     <p class="text-sm font-semibold text-red-800 mb-1">Validation Failed</p>
                     <p class="text-sm text-red-700">${message}</p>
+                    <p class="text-xs text-red-600 mt-2 font-medium">Please enter valid User ID and Zone ID to continue.</p>
                 </div>
                 <button onclick="this.closest('#nickname-validation-error').remove()" 
                         class="text-red-400 hover:text-red-600 transition-colors">
@@ -726,6 +728,23 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
+        // Add shake animation style if not exists
+        if (!document.getElementById('shake-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'shake-animation-style';
+            style.textContent = `
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                    20%, 40%, 60%, 80% { transform: translateX(5px); }
+                }
+                .animate-shake {
+                    animation: shake 0.5s ease-in-out;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
         // Insert error message after the form
         const orderForm = document.getElementById('order-form');
         if (orderForm) {
@@ -734,12 +753,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Scroll to error
             errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             
-            // Auto-remove after 5 seconds
+            // Auto-remove after 8 seconds
             setTimeout(() => {
                 if (errorDiv.parentNode) {
                     errorDiv.remove();
                 }
-            }, 5000);
+            }, 8000);
         }
     }
     

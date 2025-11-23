@@ -185,12 +185,20 @@
                         @endif
                         <div class="flex items-center justify-between">
                             @if($pack->discount_percentage > 0)
-                                <span class="text-xs text-gray-400 line-through font-medium">US$ {{ number_format($pack->price, 2) }}</span>
+                                @php
+                                    $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                                @endphp
+                                <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}">{{ number_format($priceDzd, 0) }} DZD</span>
                             @else
                                 <span class="text-xs text-gray-500">Best Value</span>
                             @endif
                             <div class="flex items-baseline gap-1">
-                                <span class="text-lg font-bold text-purple-600">US$ {{ number_format($priceAfterDiscount, 2) }}</span>
+                                @php
+                                    $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                                    $discountPercentage = $pack->discount_percentage ?? 0;
+                                    $priceAfterDiscountDzd = $priceDzd * (1 - $discountPercentage / 100);
+                                @endphp
+                                <span class="text-lg font-bold text-purple-600 mobile-pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discountPercentage }}">{{ number_format($priceAfterDiscountDzd, 0) }} DZD</span>
                             </div>
                         </div>
                     </div>

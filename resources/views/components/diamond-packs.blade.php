@@ -148,10 +148,17 @@
                                 <p class="text-xs text-gray-600 mb-2">+ {{ $pack->bonus_diamonds }} Bonus {{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}</p>
                             @endif
                             <div class="flex items-center justify-between">
+                                @php
+                                    $priceUsd = $pack->price_usd ?? $pack->price;
+                                    $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                                    $discount = $pack->discount_percentage ?? 0;
+                                    $finalPriceUsd = $priceUsd * (1 - $discount / 100);
+                                    $finalPriceDzd = $priceDzd * (1 - $discount / 100);
+                                @endphp
                                 @if($pack->discount_percentage > 0)
-                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}">US$ {{ number_format($pack->price_usd ?? $pack->price, 2) }}</span>
+                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}">{{ number_format($priceDzd, 0) }} DZD</span>
                                 @endif
-                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}" data-discount="{{ $pack->discount_percentage }}">US$ {{ number_format(($pack->price_usd ?? $pack->price) * (1 - $pack->discount_percentage / 100), 2) }}</span>
+                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}">{{ number_format($finalPriceDzd, 0) }} DZD</span>
                             </div>
                         </div>
                     </div>
@@ -165,7 +172,7 @@
 <script>
 // Currency price update function
 window.updatePricesOnPage = function() {
-    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'USD');
+    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
     
     // Update all pack prices
     document.querySelectorAll('.pack-final-price').forEach(element => {
@@ -240,6 +247,38 @@ window.updatePricesOnPage = function() {
             `;
         }
     }
+    
+    // Update mobile bottom sheet prices
+    document.querySelectorAll('.mobile-pack-original-price').forEach(element => {
+        const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+        const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+        
+        const price = currency === 'DZD' ? priceDzd : priceUsd;
+        
+        if (currency === 'DZD') {
+            element.textContent = Math.round(price).toLocaleString() + ' DZD';
+        } else {
+            element.textContent = '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+    });
+    
+    document.querySelectorAll('.mobile-pack-final-price').forEach(element => {
+        const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
+        const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+        const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+        
+        let price = currency === 'DZD' ? priceDzd : priceUsd;
+        if (discount > 0) {
+            const discountAmount = (price * discount) / 100;
+            price = price - discountAmount;
+        }
+        
+        if (currency === 'DZD') {
+            element.textContent = Math.round(price).toLocaleString() + ' DZD';
+        } else {
+            element.textContent = '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+    });
 };
 
 // Listen for currency changes
