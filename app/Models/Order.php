@@ -14,6 +14,7 @@ class Order extends Model
         'status',
         'flexy_id',
         'bmccp_id',
+        'chargily_status_id',
         'cryptopay_id',
         'nowpayments_payment_id',
         'user_id_ml',
@@ -64,6 +65,14 @@ class Order extends Model
     public function cryptopay(): BelongsTo
     {
         return $this->belongsTo(Cryptopay::class);
+    }
+
+    /**
+     * Get the Chargily status for this order.
+     */
+    public function chargilyStatus(): BelongsTo
+    {
+        return $this->belongsTo(ChargilyStatus::class, 'chargily_status_id');
     }
 
     /**

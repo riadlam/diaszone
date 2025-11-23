@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DiamondPack;
 use App\Models\Order;
 use App\Models\Flexy;
+use App\Models\ChargilyStatus;
 use App\Services\NowPaymentsService;
 use App\Services\MixPayService;
 use App\Services\ChargilyPayV2Service;
@@ -642,6 +643,30 @@ class CheckoutController extends Controller
             if ($checkoutId) {
                 $bmccp->invoice_number = $checkoutId; // Store checkout ID as invoice_number for reference
                 $bmccp->save();
+                
+                // Create initial chargily_status record
+                $checkoutResponseData = $checkoutResponse['data'] ?? [];
+                $chargilyStatus = ChargilyStatus::create([
+                    'order_id' => $order->id,
+                    'checkout_id' => $checkoutId,
+                    'event_type' => 'checkout.created',
+                    'status' => $checkoutResponseData['status'] ?? 'pending',
+                    'amount' => $amount,
+                    'fees' => $checkoutResponseData['fees'] ?? null,
+                    'payment_method' => $checkoutResponseData['payment_method'] ?? 'edahabia',
+                    'metadata' => $checkoutResponseData['metadata'] ?? null,
+                    'webhook_data' => $checkoutResponseData,
+                ]);
+                
+                // Link to order
+                $order->chargily_status_id = $chargilyStatus->id;
+                $order->save();
+                
+                Log::info('Chargily status created on checkout', [
+                    'chargily_status_id' => $chargilyStatus->id,
+                    'checkout_id' => $checkoutId,
+                    'order_id' => $order->id,
+                ]);
             }
             
             $checkoutUrl = $checkoutResponse['checkout_url'] ?? null;
@@ -697,95 +722,220 @@ class CheckoutController extends Controller
     
     /**
      * Handle Baridimob webhook from Chargily Pay v2
+     * According to: https://dev.chargily.com/pay-v2/webhooks
+     * 
+     * Webhook structure:
+     * {
+     *   "id": "event_id",
+     *   "entity": "event",
+     *   "type": "checkout.paid" | "checkout.failed" | "checkout.canceled",
+     *   "data": { checkout object }
+     * }
      */
     public function baridimobWebhook(Request $request)
     {
         try {
+            // Get raw payload for signature verification
+            $rawPayload = $request->getContent();
+            
             // Log incoming webhook for debugging
             Log::info('Chargily Pay v2 webhook received', [
+                'ip' => $request->ip(),
                 'headers' => $request->headers->all(),
-                'body' => $request->all(),
+                'raw_payload' => $rawPayload,
             ]);
             
-            // Chargily Pay v2 webhook payload structure
-            $webhookData = $request->all();
-            $checkoutId = $webhookData['id'] ?? $webhookData['checkout_id'] ?? null;
-            $status = $webhookData['status'] ?? null;
+            // STEP 1: Verify signature (HMAC SHA256)
+            $signature = $request->header('signature');
             
-            // Also check for nested checkout object
-            if (isset($webhookData['checkout'])) {
-                $checkout = $webhookData['checkout'];
-                $checkoutId = $checkout['id'] ?? $checkoutId;
-                $status = $checkout['status'] ?? $status;
+            if (empty($signature)) {
+                Log::warning('Chargily Pay v2 webhook: Missing signature header', [
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json(['error' => 'Missing signature'], 400);
             }
             
+            // Get API secret key
+            $chargilyService = new ChargilyPayV2Service();
+            $apiSecret = config('services.chargily_pay_v2.secret') ?? config('laravel-chargily-epay.secret');
+            
+            if (empty($apiSecret)) {
+                Log::error('Chargily Pay v2 webhook: API secret not configured');
+                return response()->json(['error' => 'Server configuration error'], 500);
+            }
+            
+            // Calculate expected signature (HMAC SHA256)
+            $expectedSignature = hash_hmac('sha256', $rawPayload, $apiSecret);
+            
+            // Verify signature using hash_equals to prevent timing attacks
+            if (!hash_equals($expectedSignature, $signature)) {
+                Log::warning('Chargily Pay v2 webhook: Invalid signature', [
+                    'received' => substr($signature, 0, 20) . '...',
+                    'expected' => substr($expectedSignature, 0, 20) . '...',
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json(['error' => 'Invalid signature'], 403);
+            }
+            
+            Log::info('Chargily Pay v2 webhook: Signature verified successfully');
+            
+            // STEP 2: Parse webhook payload
+            $webhookData = json_decode($rawPayload, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error('Chargily Pay v2 webhook: Invalid JSON payload', [
+                    'json_error' => json_last_error_msg(),
+                ]);
+                return response()->json(['error' => 'Invalid JSON'], 400);
+            }
+            
+            // Extract event type and checkout data
+            $eventType = $webhookData['type'] ?? null;
+            $checkoutData = $webhookData['data'] ?? null;
+            
+            if (empty($eventType) || empty($checkoutData)) {
+                Log::warning('Chargily Pay v2 webhook: Missing event type or data', [
+                    'event_type' => $eventType,
+                    'has_data' => !empty($checkoutData),
+                ]);
+                return response()->json(['error' => 'Invalid payload structure'], 400);
+            }
+            
+            $checkoutId = $checkoutData['id'] ?? null;
+            $checkoutStatus = $checkoutData['status'] ?? null;
+            $amount = $checkoutData['amount'] ?? null;
+            $fees = $checkoutData['fees'] ?? null;
+            $paymentMethod = $checkoutData['payment_method'] ?? null;
+            $metadata = $checkoutData['metadata'] ?? null;
+            
+            Log::info('Chargily Pay v2 webhook: Processing event', [
+                'event_type' => $eventType,
+                'checkout_id' => $checkoutId,
+                'checkout_status' => $checkoutStatus,
+            ]);
+            
+            // STEP 3: Find order by checkout_id
+            $order = null;
+            $chargilyStatus = null;
+            
             if ($checkoutId) {
-                // Find bmccp by checkout_id (stored as invoice_number)
-                $bmccp = \App\Models\Bmccp::where('invoice_number', $checkoutId)->first();
+                // Try to find by chargily_status first
+                $chargilyStatus = ChargilyStatus::where('checkout_id', $checkoutId)->first();
                 
-                // If not found, try to retrieve checkout from API to get more info
-                if (!$bmccp && $checkoutId) {
-                    $chargilyService = new ChargilyPayV2Service();
-                    $checkoutResponse = $chargilyService->retrieveCheckout($checkoutId);
-                    
-                    if ($checkoutResponse['success'] && isset($checkoutResponse['data']['description'])) {
-                        $description = $checkoutResponse['data']['description'];
-                        $bmccp = \App\Models\Bmccp::where('status', 'pending')
-                            ->where('notes', $description)
-                            ->first();
-                    }
+                if ($chargilyStatus && $chargilyStatus->order_id) {
+                    $order = Order::find($chargilyStatus->order_id);
                 }
                 
-                if ($bmccp) {
-                    // Update invoice_number if not set
-                    if (!$bmccp->invoice_number) {
-                        $bmccp->invoice_number = $checkoutId;
+                // If not found, try to find by bmccp invoice_number
+                if (!$order) {
+                    $bmccp = \App\Models\Bmccp::where('invoice_number', $checkoutId)->first();
+                    if ($bmccp) {
+                        $order = Order::where('bmccp_id', $bmccp->id)->first();
                     }
-                    
-                    $order = Order::where('bmccp_id', $bmccp->id)->first();
-                    
-                    if ($order) {
-                        // Chargily Pay v2 status values: pending, paid, expired, canceled, failed
-                        if ($status === 'paid') {
-                            // Payment was successful
-                            $bmccp->status = 'approved';
-                            $bmccp->save();
-                            
+                }
+            }
+            
+            // STEP 4: Save/Update chargily_status
+            if ($chargilyStatus) {
+                // Update existing status
+                $chargilyStatus->update([
+                    'event_type' => $eventType,
+                    'status' => $checkoutStatus ?? 'pending',
+                    'amount' => $amount,
+                    'fees' => $fees,
+                    'payment_method' => $paymentMethod,
+                    'metadata' => $metadata,
+                    'webhook_data' => $webhookData,
+                ]);
+            } else {
+                // Create new status record
+                $chargilyStatus = ChargilyStatus::create([
+                    'order_id' => $order ? $order->id : null,
+                    'checkout_id' => $checkoutId,
+                    'event_type' => $eventType,
+                    'status' => $checkoutStatus ?? 'pending',
+                    'amount' => $amount,
+                    'fees' => $fees,
+                    'payment_method' => $paymentMethod,
+                    'metadata' => $metadata,
+                    'webhook_data' => $webhookData,
+                ]);
+                
+                // Link to order if found
+                if ($order) {
+                    $order->chargily_status_id = $chargilyStatus->id;
+                    $order->save();
+                }
+            }
+            
+            // STEP 5: Handle event and update order status
+            if ($order) {
+                switch ($eventType) {
+                    case 'checkout.paid':
+                        // Payment successful
+                        if ($order->status !== 'completed') {
                             $order->status = 'completed';
                             $order->save();
                             
-                            Log::info('Chargily Pay v2 payment successful', [
-                                'checkout_id' => $checkoutId,
-                                'order_id' => $order->id,
-                                'bmccp_id' => $bmccp->id,
-                            ]);
-                        } elseif (in_array($status, ['expired', 'canceled', 'failed'])) {
-                            // Payment failed or was canceled
-                            $bmccp->status = 'rejected';
-                            $bmccp->save();
-                            
+                            // Update bmccp if exists
+                            if ($order->bmccp_id) {
+                                $bmccp = \App\Models\Bmccp::find($order->bmccp_id);
+                                if ($bmccp) {
+                                    $bmccp->status = 'approved';
+                                    $bmccp->save();
+                                }
+                            }
+                        }
+                        
+                        Log::info('Chargily Pay v2: Payment successful', [
+                            'checkout_id' => $checkoutId,
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+                        break;
+                        
+                    case 'checkout.failed':
+                    case 'checkout.canceled':
+                        // Payment failed or canceled
+                        if (!in_array($order->status, ['cancelled', 'refunded'])) {
                             $order->status = 'cancelled';
                             $order->save();
                             
-                            Log::info('Chargily Pay v2 payment failed/canceled', [
-                                'checkout_id' => $checkoutId,
-                                'status' => $status,
-                                'order_id' => $order->id,
-                            ]);
+                            // Update bmccp if exists
+                            if ($order->bmccp_id) {
+                                $bmccp = \App\Models\Bmccp::find($order->bmccp_id);
+                                if ($bmccp) {
+                                    $bmccp->status = 'rejected';
+                                    $bmccp->save();
+                                }
+                            }
                         }
-                    }
+                        
+                        Log::info('Chargily Pay v2: Payment failed/canceled', [
+                            'checkout_id' => $checkoutId,
+                            'event_type' => $eventType,
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+                        break;
                 }
+            } else {
+                Log::warning('Chargily Pay v2 webhook: Order not found', [
+                    'checkout_id' => $checkoutId,
+                    'event_type' => $eventType,
+                ]);
             }
             
+            // STEP 6: Return 200 OK response
             return response()->json(['success' => true], 200);
             
         } catch (\Exception $e) {
-            Log::error('Baridimob webhook error: ' . $e->getMessage(), [
+            Log::error('Chargily Pay v2 webhook error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
+                'request_data' => $request->all(),
             ]);
             
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            return response()->json(['error' => 'Internal server error'], 500);
         }
     }
     
