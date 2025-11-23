@@ -76,6 +76,14 @@ class Order extends Model
     }
 
     /**
+     * Get the VIP Reseller statuses for this order.
+     */
+    public function vipResellerStatuses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(VipResellerStatus::class);
+    }
+
+    /**
      * Generate a unique order number
      */
     public static function generateOrderNumber(): string

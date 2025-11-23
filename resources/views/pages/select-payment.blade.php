@@ -21,7 +21,8 @@
                         @foreach($paymentMethods as $index => $method)
                             @php
                                 $isComingSoon = isset($method['coming_soon']) && $method['coming_soon'];
-                                $isChecked = !$isComingSoon && $index === 1;
+                                // Auto-select Baridimob by default (first available non-coming-soon method)
+                                $isChecked = !$isComingSoon && $method['id'] === 'baridimob';
                             @endphp
                             <label class="payment-method-card block {{ $isComingSoon ? 'cursor-not-allowed' : 'cursor-pointer' }} group relative">
                                 <input type="radio" 

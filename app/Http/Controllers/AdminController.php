@@ -527,6 +527,7 @@ class AdminController extends Controller
 
             // Save to vipreseller_status table
             $vipResellerStatus = VipResellerStatus::create([
+                'order_id' => $order->id,
                 'trxid' => $apiData['trxid'] ?? null,
                 'data' => $apiData['data'] ?? $order->user_id_ml,
                 'zone' => $apiData['zone'] ?? $order->zone_id_ml,
@@ -544,6 +545,50 @@ class AdminController extends Controller
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
             ]);
+
+            // Update order status based on VIP Reseller response
+            $oldOrderStatus = $order->status;
+            
+            if ($status === 'waiting') {
+                // VIP Reseller is processing - ensure order is "sending" (payment done, waiting for topup)
+                if ($oldOrderStatus !== 'sending') {
+                    $order->status = 'sending';
+                    $order->save();
+                    Log::info('Order status updated to sending (VIP Reseller waiting)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'sending',
+                        'vip_status' => $status,
+                    ]);
+                }
+            } elseif ($status === 'success') {
+                // VIP Reseller success - set order to completed
+                if ($oldOrderStatus !== 'completed') {
+                    $order->status = 'completed';
+                    $order->save();
+                    Log::info('Order status updated to completed (VIP Reseller success)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'completed',
+                        'vip_status' => $status,
+                    ]);
+                }
+            } elseif ($status === 'error') {
+                // VIP Reseller error - ensure order is "sending" (needs attention)
+                if ($oldOrderStatus === 'completed') {
+                    $order->status = 'sending';
+                    $order->save();
+                    Log::warning('Order status updated to sending (VIP Reseller error - needs attention)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'sending',
+                        'vip_status' => $status,
+                    ]);
+                }
+            }
 
             if ($result['result'] === true) {
                 Log::info('Recharge successful', [
@@ -589,6 +634,7 @@ class AdminController extends Controller
             // Try to save error status even if exception occurred
             try {
                 VipResellerStatus::create([
+                    'order_id' => $order->id,
                     'trxid' => null,
                     'data' => $order->user_id_ml ?? null,
                     'zone' => $order->zone_id_ml ?? null,
@@ -728,13 +774,32 @@ class AdminController extends Controller
                     'new_status' => $mappedStatus,
                 ]);
 
-                // If status changed to success, update the order status
-                if ($mappedStatus === 'success' && $oldStatus !== 'success') {
+                // Update order status based on VIP Reseller status (waiting, success, error)
+                if ($oldStatus !== $mappedStatus) {
                     $this->updateOrderFromWebhook($vipResellerStatus, $webhookData);
                 }
             } else {
                 // Create new record if not found
+                // Try to find order from additional_data if available
+                $orderId = null;
+                if (isset($webhookData['additional_data']['order_id'])) {
+                    $orderId = $webhookData['additional_data']['order_id'];
+                } elseif (isset($webhookData['order_id'])) {
+                    $orderId = $webhookData['order_id'];
+                } else {
+                    // Try to find order by user_id_ml and zone_id_ml
+                    $order = Order::where('user_id_ml', $data)
+                        ->where('zone_id_ml', $zone)
+                        ->where('status', 'completed')
+                        ->latest()
+                        ->first();
+                    if ($order) {
+                        $orderId = $order->id;
+                    }
+                }
+                
                 $vipResellerStatus = VipResellerStatus::create([
+                    'order_id' => $orderId,
                     'trxid' => $trxid,
                     'data' => $data,
                     'zone' => $zone,
@@ -755,10 +820,8 @@ class AdminController extends Controller
                     'status' => $mappedStatus,
                 ]);
 
-                // If status is success, try to update order
-                if ($mappedStatus === 'success') {
-                    $this->updateOrderFromWebhook($vipResellerStatus, $webhookData);
-                }
+                // Update order status based on VIP Reseller status
+                $this->updateOrderFromWebhook($vipResellerStatus, $webhookData);
             }
 
             return response()->json([
@@ -782,40 +845,136 @@ class AdminController extends Controller
     }
 
     /**
-     * Update order status from webhook when recharge is successful
+     * Update order status from VIP Reseller webhook based on status
+     * Handles: waiting, success, error
      */
     private function updateOrderFromWebhook(VipResellerStatus $vipResellerStatus, array $webhookData)
     {
         try {
-            // Try to find order by matching user_id_ml and zone_id_ml
-            $order = Order::where('user_id_ml', $vipResellerStatus->data)
-                ->where('zone_id_ml', $vipResellerStatus->zone)
-                ->where('status', 'completed')
-                ->latest()
-                ->first();
+            // Get order using relationship
+            $order = $vipResellerStatus->order;
+            
+            if (!$order) {
+                // Try to find order by user_id_ml and zone_id_ml as fallback
+                $order = Order::where('user_id_ml', $vipResellerStatus->data)
+                    ->where('zone_id_ml', $vipResellerStatus->zone)
+                    ->where('status', 'completed')
+                    ->latest()
+                    ->first();
+                
+                // If found, update the vipreseller_status with order_id
+                if ($order) {
+                    $vipResellerStatus->order_id = $order->id;
+                    $vipResellerStatus->save();
+                }
+            }
 
             if ($order) {
-                Log::info('Order found for webhook update', [
+                $oldOrderStatus = $order->status;
+                $vipStatus = $vipResellerStatus->status;
+                
+                Log::info('Order found for VIP Reseller webhook update', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'trxid' => $vipResellerStatus->trxid,
-                    'current_status' => $order->status,
+                    'vip_status' => $vipStatus,
+                    'current_order_status' => $oldOrderStatus,
                 ]);
 
-                // Order is already completed, just log
-                Log::info('Order already completed, no update needed', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                ]);
+                // Update order status based on VIP Reseller webhook status
+                // Flow: Chargily/Flexy paid → "sending" → VIP Reseller webhook updates → final status
+                
+                if ($vipStatus === 'waiting') {
+                    // VIP Reseller is processing the topup
+                    // Set order status to "sending" (payment done, waiting for diamonds topup)
+                    if ($oldOrderStatus !== 'sending') {
+                        $order->status = 'sending';
+                        $order->save();
+                        
+                        Log::info('Order status updated to sending (VIP Reseller waiting - payment done, waiting for topup)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'old_status' => $oldOrderStatus,
+                            'new_status' => 'sending',
+                            'vip_status' => $vipStatus,
+                        ]);
+                    } else {
+                        Log::info('Order status already sending (VIP Reseller waiting)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'order_status' => $oldOrderStatus,
+                            'vip_status' => $vipStatus,
+                        ]);
+                    }
+                }
+                elseif ($vipStatus === 'success') {
+                    // VIP Reseller successfully delivered the topup
+                    // Change order status to "completed" (everything done)
+                    if ($oldOrderStatus !== 'completed') {
+                        $order->status = 'completed';
+                        $order->save();
+                        
+                        Log::info('Order status updated to completed (VIP Reseller success - topup delivered)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'old_status' => $oldOrderStatus,
+                            'new_status' => 'completed',
+                            'vip_status' => $vipStatus,
+                        ]);
+                    } else {
+                        Log::info('Order status already completed (VIP Reseller success)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'order_status' => $oldOrderStatus,
+                            'vip_status' => $vipStatus,
+                        ]);
+                    }
+                }
+                elseif ($vipStatus === 'error') {
+                    // VIP Reseller failed to deliver the topup
+                    // Keep order as "sending" to indicate it needs attention (payment done, but topup failed)
+                    if ($oldOrderStatus === 'completed') {
+                        // Change from completed to sending (needs attention)
+                        $order->status = 'sending';
+                        $order->save();
+                        
+                        // Add error note to order
+                        $errorNote = 'VIP Reseller topup error: ' . ($vipResellerStatus->note ?? 'Unknown error');
+                        if (!empty($order->notes)) {
+                            $order->notes = $order->notes . "\n" . $errorNote;
+                        } else {
+                            $order->notes = $errorNote;
+                        }
+                        $order->save();
+                        
+                        Log::warning('Order status updated to sending (VIP Reseller error - payment done but topup failed, needs attention)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'old_status' => $oldOrderStatus,
+                            'new_status' => 'sending',
+                            'vip_status' => $vipStatus,
+                            'vip_note' => $vipResellerStatus->note,
+                        ]);
+                    } else {
+                        Log::warning('VIP Reseller topup error (order already in sending status)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'order_status' => $oldOrderStatus,
+                            'vip_status' => $vipStatus,
+                            'vip_note' => $vipResellerStatus->note,
+                        ]);
+                    }
+                }
             } else {
-                Log::info('No matching order found for webhook', [
+                Log::info('No matching order found for VIP Reseller webhook', [
+                    'vipreseller_status_id' => $vipResellerStatus->id,
                     'data' => $vipResellerStatus->data,
                     'zone' => $vipResellerStatus->zone,
                     'trxid' => $vipResellerStatus->trxid,
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Error updating order from webhook: ' . $e->getMessage(), [
+            Log::error('Error updating order from VIP Reseller webhook: ' . $e->getMessage(), [
                 'vipreseller_status_id' => $vipResellerStatus->id,
                 'trxid' => $vipResellerStatus->trxid,
                 'trace' => $e->getTraceAsString(),

@@ -6,6 +6,7 @@ use App\Models\DiamondPack;
 use App\Models\Order;
 use App\Models\Flexy;
 use App\Models\ChargilyStatus;
+use App\Models\VipResellerStatus;
 use App\Services\NowPaymentsService;
 use App\Services\MixPayService;
 use App\Services\ChargilyPayV2Service;
@@ -872,10 +873,19 @@ class CheckoutController extends Controller
             if ($order) {
                 switch ($eventType) {
                     case 'checkout.paid':
-                        // Payment successful
-                        if ($order->status !== 'completed') {
-                            $order->status = 'completed';
+                        // Payment successful - Set status to "sending" (payment done, waiting for topup)
+                        $oldOrderStatus = $order->status;
+                        if ($oldOrderStatus !== 'sending' && $oldOrderStatus !== 'completed') {
+                            $order->status = 'sending';
                             $order->save();
+                            
+                            Log::info('Chargily Pay v2: Payment successful - Order status set to sending (waiting for topup)', [
+                                'checkout_id' => $checkoutId,
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'old_status' => $oldOrderStatus,
+                                'new_status' => 'sending',
+                            ]);
                             
                             // Update bmccp if exists
                             if ($order->bmccp_id) {
@@ -885,13 +895,35 @@ class CheckoutController extends Controller
                                     $bmccp->save();
                                 }
                             }
+                            
+                            // Trigger automatic recharge for Mobile Legends orders
+                            // processChargilyRecharge will update order status based on VIP Reseller response
+                            $rechargeResult = $this->processChargilyRecharge($order);
+                            
+                            if ($rechargeResult['success']) {
+                                Log::info('Chargily Pay v2: Payment successful and recharge processed', [
+                                    'checkout_id' => $checkoutId,
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'trxid' => $rechargeResult['trxid'] ?? null,
+                                    'order_status' => $order->fresh()->status, // Get updated status
+                                ]);
+                            } else {
+                                Log::warning('Chargily Pay v2: Payment successful but recharge failed', [
+                                    'checkout_id' => $checkoutId,
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'recharge_message' => $rechargeResult['message'] ?? 'Unknown error',
+                                    'order_status' => $order->fresh()->status, // Get current status
+                                ]);
+                            }
+                        } else {
+                            Log::info('Chargily Pay v2: Payment successful (order already completed)', [
+                                'checkout_id' => $checkoutId,
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                            ]);
                         }
-                        
-                        Log::info('Chargily Pay v2: Payment successful', [
-                            'checkout_id' => $checkoutId,
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number,
-                        ]);
                         break;
                         
                     case 'checkout.failed':
@@ -936,6 +968,261 @@ class CheckoutController extends Controller
             ]);
             
             return response()->json(['error' => 'Internal server error'], 500);
+        }
+    }
+
+    /**
+     * Process recharge for Chargily completed orders
+     * This method is called when Chargily payment is successful (checkout.paid)
+     * Similar to processRecharge in AdminController but for Chargily payments
+     */
+    private function processChargilyRecharge(Order $order)
+    {
+        try {
+            // Load order with diamond pack relationship
+            $order->load('diamondPack');
+            
+            // Only process Mobile Legends orders
+            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            
+            if ($gameType !== 'mobilelegends') {
+                Log::info('Chargily recharge skipped: Not a Mobile Legends order', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'game_type' => $gameType,
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'Recharge only supported for Mobile Legends orders',
+                ];
+            }
+
+            // Check if user_id_ml and zone_id_ml are set
+            if (empty($order->user_id_ml) || empty($order->zone_id_ml)) {
+                Log::warning('Chargily recharge skipped: Missing user_id_ml or zone_id_ml', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'Missing User ID or Zone ID for Mobile Legends',
+                ];
+            }
+
+            // STEP 1: Validate nickname BEFORE processing recharge
+            Log::info('Chargily: Validating nickname before recharge', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'user_id_ml' => $order->user_id_ml,
+                'zone_id_ml' => $order->zone_id_ml,
+            ]);
+
+            $vipReseller = new VipResellerService();
+            $nicknameValidation = $vipReseller->checkNickname($order->user_id_ml, $order->zone_id_ml);
+
+            if ($nicknameValidation['result'] !== true) {
+                Log::error('Chargily recharge aborted: Nickname validation failed', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                    'validation_message' => $nicknameValidation['message'] ?? 'Unknown error',
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'Nickname validation failed: ' . ($nicknameValidation['message'] ?? 'Invalid User ID or Zone ID'),
+                ];
+            }
+
+            // Nickname validation successful
+            $nickname = $nicknameValidation['data'] ?? 'Unknown';
+            Log::info('Chargily: Nickname validation successful - Proceeding with recharge', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'user_id_ml' => $order->user_id_ml,
+                'zone_id_ml' => $order->zone_id_ml,
+                'nickname' => $nickname,
+            ]);
+
+            // Get package code from diamond_packs
+            $packageCode = $order->diamondPack->code ?? null;
+            
+            if (empty($packageCode)) {
+                Log::warning('Chargily recharge skipped: Missing package code', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'diamond_pack_id' => $order->diamond_pack_id,
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'Package code not found',
+                ];
+            }
+
+            // STEP 2: Call VIP Reseller API to recharge
+            $result = $vipReseller->placeOrder(
+                $packageCode,
+                $order->user_id_ml,
+                $order->zone_id_ml
+            );
+
+            // STEP 3: Save response to vipreseller_status table
+            $apiData = $result['data'] ?? [];
+            $apiStatus = $apiData['status'] ?? 'error';
+            
+            // Map API status to our enum
+            $status = match(strtolower($apiStatus)) {
+                'waiting' => 'waiting',
+                'success', 'completed', 'paid' => 'success',
+                default => 'error',
+            };
+            
+            if ($result['result'] !== true) {
+                $status = 'error';
+            }
+
+            // Prepare additional data
+            $additionalData = [
+                'full_response' => $result,
+                'balance' => $apiData['balance'] ?? null,
+                'message' => $result['message'] ?? null,
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_method' => 'chargily',
+            ];
+
+            // Save to vipreseller_status table
+            $vipResellerStatus = VipResellerStatus::create([
+                'order_id' => $order->id,
+                'trxid' => $apiData['trxid'] ?? null,
+                'data' => $apiData['data'] ?? $order->user_id_ml,
+                'zone' => $apiData['zone'] ?? $order->zone_id_ml,
+                'service' => $apiData['service'] ?? $packageCode,
+                'status' => $status,
+                'note' => $apiData['note'] ?? ($result['message'] ?? null),
+                'price' => $apiData['price'] ?? null,
+                'additional_data' => $additionalData,
+            ]);
+
+            Log::info('Chargily: VIP Reseller status saved', [
+                'vipreseller_status_id' => $vipResellerStatus->id,
+                'trxid' => $vipResellerStatus->trxid,
+                'status' => $status,
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+            ]);
+
+            // Update order status based on VIP Reseller response
+            $oldOrderStatus = $order->status;
+            
+            if ($status === 'waiting') {
+                // VIP Reseller is processing - ensure order is "sending" (payment done, waiting for topup)
+                if ($oldOrderStatus !== 'sending') {
+                    $order->status = 'sending';
+                    $order->save();
+                    Log::info('Chargily: Order status updated to sending (VIP Reseller waiting)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'sending',
+                        'vip_status' => $status,
+                    ]);
+                }
+            } elseif ($status === 'success') {
+                // VIP Reseller success - set order to completed
+                if ($oldOrderStatus !== 'completed') {
+                    $order->status = 'completed';
+                    $order->save();
+                    Log::info('Chargily: Order status updated to completed (VIP Reseller success)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'completed',
+                        'vip_status' => $status,
+                    ]);
+                }
+            } elseif ($status === 'error') {
+                // VIP Reseller error - ensure order is "sending" (needs attention)
+                if ($oldOrderStatus === 'completed') {
+                    $order->status = 'sending';
+                    $order->save();
+                    Log::warning('Chargily: Order status updated to sending (VIP Reseller error - needs attention)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'sending',
+                        'vip_status' => $status,
+                    ]);
+                }
+            }
+
+            if ($result['result'] === true) {
+                Log::info('Chargily: Recharge successful', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'package_code' => $packageCode,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                    'trxid' => $vipResellerStatus->trxid,
+                ]);
+                
+                return [
+                    'success' => true,
+                    'message' => 'Recharge processed successfully',
+                    'trxid' => $vipResellerStatus->trxid,
+                ];
+            } else {
+                Log::error('Chargily: Recharge failed', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'package_code' => $packageCode,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                    'trxid' => $vipResellerStatus->trxid,
+                    'api_response' => $result,
+                ]);
+                
+                return [
+                    'success' => false,
+                    'message' => $result['message'] ?? 'Recharge failed',
+                    'trxid' => $vipResellerStatus->trxid,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::error('Chargily recharge exception: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            // Try to save error status
+            try {
+                VipResellerStatus::create([
+                    'order_id' => $order->id,
+                    'trxid' => null,
+                    'data' => $order->user_id_ml ?? null,
+                    'zone' => $order->zone_id_ml ?? null,
+                    'service' => $order->diamondPack->code ?? null,
+                    'status' => 'error',
+                    'note' => 'Exception: ' . $e->getMessage(),
+                    'price' => null,
+                    'additional_data' => [
+                        'exception' => $e->getMessage(),
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'payment_method' => 'chargily',
+                    ],
+                ]);
+            } catch (\Exception $saveException) {
+                Log::error('Failed to save Chargily error status: ' . $saveException->getMessage());
+            }
+            
+            return [
+                'success' => false,
+                'message' => 'Error processing recharge: ' . $e->getMessage(),
+            ];
         }
     }
     
