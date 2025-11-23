@@ -612,5 +612,215 @@ class AdminController extends Controller
             ];
         }
     }
+
+    /**
+     * Handle VIP Reseller webhook for order status updates
+     * 
+     * Webhook receives status updates: waiting → processing → success/error
+     * Signature verification: X-Client-Signature = md5(API_ID + API_KEY)
+     */
+    public function vipResellerWebhook(Request $request)
+    {
+        try {
+            // Log incoming webhook request
+            Log::info('VIP Reseller webhook received', [
+                'ip' => $request->ip(),
+                'headers' => $request->headers->all(),
+                'body' => $request->all(),
+                'raw_body' => $request->getContent(),
+            ]);
+
+            // Verify signature
+            $receivedSignature = $request->header('X-Client-Signature');
+            $apiId = env('VIP_RESELLER_API_ID');
+            $apiKey = env('VIP_RESELLER_API_KEY');
+            $expectedSignature = md5($apiId . $apiKey);
+
+            if (empty($receivedSignature) || $receivedSignature !== $expectedSignature) {
+                Log::warning('VIP Reseller webhook signature verification failed', [
+                    'received_signature' => $receivedSignature,
+                    'expected_signature' => $expectedSignature,
+                    'ip' => $request->ip(),
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid signature',
+                ], 401);
+            }
+
+            Log::info('VIP Reseller webhook signature verified successfully');
+
+            // Get webhook data
+            $webhookData = $request->input('data', []);
+            
+            if (empty($webhookData)) {
+                Log::warning('VIP Reseller webhook: Empty data received', [
+                    'request_data' => $request->all(),
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Empty data',
+                ], 400);
+            }
+
+            $trxid = $webhookData['trxid'] ?? null;
+            $status = $webhookData['status'] ?? null;
+            $data = $webhookData['data'] ?? null;
+            $zone = $webhookData['zone'] ?? null;
+            $service = $webhookData['service'] ?? null;
+            $note = $webhookData['note'] ?? null;
+            $price = $webhookData['price'] ?? null;
+
+            if (empty($trxid)) {
+                Log::warning('VIP Reseller webhook: Missing trxid', [
+                    'webhook_data' => $webhookData,
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Missing trxid',
+                ], 400);
+            }
+
+            // Map API status to our enum
+            $mappedStatus = match(strtolower($status ?? '')) {
+                'waiting', 'processing' => 'waiting',
+                'success', 'completed', 'paid' => 'success',
+                'error', 'failed', 'canceled' => 'error',
+                default => 'waiting',
+            };
+
+            Log::info('VIP Reseller webhook processing', [
+                'trxid' => $trxid,
+                'api_status' => $status,
+                'mapped_status' => $mappedStatus,
+                'data' => $data,
+                'zone' => $zone,
+            ]);
+
+            // Find or create vipreseller_status record
+            $vipResellerStatus = VipResellerStatus::where('trxid', $trxid)->first();
+
+            if ($vipResellerStatus) {
+                // Update existing record
+                $oldStatus = $vipResellerStatus->status;
+                
+                $vipResellerStatus->update([
+                    'status' => $mappedStatus,
+                    'note' => $note ?? $vipResellerStatus->note,
+                    'price' => $price ?? $vipResellerStatus->price,
+                    'additional_data' => array_merge(
+                        $vipResellerStatus->additional_data ?? [],
+                        [
+                            'webhook_update' => now()->toDateTimeString(),
+                            'api_status' => $status,
+                            'webhook_data' => $webhookData,
+                        ]
+                    ),
+                ]);
+
+                Log::info('VIP Reseller status updated', [
+                    'vipreseller_status_id' => $vipResellerStatus->id,
+                    'trxid' => $trxid,
+                    'old_status' => $oldStatus,
+                    'new_status' => $mappedStatus,
+                ]);
+
+                // If status changed to success, update the order status
+                if ($mappedStatus === 'success' && $oldStatus !== 'success') {
+                    $this->updateOrderFromWebhook($vipResellerStatus, $webhookData);
+                }
+            } else {
+                // Create new record if not found
+                $vipResellerStatus = VipResellerStatus::create([
+                    'trxid' => $trxid,
+                    'data' => $data,
+                    'zone' => $zone,
+                    'service' => $service,
+                    'status' => $mappedStatus,
+                    'note' => $note,
+                    'price' => $price,
+                    'additional_data' => [
+                        'webhook_created' => now()->toDateTimeString(),
+                        'api_status' => $status,
+                        'webhook_data' => $webhookData,
+                    ],
+                ]);
+
+                Log::info('VIP Reseller status created from webhook', [
+                    'vipreseller_status_id' => $vipResellerStatus->id,
+                    'trxid' => $trxid,
+                    'status' => $mappedStatus,
+                ]);
+
+                // If status is success, try to update order
+                if ($mappedStatus === 'success') {
+                    $this->updateOrderFromWebhook($vipResellerStatus, $webhookData);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Webhook processed successfully',
+                'trxid' => $trxid,
+                'status' => $mappedStatus,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('VIP Reseller webhook exception: ' . $e->getMessage(), [
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error processing webhook: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Update order status from webhook when recharge is successful
+     */
+    private function updateOrderFromWebhook(VipResellerStatus $vipResellerStatus, array $webhookData)
+    {
+        try {
+            // Try to find order by matching user_id_ml and zone_id_ml
+            $order = Order::where('user_id_ml', $vipResellerStatus->data)
+                ->where('zone_id_ml', $vipResellerStatus->zone)
+                ->where('status', 'completed')
+                ->latest()
+                ->first();
+
+            if ($order) {
+                Log::info('Order found for webhook update', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'trxid' => $vipResellerStatus->trxid,
+                    'current_status' => $order->status,
+                ]);
+
+                // Order is already completed, just log
+                Log::info('Order already completed, no update needed', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                ]);
+            } else {
+                Log::info('No matching order found for webhook', [
+                    'data' => $vipResellerStatus->data,
+                    'zone' => $vipResellerStatus->zone,
+                    'trxid' => $vipResellerStatus->trxid,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error updating order from webhook: ' . $e->getMessage(), [
+                'vipreseller_status_id' => $vipResellerStatus->id,
+                'trxid' => $vipResellerStatus->trxid,
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
 }
 
