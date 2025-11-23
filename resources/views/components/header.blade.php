@@ -273,10 +273,35 @@
                 </a>
             </div>
             
+            <!-- Currency Selector (mobile) -->
+            <div class="border-t border-gray-200 pt-4 mt-4">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">Currency</label>
+                <div class="space-y-2 px-4">
+                    <button data-currency="USD" class="mobile-currency-option w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 group">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">US Dollar</div>
+                                <div class="text-xs text-gray-500">USD</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded mobile-currency-badge">USD</span>
+                    </button>
+                    <button data-currency="DZD" class="mobile-currency-option w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 group">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Algerian Dinar</div>
+                                <div class="text-xs text-gray-500">DZD</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded mobile-currency-badge">DZD</span>
+                    </button>
+                </div>
+            </div>
+            
             <!-- My Orders Button (mobile) -->
             <a href="{{ route('dashboard.orders') }}" 
                id="mobile-my-orders-btn" 
-               class="hidden block w-full items-center space-x-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md">
+               class="hidden block w-full items-center space-x-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-md mt-4">
                 <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
@@ -456,6 +481,7 @@
                     const currency = option.getAttribute('data-currency');
                     localStorage.setItem('diaszone_currency', currency);
                     updateCurrencyDisplay(currency);
+                    updateMobileCurrencyDisplay(currency); // Also update mobile display
                     currencyMenu.classList.remove('opacity-100', 'visible');
                     currencyMenu.classList.add('opacity-0', 'invisible');
                     
@@ -505,6 +531,57 @@
                 }
             });
         }
+        
+        // Mobile currency selector
+        const mobileCurrencyOptions = document.querySelectorAll('.mobile-currency-option');
+        
+        function updateMobileCurrencyDisplay(currency) {
+            mobileCurrencyOptions.forEach(option => {
+                const currencyValue = option.getAttribute('data-currency');
+                const badge = option.querySelector('.mobile-currency-badge');
+                
+                if (currencyValue === currency) {
+                    option.classList.remove('border-gray-200');
+                    option.classList.add('border-purple-500', 'bg-purple-50');
+                    if (badge) {
+                        badge.classList.remove('text-gray-600', 'bg-gray-100');
+                        badge.classList.add('text-purple-600', 'bg-purple-100');
+                    }
+                } else {
+                    option.classList.remove('border-purple-500', 'bg-purple-50');
+                    option.classList.add('border-gray-200');
+                    if (badge) {
+                        badge.classList.remove('text-purple-600', 'bg-purple-100');
+                        badge.classList.add('text-gray-600', 'bg-gray-100');
+                    }
+                }
+            });
+        }
+        
+        // Initialize mobile currency display
+        const savedCurrencyMobile = localStorage.getItem('diaszone_currency') || 'DZD';
+        updateMobileCurrencyDisplay(savedCurrencyMobile);
+        
+        mobileCurrencyOptions.forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                const currency = this.getAttribute('data-currency');
+                localStorage.setItem('diaszone_currency', currency);
+                updateMobileCurrencyDisplay(currency);
+                updateCurrencyDisplay(currency); // Also update desktop display
+                
+                // Trigger currency change event
+                window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency } }));
+                
+                // Reload prices on the page
+                if (typeof updatePricesOnPage === 'function') {
+                    updatePricesOnPage();
+                }
+                
+                // Close drawer after selection (optional)
+                // closeDrawer();
+            });
+        });
     });
 </script>
 

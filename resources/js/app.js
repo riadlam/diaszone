@@ -55,12 +55,18 @@ document.addEventListener('DOMContentLoaded', () => {
         radio.addEventListener('change', () => {
             if (radio.checked) {
                 // Get pack data from radio button
+                // Use getAttribute for data attributes to ensure correct reading
+                const priceUsd = parseFloat(radio.getAttribute('data-pack-price-usd')) || parseFloat(radio.getAttribute('data-pack-price')) || 0;
+                const priceDzd = parseFloat(radio.getAttribute('data-pack-price-dzd')) || (parseFloat(radio.getAttribute('data-pack-price')) * 260) || 0;
+                
                 selectedPack = {
-                    id: parseInt(radio.dataset.packId),
-                    diamonds: parseInt(radio.dataset.packDiamonds),
-                    bonus: parseInt(radio.dataset.packBonus),
-                    price: parseFloat(radio.dataset.packPrice),
-                    discount: parseFloat(radio.dataset.packDiscount) || 0
+                    id: parseInt(radio.getAttribute('data-pack-id')) || 0,
+                    diamonds: parseInt(radio.getAttribute('data-pack-diamonds')) || 0,
+                    bonus: parseInt(radio.getAttribute('data-pack-bonus')) || 0,
+                    price: parseFloat(radio.getAttribute('data-pack-price')) || 0,
+                    price_usd: priceUsd,
+                    price_dzd: priceDzd,
+                    discount: parseFloat(radio.getAttribute('data-pack-discount')) || 0
                 };
                 
                 // Update order form
@@ -78,7 +84,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const firstRadio = document.querySelector('input[name="diamond_pack"]:checked');
     if (firstRadio) {
         firstRadio.dispatchEvent(new Event('change'));
+    } else {
+        // If no radio is checked, check the first one and trigger change
+        const firstPackRadio = document.querySelector('input[name="diamond_pack"]');
+        if (firstPackRadio) {
+            firstPackRadio.checked = true;
+            firstPackRadio.dispatchEvent(new Event('change'));
+        }
     }
+    
+    // Also update order form on page load to ensure currency is correct
+    setTimeout(() => {
+        if (selectedPack) {
+            updateOrderForm();
+        }
+    }, 100);
     
     function updateOrderForm() {
         if (!selectedPack) {
@@ -86,8 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalPrice = document.getElementById('total-price');
             const diaszoneCredit = document.getElementById('diaszone-credit');
             const selectedPackInfo = document.getElementById('selected-pack-info');
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
             
-            if (totalPrice) totalPrice.textContent = 'US$ 0.00';
+            if (totalPrice) {
+                totalPrice.textContent = currency === 'DZD' ? '0 DZD' : 'US$ 0.00';
+            }
             if (diaszoneCredit) diaszoneCredit.textContent = 'diaszone credit 0';
             if (selectedPackInfo) selectedPackInfo.classList.add('hidden');
             return;
@@ -99,17 +122,69 @@ document.addEventListener('DOMContentLoaded', () => {
         const packPrice = document.getElementById('pack-price');
         const selectedPackInfo = document.getElementById('selected-pack-info');
         
+        // Get selected currency - read directly from localStorage first, then check CurrencyManager
+        let currency = localStorage.getItem('diaszone_currency');
+        if (!currency && window.CurrencyManager) {
+            currency = window.CurrencyManager.getCurrency();
+        }
+        if (!currency) {
+            currency = 'DZD'; // Default to DZD
+        }
+        
+        // Ensure currency is uppercase for consistency
+        currency = currency.toUpperCase();
+        
+        // Get price based on currency - ensure we have valid values
+        let basePrice;
+        if (currency === 'DZD') {
+            basePrice = parseFloat(selectedPack.price_dzd);
+            // Fallback if price_dzd is not set or is 0 or NaN
+            if (!basePrice || basePrice === 0 || isNaN(basePrice)) {
+                basePrice = parseFloat(selectedPack.price) * 260;
+            }
+        } else {
+            basePrice = parseFloat(selectedPack.price_usd);
+            // Fallback if price_usd is not set or is 0 or NaN
+            if (!basePrice || basePrice === 0 || isNaN(basePrice)) {
+                basePrice = parseFloat(selectedPack.price);
+            }
+        }
+        
+        // Ensure basePrice is a valid number
+        if (isNaN(basePrice) || basePrice <= 0) {
+            basePrice = currency === 'DZD' ? (parseFloat(selectedPack.price) * 260) : parseFloat(selectedPack.price);
+        }
+        
         // Calculate price after discount
-        const discountAmount = (selectedPack.price * selectedPack.discount) / 100;
-        const priceAfterDiscount = selectedPack.price - discountAmount;
+        const discountAmount = (basePrice * parseFloat(selectedPack.discount || 0)) / 100;
+        const priceAfterDiscount = basePrice - discountAmount;
         
-        // Calculate DiasZone Credits (1 USD = ~416 credits)
+        // Calculate DiasZone Credits (1 USD = ~416 credits, use USD price for credits)
         const creditsMultiplier = 416;
-        const calculatedCredits = Math.round(priceAfterDiscount * creditsMultiplier);
+        const usdPrice = parseFloat(selectedPack.price_usd || selectedPack.price);
+        const usdDiscountAmount = (usdPrice * parseFloat(selectedPack.discount || 0)) / 100;
+        const usdPriceAfterDiscount = usdPrice - usdDiscountAmount;
+        const calculatedCredits = Math.round(usdPriceAfterDiscount * creditsMultiplier);
         
-        // Update total price
+        // Format price based on currency
+        const formatPrice = (price) => {
+            const numPrice = parseFloat(price);
+            if (isNaN(numPrice) || numPrice === null || numPrice === undefined) {
+                return currency === 'DZD' ? '0 DZD' : 'US$ 0.00';
+            }
+            if (currency === 'DZD') {
+                return `${Math.round(numPrice).toLocaleString()} DZD`;
+            } else {
+                return `US$ ${numPrice.toFixed(2)}`;
+            }
+        };
+        
+        // Update total price - force update
         if (totalPrice) {
-            totalPrice.textContent = `US$ ${priceAfterDiscount.toFixed(2)}`;
+            const formattedPrice = formatPrice(priceAfterDiscount);
+            totalPrice.textContent = formattedPrice;
+            // Force a re-render by accessing offsetHeight
+            void totalPrice.offsetHeight;
         }
         
         // Update DiasZone credit
@@ -132,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (packPrice) {
-            packPrice.textContent = `US$ ${priceAfterDiscount.toFixed(2)}`;
+            packPrice.textContent = formatPrice(priceAfterDiscount);
         }
         
         if (selectedPackInfo) {
@@ -423,6 +498,37 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('currencyChanged', function(e) {
         updateCartDropdownPricesApp();
         CartManager.updateCartUI(); // Refresh entire cart UI
+        updateOrderForm(); // Update order form prices when currency changes
+        // Also update mobile selected pack text if it exists
+        const mobileSelectedPackText = document.getElementById('mobile-selected-pack-text');
+        if (mobileSelectedPackText && selectedPack) {
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+            const basePrice = currency === 'DZD' 
+                ? (selectedPack.price_dzd || (selectedPack.price * 260))
+                : (selectedPack.price_usd || selectedPack.price);
+            const discountAmount = (basePrice * selectedPack.discount) / 100;
+            const priceAfterDiscount = basePrice - discountAmount;
+            
+            const orderFormWrapper = document.getElementById('order-form-wrapper');
+            const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
+            const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
+            
+            let packDisplayName = '';
+            if (selectedPack.bonus > 0) {
+                packDisplayName = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} Bonus`;
+            } else {
+                packDisplayName = `${selectedPack.diamonds} ${currencyText}`;
+            }
+            
+            const priceText = currency === 'DZD' 
+                ? `${Math.round(priceAfterDiscount).toLocaleString()} DZD`
+                : `$${priceAfterDiscount.toFixed(2)} USD`;
+            
+            mobileSelectedPackText.innerHTML = `
+                <span class="block text-sm font-semibold">${packDisplayName}</span>
+                <span class="text-xs text-white/90 font-medium">${priceText}</span>
+            `;
+        }
     });
     
     // Make CartManager globally available

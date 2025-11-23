@@ -207,9 +207,9 @@ window.updatePricesOnPage = function() {
         }
     });
     
-    // Update mobile bottom sheet prices
-    const selectedPackText = document.querySelector('#selected-pack-text');
-    if (selectedPackText) {
+    // Update mobile selected pack text (mobile-selected-pack-text)
+    const mobileSelectedPackText = document.getElementById('mobile-selected-pack-text');
+    if (mobileSelectedPackText) {
         const packCard = document.querySelector('input[name="diamond_pack"]:checked');
         if (packCard) {
             const packPriceUsd = parseFloat(packCard.getAttribute('data-pack-price-usd')) || 0;
@@ -232,7 +232,7 @@ window.updatePricesOnPage = function() {
                 packDisplayName = 'Twilight Pass';
             } else {
                 const gameType = '{{ $gameType ?? "mobilelegends" }}';
-                const currencyText = gameType === 'pubgmobile' ? 'UC' : 'Diamonds';
+                const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
                 const bonusText = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} Bonus` : '';
                 packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusText}`;
             }
@@ -241,7 +241,7 @@ window.updatePricesOnPage = function() {
                 ? `${Math.round(price).toLocaleString()} DZD`
                 : `$${parseFloat(price).toFixed(2)} USD`;
             
-            selectedPackText.innerHTML = `
+            mobileSelectedPackText.innerHTML = `
                 <span class="block text-sm font-semibold">${packDisplayName}</span>
                 <span class="text-xs text-white/90 font-medium">${priceText}</span>
             `;
