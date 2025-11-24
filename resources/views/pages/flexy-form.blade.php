@@ -230,6 +230,14 @@
                     @enderror
                 </div>
                 
+                <!-- reCAPTCHA -->
+                <div class="mb-6">
+                    <div class="g-recaptcha" data-sitekey="{{ config('recaptcha.site_key') }}"></div>
+                    @error('recaptcha')
+                        <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+                
                 <!-- Submit Button -->
                 <div class="mb-6">
                     <button type="submit" 
@@ -253,6 +261,8 @@
 @endsection
 
 @push('scripts')
+<!-- Google reCAPTCHA v2 -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Order Summary toggle functionality
@@ -299,6 +309,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const flexyForm = document.getElementById('flexy-form');
     if (flexyForm) {
         flexyForm.addEventListener('submit', function(e) {
+            // Check if reCAPTCHA is completed
+            const recaptchaResponse = grecaptcha.getResponse();
+            if (!recaptchaResponse) {
+                e.preventDefault();
+                alert('Please complete the reCAPTCHA verification before submitting.');
+                return false;
+            }
+            
             const submitBtn = document.getElementById('submit-btn');
             if (submitBtn) {
                 submitBtn.disabled = true;

@@ -38,7 +38,6 @@ Route::get('/select/flexy', [CheckoutController::class, 'flexyForm'])
     ->middleware('throttle:20,1') // 20 requests per minute
     ->name('flexy-form');
 Route::post('/select/flexy', [CheckoutController::class, 'submitFlexy'])
-    ->middleware('throttle:3,1') // 3 requests per minute (prevent receipt spam)
     ->name('flexy-submit');
 Route::get('/select/flexy/success', [CheckoutController::class, 'flexySuccess'])->name('flexy-success');
 Route::get('/select/crypto/{encrypted_order_id}', [CheckoutController::class, 'cryptoForm'])

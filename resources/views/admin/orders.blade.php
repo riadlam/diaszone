@@ -409,7 +409,9 @@
                 tableData.push(['Server (Blood Strike)', order.server_bs]);
             }
             if (order.notes) {
-                tableData.push(['Notes', `<span class="whitespace-pre-wrap">${order.notes}</span>`]);
+                // Escape HTML to prevent XSS
+                const escapedNotes = $('<div>').text(order.notes).html();
+                tableData.push(['Notes', `<span class="whitespace-pre-wrap">${escapedNotes}</span>`]);
             }
             if (order.flexy_id) {
                 tableData.push(['Flexy ID', order.flexy_id]);
@@ -451,7 +453,9 @@
                     tableData.push(['Zone', vip.zone || 'N/A']);
                     tableData.push(['Service', vip.service || 'N/A']);
                     if (vip.note) {
-                        tableData.push(['Note', vip.note]);
+                        // Escape HTML to prevent XSS
+                        const escapedNote = $('<div>').text(vip.note).html();
+                        tableData.push(['Note', escapedNote]);
                     }
                     if (vip.price) {
                         tableData.push(['Price', `${parseFloat(vip.price).toLocaleString()}`]);
@@ -486,7 +490,9 @@
                         tableData.push(['Receipt Image', `<a href="${bmccp.receipt_image}" target="_blank" class="text-blue-600 hover:underline">View Receipt</a>`]);
                     }
                     if (bmccp.notes) {
-                        tableData.push(['Notes', bmccp.notes]);
+                        // Escape HTML to prevent XSS
+                        const escapedNotes = $('<div>').text(bmccp.notes).html();
+                        tableData.push(['Notes', escapedNotes]);
                     }
                     tableData.push(['Created At', bmccp.created_at]);
                     tableData.push(['Updated At', bmccp.updated_at]);

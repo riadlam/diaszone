@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Http;
 
 class CheckoutController extends Controller
 {
@@ -1280,6 +1281,40 @@ class CheckoutController extends Controller
      */
     public function submitFlexy(Request $request)
     {
+        // Validate reCAPTCHA
+        $recaptchaResponse = $request->input('g-recaptcha-response');
+        if (!$recaptchaResponse) {
+            return back()->withErrors(['recaptcha' => 'Please complete the reCAPTCHA verification'])->withInput();
+        }
+        
+        // Verify reCAPTCHA with Google (server-side only)
+        $secretKey = config('recaptcha.secret_key');
+        $verifyUrl = config('recaptcha.verify_url');
+        
+        try {
+            $response = Http::asForm()->post($verifyUrl, [
+                'secret' => $secretKey,
+                'response' => $recaptchaResponse,
+                'remoteip' => $request->ip(),
+            ]);
+            
+            $responseData = $response->json();
+            
+            if (!isset($responseData['success']) || !$responseData['success']) {
+                Log::warning('Flexy submission: reCAPTCHA verification failed', [
+                    'ip' => $request->ip(),
+                    'recaptcha_errors' => $responseData['error-codes'] ?? [],
+                ]);
+                return back()->withErrors(['recaptcha' => 'reCAPTCHA verification failed. Please try again.'])->withInput();
+            }
+        } catch (\Exception $e) {
+            Log::error('Flexy submission: reCAPTCHA verification error', [
+                'ip' => $request->ip(),
+                'error' => $e->getMessage(),
+            ]);
+            return back()->withErrors(['recaptcha' => 'reCAPTCHA verification error. Please try again.'])->withInput();
+        }
+        
         $request->validate([
             'encrypted_order_id' => 'required|string',
             'receipt_image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB max
@@ -1379,10 +1414,10 @@ class CheckoutController extends Controller
         $sanitizedName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
         $sanitizedName = substr($sanitizedName, 0, 255); // Limit filename length
         
-        // Create directory if it doesn't exist
+        // Create directory if it doesn't exist (more restrictive permissions)
         $storagePath = public_path('storage/flexy_receipts');
         if (!file_exists($storagePath)) {
-            mkdir($storagePath, 0755, true);
+            mkdir($storagePath, 0750, true);
         }
         
         // Generate unique filename
@@ -1404,7 +1439,13 @@ class CheckoutController extends Controller
         // Link order to flexy and update status to pending_confirmation
         $order->flexy_id = $flexy->id;
         $order->status = 'pending_confirmation';
-        $order->notes = $request->input('notes');
+        // Sanitize notes to prevent XSS (strip HTML tags, limit length)
+        $notes = $request->input('notes');
+        if ($notes) {
+            $notes = strip_tags($notes); // Remove HTML tags
+            $notes = substr($notes, 0, 1000); // Enforce max length
+        }
+        $order->notes = $notes;
         $order->save();
         
         // Log successful submission
