@@ -1330,6 +1330,123 @@ class AdminController extends Controller
                     TelegramService::editMessageText($messageId, $updatedMessage);
                     
                     return response()->json(['ok' => true]);
+                } elseif ($callbackData === 'cancel_order' && $messageId) {
+                    // Find order by tlg_message_id
+                    $order = Order::with(['diamondPack', 'user'])
+                        ->where('tlg_message_id', $messageId)
+                        ->first();
+                    
+                    if (!$order) {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Order not found',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Check if order can be cancelled (not already completed or cancelled)
+                    if ($order->status === 'completed') {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Cannot cancel completed order',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    if ($order->status === 'cancelled') {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '✅ Order is already cancelled',
+                            false
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Answer callback immediately
+                    TelegramService::answerCallbackQuery(
+                        $callbackQueryId,
+                        '⏳ Cancelling order...',
+                        false
+                    );
+                    
+                    // Update order status to cancelled
+                    $oldStatus = $order->status;
+                    $order->status = 'cancelled';
+                    $order->save();
+                    
+                    Log::info('Telegram: Order cancelled', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldStatus,
+                        'new_status' => 'cancelled',
+                        'tlg_message_id' => $messageId,
+                    ]);
+                    
+                    // Update Telegram message
+                    $order->load('diamondPack', 'user');
+                    $updatedMessage = TelegramService::formatOrderMessage($order);
+                    $updatedMessage = str_replace(
+                        '🆕 <b>New Order Created</b>',
+                        '❌ <b>Order Cancelled</b>',
+                        $updatedMessage
+                    );
+                    
+                    TelegramService::editMessageText($messageId, $updatedMessage);
+                    
+                    return response()->json(['ok' => true]);
+                } elseif ($callbackData === 'view_receipt' && $messageId) {
+                    // Find order by tlg_message_id
+                    $order = Order::with(['diamondPack', 'user', 'flexy'])
+                        ->where('tlg_message_id', $messageId)
+                        ->first();
+                    
+                    if (!$order) {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Order not found',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Check if order has Flexy receipt
+                    if (!$order->flexy || !$order->flexy->receipt_image) {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Receipt not found for this order',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Answer callback immediately
+                    TelegramService::answerCallbackQuery(
+                        $callbackQueryId,
+                        '📄 Sending receipt...',
+                        false
+                    );
+                    
+                    // Construct receipt URL (format: https://diaszone.com/storage/flexy_receipts/{filename})
+                    $receiptPath = $order->flexy->receipt_image;
+                    // Generate full URL using asset() helper
+                    $receiptUrl = asset($receiptPath);
+                    
+                    // Send receipt photo
+                    $caption = "📄 <b>Receipt for Order:</b> {$order->order_number}\n";
+                    $caption .= "📦 <b>Pack:</b> " . ($order->diamondPack->name ?? 'N/A') . "\n";
+                    $caption .= "💰 <b>Amount:</b> " . number_format(($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260)), 0) . " DZD";
+                    
+                    TelegramService::sendPhoto($receiptUrl, $caption);
+                    
+                    Log::info('Telegram: Receipt sent', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'receipt_url' => $receiptUrl,
+                    ]);
+                    
+                    return response()->json(['ok' => true]);
                 }
             }
             

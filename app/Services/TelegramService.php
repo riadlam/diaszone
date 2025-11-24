@@ -46,7 +46,7 @@ class TelegramService
                 'parse_mode' => 'HTML',
             ];
             
-            // Add inline keyboard button for pending_confirmation orders
+            // Add inline keyboard buttons for pending_confirmation orders
             if ($addConfirmButton) {
                 $payload['reply_markup'] = json_encode([
                     'inline_keyboard' => [
@@ -54,6 +54,16 @@ class TelegramService
                             [
                                 'text' => '✅ Confirm Order',
                                 'callback_data' => 'confirm_order'
+                            ],
+                            [
+                                'text' => '❌ Cancel Order',
+                                'callback_data' => 'cancel_order'
+                            ]
+                        ],
+                        [
+                            [
+                                'text' => '📄 View Receipt',
+                                'callback_data' => 'view_receipt'
                             ]
                         ]
                     ]
@@ -152,6 +162,47 @@ class TelegramService
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('Telegram: Exception while editing message', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+    
+    /**
+     * Send photo to Telegram
+     *
+     * @param string $photoUrl
+     * @param string|null $caption
+     * @return bool
+     */
+    public static function sendPhoto(string $photoUrl, ?string $caption = null): bool
+    {
+        try {
+            $botToken = config('telegram.bot_token');
+            $chatId = config('telegram.chat_id');
+            $apiUrl = config('telegram.api_url');
+            
+            if (!$botToken || !$chatId) {
+                return false;
+            }
+            
+            $url = $apiUrl . $botToken . '/sendPhoto';
+            
+            $payload = [
+                'chat_id' => (string) $chatId,
+                'photo' => $photoUrl,
+            ];
+            
+            if ($caption) {
+                $payload['caption'] = $caption;
+                $payload['parse_mode'] = 'HTML';
+            }
+            
+            $response = Http::timeout(10)->post($url, $payload);
+            
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error('Telegram: Exception while sending photo', [
                 'error' => $e->getMessage(),
             ]);
             return false;
