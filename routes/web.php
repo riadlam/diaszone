@@ -53,6 +53,8 @@ Route::post('/webhook/baridimob', [CheckoutController::class, 'baridimobWebhook'
     ->name('baridimob.webhook');
 Route::post('/webhook/vipreseller', [AdminController::class, 'vipResellerWebhook'])
     ->name('vipreseller.webhook');
+Route::post('/webhook/telegram', [AdminController::class, 'telegramWebhook'])
+    ->name('telegram.webhook');
 Route::get('/crypto/{encrypted_order_id}', [CheckoutController::class, 'cryptoPayment'])->name('crypto-payment');
 Route::get('/crypto/{encrypted_order_id}/success', [CheckoutController::class, 'cryptoPaymentSuccess'])->name('crypto-payment-success');
 

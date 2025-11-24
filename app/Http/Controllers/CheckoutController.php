@@ -1522,7 +1522,8 @@ class CheckoutController extends Controller
             try {
                 $order->load('diamondPack', 'user');
                 $message = TelegramService::formatOrderMessage($order);
-                $messageId = TelegramService::sendMessage($message);
+                // Add confirm button for pending_confirmation orders
+                $messageId = TelegramService::sendMessage($message, true);
                 if ($messageId) {
                     $order->tlg_message_id = $messageId;
                     $order->save();

@@ -505,7 +505,9 @@ class AdminController extends Controller
             try {
                 $order->load('diamondPack', 'user');
                 $message = TelegramService::formatOrderMessage($order);
-                $messageId = TelegramService::sendMessage($message);
+                // Add confirm button only for pending_confirmation orders
+                $addButton = ($newStatus === 'pending_confirmation');
+                $messageId = TelegramService::sendMessage($message, $addButton);
                 if ($messageId) {
                     $order->tlg_message_id = $messageId;
                     $order->save();
@@ -596,6 +598,22 @@ class AdminController extends Controller
     private function processRecharge(Order $order)
     {
         try {
+            // Check if VIP Reseller status already has success (prevent duplicate requests)
+            $hasSuccessStatus = $order->vipResellerStatuses()
+                ->where('status', 'success')
+                ->exists();
+            
+            if ($hasSuccessStatus) {
+                Log::info('Recharge skipped: VIP Reseller status already success', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                ]);
+                return [
+                    'success' => true,
+                    'message' => 'Recharge already processed (VIP Reseller success)',
+                ];
+            }
+            
             // Double-check flexy_id exists (safety check)
             if (is_null($order->flexy_id)) {
                 Log::error('Recharge aborted: flexy_id is null', [
@@ -1191,6 +1209,136 @@ class AdminController extends Controller
                 'trxid' => $vipResellerStatus->trxid,
                 'trace' => $e->getTraceAsString(),
             ]);
+        }
+    }
+    
+    /**
+     * Handle Telegram webhook (for button callbacks)
+     */
+    public function telegramWebhook(Request $request)
+    {
+        try {
+            $data = $request->all();
+            
+            Log::info('Telegram webhook received', [
+                'data' => $data,
+            ]);
+            
+            // Handle callback query (button clicks)
+            if (isset($data['callback_query'])) {
+                $callbackQuery = $data['callback_query'];
+                $callbackQueryId = $callbackQuery['id'];
+                $callbackData = $callbackQuery['data'] ?? '';
+                $message = $callbackQuery['message'] ?? null;
+                $messageId = $message['message_id'] ?? null;
+                
+                if ($callbackData === 'confirm_order' && $messageId) {
+                    // Find order by tlg_message_id
+                    $order = Order::with(['diamondPack', 'user'])
+                        ->where('tlg_message_id', $messageId)
+                        ->first();
+                    
+                    if (!$order) {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Order not found',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Check if order is already completed
+                    if ($order->status === 'completed') {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '✅ Order is already completed',
+                            false
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Check if VIP Reseller status is already success (prevent duplicate)
+                    // Reload order with vipResellerStatuses relationship
+                    $order->load('vipResellerStatuses');
+                    $hasSuccessStatus = $order->vipResellerStatuses()
+                        ->where('status', 'success')
+                        ->exists();
+                    
+                    if ($hasSuccessStatus) {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '⚠️ Order recharge already processed (VIP Reseller success)',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Check conditions: pending_confirmation -> completed, has flexy_id
+                    $oldStatus = $order->status;
+                    $hasFlexyId = !is_null($order->flexy_id);
+                    
+                    if ($oldStatus !== 'pending_confirmation') {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Order status must be pending_confirmation',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    if (!$hasFlexyId) {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Order does not have Flexy payment',
+                            true
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+                    
+                    // Answer callback immediately
+                    TelegramService::answerCallbackQuery(
+                        $callbackQueryId,
+                        '⏳ Processing order confirmation...',
+                        false
+                    );
+                    
+                    // Update order status to completed
+                    $order->status = 'completed';
+                    $order->save();
+                    
+                    Log::info('Telegram: Processing order confirmation', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldStatus,
+                        'new_status' => 'completed',
+                        'tlg_message_id' => $messageId,
+                    ]);
+                    
+                    // Process recharge (same logic as admin dashboard)
+                    $rechargeResult = $this->processRecharge($order);
+                    
+                    // Update Telegram message
+                    $order->load('diamondPack', 'user');
+                    $statusText = $rechargeResult['success'] ? '✅ Confirmed & Recharge Processed' : '⚠️ Confirmed (Recharge: ' . ($rechargeResult['message'] ?? 'Failed') . ')';
+                    $updatedMessage = TelegramService::formatOrderMessage($order);
+                    $updatedMessage = str_replace(
+                        '📊 <b>Status:</b> ' . ucfirst(str_replace('_', ' ', $order->status)),
+                        '📊 <b>Status:</b> ' . ucfirst(str_replace('_', ' ', $order->status)) . "\n" . $statusText,
+                        $updatedMessage
+                    );
+                    
+                    TelegramService::editMessageText($messageId, $updatedMessage);
+                    
+                    return response()->json(['ok' => true]);
+                }
+            }
+            
+            return response()->json(['ok' => true]);
+        } catch (\Exception $e) {
+            Log::error('Telegram webhook error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
         }
     }
 }

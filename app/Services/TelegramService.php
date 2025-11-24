@@ -11,9 +11,10 @@ class TelegramService
      * Send a message to Telegram
      *
      * @param string $message
+     * @param bool $addConfirmButton Whether to add "Confirm Order" button (for pending_confirmation orders)
      * @return int|null Returns message_id on success, null on failure
      */
-    public static function sendMessage(string $message): ?int
+    public static function sendMessage(string $message, bool $addConfirmButton = false): ?int
     {
         try {
             $botToken = config('telegram.bot_token');
@@ -39,11 +40,27 @@ class TelegramService
                 'url' => str_replace($botToken, '***', $url), // Hide token in logs
             ]);
             
-            $response = Http::timeout(10)->post($url, [
+            $payload = [
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => 'HTML',
-            ]);
+            ];
+            
+            // Add inline keyboard button for pending_confirmation orders
+            if ($addConfirmButton) {
+                $payload['reply_markup'] = json_encode([
+                    'inline_keyboard' => [
+                        [
+                            [
+                                'text' => '✅ Confirm Order',
+                                'callback_data' => 'confirm_order'
+                            ]
+                        ]
+                    ]
+                ]);
+            }
+            
+            $response = Http::timeout(10)->post($url, $payload);
             
             $responseData = $response->json();
             
@@ -67,6 +84,77 @@ class TelegramService
                 'trace' => $e->getTraceAsString(),
             ]);
             return null;
+        }
+    }
+    
+    /**
+     * Answer callback query (for button clicks)
+     *
+     * @param string $callbackQueryId
+     * @param string $text
+     * @param bool $showAlert
+     * @return bool
+     */
+    public static function answerCallbackQuery(string $callbackQueryId, string $text, bool $showAlert = false): bool
+    {
+        try {
+            $botToken = config('telegram.bot_token');
+            $apiUrl = config('telegram.api_url');
+            
+            if (!$botToken) {
+                return false;
+            }
+            
+            $url = $apiUrl . $botToken . '/answerCallbackQuery';
+            
+            $response = Http::timeout(10)->post($url, [
+                'callback_query_id' => $callbackQueryId,
+                'text' => $text,
+                'show_alert' => $showAlert,
+            ]);
+            
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error('Telegram: Exception while answering callback query', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+    
+    /**
+     * Edit message text
+     *
+     * @param int $messageId
+     * @param string $newText
+     * @return bool
+     */
+    public static function editMessageText(int $messageId, string $newText): bool
+    {
+        try {
+            $botToken = config('telegram.bot_token');
+            $chatId = config('telegram.chat_id');
+            $apiUrl = config('telegram.api_url');
+            
+            if (!$botToken || !$chatId) {
+                return false;
+            }
+            
+            $url = $apiUrl . $botToken . '/editMessageText';
+            
+            $response = Http::timeout(10)->post($url, [
+                'chat_id' => (string) $chatId,
+                'message_id' => $messageId,
+                'text' => $newText,
+                'parse_mode' => 'HTML',
+            ]);
+            
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error('Telegram: Exception while editing message', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
         }
     }
     
