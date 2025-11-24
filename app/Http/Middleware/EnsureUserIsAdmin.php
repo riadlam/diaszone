@@ -21,10 +21,42 @@ class EnsureUserIsAdmin
             return redirect()->route('login')->with('error', 'Please login to access the admin panel.');
         }
 
+        $user = Auth::user();
+
         // Check if user is admin
-        if (!Auth::user()->isAdmin()) {
+        if (!$user->isAdmin()) {
+            // Log unauthorized access attempt
+            \Illuminate\Support\Facades\Log::warning('Unauthorized admin access attempt', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'url' => $request->fullUrl(),
+            ]);
+            
             return redirect()->route('home')->with('error', 'You do not have permission to access the admin panel.');
         }
+
+        // Check if user is active
+        if (!$user->isActive()) {
+            \Illuminate\Support\Facades\Log::warning('Inactive admin user access attempt', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'status' => $user->status,
+                'ip' => $request->ip(),
+            ]);
+            
+            Auth::logout();
+            return redirect()->route('login')->with('error', 'Your account is inactive. Please contact support.');
+        }
+
+        // Log admin access (for security auditing)
+        \Illuminate\Support\Facades\Log::info('Admin dashboard access', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'url' => $request->path(),
+        ]);
 
         return $next($request);
     }

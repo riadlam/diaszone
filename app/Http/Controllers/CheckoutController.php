@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 class CheckoutController extends Controller
 {
@@ -26,6 +27,12 @@ class CheckoutController extends Controller
      */
     public function getPacks(Request $request)
     {
+        // Validate and sanitize input to prevent SQL injection
+        $request->validate([
+            'ids' => 'nullable|array',
+            'ids.*' => 'integer|min:1',
+        ]);
+        
         $packIds = $request->input('ids', []);
         
         if (empty($packIds)) {
@@ -35,6 +42,15 @@ class CheckoutController extends Controller
         // Ensure packIds is an array
         if (!is_array($packIds)) {
             $packIds = [$packIds];
+        }
+        
+        // Sanitize: ensure all IDs are integers (extra safety)
+        $packIds = array_filter(array_map('intval', $packIds), function($id) {
+            return $id > 0;
+        });
+        
+        if (empty($packIds)) {
+            return response()->json(['packs' => []]);
         }
         
         // Fetch packs from database
@@ -156,6 +172,39 @@ class CheckoutController extends Controller
      */
     public function createOrder(Request $request)
     {
+        // Additional rate limiting check for authenticated users (per user, not per IP)
+        if (Auth::check()) {
+            $key = 'order_creation_user_' . Auth::id();
+            $maxAttempts = 20; // Increased to match IP limit
+            $decayMinutes = 1;
+            
+            if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+                $seconds = RateLimiter::availableIn($key);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Too many order creation attempts. Please try again in ' . ceil($seconds / 60) . ' minute(s).',
+                ], 429);
+            }
+            
+            RateLimiter::hit($key, $decayMinutes * 60);
+        }
+        
+        // Prevent duplicate requests within 2 seconds (same cart + same payment method)
+        $requestHash = md5(json_encode([
+            'cart_items' => $request->input('cart_items'),
+            'payment_method' => $request->input('payment_method'),
+            'ip' => $request->ip(),
+        ]));
+        
+        $duplicateKey = 'order_creation_duplicate_' . $requestHash;
+        if (RateLimiter::tooManyAttempts($duplicateKey, 1)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please wait a moment before trying again.',
+            ], 429);
+        }
+        RateLimiter::hit($duplicateKey, 2); // 2 second window
+        
         try {
             $request->validate([
                 'cart_items' => 'required|array|min:1|max:1', // Single item limit enforced
@@ -1238,16 +1287,100 @@ class CheckoutController extends Controller
         ]);
         
         try {
-            // Decrypt the order ID
+            // Decrypt the order ID - use generic error message for security
             $orderId = Crypt::decryptString($request->input('encrypted_order_id'));
         } catch (\Exception $e) {
-            return back()->withErrors(['encrypted_order_id' => 'Invalid order ID'])->withInput();
+            // Generic error message to prevent information leakage
+            Log::warning('Flexy submission: Invalid encrypted order ID', [
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+            return back()->withErrors(['encrypted_order_id' => 'Invalid order information'])->withInput();
         }
         
-        $order = Order::findOrFail($orderId);
+        // Verify order exists
+        $order = Order::find($orderId);
+        if (!$order) {
+            Log::warning('Flexy submission: Order not found', [
+                'order_id' => $orderId,
+                'ip' => $request->ip(),
+            ]);
+            return back()->withErrors(['encrypted_order_id' => 'Order not found'])->withInput();
+        }
         
-        // Store the receipt image
-        $imagePath = $request->file('receipt_image')->store('flexy_receipts', 'public');
+        // Verify order belongs to authenticated user (if logged in)
+        if (auth()->check() && $order->user_id !== auth()->id()) {
+            Log::warning('Flexy submission: Unauthorized order access attempt', [
+                'order_id' => $order->id,
+                'order_user_id' => $order->user_id,
+                'auth_user_id' => auth()->id(),
+                'ip' => $request->ip(),
+            ]);
+            return back()->withErrors(['encrypted_order_id' => 'Unauthorized access'])->withInput();
+        }
+        
+        // Verify order is in correct status (should be pending_flexy)
+        if ($order->status !== 'pending_flexy') {
+            Log::warning('Flexy submission: Order in wrong status', [
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+                'ip' => $request->ip(),
+            ]);
+            return back()->withErrors(['encrypted_order_id' => 'Order cannot be processed'])->withInput();
+        }
+        
+        // Enhanced file upload validation
+        $file = $request->file('receipt_image');
+        
+        // Verify file was actually uploaded
+        if (!$file || !$file->isValid()) {
+            return back()->withErrors(['receipt_image' => 'Invalid file upload'])->withInput();
+        }
+        
+        // Check MIME type (additional security layer)
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
+        $mimeType = $file->getMimeType();
+        if (!in_array($mimeType, $allowedMimes)) {
+            Log::warning('Flexy submission: Invalid MIME type', [
+                'order_id' => $order->id,
+                'mime_type' => $mimeType,
+                'ip' => $request->ip(),
+            ]);
+            return back()->withErrors(['receipt_image' => 'Invalid file type'])->withInput();
+        }
+        
+        // Check file extension matches MIME type
+        $extension = strtolower($file->getClientOriginalExtension());
+        $extensionMimeMap = [
+            'jpeg' => 'image/jpeg',
+            'jpg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        if (!isset($extensionMimeMap[$extension]) || $extensionMimeMap[$extension] !== $mimeType) {
+            Log::warning('Flexy submission: File extension mismatch', [
+                'order_id' => $order->id,
+                'extension' => $extension,
+                'mime_type' => $mimeType,
+                'ip' => $request->ip(),
+            ]);
+            return back()->withErrors(['receipt_image' => 'File type mismatch'])->withInput();
+        }
+        
+        // Check file size (in bytes)
+        $maxSize = 5120 * 1024; // 5MB in bytes
+        if ($file->getSize() > $maxSize) {
+            return back()->withErrors(['receipt_image' => 'File size exceeds 5MB limit'])->withInput();
+        }
+        
+        // Sanitize filename to prevent directory traversal
+        $originalName = $file->getClientOriginalName();
+        $sanitizedName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
+        $sanitizedName = substr($sanitizedName, 0, 255); // Limit filename length
+        
+        // Store the receipt image with sanitized name
+        $imagePath = $file->storeAs('flexy_receipts', $order->id . '_' . time() . '_' . $sanitizedName, 'public');
         
         // Create or update Flexy record
         $flexy = Flexy::create([
@@ -1261,6 +1394,16 @@ class CheckoutController extends Controller
         $order->status = 'pending_confirmation';
         $order->notes = $request->input('notes');
         $order->save();
+        
+        // Log successful submission
+        Log::info('Flexy receipt submitted successfully', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'flexy_id' => $flexy->id,
+            'file_path' => $imagePath,
+            'ip' => $request->ip(),
+            'user_id' => auth()->id() ?? 'guest',
+        ]);
         
         // Encrypt order ID for redirect
         $encryptedOrderId = Crypt::encryptString($order->id);

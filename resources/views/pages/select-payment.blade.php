@@ -576,8 +576,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Handle submit button
         const submitBtn = document.getElementById('pay-submit-btn');
+        let isProcessing = false; // Prevent multiple simultaneous requests
+        
         if (submitBtn) {
             submitBtn.addEventListener('click', async function() {
+                // Prevent double-clicking and multiple requests
+                if (isProcessing) {
+                    return;
+                }
+                
                 const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
                 if (!selectedMethod) {
                     return;
@@ -594,6 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // If Flexy is selected, create a NEW order (even if one already exists) and navigate to flexy form
                 if (paymentMethod === 'flexy') {
+                    isProcessing = true;
                     submitBtn.disabled = true;
                     submitBtn.textContent = 'Processing...';
                     
@@ -703,6 +711,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         alert('Failed to create order. Please try again.');
                     }
                     
+                    isProcessing = false;
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Envoyer';
                 }
@@ -714,6 +723,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 } else if (paymentMethod === 'baridimob') {
                     // If Baridimob is selected, create order and navigate to baridimob payment page
+                    isProcessing = true;
                     submitBtn.disabled = true;
                     submitBtn.textContent = 'Processing...';
                     
@@ -822,6 +832,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         alert('Failed to create order. Please try again.');
                     }
                     
+                    isProcessing = false;
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Envoyer';
                 }

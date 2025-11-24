@@ -62,7 +62,7 @@ Route::post('/api/packs', [CheckoutController::class, 'getPacks'])
     ->middleware('throttle:30,1') // 30 requests per minute
     ->name('api.packs');
 Route::post('/api/orders/create', [CheckoutController::class, 'createOrder'])
-    ->middleware('throttle:5,1') // 5 orders per minute (prevent spam)
+    ->middleware('throttle:20,1') // 20 orders per minute per IP (generous limit for legitimate users)
     ->name('api.orders.create');
 Route::post('/api/orders/get-by-encrypted-id', [CheckoutController::class, 'getOrderByEncryptedId'])
     ->middleware('throttle:10,1') // 10 requests per minute (prevent brute force)
@@ -117,12 +117,13 @@ Route::get('/webhook/nowpayments', function() {
     ], 200);
 });
 
-// Admin routes (protected by auth and admin middleware)
-Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+// Admin routes (protected by auth and admin middleware + rate limiting)
+Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin', 'throttle:60,1'])->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/users', [AdminController::class, 'users'])->name('users');
     Route::patch('/users/{id}/toggle-status', [AdminController::class, 'toggleUserStatus'])->name('users.toggle-status');
     Route::get('/orders', [AdminController::class, 'orders'])->name('orders');
+    Route::get('/orders/data', [AdminController::class, 'orders'])->name('orders.data'); // DataTables endpoint
     Route::get('/orders/{orderNumber}', [AdminController::class, 'getOrderDetails'])->name('orders.details');
     Route::patch('/orders/{orderNumber}/status', [AdminController::class, 'updateOrderStatus'])->name('orders.update-status');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');

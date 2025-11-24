@@ -152,50 +152,93 @@ class AdminController extends Controller
      */
     public function orders(Request $request)
     {
-        // Get orders from database with relationships
-        $ordersQuery = Order::with(['user', 'diamondPack'])
-            ->latest();
-        
-        // Apply filters if provided
-        if ($request->has('status') && $request->status) {
-            $ordersQuery->where('status', $request->status);
+        // Check if this is a DataTables AJAX request
+        if ($request->ajax()) {
+            return $this->getOrdersData($request);
         }
         
-        if ($request->has('search') && $request->search) {
-            $ordersQuery->where(function($q) use ($request) {
-                $q->where('order_number', 'like', '%' . $request->search . '%')
-                  ->orWhereHas('user', function($userQuery) use ($request) {
-                      $userQuery->where('name', 'like', '%' . $request->search . '%')
-                                ->orWhere('email', 'like', '%' . $request->search . '%');
+        // Regular page load - return view
+        return view('admin.orders');
+    }
+    
+    /**
+     * Get orders data for DataTables (AJAX)
+     */
+    private function getOrdersData(Request $request)
+    {
+        // Get DataTables parameters
+        $draw = $request->get('draw');
+        $start = $request->get('start', 0);
+        $length = $request->get('length', 10);
+        $searchValue = $request->get('search')['value'] ?? '';
+        $orderColumn = $request->get('order')[0]['column'] ?? 0;
+        $orderDir = $request->get('order')[0]['dir'] ?? 'desc';
+        
+        // Get orders from database with relationships
+        $ordersQuery = Order::with(['user', 'diamondPack']);
+        
+        // Apply search filter
+        if (!empty($searchValue)) {
+            $searchTerm = trim($searchValue);
+            $searchTerm = preg_replace('/[^a-zA-Z0-9@._\s-]/', '', $searchTerm); // Sanitize
+            
+            $ordersQuery->where(function($q) use ($searchTerm) {
+                $q->where('order_number', 'like', '%' . $searchTerm . '%')
+                  ->orWhereHas('user', function($userQuery) use ($searchTerm) {
+                      $userQuery->where('name', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('email', 'like', '%' . $searchTerm . '%');
+                  })
+                  ->orWhereHas('diamondPack', function($packQuery) use ($searchTerm) {
+                      $packQuery->where('game_type', 'like', '%' . $searchTerm . '%')
+                                ->orWhere('name', 'like', '%' . $searchTerm . '%');
                   });
             });
         }
         
-        $orders = $ordersQuery->paginate(20);
+        // Apply status filter if provided
+        if ($request->has('status') && !empty($request->status)) {
+            $ordersQuery->where('status', $request->status);
+        }
         
-        // Transform orders for display
-        $orders->getCollection()->transform(function ($order) {
+        // Get total count before filtering
+        $totalRecords = Order::count();
+        $filteredRecords = $ordersQuery->count();
+        
+        // Apply ordering - default to created_at desc
+        if ($orderColumn == 0) {
+            $ordersQuery->orderBy('order_number', $orderDir);
+        } elseif ($orderColumn == 1) {
+            // Amount - join with diamond_packs
+            $ordersQuery->join('diamond_packs', 'orders.diamond_pack_id', '=', 'diamond_packs.id')
+                ->orderBy('diamond_packs.price_dzd', $orderDir)
+                ->select('orders.*');
+        } elseif ($orderColumn == 2) {
+            $ordersQuery->orderBy('status', $orderDir);
+        } elseif ($orderColumn == 3) {
+            // Game - join with diamond_packs
+            $ordersQuery->join('diamond_packs', 'orders.diamond_pack_id', '=', 'diamond_packs.id')
+                ->orderBy('diamond_packs.game_type', $orderDir)
+                ->select('orders.*');
+        } else {
+            $ordersQuery->orderBy('created_at', $orderDir);
+        }
+        
+        // Get paginated results
+        $orders = $ordersQuery->skip($start)->take($length)->get();
+        
+        // Transform orders for DataTables
+        $data = $orders->map(function ($order) {
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
-            $currencyText = 'Diamonds';
             $gameName = 'Mobile Legends';
             
             if ($gameType === 'freefire') {
-                $currencyText = 'Diamonds';
                 $gameName = 'Free Fire';
             } elseif ($gameType === 'pubgmobile') {
-                $currencyText = 'UC';
                 $gameName = 'PUBG Mobile';
             } elseif ($gameType === 'honorofkings') {
-                $currencyText = 'Tokens';
                 $gameName = 'Honor of Kings';
             } elseif ($gameType === 'bloodstrike') {
-                $currencyText = 'Golds';
                 $gameName = 'Blood Strike';
-            }
-            
-            $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
-            if ($order->diamondPack->bonus_diamonds > 0) {
-                $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
             }
             
             // Calculate amount from price_dzd with discount
@@ -204,19 +247,36 @@ class AdminController extends Controller
             $discountAmount = ($priceDzd * $discountPercentage) / 100;
             $amount = $priceDzd - $discountAmount;
             
+            // Status class
+            $status = $order->status;
+            $statusClass = 'text-gray-600';
+            $statusText = ucfirst(str_replace('_', ' ', $status));
+            
+            if ($status === 'completed') {
+                $statusClass = 'text-green-600';
+            } elseif (in_array($status, ['pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay', 'pending_confirmation'])) {
+                $statusClass = 'text-yellow-600';
+            } elseif ($status === 'sending') {
+                $statusClass = 'text-blue-600';
+            } elseif (in_array($status, ['cancelled', 'refunded'])) {
+                $statusClass = 'text-red-600';
+            }
+            
             return [
                 'id' => $order->order_number,
-                'user' => $order->user->name ?? 'Guest',
-                'email' => $order->user->email ?? 'N/A',
-                'product' => $gameName,
-                'pack' => $packName,
-                'amount' => $amount,
-                'status' => $order->status,
-                'date' => $order->created_at,
+                'amount' => number_format(round($amount), 0) . ' DZD',
+                'status' => '<span class="text-sm font-medium ' . $statusClass . '">' . $statusText . '</span>',
+                'game' => $gameName,
+                'action' => '<button onclick="viewOrder(\'' . $order->order_number . '\')" class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">View</button>',
             ];
         });
-
-        return view('admin.orders', compact('orders'));
+        
+        return response()->json([
+            'draw' => intval($draw),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data,
+        ]);
     }
 
     /**
@@ -236,11 +296,29 @@ class AdminController extends Controller
         
         // Prevent admin from deactivating themselves
         if ($user->id === Auth::id()) {
+            Log::warning('Admin attempted to deactivate own account', [
+                'admin_id' => Auth::id(),
+                'admin_email' => Auth::user()->email,
+                'target_user_id' => $user->id,
+                'ip' => $request->ip(),
+            ]);
             return back()->with('error', 'You cannot deactivate your own account.');
         }
 
+        $oldStatus = $user->status;
         $user->status = $user->status === 'active' ? 'inactive' : 'active';
         $user->save();
+
+        // Log critical admin action
+        Log::info('Admin toggled user status', [
+            'admin_id' => Auth::id(),
+            'admin_email' => Auth::user()->email,
+            'target_user_id' => $user->id,
+            'target_user_email' => $user->email,
+            'old_status' => $oldStatus,
+            'new_status' => $user->status,
+            'ip' => $request->ip(),
+        ]);
 
         return back()->with('success', "User status updated to {$user->status}.");
     }
@@ -250,7 +328,17 @@ class AdminController extends Controller
      */
     public function getOrderDetails($orderNumber)
     {
-        $order = Order::with(['user', 'diamondPack', 'flexy', 'bmccp', 'cryptopay'])
+        $order = Order::with([
+            'user', 
+            'diamondPack', 
+            'flexy', 
+            'bmccp', 
+            'cryptopay',
+            'chargilyStatus',
+            'vipResellerStatuses' => function($query) {
+                $query->latest(); // Get most recent first
+            }
+        ])
             ->where('order_number', $orderNumber)
             ->firstOrFail();
 
@@ -283,6 +371,81 @@ class AdminController extends Controller
         $discountAmount = ($priceDzd * $discountPercentage) / 100;
         $amount = $priceDzd - $discountAmount;
 
+        // Prepare payment information
+        $paymentInfo = [];
+        
+        // Chargily Payment Info
+        if ($order->chargilyStatus) {
+            $chargily = $order->chargilyStatus;
+            $paymentInfo['chargily'] = [
+                'checkout_id' => $chargily->checkout_id,
+                'status' => $chargily->status,
+                'event_type' => $chargily->event_type,
+                'amount' => $chargily->amount,
+                'fees' => $chargily->fees,
+                'payment_method' => $chargily->payment_method,
+                'created_at' => $chargily->created_at->format('M d, Y H:i'),
+                'updated_at' => $chargily->updated_at->format('M d, Y H:i'),
+            ];
+        }
+        
+        // VIP Reseller Status Info (get latest)
+        if ($order->vipResellerStatuses && $order->vipResellerStatuses->count() > 0) {
+            $vipStatus = $order->vipResellerStatuses->first();
+            $paymentInfo['vip_reseller'] = [
+                'trxid' => $vipStatus->trxid,
+                'status' => $vipStatus->status,
+                'data' => $vipStatus->data,
+                'zone' => $vipStatus->zone,
+                'service' => $vipStatus->service,
+                'note' => $vipStatus->note,
+                'price' => $vipStatus->price,
+                'created_at' => $vipStatus->created_at->format('M d, Y H:i'),
+                'updated_at' => $vipStatus->updated_at->format('M d, Y H:i'),
+            ];
+        }
+        
+        // Flexy Payment Info
+        if ($order->flexy) {
+            $flexy = $order->flexy;
+            $paymentInfo['flexy'] = [
+                'id' => $flexy->id,
+                'status' => $flexy->status,
+                'receipt_image' => $flexy->receipt_image ? asset('storage/' . $flexy->receipt_image) : null,
+                'created_at' => $flexy->created_at->format('M d, Y H:i'),
+                'updated_at' => $flexy->updated_at->format('M d, Y H:i'),
+            ];
+        }
+        
+        // BMCCP Payment Info (old Chargily v1)
+        if ($order->bmccp) {
+            $bmccp = $order->bmccp;
+            $paymentInfo['bmccp'] = [
+                'id' => $bmccp->id,
+                'status' => $bmccp->status,
+                'invoice_number' => $bmccp->invoice_number,
+                'receipt_image' => $bmccp->receipt_image ? asset('storage/' . $bmccp->receipt_image) : null,
+                'notes' => $bmccp->notes,
+                'created_at' => $bmccp->created_at->format('M d, Y H:i'),
+                'updated_at' => $bmccp->updated_at->format('M d, Y H:i'),
+            ];
+        }
+        
+        // Cryptopay Payment Info
+        if ($order->cryptopay) {
+            $cryptopay = $order->cryptopay;
+            $paymentInfo['cryptopay'] = [
+                'id' => $cryptopay->id,
+                'payment_id' => $cryptopay->payment_id,
+                'transaction_id' => $cryptopay->transaction_id,
+                'status' => $cryptopay->status,
+                'amount' => $cryptopay->amount,
+                'currency' => $cryptopay->currency,
+                'created_at' => $cryptopay->created_at->format('M d, Y H:i'),
+                'updated_at' => $cryptopay->updated_at->format('M d, Y H:i'),
+            ];
+        }
+
         return response()->json([
             'order' => [
                 'id' => $order->id,
@@ -306,6 +469,8 @@ class AdminController extends Controller
                 'flexy_id' => $order->flexy_id,
                 'bmccp_id' => $order->bmccp_id,
                 'cryptopay_id' => $order->cryptopay_id,
+                'chargily_status_id' => $order->chargily_status_id,
+                'payment_info' => $paymentInfo,
             ]
         ]);
     }
@@ -336,6 +501,17 @@ class AdminController extends Controller
 
         // Reload order to get fresh data including flexy_id
         $order->refresh();
+
+        // Log critical admin action
+        Log::info('Admin updated order status', [
+            'admin_id' => Auth::id(),
+            'admin_email' => Auth::user()->email,
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'ip' => $request->ip(),
+        ]);
 
         $message = "Order status updated from " . ucfirst(str_replace('_', ' ', $oldStatus)) . " to " . ucfirst(str_replace('_', ' ', $newStatus));
         
@@ -668,6 +844,23 @@ class AdminController extends Controller
     public function vipResellerWebhook(Request $request)
     {
         try {
+            // STEP 0: IP Whitelist Check
+            $allowedIPs = [
+                '178.248.73.218', // VIP Reseller webhook IP
+            ];
+            
+            $clientIP = $request->ip();
+            if (!in_array($clientIP, $allowedIPs)) {
+                Log::warning('VIP Reseller webhook: IP not whitelisted', [
+                    'ip' => $clientIP,
+                    'allowed_ips' => $allowedIPs,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized IP',
+                ], 403);
+            }
+            
             // Log incoming webhook request
             Log::info('VIP Reseller webhook received', [
                 'ip' => $request->ip(),
