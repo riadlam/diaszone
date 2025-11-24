@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\VipResellerStatus;
 use App\Services\VipResellerService;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -498,6 +499,20 @@ class AdminController extends Controller
         // Update order status
         $order->status = $newStatus;
         $order->save();
+
+        // Send Telegram notification for important status changes (skip pending_flexy)
+        if ($newStatus !== 'pending_flexy' && in_array($newStatus, ['pending_confirmation', 'sending', 'completed'])) {
+            try {
+                $order->load('diamondPack', 'user');
+                $message = TelegramService::formatOrderMessage($order);
+                TelegramService::sendMessage($message);
+            } catch (\Exception $e) {
+                Log::error('Telegram notification failed for admin status update', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         // Reload order to get fresh data including flexy_id
         $order->refresh();

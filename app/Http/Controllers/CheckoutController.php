@@ -11,6 +11,7 @@ use App\Services\NowPaymentsService;
 use App\Services\MixPayService;
 use App\Services\ChargilyPayV2Service;
 use App\Services\VipResellerService;
+use App\Services\TelegramService;
 use TheHocineSaad\LaravelChargilyEPay\Models\Epay_Invoice;
 use TheHocineSaad\LaravelChargilyEPay\Epay_Webhook;
 use Illuminate\Http\Request;
@@ -311,6 +312,21 @@ class CheckoutController extends Controller
                     'user_id_bs' => $userIdBs,
                     'server_bs' => $serverBs,
                 ]);
+                
+                // Send Telegram notification (skip pending_flexy status)
+                if ($order->status !== 'pending_flexy') {
+                    try {
+                        $order->load('diamondPack', 'user');
+                        $message = TelegramService::formatOrderMessage($order);
+                        TelegramService::sendMessage($message);
+                    } catch (\Exception $e) {
+                        // Don't fail order creation if Telegram fails
+                        Log::error('Telegram notification failed for new order', [
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
                 
                 $createdOrders[] = [
                     'id' => $order->id,
@@ -937,6 +953,18 @@ class CheckoutController extends Controller
                                 'new_status' => 'sending',
                             ]);
                             
+                            // Send Telegram notification for payment success
+                            try {
+                                $order->load('diamondPack', 'user');
+                                $message = TelegramService::formatOrderMessage($order);
+                                TelegramService::sendMessage($message);
+                            } catch (\Exception $e) {
+                                Log::error('Telegram notification failed for payment success', [
+                                    'order_id' => $order->id,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                            
                             // Update bmccp if exists
                             if ($order->bmccp_id) {
                                 $bmccp = \App\Models\Bmccp::find($order->bmccp_id);
@@ -1438,6 +1466,7 @@ class CheckoutController extends Controller
         
         // Link order to flexy and update status to pending_confirmation
         $order->flexy_id = $flexy->id;
+        $oldStatus = $order->status;
         $order->status = 'pending_confirmation';
         // Sanitize notes to prevent XSS (strip HTML tags, limit length)
         $notes = $request->input('notes');
@@ -1447,6 +1476,20 @@ class CheckoutController extends Controller
         }
         $order->notes = $notes;
         $order->save();
+        
+        // Send Telegram notification for status change to pending_confirmation
+        if ($oldStatus === 'pending_flexy' && $order->status === 'pending_confirmation') {
+            try {
+                $order->load('diamondPack', 'user');
+                $message = TelegramService::formatOrderMessage($order);
+                TelegramService::sendMessage($message);
+            } catch (\Exception $e) {
+                Log::error('Telegram notification failed for status change', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
         
         // Log successful submission
         Log::info('Flexy receipt submitted successfully', [
