@@ -1216,20 +1216,19 @@ class CheckoutController extends Controller
                         'vip_status' => $status,
                     ]);
                     
-                    // Send Telegram notification
-                    try {
-                        $order->load('diamondPack', 'user');
-                        $message = TelegramService::formatOrderMessage($order);
-                        $messageId = TelegramService::sendMessage($message);
-                        if ($messageId) {
-                            $order->tlg_message_id = $messageId;
-                            $order->save();
+                    // Update Telegram message if exists
+                    if ($order->tlg_message_id) {
+                        try {
+                            $order->load('diamondPack', 'user');
+                            $updatedMessage = TelegramService::formatOrderMessage($order);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                            TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to update Telegram message', [
+                                'order_id' => $order->id,
+                                'error' => $e->getMessage(),
+                            ]);
                         }
-                    } catch (\Exception $e) {
-                        Log::error('Telegram notification failed for status change', [
-                            'order_id' => $order->id,
-                            'error' => $e->getMessage(),
-                        ]);
                     }
                 }
             } elseif ($status === 'success') {
@@ -1245,20 +1244,19 @@ class CheckoutController extends Controller
                         'vip_status' => $status,
                     ]);
                     
-                    // Send Telegram notification
-                    try {
-                        $order->load('diamondPack', 'user');
-                        $message = TelegramService::formatOrderMessage($order);
-                        $messageId = TelegramService::sendMessage($message);
-                        if ($messageId) {
-                            $order->tlg_message_id = $messageId;
-                            $order->save();
+                    // Update Telegram message if exists
+                    if ($order->tlg_message_id) {
+                        try {
+                            $order->load('diamondPack', 'user');
+                            $updatedMessage = TelegramService::formatOrderMessage($order);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
+                            TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to update Telegram message', [
+                                'order_id' => $order->id,
+                                'error' => $e->getMessage(),
+                            ]);
                         }
-                    } catch (\Exception $e) {
-                        Log::error('Telegram notification failed for status change', [
-                            'order_id' => $order->id,
-                            'error' => $e->getMessage(),
-                        ]);
                     }
                 }
             } elseif ($status === 'error') {

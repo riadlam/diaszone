@@ -774,6 +774,21 @@ class AdminController extends Controller
                         'new_status' => 'sending',
                         'vip_status' => $status,
                     ]);
+                    
+                    // Update Telegram message if exists
+                    if ($order->tlg_message_id) {
+                        try {
+                            $order->load('diamondPack', 'user');
+                            $updatedMessage = TelegramService::formatOrderMessage($order);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                            TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to update Telegram message', [
+                                'order_id' => $order->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 }
             } elseif ($status === 'success') {
                 // VIP Reseller success - set order to completed
@@ -787,6 +802,21 @@ class AdminController extends Controller
                         'new_status' => 'completed',
                         'vip_status' => $status,
                     ]);
+                    
+                    // Update Telegram message if exists
+                    if ($order->tlg_message_id) {
+                        try {
+                            $order->load('diamondPack', 'user');
+                            $updatedMessage = TelegramService::formatOrderMessage($order);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
+                            TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to update Telegram message', [
+                                'order_id' => $order->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
                 }
             } elseif ($status === 'error') {
                 // VIP Reseller error - ensure order is "sending" (needs attention)
@@ -1128,6 +1158,21 @@ class AdminController extends Controller
                             'new_status' => 'sending',
                             'vip_status' => $vipStatus,
                         ]);
+                        
+                        // Update Telegram message if exists
+                        if ($order->tlg_message_id) {
+                            try {
+                                $order->load('diamondPack', 'user');
+                                $updatedMessage = TelegramService::formatOrderMessage($order);
+                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                                TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                            } catch (\Exception $e) {
+                                Log::error('Failed to update Telegram message', [
+                                    'order_id' => $order->id,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
                     } else {
                         Log::info('Order status already sending (VIP Reseller waiting)', [
                             'order_id' => $order->id,
@@ -1151,6 +1196,21 @@ class AdminController extends Controller
                             'new_status' => 'completed',
                             'vip_status' => $vipStatus,
                         ]);
+                        
+                        // Update Telegram message if exists
+                        if ($order->tlg_message_id) {
+                            try {
+                                $order->load('diamondPack', 'user');
+                                $updatedMessage = TelegramService::formatOrderMessage($order);
+                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
+                                TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                            } catch (\Exception $e) {
+                                Log::error('Failed to update Telegram message', [
+                                    'order_id' => $order->id,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+                        }
                     } else {
                         Log::info('Order status already completed (VIP Reseller success)', [
                             'order_id' => $order->id,
@@ -1317,15 +1377,24 @@ class AdminController extends Controller
                     // Process recharge (same logic as admin dashboard)
                     $rechargeResult = $this->processRecharge($order);
                     
-                    // Update Telegram message
-                    $order->load('diamondPack', 'user');
-                    $statusText = $rechargeResult['success'] ? '✅ Confirmed & Recharge Processed' : '⚠️ Confirmed (Recharge: ' . ($rechargeResult['message'] ?? 'Failed') . ')';
+                    // Reload order to get updated status from processRecharge
+                    $order->refresh();
+                    $order->load('diamondPack', 'user', 'vipResellerStatuses');
+                    
+                    // Update Telegram message with proper header
                     $updatedMessage = TelegramService::formatOrderMessage($order);
-                    $updatedMessage = str_replace(
-                        '📊 <b>Status:</b> ' . ucfirst(str_replace('_', ' ', $order->status)),
-                        '📊 <b>Status:</b> ' . ucfirst(str_replace('_', ' ', $order->status)) . "\n" . $statusText,
-                        $updatedMessage
-                    );
+                    
+                    // Change header based on status
+                    if ($order->status === 'completed') {
+                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
+                    } elseif ($order->status === 'sending') {
+                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
+                        // Check VIP Reseller status
+                        $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
+                        if ($latestVipStatus && $latestVipStatus->status === 'waiting') {
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                        }
+                    }
                     
                     TelegramService::editMessageText($messageId, $updatedMessage);
                     
