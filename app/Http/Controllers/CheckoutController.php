@@ -1207,6 +1207,18 @@ class CheckoutController extends Controller
                         'new_status' => 'sending',
                         'vip_status' => $status,
                     ]);
+                    
+                    // Send Telegram notification
+                    try {
+                        $order->load('diamondPack', 'user');
+                        $message = TelegramService::formatOrderMessage($order);
+                        TelegramService::sendMessage($message);
+                    } catch (\Exception $e) {
+                        Log::error('Telegram notification failed for status change', [
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
             } elseif ($status === 'success') {
                 // VIP Reseller success - set order to completed
@@ -1220,6 +1232,18 @@ class CheckoutController extends Controller
                         'new_status' => 'completed',
                         'vip_status' => $status,
                     ]);
+                    
+                    // Send Telegram notification
+                    try {
+                        $order->load('diamondPack', 'user');
+                        $message = TelegramService::formatOrderMessage($order);
+                        TelegramService::sendMessage($message);
+                    } catch (\Exception $e) {
+                        Log::error('Telegram notification failed for status change', [
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
             } elseif ($status === 'error') {
                 // VIP Reseller error - ensure order is "sending" (needs attention)

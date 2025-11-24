@@ -21,30 +21,49 @@ class TelegramService
             $apiUrl = config('telegram.api_url');
             
             if (!$botToken || !$chatId) {
-                Log::error('Telegram: Missing bot token or chat ID');
+                Log::error('Telegram: Missing bot token or chat ID', [
+                    'bot_token_set' => !empty($botToken),
+                    'chat_id_set' => !empty($chatId),
+                ]);
                 return false;
             }
             
             $url = $apiUrl . $botToken . '/sendMessage';
             
-            $response = Http::post($url, [
+            // Ensure chat_id is a string (Telegram API requirement)
+            $chatId = (string) $chatId;
+            
+            Log::info('Telegram: Sending message', [
+                'chat_id' => $chatId,
+                'message_length' => strlen($message),
+                'url' => str_replace($botToken, '***', $url), // Hide token in logs
+            ]);
+            
+            $response = Http::timeout(10)->post($url, [
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => 'HTML',
             ]);
             
-            if ($response->successful()) {
+            $responseData = $response->json();
+            
+            if ($response->successful() && isset($responseData['ok']) && $responseData['ok'] === true) {
+                Log::info('Telegram: Message sent successfully', [
+                    'message_id' => $responseData['result']['message_id'] ?? null,
+                ]);
                 return true;
             } else {
                 Log::error('Telegram: Failed to send message', [
                     'status' => $response->status(),
-                    'response' => $response->body(),
+                    'response' => $responseData,
+                    'chat_id' => $chatId,
                 ]);
                 return false;
             }
         } catch (\Exception $e) {
             Log::error('Telegram: Exception while sending message', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
             return false;
         }
