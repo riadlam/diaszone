@@ -11,9 +11,9 @@ class TelegramService
      * Send a message to Telegram
      *
      * @param string $message
-     * @return bool
+     * @return int|null Returns message_id on success, null on failure
      */
-    public static function sendMessage(string $message): bool
+    public static function sendMessage(string $message): ?int
     {
         try {
             $botToken = config('telegram.bot_token');
@@ -25,7 +25,7 @@ class TelegramService
                     'bot_token_set' => !empty($botToken),
                     'chat_id_set' => !empty($chatId),
                 ]);
-                return false;
+                return null;
             }
             
             $url = $apiUrl . $botToken . '/sendMessage';
@@ -48,24 +48,25 @@ class TelegramService
             $responseData = $response->json();
             
             if ($response->successful() && isset($responseData['ok']) && $responseData['ok'] === true) {
+                $messageId = $responseData['result']['message_id'] ?? null;
                 Log::info('Telegram: Message sent successfully', [
-                    'message_id' => $responseData['result']['message_id'] ?? null,
+                    'message_id' => $messageId,
                 ]);
-                return true;
+                return $messageId ? (int) $messageId : null;
             } else {
                 Log::error('Telegram: Failed to send message', [
                     'status' => $response->status(),
                     'response' => $responseData,
                     'chat_id' => $chatId,
                 ]);
-                return false;
+                return null;
             }
         } catch (\Exception $e) {
             Log::error('Telegram: Exception while sending message', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return false;
+            return null;
         }
     }
     
@@ -141,7 +142,9 @@ class TelegramService
             }
         }
         
-        $message .= "\n⏰ <b>Created:</b> " . $order->created_at->format('Y-m-d H:i:s');
+        // Format date in Algeria timezone (Africa/Algiers - UTC+1)
+        $createdAt = $order->created_at->setTimezone('Africa/Algiers');
+        $message .= "\n⏰ <b>Created:</b> " . $createdAt->format('Y-m-d H:i:s') . " (Algeria Time)";
         
         return $message;
     }

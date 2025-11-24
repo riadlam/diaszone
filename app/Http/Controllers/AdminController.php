@@ -505,7 +505,11 @@ class AdminController extends Controller
             try {
                 $order->load('diamondPack', 'user');
                 $message = TelegramService::formatOrderMessage($order);
-                TelegramService::sendMessage($message);
+                $messageId = TelegramService::sendMessage($message);
+                if ($messageId) {
+                    $order->tlg_message_id = $messageId;
+                    $order->save();
+                }
             } catch (\Exception $e) {
                 Log::error('Telegram notification failed for admin status update', [
                     'order_id' => $order->id,

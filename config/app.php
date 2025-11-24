@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'Africa/Algiers', // Algeria timezone (UTC+1)
 
     /*
     |--------------------------------------------------------------------------

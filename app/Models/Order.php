@@ -25,6 +25,7 @@ class Order extends Model
         'user_id_bs',
         'server_bs',
         'notes',
+        'tlg_message_id',
     ];
 
     /**
