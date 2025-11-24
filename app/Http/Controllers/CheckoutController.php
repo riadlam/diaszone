@@ -1379,8 +1379,20 @@ class CheckoutController extends Controller
         $sanitizedName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
         $sanitizedName = substr($sanitizedName, 0, 255); // Limit filename length
         
-        // Store the receipt image with sanitized name
-        $imagePath = $file->storeAs('flexy_receipts', $order->id . '_' . time() . '_' . $sanitizedName, 'public');
+        // Create directory if it doesn't exist
+        $storagePath = public_path('storage/flexy_receipts');
+        if (!file_exists($storagePath)) {
+            mkdir($storagePath, 0755, true);
+        }
+        
+        // Generate unique filename
+        $filename = $order->id . '_' . time() . '_' . $sanitizedName;
+        
+        // Move file to public/storage/flexy_receipts/
+        $file->move($storagePath, $filename);
+        
+        // Store relative path for database (storage/flexy_receipts/filename)
+        $imagePath = 'storage/flexy_receipts/' . $filename;
         
         // Create or update Flexy record
         $flexy = Flexy::create([

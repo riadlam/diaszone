@@ -411,7 +411,7 @@ class AdminController extends Controller
             $paymentInfo['flexy'] = [
                 'id' => $flexy->id,
                 'status' => $flexy->status,
-                'receipt_image' => $flexy->receipt_image ? asset('storage/app/public/' . $flexy->receipt_image) : null,
+                'receipt_image' => $flexy->receipt_image ? asset($flexy->receipt_image) : null,
                 'created_at' => $flexy->created_at->format('M d, Y H:i'),
                 'updated_at' => $flexy->updated_at->format('M d, Y H:i'),
             ];
@@ -424,7 +424,7 @@ class AdminController extends Controller
                 'id' => $bmccp->id,
                 'status' => $bmccp->status,
                 'invoice_number' => $bmccp->invoice_number,
-                'receipt_image' => $bmccp->receipt_image ? asset('storage/app/public/' . $bmccp->receipt_image) : null,
+                'receipt_image' => $bmccp->receipt_image ? asset($bmccp->receipt_image) : null,
                 'notes' => $bmccp->notes,
                 'created_at' => $bmccp->created_at->format('M d, Y H:i'),
                 'updated_at' => $bmccp->updated_at->format('M d, Y H:i'),
