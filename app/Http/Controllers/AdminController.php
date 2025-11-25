@@ -1609,13 +1609,16 @@ class AdminController extends Controller
                         $totalProfitMargin = $successfulOrders->count() * $profitMarginPerOrder;
                         
                         // Get current balance from VIP Reseller API
-                        $currentBalance = 'N/A';
+                        $currentBalanceIdr = null;
+                        $currentBalanceUsd = null;
                         try {
                             $vipReseller = new VipResellerService();
                             $profileResult = $vipReseller->getProfile();
                             
                             if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
-                                $currentBalance = number_format($profileResult['data']['balance'], 0) . ' IDR';
+                                $currentBalanceIdr = $profileResult['data']['balance'];
+                                // Convert to USD (1 USD = 16600 IDR)
+                                $currentBalanceUsd = $currentBalanceIdr / 16600;
                             }
                         } catch (\Exception $e) {
                             Log::warning('Failed to fetch current balance for profit command', [
@@ -1630,7 +1633,12 @@ class AdminController extends Controller
                         $profitMessage .= "💵 <b>Total (IDR):</b> " . number_format($totalProfitIdr, 2) . " IDR\n";
                         $profitMessage .= "💵 <b>Total (USD):</b> $" . number_format($totalProfitUsd, 2) . " USD\n";
                         $profitMessage .= "📈 <b>Total Profit Margin:</b> $" . number_format($totalProfitMargin, 2) . " USD\n";
-                        $profitMessage .= "💳 <b>Current Balance:</b> " . $currentBalance;
+                        
+                        if ($currentBalanceIdr !== null) {
+                            $profitMessage .= "💳 <b>Current Balance:</b> " . number_format($currentBalanceIdr, 0) . " IDR ($" . number_format($currentBalanceUsd, 2) . " USD)";
+                        } else {
+                            $profitMessage .= "💳 <b>Current Balance:</b> N/A";
+                        }
                         
                         // Send profit message
                         TelegramService::sendMessage($profitMessage);
@@ -1641,7 +1649,8 @@ class AdminController extends Controller
                             'total_profit_idr' => $totalProfitIdr,
                             'total_profit_usd' => $totalProfitUsd,
                             'total_profit_margin' => $totalProfitMargin,
-                            'current_balance' => $currentBalance,
+                            'current_balance_idr' => $currentBalanceIdr,
+                            'current_balance_usd' => $currentBalanceUsd,
                         ]);
                         
                         return response()->json(['ok' => true]);
