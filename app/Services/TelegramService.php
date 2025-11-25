@@ -281,6 +281,22 @@ class TelegramService
             }
         }
         
+        // Add VIP Reseller balance if available
+        if ($order->relationLoaded('vipResellerStatuses')) {
+            $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
+            if ($latestVipStatus && isset($latestVipStatus->additional_data['balance'])) {
+                $balance = $latestVipStatus->additional_data['balance'];
+                $message .= "\n💳 <b>VIP Reseller Balance:</b> " . number_format($balance, 0) . " IDR";
+            }
+        } else {
+            // Try to load if not already loaded
+            $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
+            if ($latestVipStatus && isset($latestVipStatus->additional_data['balance'])) {
+                $balance = $latestVipStatus->additional_data['balance'];
+                $message .= "\n💳 <b>VIP Reseller Balance:</b> " . number_format($balance, 0) . " IDR";
+            }
+        }
+        
         // Format date in Algeria timezone (Africa/Algiers - UTC+1)
         $createdAt = $order->created_at->setTimezone('Africa/Algiers');
         $message .= "\n⏰ <b>Created:</b> " . $createdAt->format('Y-m-d H:i:s') . " (Algeria Time)";

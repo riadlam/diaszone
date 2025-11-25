@@ -778,7 +778,7 @@ class AdminController extends Controller
                     // Update Telegram message if exists
                     if ($order->tlg_message_id) {
                         try {
-                            $order->load('diamondPack', 'user');
+                            $order->load('diamondPack', 'user', 'vipResellerStatuses');
                             $updatedMessage = TelegramService::formatOrderMessage($order);
                             $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
                             TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
@@ -806,7 +806,7 @@ class AdminController extends Controller
                     // Update Telegram message if exists
                     if ($order->tlg_message_id) {
                         try {
-                            $order->load('diamondPack', 'user');
+                            $order->load('diamondPack', 'user', 'vipResellerStatuses');
                             $updatedMessage = TelegramService::formatOrderMessage($order);
                             $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
                             TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
