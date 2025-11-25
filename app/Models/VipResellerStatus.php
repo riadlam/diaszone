@@ -16,6 +16,7 @@ class VipResellerStatus extends Model
         'zone',
         'service',
         'status',
+        'balance',
         'note',
         'price',
         'additional_data',

@@ -791,6 +791,36 @@ class AdminController extends Controller
                     }
                 }
             } elseif ($status === 'success') {
+                // Fetch balance from VIP Reseller API when status becomes success
+                try {
+                    $vipReseller = new VipResellerService();
+                    $profileResult = $vipReseller->getProfile();
+                    
+                    if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                        $balance = (string) $profileResult['data']['balance'];
+                        $vipResellerStatus->balance = $balance;
+                        $vipResellerStatus->save();
+                        
+                        Log::info('Balance fetched and saved for successful order', [
+                            'vipreseller_status_id' => $vipResellerStatus->id,
+                            'order_id' => $order->id,
+                            'balance' => $balance,
+                        ]);
+                    } else {
+                        Log::warning('Failed to fetch balance from VIP Reseller API', [
+                            'vipreseller_status_id' => $vipResellerStatus->id,
+                            'order_id' => $order->id,
+                            'message' => $profileResult['message'] ?? 'Unknown error',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error fetching balance from VIP Reseller API', [
+                        'vipreseller_status_id' => $vipResellerStatus->id,
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                
                 // VIP Reseller success - set order to completed
                 if ($oldOrderStatus !== 'completed') {
                     $order->status = 'completed';
@@ -1033,6 +1063,38 @@ class AdminController extends Controller
                     'old_status' => $oldStatus,
                     'new_status' => $mappedStatus,
                 ]);
+
+                // Fetch balance when status becomes success
+                if ($mappedStatus === 'success' && $oldStatus !== 'success') {
+                    try {
+                        $vipReseller = new VipResellerService();
+                        $profileResult = $vipReseller->getProfile();
+                        
+                        if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                            $balance = (string) $profileResult['data']['balance'];
+                            $vipResellerStatus->balance = $balance;
+                            $vipResellerStatus->save();
+                            
+                            Log::info('Balance fetched and saved from webhook for successful order', [
+                                'vipreseller_status_id' => $vipResellerStatus->id,
+                                'trxid' => $trxid,
+                                'balance' => $balance,
+                            ]);
+                        } else {
+                            Log::warning('Failed to fetch balance from VIP Reseller API (webhook)', [
+                                'vipreseller_status_id' => $vipResellerStatus->id,
+                                'trxid' => $trxid,
+                                'message' => $profileResult['message'] ?? 'Unknown error',
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Error fetching balance from VIP Reseller API (webhook)', [
+                            'vipreseller_status_id' => $vipResellerStatus->id,
+                            'trxid' => $trxid,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
 
                 // Update order status based on VIP Reseller status (waiting, success, error)
                 if ($oldStatus !== $mappedStatus) {

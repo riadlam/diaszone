@@ -1259,6 +1259,36 @@ class CheckoutController extends Controller
                     }
                 }
             } elseif ($status === 'success') {
+                // Fetch balance from VIP Reseller API when status becomes success
+                try {
+                    $vipReseller = new VipResellerService();
+                    $profileResult = $vipReseller->getProfile();
+                    
+                    if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                        $balance = (string) $profileResult['data']['balance'];
+                        $vipResellerStatus->balance = $balance;
+                        $vipResellerStatus->save();
+                        
+                        Log::info('Chargily: Balance fetched and saved for successful order', [
+                            'vipreseller_status_id' => $vipResellerStatus->id,
+                            'order_id' => $order->id,
+                            'balance' => $balance,
+                        ]);
+                    } else {
+                        Log::warning('Chargily: Failed to fetch balance from VIP Reseller API', [
+                            'vipreseller_status_id' => $vipResellerStatus->id,
+                            'order_id' => $order->id,
+                            'message' => $profileResult['message'] ?? 'Unknown error',
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Chargily: Error fetching balance from VIP Reseller API', [
+                        'vipreseller_status_id' => $vipResellerStatus->id,
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                
                 // VIP Reseller success - set order to completed
                 if ($oldOrderStatus !== 'completed') {
                     $order->status = 'completed';

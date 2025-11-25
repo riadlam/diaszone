@@ -232,5 +232,83 @@ class VipResellerService
             ];
         }
     }
+
+    /**
+     * Get profile/balance from VIP Reseller API
+     * 
+     * @return array
+     */
+    public function getProfile()
+    {
+        try {
+            // Validate credentials are set
+            if (empty($this->apiKey) || empty($this->sign)) {
+                Log::error('VIP Reseller credentials missing for profile', [
+                    'api_key_empty' => empty($this->apiKey),
+                    'sign_empty' => empty($this->sign),
+                ]);
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'API credentials not configured. Please contact support.',
+                ];
+            }
+            
+            // Prepare form data
+            $formData = [
+                'key' => $this->apiKey,
+                'sign' => $this->sign,
+            ];
+            
+            // Log request data (without exposing full credentials)
+            Log::info('VIP Reseller profile request', [
+                'url' => $this->baseUrl . '/profile',
+                'key_set' => !empty($formData['key']),
+                'sign_set' => !empty($formData['sign']),
+            ]);
+            
+            // Use asForm() which sends as application/x-www-form-urlencoded
+            $response = Http::asForm()
+                ->withHeaders([
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ])
+                ->post($this->baseUrl . '/profile', $formData);
+
+            $data = $response->json();
+
+            // Log response for debugging
+            Log::info('VIP Reseller profile response', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'data' => $data,
+            ]);
+
+            // API returns: {"result": true, "data": {...}, "message": "Success"}
+            if ($response->successful() && isset($data['result']) && $data['result'] === true) {
+                return [
+                    'result' => true,
+                    'data' => $data['data'] ?? null,
+                    'message' => $data['message'] ?? 'Successfully got your account details.',
+                ];
+            }
+
+            // API returns: {"result": false, "message": "error message"}
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => $data['message'] ?? 'Failed to get profile. Please try again.',
+            ];
+        } catch (\Exception $e) {
+            Log::error('VIP Reseller profile error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => 'Error getting profile: ' . $e->getMessage(),
+            ];
+        }
+    }
 }
 
