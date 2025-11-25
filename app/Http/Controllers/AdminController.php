@@ -1516,6 +1516,63 @@ class AdminController extends Controller
                     ]);
                     
                     return response()->json(['ok' => true]);
+                } elseif ($callbackData === 'profit') {
+                    // Calculate total profit from successful VIP Reseller orders
+                    try {
+                        // Query all successful VIP Reseller statuses
+                        $successfulOrders = VipResellerStatus::where('status', 'success')
+                            ->whereNotNull('price')
+                            ->get();
+                        
+                        // Calculate total profit in IDR
+                        $totalProfitIdr = $successfulOrders->sum('price');
+                        
+                        // Convert to USD (1 USD = 16600 IDR)
+                        $totalProfitUsd = $totalProfitIdr / 16600;
+                        
+                        // Calculate total profit margin: 0.37 USD per successful order
+                        $profitMarginPerOrder = 0.37; // USD
+                        $totalProfitMargin = $successfulOrders->count() * $profitMarginPerOrder;
+                        
+                        // Format the response message
+                        $profitMessage = "💰 <b>Total Profit</b>\n\n";
+                        $profitMessage .= "📊 <b>Successful Orders:</b> " . $successfulOrders->count() . "\n";
+                        $profitMessage .= "💵 <b>Total (IDR):</b> " . number_format($totalProfitIdr, 2) . " IDR\n";
+                        $profitMessage .= "💵 <b>Total (USD):</b> $" . number_format($totalProfitUsd, 2) . " USD\n";
+                        $profitMessage .= "📈 <b>Total Profit Margin:</b> $" . number_format($totalProfitMargin, 2) . " USD";
+                        
+                        // Answer callback query with profit info
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            "Total Profit: $" . number_format($totalProfitUsd, 2) . " USD",
+                            true
+                        );
+                        
+                        // Send profit message as a new message
+                        TelegramService::sendMessage($profitMessage);
+                        
+                        Log::info('Telegram: Profit calculated', [
+                            'successful_orders_count' => $successfulOrders->count(),
+                            'total_profit_idr' => $totalProfitIdr,
+                            'total_profit_usd' => $totalProfitUsd,
+                            'total_profit_margin' => $totalProfitMargin,
+                        ]);
+                        
+                        return response()->json(['ok' => true]);
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error calculating profit', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                        
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '❌ Error calculating profit',
+                            true
+                        );
+                        
+                        return response()->json(['ok' => true]);
+                    }
                 }
             }
             

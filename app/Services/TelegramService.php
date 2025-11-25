@@ -46,27 +46,40 @@ class TelegramService
                 'parse_mode' => 'HTML',
             ];
             
-            // Add inline keyboard buttons for pending_confirmation orders
+            // Build inline keyboard buttons
+            $keyboard = [];
+            
+            // Add order-specific buttons for pending_confirmation orders
             if ($addConfirmButton) {
-                $payload['reply_markup'] = json_encode([
-                    'inline_keyboard' => [
-                        [
-                            [
-                                'text' => '✅ Confirm Order',
-                                'callback_data' => 'confirm_order'
-                            ],
-                            [
-                                'text' => '❌ Cancel Order',
-                                'callback_data' => 'cancel_order'
-                            ]
-                        ],
-                        [
-                            [
-                                'text' => '📄 View Receipt',
-                                'callback_data' => 'view_receipt'
-                            ]
-                        ]
+                $keyboard[] = [
+                    [
+                        'text' => '✅ Confirm Order',
+                        'callback_data' => 'confirm_order'
+                    ],
+                    [
+                        'text' => '❌ Cancel Order',
+                        'callback_data' => 'cancel_order'
                     ]
+                ];
+                $keyboard[] = [
+                    [
+                        'text' => '📄 View Receipt',
+                        'callback_data' => 'view_receipt'
+                    ]
+                ];
+            }
+            
+            // Always add Profit button
+            $keyboard[] = [
+                [
+                    'text' => '💰 Profit',
+                    'callback_data' => 'profit'
+                ]
+            ];
+            
+            if (!empty($keyboard)) {
+                $payload['reply_markup'] = json_encode([
+                    'inline_keyboard' => $keyboard
                 ]);
             }
             
