@@ -1588,10 +1588,15 @@ class AdminController extends Controller
                 // Handle /profit command
                 if ($text === '/profit' || strtolower($text) === 'profit') {
                     try {
-                        // Query all successful VIP Reseller statuses
+                        // Query all successful VIP Reseller statuses with balance not empty
                         $successfulOrders = VipResellerStatus::where('status', 'success')
                             ->whereNotNull('price')
+                            ->whereNotNull('balance')
+                            ->where('balance', '!=', '')
                             ->get();
+                        
+                        // Count failed orders with status 'error'
+                        $failedOrdersCount = VipResellerStatus::where('status', 'error')->count();
                         
                         // Calculate total profit in IDR
                         $totalProfitIdr = $successfulOrders->sum('price');
@@ -1603,21 +1608,40 @@ class AdminController extends Controller
                         $profitMarginPerOrder = 0.37; // USD
                         $totalProfitMargin = $successfulOrders->count() * $profitMarginPerOrder;
                         
+                        // Get current balance from VIP Reseller API
+                        $currentBalance = 'N/A';
+                        try {
+                            $vipReseller = new VipResellerService();
+                            $profileResult = $vipReseller->getProfile();
+                            
+                            if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                                $currentBalance = number_format($profileResult['data']['balance'], 0) . ' IDR';
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Failed to fetch current balance for profit command', [
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                        
                         // Format the response message
                         $profitMessage = "💰 <b>Total Profit</b>\n\n";
                         $profitMessage .= "📊 <b>Successful Orders:</b> " . $successfulOrders->count() . "\n";
+                        $profitMessage .= "❌ <b>Failed Orders:</b> " . $failedOrdersCount . "\n";
                         $profitMessage .= "💵 <b>Total (IDR):</b> " . number_format($totalProfitIdr, 2) . " IDR\n";
                         $profitMessage .= "💵 <b>Total (USD):</b> $" . number_format($totalProfitUsd, 2) . " USD\n";
-                        $profitMessage .= "📈 <b>Total Profit Margin:</b> $" . number_format($totalProfitMargin, 2) . " USD";
+                        $profitMessage .= "📈 <b>Total Profit Margin:</b> $" . number_format($totalProfitMargin, 2) . " USD\n";
+                        $profitMessage .= "💳 <b>Current Balance:</b> " . $currentBalance;
                         
                         // Send profit message
                         TelegramService::sendMessage($profitMessage);
                         
                         Log::info('Telegram: Profit calculated via /profit command', [
                             'successful_orders_count' => $successfulOrders->count(),
+                            'failed_orders_count' => $failedOrdersCount,
                             'total_profit_idr' => $totalProfitIdr,
                             'total_profit_usd' => $totalProfitUsd,
                             'total_profit_margin' => $totalProfitMargin,
+                            'current_balance' => $currentBalance,
                         ]);
                         
                         return response()->json(['ok' => true]);
