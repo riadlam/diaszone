@@ -1284,58 +1284,6 @@ class AdminController extends Controller
                 'data' => $data,
             ]);
             
-            // Handle text messages (from persistent keyboard buttons)
-            if (isset($data['message']['text'])) {
-                $text = $data['message']['text'];
-                
-                // Handle Profit button click
-                if ($text === '💰 Profit' || $text === '/profit') {
-                    try {
-                        // Query all successful VIP Reseller statuses
-                        $successfulOrders = VipResellerStatus::where('status', 'success')
-                            ->whereNotNull('price')
-                            ->get();
-                        
-                        // Calculate total profit in IDR
-                        $totalProfitIdr = $successfulOrders->sum('price');
-                        
-                        // Convert to USD (1 USD = 16600 IDR)
-                        $totalProfitUsd = $totalProfitIdr / 16600;
-                        
-                        // Calculate total profit margin: 0.37 USD per successful order
-                        $profitMarginPerOrder = 0.37; // USD
-                        $totalProfitMargin = $successfulOrders->count() * $profitMarginPerOrder;
-                        
-                        // Format the response message
-                        $profitMessage = "💰 <b>Total Profit</b>\n\n";
-                        $profitMessage .= "📊 <b>Successful Orders:</b> " . $successfulOrders->count() . "\n";
-                        $profitMessage .= "💵 <b>Total (IDR):</b> " . number_format($totalProfitIdr, 2) . " IDR\n";
-                        $profitMessage .= "💵 <b>Total (USD):</b> $" . number_format($totalProfitUsd, 2) . " USD\n";
-                        $profitMessage .= "📈 <b>Total Profit Margin:</b> $" . number_format($totalProfitMargin, 2) . " USD";
-                        
-                        // Send profit message
-                        TelegramService::sendMessage($profitMessage);
-                        
-                        Log::info('Telegram: Profit calculated via text message', [
-                            'successful_orders_count' => $successfulOrders->count(),
-                            'total_profit_idr' => $totalProfitIdr,
-                            'total_profit_usd' => $totalProfitUsd,
-                            'total_profit_margin' => $totalProfitMargin,
-                        ]);
-                        
-                        return response()->json(['ok' => true]);
-                    } catch (\Exception $e) {
-                        Log::error('Telegram: Error calculating profit from text', [
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString(),
-                        ]);
-                        
-                        TelegramService::sendMessage('❌ Error calculating profit');
-                        return response()->json(['ok' => true]);
-                    }
-                }
-            }
-            
             // Handle callback query (button clicks)
             if (isset($data['callback_query'])) {
                 $callbackQuery = $data['callback_query'];
@@ -1568,8 +1516,15 @@ class AdminController extends Controller
                     ]);
                     
                     return response()->json(['ok' => true]);
-                } elseif ($callbackData === 'profit') {
-                    // Calculate total profit from successful VIP Reseller orders
+                }
+            }
+            
+            // Handle text messages (commands)
+            if (isset($data['message']['text'])) {
+                $text = trim($data['message']['text']);
+                
+                // Handle /profit command
+                if ($text === '/profit' || strtolower($text) === 'profit') {
                     try {
                         // Query all successful VIP Reseller statuses
                         $successfulOrders = VipResellerStatus::where('status', 'success')
@@ -1593,17 +1548,10 @@ class AdminController extends Controller
                         $profitMessage .= "💵 <b>Total (USD):</b> $" . number_format($totalProfitUsd, 2) . " USD\n";
                         $profitMessage .= "📈 <b>Total Profit Margin:</b> $" . number_format($totalProfitMargin, 2) . " USD";
                         
-                        // Answer callback query with profit info
-                        TelegramService::answerCallbackQuery(
-                            $callbackQueryId,
-                            "Total Profit: $" . number_format($totalProfitUsd, 2) . " USD",
-                            true
-                        );
-                        
-                        // Send profit message as a new message
+                        // Send profit message
                         TelegramService::sendMessage($profitMessage);
                         
-                        Log::info('Telegram: Profit calculated', [
+                        Log::info('Telegram: Profit calculated via /profit command', [
                             'successful_orders_count' => $successfulOrders->count(),
                             'total_profit_idr' => $totalProfitIdr,
                             'total_profit_usd' => $totalProfitUsd,
@@ -1612,17 +1560,12 @@ class AdminController extends Controller
                         
                         return response()->json(['ok' => true]);
                     } catch (\Exception $e) {
-                        Log::error('Telegram: Error calculating profit', [
+                        Log::error('Telegram: Error calculating profit from /profit command', [
                             'error' => $e->getMessage(),
                             'trace' => $e->getTraceAsString(),
                         ]);
                         
-                        TelegramService::answerCallbackQuery(
-                            $callbackQueryId,
-                            '❌ Error calculating profit',
-                            true
-                        );
-                        
+                        TelegramService::sendMessage('❌ Error calculating profit. Please try again.');
                         return response()->json(['ok' => true]);
                     }
                 }
