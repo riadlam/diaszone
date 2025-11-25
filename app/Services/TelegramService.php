@@ -69,18 +69,29 @@ class TelegramService
                 ];
             }
             
-            // Always add Profit button
-            $keyboard[] = [
-                [
-                    'text' => '💰 Profit',
-                    'callback_data' => 'profit'
-                ]
+            // Set reply markup
+            // Always set persistent keyboard with Profit button
+            $persistentKeyboard = [
+                'keyboard' => [
+                    [
+                        [
+                            'text' => '💰 Profit'
+                        ]
+                    ]
+                ],
+                'resize_keyboard' => true,
+                'one_time_keyboard' => false
             ];
             
             if (!empty($keyboard)) {
+                // If we have inline buttons, prioritize them (they appear on message)
+                // Persistent keyboard will still be visible at bottom
                 $payload['reply_markup'] = json_encode([
                     'inline_keyboard' => $keyboard
                 ]);
+            } else {
+                // If no inline buttons, use persistent keyboard
+                $payload['reply_markup'] = json_encode($persistentKeyboard);
             }
             
             $response = Http::timeout(10)->post($url, $payload);
@@ -216,6 +227,54 @@ class TelegramService
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('Telegram: Exception while sending photo', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+    
+    /**
+     * Set persistent reply keyboard with Profit button
+     * This should be called once to set up the persistent keyboard
+     *
+     * @return bool
+     */
+    public static function setPersistentKeyboard(): bool
+    {
+        try {
+            $botToken = config('telegram.bot_token');
+            $chatId = config('telegram.chat_id');
+            $apiUrl = config('telegram.api_url');
+            
+            if (!$botToken || !$chatId) {
+                return false;
+            }
+            
+            $url = $apiUrl . $botToken . '/sendMessage';
+            
+            $persistentKeyboard = [
+                'keyboard' => [
+                    [
+                        [
+                            'text' => '💰 Profit'
+                        ]
+                    ]
+                ],
+                'resize_keyboard' => true,
+                'one_time_keyboard' => false
+            ];
+            
+            $payload = [
+                'chat_id' => (string) $chatId,
+                'text' => 'Bot keyboard activated. Use the buttons below.',
+                'reply_markup' => json_encode($persistentKeyboard),
+            ];
+            
+            $response = Http::timeout(10)->post($url, $payload);
+            
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error('Telegram: Exception while setting persistent keyboard', [
                 'error' => $e->getMessage(),
             ]);
             return false;
