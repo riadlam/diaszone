@@ -47,7 +47,6 @@ Route::get('/select/bmccp/{encrypted_order_id}', [CheckoutController::class, 'ba
     ->middleware('throttle:20,1') // 20 requests per minute
     ->name('baridimob-form');
 Route::post('/api/baridimob/process', [CheckoutController::class, 'processBaridimobPayment'])
-    ->middleware('throttle:5,1') // 5 requests per minute
     ->name('api.baridimob.process');
 Route::post('/webhook/baridimob', [CheckoutController::class, 'baridimobWebhook'])
     ->name('baridimob.webhook');
