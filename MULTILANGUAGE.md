@@ -47,7 +47,7 @@ This project now supports multiple languages: **English (EN)**, **French (FR)**,
 
 ## Adding New Translations
 
-1. Open all three language files in `resources/lang/`
+1. Open all three language files in `lang/`
 2. Add the same key to all files with appropriate translations
 3. Use the key in your Blade templates with `{{ __('category.key') }}`
 
