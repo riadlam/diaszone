@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
         ]);
         
+        // Add language middleware to web group
+        $middleware->web(append: [
+            \App\Http\Middleware\LanguageMiddleware::class,
+        ]);
+        
         // Exclude webhook routes from CSRF verification
         $middleware->validateCsrfTokens(except: [
             'webhook/baridimob',

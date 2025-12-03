@@ -14,9 +14,9 @@
                     <span class="text-2xl font-bold text-purple-600">DiasZone</span>
                 </a>
                 <div class="flex items-center space-x-6">
-                    <a href="{{ route('home') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">Home</a>
-                    <a href="{{ route('about') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">About Us</a>
-                    <a href="{{ route('contact') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">Contact Us</a>
+                    <a href="{{ route('home') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">{{ __('nav.home') }}</a>
+                    <a href="{{ route('about') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">{{ __('nav.about') }}</a>
+                    <a href="{{ route('contact') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">{{ __('nav.contact') }}</a>
                 </div>
             </div>
             
@@ -31,7 +31,7 @@
             <div class="hidden lg:flex flex-1 max-w-md mx-8">
                 <div class="relative w-full">
                     <input type="text" 
-                           placeholder="Search products..." 
+                           placeholder="{{ __('nav.search_placeholder') }}" 
                            class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +56,7 @@
                     <!-- Cart Dropdown -->
                     <div class="cart-dropdown-menu absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
                         <div class="px-4 py-3 border-b border-gray-100">
-                            <h3 class="text-sm font-semibold text-gray-900">Shopping Cart</h3>
+                            <h3 class="text-sm font-semibold text-gray-900">{{ __('cart_dropdown.title') }}</h3>
                         </div>
                         <div id="cart-items" class="max-h-96 overflow-y-auto">
                             <!-- Cart items will be inserted here -->
@@ -64,12 +64,12 @@
                                 <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                 </svg>
-                                <p class="text-sm text-gray-500">Your cart is empty</p>
+                                <p class="text-sm text-gray-500">{{ __('cart_dropdown.empty') }}</p>
                             </div>
                         </div>
                         <div id="cart-footer" class="hidden px-4 py-3 border-t border-gray-100 bg-gray-50">
                             <a href="{{ route('cart') }}" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg text-center transition-colors">
-                                View Cart
+                                {{ __('cart_dropdown.view_cart') }}
                             </a>
                         </div>
                     </div>
@@ -85,7 +85,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                     </svg>
-                    <span>My Orders</span>
+                    <span>{{ __('nav.my_orders') }}</span>
                 </a>
                 
                 <!-- Currency Dropdown -->
@@ -98,7 +98,7 @@
                     </button>
                     <div class="currency-dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
                         <div class="px-3 py-2 border-b border-gray-100">
-                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Currency</span>
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('currency.title') }}</span>
                         </div>
                         <a href="#" data-currency="USD" class="currency-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
                             <div class="flex-1">
@@ -120,39 +120,48 @@
                 <!-- Language Dropdown -->
                 <div class="relative language-dropdown">
                     <button class="flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
-                        <span class="text-xl leading-none" style="font-size: 1.25rem;">🇬🇧</span>
-                        <span class="text-sm font-semibold text-gray-800">EN</span>
+                        @php
+                            $currentLocale = app()->getLocale();
+                            $localeData = [
+                                'en' => ['flag' => '🇬🇧', 'code' => 'EN'],
+                                'ar' => ['flag' => '🇩🇿', 'code' => 'AR'],
+                                'fr' => ['flag' => '🇫🇷', 'code' => 'FR']
+                            ];
+                            $current = $localeData[$currentLocale] ?? $localeData['en'];
+                        @endphp
+                        <span class="text-xl leading-none" style="font-size: 1.25rem;">{{ $current['flag'] }}</span>
+                        <span class="text-sm font-semibold text-gray-800">{{ $current['code'] }}</span>
                         <svg class="w-4 h-4 text-gray-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
                     <div class="language-dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
                         <div class="px-3 py-2 border-b border-gray-100">
-                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Select Language</span>
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('language.title') }}</span>
                         </div>
-                        <a href="#" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
+                        <a href="{{ route('language.switch', 'en') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'en' ? 'bg-purple-50' : '' }}">
                             <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center;">🇬🇧</span>
                             <div class="flex-1">
                                 <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">English</div>
-                                <div class="text-xs text-gray-500">English</div>
+                                <div class="text-xs text-gray-500">{{ __('language.en') }}</div>
                             </div>
-                            <span class="text-xs font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded">EN</span>
+                            <span class="text-xs font-medium {{ app()->getLocale() == 'en' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">EN</span>
                         </a>
-                        <a href="#" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
+                        <a href="{{ route('language.switch', 'ar') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'ar' ? 'bg-purple-50' : '' }}">
                             <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center; display: inline-block;">🇩🇿</span>
                             <div class="flex-1">
                                 <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">العربية</div>
-                                <div class="text-xs text-gray-500">Arabic</div>
+                                <div class="text-xs text-gray-500">{{ __('language.ar') }}</div>
                             </div>
-                            <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">AR</span>
+                            <span class="text-xs font-medium {{ app()->getLocale() == 'ar' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">AR</span>
                         </a>
-                        <a href="#" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
+                        <a href="{{ route('language.switch', 'fr') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'fr' ? 'bg-purple-50' : '' }}">
                             <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center;">🇫🇷</span>
                             <div class="flex-1">
                                 <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Français</div>
-                                <div class="text-xs text-gray-500">French</div>
+                                <div class="text-xs text-gray-500">{{ __('language.fr') }}</div>
                             </div>
-                            <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">FR</span>
+                            <span class="text-xs font-medium {{ app()->getLocale() == 'fr' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">FR</span>
                         </a>
                     </div>
                 </div>
@@ -188,19 +197,19 @@
                                 <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                 </svg>
-                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">My Account</span>
+                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.my_account') }}</span>
                             </a>
                             <a href="{{ route('dashboard.orders') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
                                 <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                                 </svg>
-                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">My Orders</span>
+                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.my_orders') }}</span>
                             </a>
                             <a href="{{ route('dashboard.notifications') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
                                 <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                                 </svg>
-                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Notification</span>
+                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.notifications') }}</span>
                             </a>
                             <div class="border-t border-gray-100 my-1"></div>
                             <form method="POST" action="{{ route('logout') }}">
@@ -209,20 +218,20 @@
                                     <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                                     </svg>
-                                    <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Logout</span>
+                                    <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.logout') }}</span>
                                 </button>
                             </form>
                         @else
                             <!-- Not Logged In: Show Login/Signup Buttons -->
                             <div class="px-4 py-3 border-b border-gray-100">
-                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Account</span>
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('profile.account') }}</span>
                             </div>
                             <div class="px-4 py-3 space-y-2">
                                 <a href="{{ route('login') }}" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg text-center transition-colors duration-200 shadow-md hover:shadow-lg">
-                                    Login
+                                    {{ __('profile.login') }}
                                 </a>
                                 <a href="{{ route('signup') }}" class="block w-full bg-white border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-semibold py-2.5 px-4 rounded-lg text-center transition-colors duration-200">
-                                    Sign Up
+                                    {{ __('profile.signup') }}
                                 </a>
                             </div>
                         @endauth
@@ -238,7 +247,7 @@
     <div class="flex flex-col h-full">
         <!-- Drawer Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 class="text-xl font-bold text-purple-600">Menu</h2>
+            <h2 class="text-xl font-bold text-purple-600">{{ __('nav.menu') }}</h2>
             <button id="close-drawer-btn" class="p-2 text-gray-700 hover:text-purple-600 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -251,7 +260,7 @@
             <!-- Search Bar -->
             <div class="relative">
                 <input type="text" 
-                       placeholder="Search products..." 
+                       placeholder="{{ __('nav.search_placeholder') }}" 
                        class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,19 +272,19 @@
             <!-- Menu Items -->
             <div class="space-y-2">
                 <a href="{{ route('home') }}" class="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors font-medium">
-                    Home
+                    {{ __('nav.home') }}
                 </a>
                 <a href="{{ route('about') }}" class="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors font-medium">
-                    About Us
+                    {{ __('nav.about') }}
                 </a>
                 <a href="{{ route('contact') }}" class="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors font-medium">
-                    Contact Us
+                    {{ __('nav.contact') }}
                 </a>
             </div>
             
             <!-- Currency Selector (mobile) -->
             <div class="border-t border-gray-200 pt-4 mt-4">
-                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">Currency</label>
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">{{ __('currency.title') }}</label>
                 <div class="space-y-2 px-4">
                     <button data-currency="USD" class="mobile-currency-option w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 group">
                         <div class="flex items-center space-x-3">

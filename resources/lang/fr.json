@@ -1,0 +1,198 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "about": "À propos",
+    "contact": "Contact",
+    "cart": "Panier",
+    "my_orders": "Mes Commandes",
+    "search_placeholder": "Rechercher des produits...",
+    "menu": "Menu"
+  },
+  "currency": {
+    "title": "Sélectionner la devise",
+    "usd": "Dollar américain",
+    "dzd": "Dinar algérien"
+  },
+  "language": {
+    "title": "Sélectionner la langue",
+    "en": "Anglais",
+    "ar": "Arabe",
+    "fr": "Français"
+  },
+  "profile": {
+    "account": "Compte",
+    "my_account": "Mon compte",
+    "my_orders": "Mes commandes",
+    "notifications": "Notifications",
+    "logout": "Déconnexion",
+    "login": "Connexion",
+    "signup": "S'inscrire"
+  },
+  "cart_dropdown": {
+    "title": "Panier",
+    "empty": "Votre panier est vide",
+    "view_cart": "Voir le panier"
+  },
+  "home": {
+    "hero_title": "Obtenez vos diamants et crédits de jeu instantanément !",
+    "hero_subtitle": "Service de recharge rapide, sécurisé et fiable pour Mobile Legends, Free Fire, PUBG Mobile et plus encore !",
+    "shop_now": "Acheter maintenant",
+    "learn_more": "En savoir plus",
+    "featured_products": "Produits en vedette",
+    "popular_games": "Jeux populaires",
+    "view_all": "Voir tout"
+  },
+  "product": {
+    "buy_now": "Acheter maintenant",
+    "add_to_cart": "Ajouter au panier",
+    "diamonds": "Diamants",
+    "uc": "UC",
+    "tokens": "Jetons",
+    "golds": "Or",
+    "instant_delivery": "Livraison instantanée",
+    "secure_payment": "Paiement sécurisé",
+    "24_7_support": "Support 24/7"
+  },
+  "checkout": {
+    "title": "Commander",
+    "user_info": "Informations utilisateur",
+    "user_id": "ID utilisateur",
+    "zone_id": "ID de zone",
+    "email": "Adresse e-mail",
+    "email_optional": "E-mail (Optionnel)",
+    "order_summary": "Résumé de la commande",
+    "product": "Produit",
+    "quantity": "Quantité",
+    "price": "Prix",
+    "total": "Total",
+    "continue": "Continuer vers le paiement",
+    "processing": "Traitement en cours...",
+    "select_payment": "Sélectionner le mode de paiement",
+    "payment_method": "Mode de paiement",
+    "confirm_order": "Confirmer la commande",
+    "order_created": "Commande créée avec succès",
+    "order_number": "Numéro de commande"
+  },
+  "payment": {
+    "flexy": "Flexy (Algérie)",
+    "crypto": "Cryptomonnaie",
+    "baridimob": "BaridiMob (Algérie)",
+    "credit_card": "Carte de crédit",
+    "select_method": "Veuillez sélectionner votre mode de paiement préféré",
+    "processing": "Traitement du paiement...",
+    "success": "Paiement réussi",
+    "failed": "Échec du paiement",
+    "pending": "Paiement en attente"
+  },
+  "order": {
+    "status": {
+      "pending": "En attente",
+      "processing": "En cours",
+      "completed": "Terminé",
+      "failed": "Échoué",
+      "cancelled": "Annulé"
+    },
+    "details": "Détails de la commande",
+    "history": "Historique des commandes",
+    "track": "Suivre la commande",
+    "cancel": "Annuler la commande"
+  },
+  "about": {
+    "title": "À propos de nous",
+    "welcome": "Bienvenue chez DiasZone",
+    "description": "Votre partenaire de confiance pour les recharges de jeux et les produits numériques",
+    "mission_title": "Notre Mission",
+    "mission_text": "Fournir des services de recharge de jeux rapides, sécurisés et abordables aux joueurs du monde entier.",
+    "why_choose_title": "Pourquoi nous choisir ?",
+    "reason_1_title": "Livraison instantanée",
+    "reason_1_text": "Recevez vos diamants et crédits instantanément après la confirmation du paiement.",
+    "reason_2_title": "Paiements sécurisés",
+    "reason_2_text": "Nous utilisons un cryptage standard pour protéger vos transactions.",
+    "reason_3_title": "Support 24/7",
+    "reason_3_text": "Notre équipe d'assistance est toujours prête à vous aider.",
+    "reason_4_title": "Meilleurs prix",
+    "reason_4_text": "Prix compétitifs avec des promotions et des réductions fréquentes."
+  },
+  "contact": {
+    "title": "Nous contacter",
+    "get_in_touch": "Entrer en contact",
+    "description": "Vous avez des questions ? Nous serions ravis de vous entendre. Envoyez-nous un message et nous vous répondrons dès que possible.",
+    "name": "Votre nom",
+    "email": "Votre e-mail",
+    "subject": "Sujet",
+    "message": "Message",
+    "send": "Envoyer le message",
+    "sending": "Envoi en cours...",
+    "success": "Message envoyé avec succès !",
+    "error": "Échec de l'envoi du message. Veuillez réessayer.",
+    "info_title": "Informations de contact",
+    "email_label": "E-mail",
+    "phone_label": "Téléphone",
+    "address_label": "Adresse"
+  },
+  "dashboard": {
+    "welcome": "Bon retour",
+    "my_account": "Mon compte",
+    "orders": "Commandes",
+    "notifications": "Notifications",
+    "settings": "Paramètres",
+    "recent_orders": "Commandes récentes",
+    "order_statistics": "Statistiques des commandes",
+    "total_orders": "Total des commandes",
+    "pending_orders": "Commandes en attente",
+    "completed_orders": "Commandes terminées"
+  },
+  "footer": {
+    "about_title": "À propos de DiasZone",
+    "about_text": "Votre partenaire de confiance pour les recharges de jeux instantanées et les produits numériques. Service rapide, sécurisé et fiable.",
+    "quick_links": "Liens rapides",
+    "support": "Assistance",
+    "legal": "Légal",
+    "terms": "Conditions d'utilisation",
+    "privacy": "Politique de confidentialité",
+    "faq": "FAQ",
+    "all_rights_reserved": "Tous droits réservés",
+    "follow_us": "Suivez-nous"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "warning": "Avertissement",
+    "info": "Information",
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "view": "Voir",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "submit": "Soumettre",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "sort": "Trier",
+    "select": "Sélectionner",
+    "optional": "Optionnel",
+    "required": "Requis"
+  },
+  "errors": {
+    "404_title": "Page non trouvée",
+    "404_message": "Désolé, la page que vous recherchez est introuvable.",
+    "500_title": "Erreur du serveur",
+    "500_message": "Une erreur s'est produite de notre côté. Veuillez réessayer plus tard.",
+    "go_home": "Aller à l'accueil",
+    "generic_error": "Une erreur s'est produite. Veuillez réessayer."
+  },
+  "games": {
+    "mobile_legends": "Mobile Legends",
+    "free_fire": "Free Fire",
+    "pubg_mobile": "PUBG Mobile",
+    "honor_of_kings": "Honor of Kings",
+    "blood_strike": "Blood Strike"
+  }
+}

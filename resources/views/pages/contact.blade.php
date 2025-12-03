@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Contact Us - DiasZone')
+@section('title', __('contact.title') . ' - DiasZone')
 
 @section('content')
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-pink-50/20 min-h-screen py-12">
@@ -8,10 +8,10 @@
         <!-- Header -->
         <div class="text-center mb-12">
             <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-4">
-                Contact Us
+                {{ __('contact.title') }}
             </h1>
             <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                We're here to help! Get in touch with us for any questions, support, or inquiries about our services.
+                {{ __('contact.description') }}
             </p>
         </div>
 
@@ -19,7 +19,7 @@
             <!-- Contact Information -->
             <div class="space-y-6">
                 <div class="bg-white rounded-2xl shadow-lg p-8">
-                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ __('contact.get_in_touch') }}</h2>
                     <p class="text-gray-700 leading-relaxed mb-6">
                         Have a question or need assistance? Our team is ready to help you with any inquiries about Mobile Legends diamond recharges, payment methods, or account support.
                     </p>
@@ -34,7 +34,7 @@
                                 </svg>
                             </div>
                             <div>
-                                <h3 class="font-semibold text-gray-900 mb-1">Email</h3>
+                                <h3 class="font-semibold text-gray-900 mb-1">{{ __('contact.email_label') }}</h3>
                                 <a href="mailto:support@diaszone.com" class="text-purple-600 hover:text-purple-700 transition-colors">
                                     support@diaszone.com
                                 </a>
@@ -96,7 +96,7 @@
 
             <!-- Contact Form -->
             <div class="bg-white rounded-2xl shadow-lg p-8">
-                <h2 class="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">{{ __('contact.send') }}</h2>
                 
                 <form id="contact-form" class="space-y-6">
                     @csrf
@@ -104,7 +104,7 @@
                     <!-- Name -->
                     <div>
                         <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Your Name <span class="text-red-500">*</span>
+                            {{ __('contact.name') }} <span class="text-red-500">*</span>
                         </label>
                         <input type="text" 
                                id="name" 
@@ -117,7 +117,7 @@
                     <!-- Email -->
                     <div>
                         <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Email Address <span class="text-red-500">*</span>
+                            {{ __('contact.email') }} <span class="text-red-500">*</span>
                         </label>
                         <input type="email" 
                                id="email" 
@@ -130,7 +130,7 @@
                     <!-- Subject -->
                     <div>
                         <label for="subject" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Subject <span class="text-red-500">*</span>
+                            {{ __('contact.subject') }} <span class="text-red-500">*</span>
                         </label>
                         <select id="subject" 
                                 name="subject" 
@@ -149,7 +149,7 @@
                     <!-- Message -->
                     <div>
                         <label for="message" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Message <span class="text-red-500">*</span>
+                            {{ __('contact.message') }} <span class="text-red-500">*</span>
                         </label>
                         <textarea id="message" 
                                   name="message" 
@@ -162,7 +162,7 @@
                     <!-- Submit Button -->
                     <button type="submit" 
                             class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
-                        Send Message
+                        {{ __('contact.send') }}
                     </button>
 
                     <!-- Success/Error Messages -->

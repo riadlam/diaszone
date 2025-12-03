@@ -8,6 +8,16 @@ use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Language switching route
+Route::get('/language/{locale}', function($locale) {
+    $availableLocales = ['en', 'fr', 'ar'];
+    if (in_array($locale, $availableLocales)) {
+        Session::put('locale', $locale);
+    }
+    return redirect()->back();
+})->name('language.switch');
+
 Route::get('/mobilelegends', [HomeController::class, 'mobileLegends'])->name('mobilelegends');
 Route::get('/free-fire-diamonds-top-up', function() {
     $controller = app(HomeController::class);
