@@ -11,11 +11,11 @@
                              loading="eager">
                         <div class="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center">
                             <div class="px-8 md:px-12 text-white">
-                                <span class="inline-block px-4 py-2 bg-purple-600/80 backdrop-blur-sm rounded-full text-sm font-bold mb-4 animate-pulse">NEW SEASON</span>
-                                <h2 class="text-4xl md:text-6xl font-black mb-4 bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">Top Up Now</h2>
-                                <p class="text-lg md:text-xl text-gray-200 mb-6 max-w-md">Get the best deals on Mobile Legends diamonds</p>
+                                <span class="inline-block px-4 py-2 bg-purple-600/80 backdrop-blur-sm rounded-full text-sm font-bold mb-4 animate-pulse">{{ __('home.new_season') }}</span>
+                                <h2 class="text-4xl md:text-6xl font-black mb-4 bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">{{ __('home.top_up_now') }}</h2>
+                                <p class="text-lg md:text-xl text-gray-200 mb-6 max-w-md">{{ __('home.best_deals') }}</p>
                                 <a href="#offers-section" class="inline-block px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg font-bold text-white hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105">
-                                    Shop Now
+                                    {{ __('common.shop_now') }}
                                 </a>
                             </div>
                         </div>

@@ -8,10 +8,10 @@
         <!-- Header Section -->
         <div class="text-center mb-12">
             <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-4">
-                About DiasZone
+                {{ __('about.title') }}
             </h1>
             <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                Your trusted partner for Mobile Legends diamond recharges in Algeria
+                {{ __('about.subtitle') }}
             </p>
         </div>
 
@@ -24,15 +24,15 @@
                         <span class="text-2xl font-bold text-white">DZ</span>
                     </div>
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-900">Who We Are</h2>
-                        <p class="text-gray-600">DiasZone - Algeria's Premier Gaming Recharge Platform</p>
+                        <h2 class="text-2xl font-bold text-gray-900">{{ __('about.who_we_are') }}</h2>
+                        <p class="text-gray-600">{{ __('about.company_name') }}</p>
                     </div>
                 </div>
                 <p class="text-gray-700 leading-relaxed mb-4">
-                    DiasZone is a leading digital gaming services provider based in Algeria, specializing in Mobile Legends diamond recharges. We are committed to providing fast, secure, and reliable recharge services to gamers across Algeria and beyond.
+                    {{ __('about.description_1') }}
                 </p>
                 <p class="text-gray-700 leading-relaxed">
-                    Our mission is to enhance your gaming experience by offering seamless and instant diamond top-ups, ensuring you never miss out on your favorite in-game content and features.
+                    {{ __('about.description_2') }}
                 </p>
             </div>
 
@@ -43,16 +43,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     </svg>
-                    Our Location
+                    {{ __('about.our_location') }}
                 </h2>
                 <div class="flex items-start gap-4">
                     <div class="flex-1">
                         <p class="text-gray-700 leading-relaxed mb-4">
-                            Based in <strong class="text-purple-600">Algeria</strong>, DiasZone serves gamers throughout the country with our reliable and efficient recharge services. We understand the local gaming community and are dedicated to providing the best possible service to our Algerian customers.
+                            {{ __('about.location_description') }}
                         </p>
                         <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-100">
-                            <p class="text-sm text-gray-600 mb-1"><strong>Country:</strong></p>
-                            <p class="text-lg font-semibold text-purple-600">🇩🇿 Algeria</p>
+                            <p class="text-sm text-gray-600 mb-1"><strong>{{ __('about.country') }}:</strong></p>
+                            <p class="text-lg font-semibold text-purple-600">{{ __('about.algeria') }}</p>
                         </div>
                     </div>
                 </div>
@@ -64,10 +64,10 @@
                     <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                     </svg>
-                    Our Services
+                    {{ __('about.our_services') }}
                 </h2>
                 <p class="text-gray-700 leading-relaxed mb-6">
-                    DiasZone specializes in <strong class="text-purple-600">Mobile Legends</strong> diamond recharges, offering multiple convenient payment methods to suit your preferences:
+                    {{ __('about.services_description') }}
                 </p>
                 
                 <div class="grid md:grid-cols-3 gap-6">
@@ -78,9 +78,9 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">Flexy</h3>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">{{ __('about.flexy_title') }}</h3>
                         <p class="text-sm text-gray-600">
-                            Quick and easy mobile payment method. Upload your receipt and complete your recharge seamlessly.
+                            {{ __('about.flexy_description') }}
                         </p>
                     </div>
 
@@ -91,9 +91,9 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">Baridimob</h3>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">{{ __('about.baridimob_title') }}</h3>
                         <p class="text-sm text-gray-600">
-                            Convenient mobile payment solution. Coming soon to provide you with another easy payment option.
+                            {{ __('about.baridimob_description') }}
                         </p>
                     </div>
 
@@ -104,9 +104,9 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-900 mb-2">Cryptocurrency</h3>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">{{ __('about.crypto_title') }}</h3>
                         <p class="text-sm text-gray-600">
-                            Pay with crypto using Binance Pay. Secure, fast, and modern payment method for your recharges.
+                            {{ __('about.crypto_description') }}
                         </p>
                     </div>
                 </div>
@@ -118,7 +118,7 @@
                     <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
-                    Why Choose DiasZone?
+                    {{ __('about.why_choose_us') }}
                 </h2>
                 <div class="grid md:grid-cols-2 gap-6">
                     <div class="flex items-start gap-4">
@@ -128,8 +128,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-900 mb-1">Fast Delivery</h3>
-                            <p class="text-sm text-gray-600">Get your diamonds instantly after payment confirmation</p>
+                            <h3 class="font-bold text-gray-900 mb-1">{{ __('about.fast_delivery') }}</h3>
+                            <p class="text-sm text-gray-600">{{ __('about.fast_delivery_description') }}</p>
                         </div>
                     </div>
                     <div class="flex items-start gap-4">
@@ -139,8 +139,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-900 mb-1">Secure Payments</h3>
-                            <p class="text-sm text-gray-600">Multiple secure payment methods to protect your transactions</p>
+                            <h3 class="font-bold text-gray-900 mb-1">{{ __('about.secure_payments') }}</h3>
+                            <p class="text-sm text-gray-600">{{ __('about.secure_payments_description') }}</p>
                         </div>
                     </div>
                     <div class="flex items-start gap-4">
@@ -150,8 +150,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-900 mb-1">Reliable Service</h3>
-                            <p class="text-sm text-gray-600">Trusted by thousands of Mobile Legends players in Algeria</p>
+                            <h3 class="font-bold text-gray-900 mb-1">{{ __('about.reliable_service') }}</h3>
+                            <p class="text-sm text-gray-600">{{ __('about.reliable_service_description') }}</p>
                         </div>
                     </div>
                     <div class="flex items-start gap-4">
@@ -161,8 +161,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-900 mb-1">24/7 Support</h3>
-                            <p class="text-sm text-gray-600">Our team is always ready to assist you with any questions</p>
+                            <h3 class="font-bold text-gray-900 mb-1">{{ __('about.24_7_support') }}</h3>
+                            <p class="text-sm text-gray-600">{{ __('about.24_7_support_description') }}</p>
                         </div>
                     </div>
                 </div>
@@ -170,15 +170,15 @@
 
             <!-- Contact Section -->
             <div class="bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl shadow-lg p-8 text-white">
-                <h2 class="text-2xl font-bold mb-4">Get in Touch</h2>
+                <h2 class="text-2xl font-bold mb-4">{{ __('about.get_in_touch') }}</h2>
                 <p class="mb-6 opacity-90">
-                    Have questions or need assistance? We're here to help! Reach out to us through your dashboard or contact our support team.
+                    {{ __('about.contact_description') }}
                 </p>
                 <a href="{{ route('home') }}" class="inline-flex items-center gap-2 bg-white text-purple-600 font-semibold px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                     </svg>
-                    Back to Home
+                    {{ __('common.back_to_home') }}
                 </a>
             </div>
         </div>

@@ -6,15 +6,15 @@
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-pink-50/20 min-h-screen pt-6 pb-12">
     <div class="container mx-auto px-4 max-w-7xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-1">Shopping Cart</h1>
-            <p class="text-sm text-gray-600">Review your order before checkout</p>
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('cart.title') }}</h1>
+            <p class="text-sm text-gray-600">{{ __('cart.subtitle') }}</p>
             <!-- Single Item Limit Notice -->
             <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
                 <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <p class="text-xs text-blue-800">
-                    <span class="font-semibold">Note:</span> Only one item can be in your cart at a time. Adding a new item will replace the current one.
+                    <span class="font-semibold">{{ __('cart.note') }}</span> {{ __('cart.single_item_notice') }}
                 </p>
             </div>
         </div>
@@ -27,11 +27,11 @@
                     <svg class="w-24 h-24 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
-                    <h2 class="text-xl font-semibold text-gray-900 mb-2">Your cart is empty</h2>
-                    <p class="text-gray-600 mb-6">Add items to your cart to continue</p>
+                    <h2 class="text-xl font-semibold text-gray-900 mb-2">{{ __('cart.empty_cart_title') }}</h2>
+                    <p class="text-gray-600 mb-6">{{ __('cart.empty_cart_message') }}</p>
                     <a href="{{ route('home') }}" 
                        class="inline-flex items-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors shadow-md hover:shadow-lg">
-                        Continue Shopping
+                        {{ __('common.continue_shopping') }}
                     </a>
                 </div>
 
@@ -52,7 +52,7 @@
                     <a href="{{ route('select-payment') }}" 
                        id="proceed-checkout-btn"
                        class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg text-center transition-colors shadow-md hover:shadow-lg">
-                        Proceed to Checkout
+                        {{ __('cart.proceed_to_checkout') }}
                     </a>
                 </div>
             </div>

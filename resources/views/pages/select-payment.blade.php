@@ -10,8 +10,8 @@
             <div class="flex-1 lg:max-w-2xl w-full">
                 <div>
                     <div class="mb-4">
-                        <h1 class="text-2xl font-bold text-gray-900 mb-1">Choose Payment Method</h1>
-                        <p class="text-sm text-gray-600">Select your preferred payment option</p>
+                        <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('checkout.choose_payment') }}</h1>
+                        <p class="text-sm text-gray-600">{{ __('checkout.subtitle') }}</p>
                     </div>
                     <div class="space-y-3">
                         @php
@@ -69,7 +69,7 @@
                         <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                         </svg>
-                        Order Details
+                        {{ __('checkout.order_details') }}
                     </h3>
                     <!-- Cart Data Content -->
                     <div id="order-info-content" class="space-y-2 text-xs">
@@ -80,10 +80,10 @@
                         <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                         </svg>
-                        <p class="text-sm text-gray-600 font-medium mb-3">Cart is empty</p>
-                        <p class="text-xs text-gray-500 mb-4">Add products to continue</p>
+                        <p class="text-sm text-gray-600 font-medium mb-3">{{ __('cart.cart_is_empty') }}</p>
+                        <p class="text-xs text-gray-500 mb-4">{{ __('cart.add_products') }}</p>
                         <a href="{{ route('home') }}" class="inline-block bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 text-sm">
-                            Go to Home
+                            {{ __('common.go_to_home') }}
                         </a>
                     </div>
                 </div>
@@ -93,7 +93,7 @@
                         <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        Payment Information
+                        {{ __('checkout.payment_information') }}
                     </h2>
                     
                     <!-- Skeleton Loading -->
@@ -172,12 +172,12 @@
                     <!-- Terms and Conditions -->
                     <div class="border-t-2 border-purple-200 pt-3">
                         <p class="text-xs text-gray-600 leading-relaxed font-medium">
-                            By proceeding, I acknowledge I have read and agreed to 
-                            <a href="{{ route('terms-of-use') }}" target="_blank" class="text-purple-600 hover:text-purple-700 font-bold underline">Terms of sale</a>, 
-                            <a href="{{ route('terms-of-use') }}" target="_blank" class="text-purple-600 hover:text-purple-700 font-bold underline">Terms of use</a> & 
-                            <a href="{{ route('privacy-policy') }}" target="_blank" class="text-purple-600 hover:text-purple-700 font-bold underline">Privacy Policy</a>.
+                            {{ __('checkout.terms_agreement') }} 
+                            <a href="{{ route('terms-of-use') }}" target="_blank" class="text-purple-600 hover:text-purple-700 font-bold underline">{{ __('checkout.terms_of_sale') }}</a>, 
+                            <a href="{{ route('terms-of-use') }}" target="_blank" class="text-purple-600 hover:text-purple-700 font-bold underline">{{ __('checkout.terms_of_use') }}</a> & 
+                            <a href="{{ route('privacy-policy') }}" target="_blank" class="text-purple-600 hover:text-purple-700 font-bold underline">{{ __('footer.privacy_policy') }}</a>.
                         </p>
-                        <p class="text-xs text-gray-500 mt-2 font-semibold">Effective {{ date('F j, Y') }}</p>
+                        <p class="text-xs text-gray-500 mt-2 font-semibold">{{ __('checkout.effective') }} {{ date('F j, Y') }}</p>
                     </div>
                 </div>
             </div>

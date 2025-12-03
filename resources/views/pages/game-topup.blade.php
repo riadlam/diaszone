@@ -23,7 +23,7 @@
                             type="button"
                             class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-lg transition-colors shadow-md hover:shadow-lg flex items-center justify-between">
                         <span id="mobile-selected-pack-text" class="text-left">
-                            <span class="block text-sm font-medium">Select Top-Up Amount</span>
+                            <span class="block text-sm font-medium">{{ __('home.select_topup_amount') }}</span>
                             <span id="mobile-selected-pack-details" class="text-xs opacity-75 hidden"></span>
                         </span>
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
