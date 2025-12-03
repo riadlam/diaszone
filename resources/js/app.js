@@ -1202,18 +1202,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Handle dropdown item clicks
-    if (languageMenu) {
-        languageMenu.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const flag = link.querySelector('span').textContent;
-                const code = link.querySelector('.ml-auto').textContent;
-                languageButton.querySelector('span').textContent = flag;
-                languageButton.querySelectorAll('span')[1].textContent = code;
-                languageMenu.classList.remove('opacity-100', 'visible');
-                languageMenu.classList.add('opacity-0', 'invisible');
-            });
-        });
-    }
+    // Language dropdown items will navigate via href, no need for preventDefault
 });
