@@ -50,8 +50,8 @@
                                 </svg>
                             </div>
                             <div>
-                                <h3 class="font-semibold text-gray-900 mb-1">Location</h3>
-                                <p class="text-gray-700">Algeria</p>
+                                <h3 class="font-semibold text-gray-900 mb-1">{{ __('contact.location') }}</h3>
+                                <p class="text-gray-700">{{ __('contact.algeria') }}</p>
                             </div>
                         </div>
 
@@ -63,9 +63,9 @@
                                 </svg>
                             </div>
                             <div>
-                                <h3 class="font-semibold text-gray-900 mb-1">Support Hours</h3>
-                                <p class="text-gray-700">24/7 Customer Support</p>
-                                <p class="text-sm text-gray-600">We're always here to help you</p>
+                                <h3 class="font-semibold text-gray-900 mb-1">{{ __('contact.support_hours') }}</h3>
+                                <p class="text-gray-700">{{ __('contact.support_247') }}</p>
+                                <p class="text-sm text-gray-600">{{ __('contact.always_here') }}</p>
                             </div>
                         </div>
                     </div>
@@ -73,23 +73,23 @@
 
                 <!-- FAQ Section -->
                 <div class="bg-white rounded-2xl shadow-lg p-8">
-                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">{{ __('contact.faq_title') }}</h2>
                     <div class="space-y-4">
                         <div>
-                            <h3 class="font-semibold text-gray-900 mb-2">How long does it take to receive diamonds?</h3>
-                            <p class="text-sm text-gray-600">Diamonds are typically delivered instantly after payment confirmation. In rare cases, it may take up to 24 hours.</p>
+                            <h3 class="font-semibold text-gray-900 mb-2">{{ __('contact.faq_delivery_q') }}</h3>
+                            <p class="text-sm text-gray-600">{{ __('contact.faq_delivery_a') }}</p>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-gray-900 mb-2">What payment methods do you accept?</h3>
-                            <p class="text-sm text-gray-600">We accept Flexy, Baridimob (coming soon), and Cryptocurrency (Binance Pay) payments.</p>
+                            <h3 class="font-semibold text-gray-900 mb-2">{{ __('contact.faq_payment_q') }}</h3>
+                            <p class="text-sm text-gray-600">{{ __('contact.faq_payment_a') }}</p>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-gray-900 mb-2">Can I get a refund?</h3>
-                            <p class="text-sm text-gray-600">Refunds are handled on a case-by-case basis. Please contact our support team for assistance.</p>
+                            <h3 class="font-semibold text-gray-900 mb-2">{{ __('contact.faq_refund_q') }}</h3>
+                            <p class="text-sm text-gray-600">{{ __('contact.faq_refund_a') }}</p>
                         </div>
                     </div>
                     <a href="#" class="inline-block mt-4 text-purple-600 hover:text-purple-700 font-semibold text-sm">
-                        View All FAQs →
+                        {{ __('contact.view_all_faqs') }} →
                     </a>
                 </div>
             </div>

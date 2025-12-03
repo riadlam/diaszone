@@ -21,4 +21,15 @@ return [
     '24_7_support' => '24/7 Support',
     'best_prices' => 'Best Prices',
     'trusted_platform' => 'Trusted Platform',
+    
+    // Game Selection
+    'choose_game' => 'Choose your favorite game and top up instantly',
+    'coming_soon' => 'Coming Soon',
+    
+    // Why Choose Section
+    'why_choose_title' => 'Why Choose DiasZone?',
+    'lightning_fast' => 'Lightning Fast Delivery',
+    'lightning_fast_desc' => 'Get your in-game currency instantly after payment confirmation. No waiting, no delays - just pure gaming fun!',
+    'secure_transactions' => '100% Secure Transactions',
+    'secure_transactions_desc' => 'Your payment information is protected with industry-standard encryption. Shop with confidence!',
 ];

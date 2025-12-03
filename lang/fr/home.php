@@ -21,4 +21,15 @@ return [
     '24_7_support' => 'Support 24/7',
     'best_prices' => 'Meilleurs prix',
     'trusted_platform' => 'Plateforme de confiance',
+    
+    // Game Selection
+    'choose_game' => 'Choisissez votre jeu préféré et rechargez instantanément',
+    'coming_soon' => 'Bientôt disponible',
+    
+    // Why Choose Section
+    'why_choose_title' => 'Pourquoi choisir DiasZone?',
+    'lightning_fast' => 'Livraison ultra rapide',
+    'lightning_fast_desc' => 'Obtenez votre monnaie de jeu instantanément après confirmation du paiement. Pas d\'attente, pas de retards - juste du pur plaisir de jeu!',
+    'secure_transactions' => 'Transactions 100% sécurisées',
+    'secure_transactions_desc' => 'Vos informations de paiement sont protégées par un cryptage standard de l\'industrie. Achetez en toute confiance!',
 ];

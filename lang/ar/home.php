@@ -21,4 +21,15 @@ return [
     '24_7_support' => 'دعم 24/7',
     'best_prices' => 'أفضل الأسعار',
     'trusted_platform' => 'منصة موثوقة',
+    
+    // Game Selection
+    'choose_game' => 'اختر لعبتك المفضلة واشحن فوراً',
+    'coming_soon' => 'قريباً',
+    
+    // Why Choose Section
+    'why_choose_title' => 'لماذا تختار DiasZone؟',
+    'lightning_fast' => 'توصيل سريع للغاية',
+    'lightning_fast_desc' => 'احصل على عملتك داخل اللعبة فوراً بعد تأكيد الدفع. لا انتظار، لا تأخير - فقط متعة لعب خالصة!',
+    'secure_transactions' => 'معاملات آمنة 100%',
+    'secure_transactions_desc' => 'معلومات الدفع الخاصة بك محمية بتشفير متوافق مع معايير الصناعة. تسوق بثقة!',
 ];
