@@ -4,7 +4,7 @@ This project now supports multiple languages: **English (EN)**, **French (FR)**,
 
 ## How It Works
 
-1. **Language Files**: Located in `resources/lang/`
+1. **Language Files**: Located in `lang/` (root directory)
    - `en.json` - English translations
    - `fr.json` - French translations
    - `ar.json` - Arabic translations

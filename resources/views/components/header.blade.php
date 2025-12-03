@@ -591,6 +591,50 @@
                 // closeDrawer();
             });
         });
+        
+        // Language Dropdown Toggle
+        if (languageButton && languageMenu) {
+            languageButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = languageMenu.classList.contains('opacity-100');
+                
+                // Close other dropdowns
+                if (currencyMenu) {
+                    currencyMenu.classList.remove('opacity-100', 'visible');
+                    currencyMenu.classList.add('opacity-0', 'invisible');
+                }
+                if (profileMenu) {
+                    profileMenu.classList.remove('opacity-100', 'visible');
+                    profileMenu.classList.add('opacity-0', 'invisible');
+                }
+                
+                // Toggle language dropdown
+                if (isOpen) {
+                    languageMenu.classList.remove('opacity-100', 'visible');
+                    languageMenu.classList.add('opacity-0', 'invisible');
+                    languageButton.classList.remove('dropdown-open');
+                } else {
+                    languageMenu.classList.remove('opacity-0', 'invisible');
+                    languageMenu.classList.add('opacity-100', 'visible');
+                    languageButton.classList.add('dropdown-open');
+                }
+            });
+        }
+        
+        // Close language dropdown when clicking outside
+        if (languageDropdown) {
+            document.addEventListener('click', (e) => {
+                if (!languageDropdown.contains(e.target)) {
+                    if (languageMenu) {
+                        languageMenu.classList.remove('opacity-100', 'visible');
+                        languageMenu.classList.add('opacity-0', 'invisible');
+                    }
+                    if (languageButton) {
+                        languageButton.classList.remove('dropdown-open');
+                    }
+                }
+            });
+        }
     });
 </script>
 
