@@ -10,6 +10,23 @@ use Illuminate\Support\Facades\Session;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
+// Test translation debug route
+Route::get('/test/translation', function() {
+    $loader = app('translation.loader');
+    $langPath = app('path.lang');
+    $locale = app()->getLocale();
+    
+    return response()->json([
+        'locale' => $locale,
+        'lang_path' => $langPath,
+        'nav_file_exists' => file_exists($langPath . '/en/nav.php'),
+        'nav_file_content' => file_exists($langPath . '/en/nav.php') ? require($langPath . '/en/nav.php') : null,
+        'loader_result' => $loader->load($locale, 'nav'),
+        'translation_test' => __('nav.home'),
+        'trans_test' => trans('nav.home'),
+    ]);
+});
+
 // Language switching route
 Route::get('/language/{locale}', function($locale) {
     $availableLocales = ['en', 'fr', 'ar'];
