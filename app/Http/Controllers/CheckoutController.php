@@ -385,8 +385,8 @@ class CheckoutController extends Controller
      */
     public function orderSuccess(Order $order)
     {
-        // Verify order belongs to current user
-        if ($order->user_id !== Auth::id()) {
+        // Verify order belongs to current user (use int cast for type-safe comparison)
+        if ((int) $order->user_id !== (int) Auth::id()) {
             abort(403, 'Unauthorized');
         }
         
