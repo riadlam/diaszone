@@ -174,6 +174,13 @@ class CheckoutController extends Controller
      */
     public function createOrder(Request $request)
     {
+        Log::info('=== ORDER CREATION STARTED ===', [
+            'payment_method' => $request->input('payment_method'),
+            'cart_items_count' => count($request->input('cart_items', [])),
+            'user_id' => Auth::id(),
+            'ip' => $request->ip(),
+        ]);
+
         // Additional rate limiting check for authenticated users (per user, not per IP)
         if (Auth::check()) {
             $key = 'order_creation_user_' . Auth::id();
@@ -220,11 +227,11 @@ class CheckoutController extends Controller
                 'cart_items.*.user_id_bs' => 'nullable|string',
                 'cart_items.*.server_bs' => 'nullable|string',
                 'cart_items.*.server' => 'nullable|string',
-                'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency',
+                'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency,coupon_free',
             ]);
             
             $cartItems = $request->input('cart_items');
-            $paymentMethod = $request->input('payment_method'); // flexy, bmccp, or cryptocurrency
+            $paymentMethod = $request->input('payment_method'); // flexy, bmccp, cryptocurrency, or coupon_free
             $userId = Auth::check() ? Auth::id() : null;
             $createdOrders = [];
             
@@ -236,6 +243,8 @@ class CheckoutController extends Controller
                 $orderStatus = 'pending_bmccp';
             } elseif ($paymentMethod === 'cryptocurrency') {
                 $orderStatus = 'pending_cryptopay';
+            } elseif ($paymentMethod === 'coupon_free') {
+                $orderStatus = 'pending'; // Will be processed immediately by CouponController
             }
             
             foreach ($cartItems as $item) {
