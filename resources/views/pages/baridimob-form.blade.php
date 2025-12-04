@@ -213,18 +213,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const data = await response.json();
                 
+                console.log('Baridimob response:', {
+                    success: data.success,
+                    error_code: data.error_code,
+                    status: response.status,
+                    message: data.message,
+                    short_message: data.short_message
+                });
+                
                 if (data.success && data.checkout_url) {
                     // Redirect to Chargily checkout
                     window.location.href = data.checkout_url;
                 } else {
-                    // Handle timeout error (Algerie Poste temporary outage)
-                    if (data.error_code === 'SERVICE_TIMEOUT' || response.status === 503) {
+                    // Check if it's a timeout error (either from error_code or by checking message/status)
+                    const isTimeoutError = data.error_code === 'SERVICE_TIMEOUT' 
+                        || response.status === 503 
+                        || (data.message && data.message.includes('Connection timed out'))
+                        || (data.message && data.message.includes('cURL error 28'))
+                        || (data.message && data.message.includes('timeout'));
+                    
+                    console.log('Is timeout error?', isTimeoutError, { error_code: data.error_code, status: response.status });
+                    
+                    if (isTimeoutError) {
                         // Show error modal with proper styling for Arabic text
                         const errorModal = document.createElement('div');
                         errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
                         errorModal.id = 'error-modal-timeout';
                         
                         const isArabic = document.documentElement.dir === 'rtl';
+                        
+                        // Use message from response if available
+                        const displayMessage = data.message || (isArabic 
+                            ? 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.'
+                            : 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding.');
+                        
+                        const shortMessage = data.short_message || (isArabic 
+                            ? 'خدمة البريد الجزائري مغلقة مؤقتاً'
+                            : 'Service Temporarily Unavailable');
                         
                         errorModal.innerHTML = `
                             <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
@@ -233,9 +258,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
                                 </div>
-                                <h2 class="text-xl font-bold text-gray-900 mb-3">${data.short_message || 'Service Temporarily Unavailable'}</h2>
+                                <h2 class="text-xl font-bold text-gray-900 mb-3">${shortMessage}</h2>
                                 <p class="text-gray-700 mb-4 leading-relaxed" style="font-size: 1rem; line-height: 1.6;">
-                                    ${data.message || 'The payment service is temporarily unavailable. Please try again later.'}
+                                    ${displayMessage}
                                 </p>
                                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-left" ${isArabic ? 'style="border-right: 4px solid #FBBF24; border-left: none; text-align: right;"' : ''}>
                                     <p class="text-sm text-yellow-800">

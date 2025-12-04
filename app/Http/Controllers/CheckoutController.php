@@ -757,17 +757,26 @@ class CheckoutController extends Controller
             
         } catch (\Exception $e) {
             $errorMessage = $e->getMessage();
+            
+            // Detect timeout errors with multiple patterns
+            $isTimeoutError = str_contains($errorMessage, 'cURL error 28') 
+                || str_contains($errorMessage, 'Connection timed out')
+                || str_contains($errorMessage, 'timeout')
+                || str_contains($errorMessage, 'CURLE_OPERATION_TIMEDOUT')
+                || str_contains($errorMessage, '10001 milliseconds')
+                || str_contains($errorMessage, '10002 milliseconds');
+            
             $is401Error = str_contains($errorMessage, '401') || str_contains($errorMessage, 'Unauthorized');
-            $isTimeoutError = str_contains($errorMessage, 'cURL error 28') || str_contains($errorMessage, 'Connection timed out') || str_contains($errorMessage, 'timeout');
             $configKey = config('laravel-chargily-epay.key');
             $isTestKey = $configKey && str_starts_with($configKey, 'test_');
             
             \Log::error('Baridimob payment error: ' . $errorMessage, [
                 'trace' => $e->getTraceAsString(),
-                'order_id' => $orderId,
+                'order_id' => $orderId ?? 'unknown',
                 'is_401_error' => $is401Error,
                 'is_timeout_error' => $isTimeoutError,
                 'is_test_key' => $isTestKey,
+                'error_message' => $errorMessage,
             ]);
             
             // Provide helpful error message for timeout errors (Algerie Poste temporary outage)
