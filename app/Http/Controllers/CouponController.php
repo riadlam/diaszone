@@ -265,16 +265,16 @@ class CouponController extends Controller
                 'is_free' => $discountInfo['is_free'],
             ]);
 
-            // Update order with coupon info
+            // Update order with coupon info (use 'sending' as that's the ENUM value for processing)
             $order->update([
                 'coupon_id' => $coupon->id,
                 'discount_amount' => $discountInfo['discount_amount'],
                 'original_price' => $discountInfo['original_amount'],
                 'final_price' => $discountInfo['final_amount'],
-                'status' => 'processing',
+                'status' => 'sending',
             ]);
             
-            Log::info('Free order: Order updated to processing', ['order_id' => $order->id]);
+            Log::info('Free order: Order updated to sending status', ['order_id' => $order->id]);
 
             // Record coupon usage
             CouponUsage::create([
