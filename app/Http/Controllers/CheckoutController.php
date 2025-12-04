@@ -758,6 +758,7 @@ class CheckoutController extends Controller
         } catch (\Exception $e) {
             $errorMessage = $e->getMessage();
             $is401Error = str_contains($errorMessage, '401') || str_contains($errorMessage, 'Unauthorized');
+            $isTimeoutError = str_contains($errorMessage, 'cURL error 28') || str_contains($errorMessage, 'Connection timed out') || str_contains($errorMessage, 'timeout');
             $configKey = config('laravel-chargily-epay.key');
             $isTestKey = $configKey && str_starts_with($configKey, 'test_');
             
@@ -765,8 +766,33 @@ class CheckoutController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'order_id' => $orderId,
                 'is_401_error' => $is401Error,
+                'is_timeout_error' => $isTimeoutError,
                 'is_test_key' => $isTestKey,
             ]);
+            
+            // Provide helpful error message for timeout errors (Algerie Poste temporary outage)
+            if ($isTimeoutError) {
+                $locale = app()->getLocale();
+                
+                if ($locale === 'ar') {
+                    $userMessage = 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.';
+                    $shortMessage = 'خدمة البريد الجزائري مغلقة مؤقتاً';
+                } elseif ($locale === 'fr') {
+                    $userMessage = 'Désolé, le service de la Poste Algérienne est temporairement fermé. Veuillez réessayer d\'ici 10 minutes. Merci pour votre compréhension et votre patience.';
+                    $shortMessage = 'Service La Poste fermé temporairement';
+                } else {
+                    $userMessage = 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding and patience.';
+                    $shortMessage = 'Algerie Poste temporarily unavailable';
+                }
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => $userMessage,
+                    'short_message' => $shortMessage,
+                    'error_code' => 'SERVICE_TIMEOUT',
+                    'retry_after' => 600  // 10 minutes in seconds
+                ], 503);  // Service Unavailable status code
+            }
             
             // Provide helpful error message for 401 errors
             if ($is401Error) {

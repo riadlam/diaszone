@@ -14,4 +14,11 @@ return [
     'terms_of_sale' => 'Terms of sale',
     'terms_of_use' => 'Terms of use',
     'effective' => 'Effective',
+    
+    // Error messages
+    'service_error' => 'Service Error',
+    'algerie_poste_timeout' => 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding.',
+    'algerie_poste_timeout_short' => 'Algerie Poste temporarily unavailable',
+    'retry' => 'Retry',
+    'close' => 'Close',
 ];

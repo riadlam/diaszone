@@ -217,13 +217,95 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Redirect to Chargily checkout
                     window.location.href = data.checkout_url;
                 } else {
-                    alert(data.message || 'Failed to process payment. Please try again.');
+                    // Handle timeout error (Algerie Poste temporary outage)
+                    if (data.error_code === 'SERVICE_TIMEOUT' || response.status === 503) {
+                        // Show error modal with proper styling for Arabic text
+                        const errorModal = document.createElement('div');
+                        errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+                        errorModal.id = 'error-modal-timeout';
+                        
+                        const isArabic = document.documentElement.dir === 'rtl';
+                        
+                        errorModal.innerHTML = `
+                            <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
+                                <div class="mb-4">
+                                    <svg class="w-16 h-16 text-yellow-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <h2 class="text-xl font-bold text-gray-900 mb-3">${data.short_message || 'Service Temporarily Unavailable'}</h2>
+                                <p class="text-gray-700 mb-4 leading-relaxed" style="font-size: 1rem; line-height: 1.6;">
+                                    ${data.message || 'The payment service is temporarily unavailable. Please try again later.'}
+                                </p>
+                                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-left" ${isArabic ? 'style="border-right: 4px solid #FBBF24; border-left: none; text-align: right;"' : ''}>
+                                    <p class="text-sm text-yellow-800">
+                                        <span class="font-semibold">💡 ${isArabic ? 'نصيحة:' : 'Tip:'}</span>
+                                        ${isArabic ? 'يرجى محاولة الدفع مرة أخرى خلال 10 دقائق' : 'Please try again in 10 minutes'}
+                                    </p>
+                                </div>
+                                <div class="flex gap-3">
+                                    <button onclick="document.getElementById('error-modal-timeout').remove();" 
+                                            class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-3 px-6 rounded-lg transition-colors">
+                                        ${isArabic ? 'إغلاق' : 'Close'}
+                                    </button>
+                                    <button onclick="location.reload();" 
+                                            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                                        ${isArabic ? 'إعادة محاولة' : 'Retry'}
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(errorModal);
+                    } else {
+                        // Show generic error
+                        alert(data.message || 'Failed to process payment. Please try again.');
+                    }
+                    
                     proceedBtn.disabled = false;
                     proceedBtn.textContent = 'Proceed with Baridimob';
                 }
             } catch (error) {
                 console.error('Error processing payment:', error);
-                alert('An error occurred. Please try again.');
+                
+                // Check if error contains timeout indicators
+                const errorMsg = error.toString().toLowerCase();
+                if (errorMsg.includes('timeout') || errorMsg.includes('network')) {
+                    // Show timeout error modal
+                    const isArabic = document.documentElement.dir === 'rtl';
+                    const errorModal = document.createElement('div');
+                    errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+                    errorModal.id = 'error-modal-network';
+                    
+                    errorModal.innerHTML = `
+                        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
+                            <div class="mb-4">
+                                <svg class="w-16 h-16 text-yellow-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-xl font-bold text-gray-900 mb-3">
+                                ${isArabic ? 'خدمة البريد الجزائري مغلقة مؤقتاً' : 'Service Temporarily Unavailable'}
+                            </h2>
+                            <p class="text-gray-700 mb-4 leading-relaxed">
+                                ${isArabic ? 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.' : 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding.'}
+                            </p>
+                            <div class="flex gap-3">
+                                <button onclick="document.getElementById('error-modal-network').remove();" 
+                                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-3 px-6 rounded-lg transition-colors">
+                                    ${isArabic ? 'إغلاق' : 'Close'}
+                                </button>
+                                <button onclick="location.reload();" 
+                                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                                    ${isArabic ? 'إعادة محاولة' : 'Retry'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(errorModal);
+                } else {
+                    alert('An error occurred. Please try again.');
+                }
+                
                 proceedBtn.disabled = false;
                 proceedBtn.textContent = 'Proceed with Baridimob';
             }

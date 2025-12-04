@@ -14,4 +14,11 @@ return [
     'terms_of_sale' => 'Conditions de vente',
     'terms_of_use' => 'Conditions d\'utilisation',
     'effective' => 'En vigueur',
+    
+    // Messages d'erreur
+    'service_error' => 'Erreur de service',
+    'algerie_poste_timeout' => 'Désolé, le service de la Poste Algérienne est temporairement fermé. Veuillez réessayer d\'ici 10 minutes. Merci pour votre compréhension et votre patience.',
+    'algerie_poste_timeout_short' => 'Service La Poste fermé temporairement',
+    'retry' => 'Réessayer',
+    'close' => 'Fermer',
 ];
