@@ -771,11 +771,13 @@ class CheckoutController extends Controller
             $isTestKey = $configKey && str_starts_with($configKey, 'test_');
             
             // Extract error code from message if available
-            $errorCode = null;
+            $errorCode = 'UNKNOWN';
             if (preg_match('/cURL error (\d+)/', $errorMessage, $matches)) {
-                $errorCode = 'cURL-' . $matches[1];
+                $errorCode = 'cURL Error ' . $matches[1];
+            } elseif (preg_match('/Connection timed out after (\d+) milliseconds/', $errorMessage, $matches)) {
+                $errorCode = 'Connection Timeout (' . $matches[1] . 'ms)';
             } elseif (preg_match('/(\d+) milliseconds/', $errorMessage, $matches)) {
-                $errorCode = 'TIMEOUT-' . $matches[1] . 'ms';
+                $errorCode = 'Timeout (' . $matches[1] . 'ms)';
             }
             
             \Log::error('Baridimob payment error: ' . $errorMessage, [
@@ -807,9 +809,7 @@ class CheckoutController extends Controller
                     'success' => false,
                     'message' => $userMessage,
                     'short_message' => $shortMessage,
-                    'error_code' => 'SERVICE_TIMEOUT',
-                    'technical_error_code' => $errorCode,
-                    'raw_error' => $errorMessage,
+                    'error_code' => $errorCode,  // This will be like "cURL Error 28" or "Connection Timeout (10002ms)"
                     'retry_after' => 600  // 10 minutes in seconds
                 ], 503);  // Service Unavailable status code
             }

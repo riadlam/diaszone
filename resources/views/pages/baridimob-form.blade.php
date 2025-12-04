@@ -251,8 +251,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             ? 'خدمة البريد الجزائري مغلقة مؤقتاً'
                             : 'Service Temporarily Unavailable');
                         
-                        // Extract error code for documentation
-                        const technicalErrorCode = data.technical_error_code || data.error_code || 'UNKNOWN';
+                        // Extract error code properly - should be something like "cURL Error 28" or "Connection Timeout (10002ms)"
+                        const errorCode = data.error_code || 'UNKNOWN_ERROR';
                         
                         errorModal.innerHTML = `
                             <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <!-- Error Code Box for Documentation -->
                                 <div class="bg-gray-100 border-l-4 border-gray-400 p-3 mb-4 rounded text-left" ${isArabic ? 'style="border-right: 4px solid #9CA3AF; border-left: none; text-align: right; direction: ltr;"' : 'style="direction: ltr;"'}>
                                     <p class="text-xs text-gray-600 font-semibold uppercase mb-1">Error Code:</p>
-                                    <p class="text-sm font-mono text-gray-800 break-all">${technicalErrorCode}</p>
+                                    <p class="text-sm font-mono text-gray-800 break-all">${errorCode}</p>
                                 </div>
                                 
                                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-left" ${isArabic ? 'style="border-right: 4px solid #FBBF24; border-left: none; text-align: right;"' : ''}>
