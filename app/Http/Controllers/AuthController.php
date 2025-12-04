@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -33,6 +35,36 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        // Validate reCAPTCHA first
+        $recaptchaResponse = $request->input('g-recaptcha-response');
+        if (!$recaptchaResponse) {
+            return back()->withErrors(['recaptcha' => 'Please complete the reCAPTCHA verification.'])->withInput($request->only('email'));
+        }
+
+        // Verify reCAPTCHA with Google
+        $secretKey = config('recaptcha.secret_key');
+        $verifyUrl = config('recaptcha.verify_url');
+        
+        try {
+            $response = Http::asForm()->post($verifyUrl, [
+                'secret' => $secretKey,
+                'response' => $recaptchaResponse,
+                'remoteip' => $request->ip(),
+            ]);
+            
+            $responseData = $response->json();
+            if (!$responseData['success']) {
+                Log::warning('Login: reCAPTCHA verification failed', [
+                    'ip' => $request->ip(),
+                    'recaptcha_errors' => $responseData['error-codes'] ?? [],
+                ]);
+                return back()->withErrors(['recaptcha' => 'reCAPTCHA verification failed. Please try again.'])->withInput($request->only('email'));
+            }
+        } catch (\Exception $e) {
+            Log::error('Login: reCAPTCHA verification error', ['error' => $e->getMessage()]);
+            return back()->withErrors(['recaptcha' => 'reCAPTCHA verification error. Please try again.'])->withInput($request->only('email'));
+        }
+
         // Validate input - Laravel automatically protects against SQL injection
         $validator = Validator::make($request->all(), [
             'email' => ['required', 'email', 'max:255'],
@@ -114,6 +146,36 @@ class AuthController extends Controller
      */
     public function signup(Request $request)
     {
+        // Validate reCAPTCHA first
+        $recaptchaResponse = $request->input('g-recaptcha-response');
+        if (!$recaptchaResponse) {
+            return back()->withErrors(['recaptcha' => 'Please complete the reCAPTCHA verification.'])->withInput($request->except('password', 'password_confirmation'));
+        }
+
+        // Verify reCAPTCHA with Google
+        $secretKey = config('recaptcha.secret_key');
+        $verifyUrl = config('recaptcha.verify_url');
+        
+        try {
+            $response = Http::asForm()->post($verifyUrl, [
+                'secret' => $secretKey,
+                'response' => $recaptchaResponse,
+                'remoteip' => $request->ip(),
+            ]);
+            
+            $responseData = $response->json();
+            if (!$responseData['success']) {
+                Log::warning('Signup: reCAPTCHA verification failed', [
+                    'ip' => $request->ip(),
+                    'recaptcha_errors' => $responseData['error-codes'] ?? [],
+                ]);
+                return back()->withErrors(['recaptcha' => 'reCAPTCHA verification failed. Please try again.'])->withInput($request->except('password', 'password_confirmation'));
+            }
+        } catch (\Exception $e) {
+            Log::error('Signup: reCAPTCHA verification error', ['error' => $e->getMessage()]);
+            return back()->withErrors(['recaptcha' => 'reCAPTCHA verification error. Please try again.'])->withInput($request->except('password', 'password_confirmation'));
+        }
+
         // Validate input with strong password rules - Laravel automatically protects against SQL injection
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255', 'regex:/^[a-zA-Z\s]+$/'],
