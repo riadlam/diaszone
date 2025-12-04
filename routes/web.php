@@ -5,6 +5,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\CouponController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
 
@@ -104,6 +105,16 @@ Route::post('/api/orders/check-crypto-payment', [CheckoutController::class, 'che
 Route::post('/api/orders/delete', [CheckoutController::class, 'deleteOrder'])
     ->middleware('throttle:10,1') // 10 requests per minute
     ->name('api.orders.delete');
+
+// Coupon API routes (require authentication)
+Route::middleware(['auth', 'throttle:10,1'])->group(function () {
+    Route::post('/api/coupon/validate', [CouponController::class, 'validate'])
+        ->name('api.coupon.validate');
+    Route::post('/api/coupon/remove', [CouponController::class, 'remove'])
+        ->name('api.coupon.remove');
+    Route::post('/api/coupon/process-free-order', [CouponController::class, 'processFreeOrder'])
+        ->name('api.coupon.process-free-order');
+});
 
 // Authentication routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');

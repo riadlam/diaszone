@@ -88,6 +88,82 @@
                     </div>
                 </div>
                 
+                <!-- Coupon Section (Only for logged-in users) -->
+                @auth
+                <div id="coupon-section" class="bg-white rounded-lg shadow-md border border-gray-200 p-4 mb-4">
+                    <h3 class="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                        </svg>
+                        {{ __('coupons.enter_coupon') }}
+                    </h3>
+                    
+                    <!-- Coupon Input -->
+                    <div id="coupon-input-container" class="flex gap-2">
+                        <input type="text" 
+                               id="coupon-code-input" 
+                               placeholder="{{ __('coupons.enter_coupon') }}" 
+                               class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 uppercase"
+                               maxlength="50">
+                        <button type="button" 
+                                id="apply-coupon-btn"
+                                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                            {{ __('coupons.apply') }}
+                        </button>
+                    </div>
+                    
+                    <!-- Coupon Applied Display (hidden by default) -->
+                    <div id="coupon-applied-container" class="hidden">
+                        <div class="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <div>
+                                    <span class="text-sm font-semibold text-green-700" id="applied-coupon-code"></span>
+                                    <span class="text-xs text-green-600 ml-2" id="applied-coupon-discount"></span>
+                                </div>
+                            </div>
+                            <button type="button" 
+                                    id="remove-coupon-btn"
+                                    class="text-red-500 hover:text-red-700 text-xs font-semibold">
+                                {{ __('coupons.remove_coupon') }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Coupon Error Message -->
+                    <div id="coupon-error" class="hidden mt-2 text-xs text-red-600"></div>
+                    
+                    <!-- Coupon Success - Price Breakdown (hidden by default) -->
+                    <div id="coupon-price-breakdown" class="hidden mt-3 pt-3 border-t border-gray-200">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-gray-600">{{ __('coupons.original_price') }}</span>
+                            <span class="text-gray-700" id="coupon-original-price">0 DZD</span>
+                        </div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-green-600 font-medium">{{ __('coupons.discount') }}</span>
+                            <span class="text-green-600 font-medium" id="coupon-discount-amount">-0 DZD</span>
+                        </div>
+                        <div class="flex justify-between text-sm font-bold">
+                            <span class="text-gray-800">{{ __('coupons.final_price') }}</span>
+                            <span class="text-purple-600" id="coupon-final-price">0 DZD</span>
+                        </div>
+                    </div>
+                </div>
+                @else
+                <!-- Login prompt for coupon -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4">
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                        </svg>
+                        <span>{{ __('coupons.login_required') }}</span>
+                        <a href="{{ route('login') }}" class="text-purple-600 hover:text-purple-700 font-semibold underline">{{ __('nav.login') }}</a>
+                    </div>
+                </div>
+                @endauth
+                
                 <div id="payment-info-section" class="bg-gradient-to-br from-white to-purple-50/30 rounded-xl shadow-lg border-2 border-purple-100 p-5">
                     <h2 class="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-4 flex items-center gap-2">
                         <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -550,6 +626,232 @@ document.addEventListener('DOMContentLoaded', function() {
             payWithText.textContent = `${methodName} (${currency})`;
         }
         
+        // ==================== COUPON SYSTEM ====================
+        // Store applied coupon data
+        let appliedCoupon = null;
+        let originalOrderAmount = 0;
+        
+        // Coupon DOM elements
+        const couponInput = document.getElementById('coupon-code-input');
+        const applyCouponBtn = document.getElementById('apply-coupon-btn');
+        const couponInputContainer = document.getElementById('coupon-input-container');
+        const couponAppliedContainer = document.getElementById('coupon-applied-container');
+        const couponError = document.getElementById('coupon-error');
+        const couponPriceBreakdown = document.getElementById('coupon-price-breakdown');
+        const removeCouponBtn = document.getElementById('remove-coupon-btn');
+        
+        // Apply coupon function
+        async function applyCoupon() {
+            if (!couponInput) return;
+            
+            const code = couponInput.value.trim().toUpperCase();
+            if (!code) {
+                showCouponError('{{ __("coupons.invalid_code") }}');
+                return;
+            }
+            
+            // Get cart and order info
+            const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
+            if (cart.length === 0) return;
+            
+            const item = cart[0];
+            const totalAmountEl = document.getElementById('total-amount');
+            const amount = parseFloat(totalAmountEl?.getAttribute('data-value') || 0);
+            originalOrderAmount = amount;
+            
+            // Determine game code
+            let gameCode = 'mlbb';
+            if (item.player_id_ff) gameCode = 'freefire';
+            else if (item.player_id_pubg) gameCode = 'pubg';
+            
+            // Disable button while processing
+            applyCouponBtn.disabled = true;
+            applyCouponBtn.textContent = '{{ __("coupons.processing") }}';
+            hideCouponError();
+            
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const response = await fetch('{{ route("api.coupon.validate") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        game_code: gameCode,
+                        package_id: item.pack_id,
+                        amount: amount
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Store applied coupon
+                    appliedCoupon = {
+                        id: data.coupon.id,
+                        code: data.coupon.code,
+                        discount_type: data.coupon.discount_type,
+                        discount_value: data.coupon.discount_value,
+                        discount: data.discount
+                    };
+                    
+                    // Show applied coupon UI
+                    showAppliedCoupon(data);
+                    
+                    // Update payment prices
+                    updatePricesWithCoupon(data.discount);
+                    
+                } else {
+                    showCouponError(data.message || '{{ __("coupons.invalid_code") }}');
+                }
+            } catch (error) {
+                console.error('Coupon validation error:', error);
+                showCouponError('{{ __("coupons.processing_error") }}');
+            } finally {
+                applyCouponBtn.disabled = false;
+                applyCouponBtn.textContent = '{{ __("coupons.apply") }}';
+            }
+        }
+        
+        // Show applied coupon UI
+        function showAppliedCoupon(data) {
+            if (!couponInputContainer || !couponAppliedContainer) return;
+            
+            couponInputContainer.classList.add('hidden');
+            couponAppliedContainer.classList.remove('hidden');
+            
+            const appliedCodeEl = document.getElementById('applied-coupon-code');
+            const appliedDiscountEl = document.getElementById('applied-coupon-discount');
+            
+            if (appliedCodeEl) appliedCodeEl.textContent = data.coupon.code;
+            if (appliedDiscountEl) {
+                const discountText = data.coupon.discount_type === 'percentage' 
+                    ? `-${data.coupon.discount_value}%`
+                    : `-${data.coupon.discount_value} DZD`;
+                appliedDiscountEl.textContent = discountText;
+            }
+            
+            // Show price breakdown
+            if (couponPriceBreakdown) {
+                couponPriceBreakdown.classList.remove('hidden');
+                
+                const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : 'DZD';
+                const formatPrice = (price) => currency === 'DZD' 
+                    ? Math.round(price).toLocaleString() + ' DZD'
+                    : '$' + price.toFixed(2) + ' USD';
+                
+                document.getElementById('coupon-original-price').textContent = formatPrice(data.discount.original_amount);
+                document.getElementById('coupon-discount-amount').textContent = '-' + formatPrice(data.discount.discount_amount);
+                document.getElementById('coupon-final-price').textContent = data.discount.is_free 
+                    ? '{{ __("coupons.free") }}' 
+                    : formatPrice(data.discount.final_amount);
+            }
+        }
+        
+        // Update payment prices with coupon discount
+        function updatePricesWithCoupon(discount) {
+            const totalAmountEl = document.getElementById('total-amount');
+            const payNowAmountEl = document.getElementById('pay-now-amount');
+            
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : 'DZD';
+            const formatPrice = (price) => currency === 'DZD' 
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : '$' + price.toFixed(2) + ' USD';
+            
+            if (totalAmountEl) {
+                totalAmountEl.textContent = discount.is_free ? '{{ __("coupons.free") }}' : formatPrice(discount.final_amount);
+                totalAmountEl.setAttribute('data-value', discount.final_amount);
+            }
+            
+            if (payNowAmountEl) {
+                payNowAmountEl.textContent = discount.is_free ? '{{ __("coupons.free") }}' : formatPrice(discount.final_amount);
+                payNowAmountEl.setAttribute('data-value', discount.final_amount);
+            }
+            
+            // If it's a free order (100% discount), change button text
+            const submitBtn = document.getElementById('pay-submit-btn');
+            if (submitBtn && discount.is_free) {
+                submitBtn.textContent = '{{ __("coupons.complete_free_order") }}';
+                submitBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                submitBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+            }
+        }
+        
+        // Remove coupon function
+        function removeCoupon() {
+            appliedCoupon = null;
+            
+            if (couponInputContainer) couponInputContainer.classList.remove('hidden');
+            if (couponAppliedContainer) couponAppliedContainer.classList.add('hidden');
+            if (couponPriceBreakdown) couponPriceBreakdown.classList.add('hidden');
+            if (couponInput) couponInput.value = '';
+            
+            // Reset button
+            const submitBtn = document.getElementById('pay-submit-btn');
+            if (submitBtn) {
+                submitBtn.textContent = 'Envoyer';
+                submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                submitBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            }
+            
+            // Reload original prices
+            loadPaymentInfo();
+        }
+        
+        // Show coupon error
+        function showCouponError(message) {
+            if (couponError) {
+                couponError.textContent = message;
+                couponError.classList.remove('hidden');
+            }
+        }
+        
+        // Hide coupon error
+        function hideCouponError() {
+            if (couponError) {
+                couponError.classList.add('hidden');
+            }
+        }
+        
+        // Event listeners for coupon
+        if (applyCouponBtn) {
+            applyCouponBtn.addEventListener('click', applyCoupon);
+        }
+        
+        if (couponInput) {
+            couponInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyCoupon();
+                }
+            });
+        }
+        
+        if (removeCouponBtn) {
+            removeCouponBtn.addEventListener('click', removeCoupon);
+        }
+        
+        // Generate secure token for free order (client-side hash that server will verify)
+        async function generateSecureToken(couponId, orderId) {
+            // This creates a hash that the server will verify
+            // The server uses its own secret key to verify this
+            const userId = {{ auth()->id() ?? 0 }};
+            const data = `${couponId}|${userId}|${orderId}`;
+            
+            // Use SubtleCrypto for SHA-256 hash
+            const encoder = new TextEncoder();
+            const dataBuffer = encoder.encode(data + '{{ substr(config("app.key"), 0, 16) }}');
+            const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            return hashHex;
+        }
+        // ==================== END COUPON SYSTEM ====================
+        
         // Function to update prices when currency or payment method changes
         function updatePaymentPrices() {
             // Reload payment info to recalculate with new currency and payment method
@@ -598,6 +900,92 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('Your cart is empty');
                     return;
                 }
+                
+                // ============ CHECK FOR FREE ORDER (100% COUPON) ============
+                if (appliedCoupon && appliedCoupon.discount && appliedCoupon.discount.is_free) {
+                    isProcessing = true;
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '{{ __("coupons.processing") }}';
+                    
+                    try {
+                        // First create the order
+                        const item = cart[0];
+                        const cartItems = cart.map(item => {
+                            const cartItem = { pack_id: item.pack_id };
+                            if (item.user_id) cartItem.user_id = item.user_id;
+                            if (item.zone_id) cartItem.zone_id = item.zone_id;
+                            if (item.player_id_ff) cartItem.player_id_ff = item.player_id_ff;
+                            if (item.player_id_pubg) cartItem.player_id_pubg = item.player_id_pubg;
+                            if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
+                            if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
+                            if (item.server_bs) cartItem.server_bs = item.server_bs;
+                            return cartItem;
+                        });
+                        
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                        
+                        // Create order first
+                        const orderResponse = await fetch('{{ route("api.orders.create") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ 
+                                cart_items: cartItems,
+                                payment_method: 'coupon_free'
+                            })
+                        });
+                        
+                        const orderData = await orderResponse.json();
+                        
+                        if (!orderData.success || !orderData.orders || orderData.orders.length === 0) {
+                            throw new Error('Failed to create order');
+                        }
+                        
+                        const order = orderData.orders[0];
+                        
+                        // Generate secure token and process free order
+                        const secureToken = await generateSecureToken(appliedCoupon.id, order.id);
+                        
+                        const freeOrderResponse = await fetch('{{ route("api.coupon.process-free-order") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                coupon_code: appliedCoupon.code,
+                                order_id: order.id,
+                                secure_token: secureToken
+                            })
+                        });
+                        
+                        const freeOrderData = await freeOrderResponse.json();
+                        
+                        if (freeOrderData.success) {
+                            // Clear cart
+                            localStorage.removeItem('diaszone_cart');
+                            
+                            // Redirect to success page
+                            window.location.href = freeOrderData.redirect_url || '/dashboard/orders';
+                        } else {
+                            throw new Error(freeOrderData.message || 'Failed to process free order');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Free order error:', error);
+                        showStyledAlert('Error', error.message || 'Failed to process free order', 'error');
+                        isProcessing = false;
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = '{{ __("coupons.complete_free_order") }}';
+                    }
+                    
+                    return;
+                }
+                // ============ END FREE ORDER CHECK ============
                 
                 // If Flexy is selected, create a NEW order (even if one already exists) and navigate to flexy form
                 if (paymentMethod === 'flexy') {
