@@ -251,6 +251,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             ? 'خدمة البريد الجزائري مغلقة مؤقتاً'
                             : 'Service Temporarily Unavailable');
                         
+                        // Extract error code for documentation
+                        const technicalErrorCode = data.technical_error_code || data.error_code || 'UNKNOWN';
+                        
                         errorModal.innerHTML = `
                             <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
                                 <div class="mb-4">
@@ -262,6 +265,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <p class="text-gray-700 mb-4 leading-relaxed" style="font-size: 1rem; line-height: 1.6;">
                                     ${displayMessage}
                                 </p>
+                                
+                                <!-- Error Code Box for Documentation -->
+                                <div class="bg-gray-100 border-l-4 border-gray-400 p-3 mb-4 rounded text-left" ${isArabic ? 'style="border-right: 4px solid #9CA3AF; border-left: none; text-align: right; direction: ltr;"' : 'style="direction: ltr;"'}>
+                                    <p class="text-xs text-gray-600 font-semibold uppercase mb-1">Error Code:</p>
+                                    <p class="text-sm font-mono text-gray-800 break-all">${technicalErrorCode}</p>
+                                </div>
+                                
                                 <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-left" ${isArabic ? 'style="border-right: 4px solid #FBBF24; border-left: none; text-align: right;"' : ''}>
                                     <p class="text-sm text-yellow-800">
                                         <span class="font-semibold">💡 ${isArabic ? 'نصيحة:' : 'Tip:'}</span>
@@ -301,6 +311,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
                     errorModal.id = 'error-modal-network';
                     
+                    // Extract error code from error message if possible
+                    let technicalErrorCode = 'NETWORK_TIMEOUT';
+                    if (error.message && error.message.includes('cURL error')) {
+                        technicalErrorCode = error.message.match(/cURL error \d+/)[0] || technicalErrorCode;
+                    }
+                    
                     errorModal.innerHTML = `
                         <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
                             <div class="mb-4">
@@ -314,6 +330,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <p class="text-gray-700 mb-4 leading-relaxed">
                                 ${isArabic ? 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.' : 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding.'}
                             </p>
+                            
+                            <!-- Error Code Box for Documentation -->
+                            <div class="bg-gray-100 border-l-4 border-gray-400 p-3 mb-4 rounded text-left" ${isArabic ? 'style="border-right: 4px solid #9CA3AF; border-left: none; text-align: right; direction: ltr;"' : 'style="direction: ltr;"'}>
+                                <p class="text-xs text-gray-600 font-semibold uppercase mb-1">Error Code:</p>
+                                <p class="text-sm font-mono text-gray-800 break-all">${technicalErrorCode}</p>
+                            </div>
+                            
                             <div class="flex gap-3">
                                 <button onclick="document.getElementById('error-modal-network').remove();" 
                                         class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-3 px-6 rounded-lg transition-colors">

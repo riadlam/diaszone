@@ -770,6 +770,14 @@ class CheckoutController extends Controller
             $configKey = config('laravel-chargily-epay.key');
             $isTestKey = $configKey && str_starts_with($configKey, 'test_');
             
+            // Extract error code from message if available
+            $errorCode = null;
+            if (preg_match('/cURL error (\d+)/', $errorMessage, $matches)) {
+                $errorCode = 'cURL-' . $matches[1];
+            } elseif (preg_match('/(\d+) milliseconds/', $errorMessage, $matches)) {
+                $errorCode = 'TIMEOUT-' . $matches[1] . 'ms';
+            }
+            
             \Log::error('Baridimob payment error: ' . $errorMessage, [
                 'trace' => $e->getTraceAsString(),
                 'order_id' => $orderId ?? 'unknown',
@@ -777,6 +785,7 @@ class CheckoutController extends Controller
                 'is_timeout_error' => $isTimeoutError,
                 'is_test_key' => $isTestKey,
                 'error_message' => $errorMessage,
+                'error_code' => $errorCode,
             ]);
             
             // Provide helpful error message for timeout errors (Algerie Poste temporary outage)
@@ -799,6 +808,8 @@ class CheckoutController extends Controller
                     'message' => $userMessage,
                     'short_message' => $shortMessage,
                     'error_code' => 'SERVICE_TIMEOUT',
+                    'technical_error_code' => $errorCode,
+                    'raw_error' => $errorMessage,
                     'retry_after' => 600  // 10 minutes in seconds
                 ], 503);  // Service Unavailable status code
             }
@@ -815,13 +826,16 @@ class CheckoutController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $userMessage,
-                    'error_details' => '401 Unauthorized - Invalid API credentials'
+                    'error_details' => '401 Unauthorized - Invalid API credentials',
+                    'technical_error_code' => $errorCode,
                 ], 401);
             }
             
             return response()->json([
                 'success' => false,
-                'message' => 'Payment processing failed: ' . $errorMessage
+                'message' => 'Payment processing failed: ' . $errorMessage,
+                'technical_error_code' => $errorCode,
+                'raw_error' => $errorMessage
             ], 500);
         }
     }
