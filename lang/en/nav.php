@@ -6,6 +6,7 @@ return [
     'contact' => 'Contact Us',
     'cart' => 'Cart',
     'my_orders' => 'My Orders',
+    'login' => 'Login',
     'search_placeholder' => 'Search products...',
     'menu' => 'Menu',
 ];
