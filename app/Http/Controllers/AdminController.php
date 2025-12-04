@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Order;
+use App\Models\Coupon;
 use App\Models\VipResellerStatus;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
@@ -1664,6 +1665,348 @@ class AdminController extends Controller
                         return response()->json(['ok' => true]);
                     }
                 }
+                
+                // ==================== COUPON COMMANDS ====================
+                
+                // /coupon help - Show available commands
+                if ($text === '/coupon' || $text === '/coupon help') {
+                    $helpMessage = "🎟️ <b>Coupon Commands</b>\n\n";
+                    $helpMessage .= "📝 <b>Create Coupon:</b>\n";
+                    $helpMessage .= "<code>/coupon create CODE 10% all</code>\n";
+                    $helpMessage .= "<code>/coupon create CODE 500dzd mlbb</code>\n";
+                    $helpMessage .= "<code>/coupon create CODE 100% mlbb:5,10</code>\n\n";
+                    $helpMessage .= "📋 <b>List Coupons:</b>\n";
+                    $helpMessage .= "<code>/coupon list</code>\n\n";
+                    $helpMessage .= "🔍 <b>View Coupon:</b>\n";
+                    $helpMessage .= "<code>/coupon view CODE</code>\n\n";
+                    $helpMessage .= "🚫 <b>Disable Coupon:</b>\n";
+                    $helpMessage .= "<code>/coupon disable CODE</code>\n\n";
+                    $helpMessage .= "✅ <b>Enable Coupon:</b>\n";
+                    $helpMessage .= "<code>/coupon enable CODE</code>\n\n";
+                    $helpMessage .= "🗑️ <b>Delete Coupon:</b>\n";
+                    $helpMessage .= "<code>/coupon delete CODE</code>\n\n";
+                    $helpMessage .= "📊 <b>Coupon Stats:</b>\n";
+                    $helpMessage .= "<code>/coupon stats CODE</code>\n\n";
+                    $helpMessage .= "⚙️ <b>Options:</b>\n";
+                    $helpMessage .= "• <code>--max=10</code> Max total uses\n";
+                    $helpMessage .= "• <code>--peruser=1</code> Max per user\n";
+                    $helpMessage .= "• <code>--expires=7d</code> Expires in 7 days\n";
+                    $helpMessage .= "• <code>--min=500</code> Min order amount";
+                    
+                    TelegramService::sendMessage($helpMessage);
+                    return response()->json(['ok' => true]);
+                }
+                
+                // /coupon create CODE DISCOUNT TARGET [options]
+                if (preg_match('/^\/coupon create (\S+) (\d+)(%)?(dzd)? (.+)$/i', $text, $matches)) {
+                    try {
+                        $code = strtoupper(trim($matches[1]));
+                        $discountValue = (float) $matches[2];
+                        $isPercentage = !empty($matches[3]);
+                        $isFixed = !empty($matches[4]);
+                        $targetAndOptions = trim($matches[5]);
+                        
+                        // Check if coupon already exists
+                        if (Coupon::where('code', $code)->exists()) {
+                            TelegramService::sendMessage("❌ Coupon <code>{$code}</code> already exists.");
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        // Parse target and options
+                        $parts = explode(' ', $targetAndOptions);
+                        $target = strtolower($parts[0]); // all, mlbb, freefire, mlbb:5,10
+                        
+                        // Parse options
+                        $options = [
+                            'max_uses' => null,
+                            'max_uses_per_user' => 1,
+                            'expires_at' => null,
+                            'min_order_amount' => null,
+                        ];
+                        
+                        foreach ($parts as $part) {
+                            if (preg_match('/^--max=(\d+)$/i', $part, $m)) {
+                                $options['max_uses'] = (int) $m[1];
+                            } elseif (preg_match('/^--peruser=(\d+)$/i', $part, $m)) {
+                                $options['max_uses_per_user'] = (int) $m[1];
+                            } elseif (preg_match('/^--expires=(\d+)([dhm])$/i', $part, $m)) {
+                                $value = (int) $m[1];
+                                $unit = strtolower($m[2]);
+                                if ($unit === 'd') {
+                                    $options['expires_at'] = now()->addDays($value);
+                                } elseif ($unit === 'h') {
+                                    $options['expires_at'] = now()->addHours($value);
+                                } elseif ($unit === 'm') {
+                                    $options['expires_at'] = now()->addMinutes($value);
+                                }
+                            } elseif (preg_match('/^--min=(\d+)$/i', $part, $m)) {
+                                $options['min_order_amount'] = (float) $m[1];
+                            }
+                        }
+                        
+                        // Parse target
+                        $appliesTo = 'all';
+                        $allowedGames = null;
+                        $allowedPackages = null;
+                        
+                        if ($target !== 'all') {
+                            $appliesTo = 'specific';
+                            
+                            // Check if specific packages: mlbb:5,10,15
+                            if (strpos($target, ':') !== false) {
+                                list($game, $packages) = explode(':', $target, 2);
+                                $allowedGames = [$game];
+                                $allowedPackages = array_map('intval', explode(',', $packages));
+                            } else {
+                                // Just game: mlbb, freefire, pubg
+                                $allowedGames = [$target];
+                            }
+                        }
+                        
+                        // Create coupon
+                        $coupon = Coupon::create([
+                            'code' => $code,
+                            'discount_type' => $isPercentage ? 'percentage' : 'fixed',
+                            'discount_value' => $discountValue,
+                            'applies_to' => $appliesTo,
+                            'allowed_games' => $allowedGames,
+                            'allowed_packages' => $allowedPackages,
+                            'max_uses' => $options['max_uses'],
+                            'max_uses_per_user' => $options['max_uses_per_user'],
+                            'expires_at' => $options['expires_at'],
+                            'min_order_amount' => $options['min_order_amount'],
+                            'is_active' => true,
+                            'created_by' => 'Telegram',
+                        ]);
+                        
+                        $discountText = $isPercentage ? "{$discountValue}%" : "{$discountValue} DZD";
+                        $targetText = $target === 'all' ? 'All products' : $target;
+                        
+                        $successMessage = "✅ <b>Coupon Created!</b>\n\n";
+                        $successMessage .= "🎟️ <b>Code:</b> <code>{$code}</code>\n";
+                        $successMessage .= "💰 <b>Discount:</b> {$discountText}\n";
+                        $successMessage .= "🎯 <b>Target:</b> {$targetText}\n";
+                        if ($options['max_uses']) {
+                            $successMessage .= "🔢 <b>Max Uses:</b> {$options['max_uses']}\n";
+                        }
+                        $successMessage .= "👤 <b>Per User:</b> {$options['max_uses_per_user']}\n";
+                        if ($options['expires_at']) {
+                            $successMessage .= "⏰ <b>Expires:</b> " . $options['expires_at']->format('Y-m-d H:i') . "\n";
+                        }
+                        if ($options['min_order_amount']) {
+                            $successMessage .= "💵 <b>Min Order:</b> {$options['min_order_amount']} DZD";
+                        }
+                        
+                        TelegramService::sendMessage($successMessage);
+                        return response()->json(['ok' => true]);
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error creating coupon', ['error' => $e->getMessage()]);
+                        TelegramService::sendMessage("❌ Error creating coupon: " . $e->getMessage());
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
+                // /coupon list
+                if ($text === '/coupon list') {
+                    try {
+                        $coupons = Coupon::orderBy('created_at', 'desc')->take(20)->get();
+                        
+                        if ($coupons->isEmpty()) {
+                            TelegramService::sendMessage("📋 No coupons found.");
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        $listMessage = "📋 <b>Coupons List</b>\n\n";
+                        
+                        foreach ($coupons as $coupon) {
+                            $status = $coupon->is_active ? '✅' : '❌';
+                            $discountText = $coupon->discount_type === 'percentage' 
+                                ? "{$coupon->discount_value}%" 
+                                : "{$coupon->discount_value} DZD";
+                            
+                            $listMessage .= "{$status} <code>{$coupon->code}</code> - {$discountText}";
+                            $listMessage .= " ({$coupon->used_count}";
+                            if ($coupon->max_uses) {
+                                $listMessage .= "/{$coupon->max_uses}";
+                            }
+                            $listMessage .= " uses)\n";
+                        }
+                        
+                        TelegramService::sendMessage($listMessage);
+                        return response()->json(['ok' => true]);
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error listing coupons', ['error' => $e->getMessage()]);
+                        TelegramService::sendMessage("❌ Error listing coupons.");
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
+                // /coupon view CODE
+                if (preg_match('/^\/coupon view (\S+)$/i', $text, $matches)) {
+                    try {
+                        $code = strtoupper(trim($matches[1]));
+                        $coupon = Coupon::where('code', $code)->first();
+                        
+                        if (!$coupon) {
+                            TelegramService::sendMessage("❌ Coupon <code>{$code}</code> not found.");
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        $status = $coupon->is_active ? '✅ Active' : '❌ Disabled';
+                        $discountText = $coupon->discount_type === 'percentage' 
+                            ? "{$coupon->discount_value}%" 
+                            : "{$coupon->discount_value} DZD";
+                        
+                        $viewMessage = "🎟️ <b>Coupon Details</b>\n\n";
+                        $viewMessage .= "📝 <b>Code:</b> <code>{$coupon->code}</code>\n";
+                        $viewMessage .= "📊 <b>Status:</b> {$status}\n";
+                        $viewMessage .= "💰 <b>Discount:</b> {$discountText}\n";
+                        $viewMessage .= "🎯 <b>Applies to:</b> {$coupon->applies_to}\n";
+                        
+                        if ($coupon->allowed_games) {
+                            $viewMessage .= "🎮 <b>Games:</b> " . implode(', ', $coupon->allowed_games) . "\n";
+                        }
+                        if ($coupon->allowed_packages) {
+                            $viewMessage .= "📦 <b>Packages:</b> " . implode(', ', $coupon->allowed_packages) . "\n";
+                        }
+                        
+                        $viewMessage .= "🔢 <b>Used:</b> {$coupon->used_count}";
+                        if ($coupon->max_uses) {
+                            $viewMessage .= " / {$coupon->max_uses}";
+                        }
+                        $viewMessage .= "\n";
+                        $viewMessage .= "👤 <b>Per User:</b> {$coupon->max_uses_per_user}\n";
+                        
+                        if ($coupon->min_order_amount) {
+                            $viewMessage .= "💵 <b>Min Order:</b> {$coupon->min_order_amount} DZD\n";
+                        }
+                        if ($coupon->expires_at) {
+                            $viewMessage .= "⏰ <b>Expires:</b> " . $coupon->expires_at->format('Y-m-d H:i') . "\n";
+                        }
+                        
+                        $viewMessage .= "📅 <b>Created:</b> " . $coupon->created_at->format('Y-m-d H:i');
+                        
+                        TelegramService::sendMessage($viewMessage);
+                        return response()->json(['ok' => true]);
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error viewing coupon', ['error' => $e->getMessage()]);
+                        TelegramService::sendMessage("❌ Error viewing coupon.");
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
+                // /coupon disable CODE
+                if (preg_match('/^\/coupon disable (\S+)$/i', $text, $matches)) {
+                    try {
+                        $code = strtoupper(trim($matches[1]));
+                        $coupon = Coupon::where('code', $code)->first();
+                        
+                        if (!$coupon) {
+                            TelegramService::sendMessage("❌ Coupon <code>{$code}</code> not found.");
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        $coupon->is_active = false;
+                        $coupon->save();
+                        
+                        TelegramService::sendMessage("🚫 Coupon <code>{$code}</code> has been disabled.");
+                        return response()->json(['ok' => true]);
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error disabling coupon', ['error' => $e->getMessage()]);
+                        TelegramService::sendMessage("❌ Error disabling coupon.");
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
+                // /coupon enable CODE
+                if (preg_match('/^\/coupon enable (\S+)$/i', $text, $matches)) {
+                    try {
+                        $code = strtoupper(trim($matches[1]));
+                        $coupon = Coupon::where('code', $code)->first();
+                        
+                        if (!$coupon) {
+                            TelegramService::sendMessage("❌ Coupon <code>{$code}</code> not found.");
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        $coupon->is_active = true;
+                        $coupon->save();
+                        
+                        TelegramService::sendMessage("✅ Coupon <code>{$code}</code> has been enabled.");
+                        return response()->json(['ok' => true]);
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error enabling coupon', ['error' => $e->getMessage()]);
+                        TelegramService::sendMessage("❌ Error enabling coupon.");
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
+                // /coupon delete CODE
+                if (preg_match('/^\/coupon delete (\S+)$/i', $text, $matches)) {
+                    try {
+                        $code = strtoupper(trim($matches[1]));
+                        $coupon = Coupon::where('code', $code)->first();
+                        
+                        if (!$coupon) {
+                            TelegramService::sendMessage("❌ Coupon <code>{$code}</code> not found.");
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        $coupon->delete();
+                        
+                        TelegramService::sendMessage("🗑️ Coupon <code>{$code}</code> has been deleted.");
+                        return response()->json(['ok' => true]);
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error deleting coupon', ['error' => $e->getMessage()]);
+                        TelegramService::sendMessage("❌ Error deleting coupon.");
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
+                // /coupon stats CODE
+                if (preg_match('/^\/coupon stats (\S+)$/i', $text, $matches)) {
+                    try {
+                        $code = strtoupper(trim($matches[1]));
+                        $coupon = Coupon::with('usages.user')->where('code', $code)->first();
+                        
+                        if (!$coupon) {
+                            TelegramService::sendMessage("❌ Coupon <code>{$code}</code> not found.");
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        $totalDiscount = $coupon->usages->sum('discount_applied');
+                        $uniqueUsers = $coupon->usages->pluck('user_id')->unique()->count();
+                        
+                        $statsMessage = "📊 <b>Coupon Stats: {$code}</b>\n\n";
+                        $statsMessage .= "🔢 <b>Total Uses:</b> {$coupon->used_count}\n";
+                        $statsMessage .= "👥 <b>Unique Users:</b> {$uniqueUsers}\n";
+                        $statsMessage .= "💰 <b>Total Discount Given:</b> " . number_format($totalDiscount, 2) . " DZD\n\n";
+                        
+                        if ($coupon->usages->count() > 0) {
+                            $statsMessage .= "<b>Recent Uses:</b>\n";
+                            foreach ($coupon->usages->take(5) as $usage) {
+                                $userName = $usage->user ? $usage->user->name : 'Unknown';
+                                $statsMessage .= "• {$userName} - " . number_format($usage->discount_applied, 2) . " DZD (" . $usage->created_at->format('M d') . ")\n";
+                            }
+                        }
+                        
+                        TelegramService::sendMessage($statsMessage);
+                        return response()->json(['ok' => true]);
+                        
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error getting coupon stats', ['error' => $e->getMessage()]);
+                        TelegramService::sendMessage("❌ Error getting coupon stats.");
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
+                // ==================== END COUPON COMMANDS ====================
             }
             
             return response()->json(['ok' => true]);
