@@ -770,14 +770,17 @@ class CheckoutController extends Controller
             $configKey = config('laravel-chargily-epay.key');
             $isTestKey = $configKey && str_starts_with($configKey, 'test_');
             
-            // Extract error code from message if available
-            $errorCode = 'UNKNOWN';
+            // Extract error code - simple numeric format for documentation
+            // ERR-028 = cURL timeout, ERR-401 = Auth failed, ERR-500 = Server error, ERR-503 = Service unavailable
+            $errorCode = 'ERR-500';  // Default generic error
             if (preg_match('/cURL error (\d+)/', $errorMessage, $matches)) {
-                $errorCode = 'cURL Error ' . $matches[1];
-            } elseif (preg_match('/Connection timed out after (\d+) milliseconds/', $errorMessage, $matches)) {
-                $errorCode = 'Connection Timeout (' . $matches[1] . 'ms)';
-            } elseif (preg_match('/(\d+) milliseconds/', $errorMessage, $matches)) {
-                $errorCode = 'Timeout (' . $matches[1] . 'ms)';
+                $errorCode = 'ERR-0' . $matches[1];  // e.g., ERR-028 for cURL error 28
+            } elseif (str_contains($errorMessage, 'Connection timed out') || str_contains($errorMessage, 'timeout')) {
+                $errorCode = 'ERR-028';  // Timeout error code
+            } elseif (str_contains($errorMessage, '401') || str_contains($errorMessage, 'Unauthorized')) {
+                $errorCode = 'ERR-401';
+            } elseif (str_contains($errorMessage, '503')) {
+                $errorCode = 'ERR-503';
             }
             
             \Log::error('Baridimob payment error: ' . $errorMessage, [
@@ -807,11 +810,12 @@ class CheckoutController extends Controller
                 
                 return response()->json([
                     'success' => false,
-                    'message' => $userMessage,
+                    'message' => $userMessage,  // Friendly message only, no technical details
                     'short_message' => $shortMessage,
-                    'error_code' => $errorCode,  // This will be like "cURL Error 28" or "Connection Timeout (10002ms)"
-                    'retry_after' => 600  // 10 minutes in seconds
-                ], 503);  // Service Unavailable status code
+                    'error_code' => $errorCode,  // Simple code like ERR-028 for documentation
+                    'retry_after' => 600,
+                    'is_timeout' => true
+                ], 503);
             }
             
             // Provide helpful error message for 401 errors

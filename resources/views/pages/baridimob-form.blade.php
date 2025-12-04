@@ -217,75 +217,67 @@ document.addEventListener('DOMContentLoaded', function() {
                     success: data.success,
                     error_code: data.error_code,
                     status: response.status,
-                    message: data.message,
-                    short_message: data.short_message
+                    is_timeout: data.is_timeout
                 });
                 
                 if (data.success && data.checkout_url) {
                     // Redirect to Chargily checkout
                     window.location.href = data.checkout_url;
                 } else {
-                    // Check if it's a timeout error (either from error_code or by checking message/status)
-                    const isTimeoutError = data.error_code === 'SERVICE_TIMEOUT' 
+                    // Check if it's a timeout/service error using is_timeout flag or status code
+                    const isServiceError = data.is_timeout === true 
                         || response.status === 503 
-                        || (data.message && data.message.includes('Connection timed out'))
-                        || (data.message && data.message.includes('cURL error 28'))
-                        || (data.message && data.message.includes('timeout'));
+                        || response.status === 502
+                        || (data.error_code && data.error_code.startsWith('ERR-0'));
                     
-                    console.log('Is timeout error?', isTimeoutError, { error_code: data.error_code, status: response.status });
+                    console.log('Is service error?', isServiceError, { error_code: data.error_code, status: response.status });
                     
-                    if (isTimeoutError) {
-                        // Show error modal with proper styling for Arabic text
+                    if (isServiceError) {
+                        // Show FRIENDLY error modal - NO technical details to user
                         const errorModal = document.createElement('div');
                         errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
                         errorModal.id = 'error-modal-timeout';
                         
                         const isArabic = document.documentElement.dir === 'rtl';
                         
-                        // Use message from response if available
-                        const displayMessage = data.message || (isArabic 
-                            ? 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.'
-                            : 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding.');
+                        // Friendly messages only - no technical error details
+                        const friendlyMessage = isArabic 
+                            ? 'عذراً، خدمة الدفع غير متوفرة حالياً. يرجى إعادة المحاولة خلال 10 دقائق. شكراً لصبرك.'
+                            : 'Sorry, the payment service is temporarily unavailable. Please try again in 10 minutes. Thank you for your patience.';
                         
-                        const shortMessage = data.short_message || (isArabic 
-                            ? 'خدمة البريد الجزائري مغلقة مؤقتاً'
-                            : 'Service Temporarily Unavailable');
+                        const shortMessage = isArabic 
+                            ? 'خدمة الدفع غير متوفرة مؤقتاً'
+                            : 'Payment Service Unavailable';
                         
-                        // Extract error code properly - should be something like "cURL Error 28" or "Connection Timeout (10002ms)"
-                        const errorCode = data.error_code || 'UNKNOWN_ERROR';
+                        // Simple error code for documentation (e.g., ERR-028)
+                        const errorCode = data.error_code || 'ERR-500';
                         
                         errorModal.innerHTML = `
                             <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
                                 <div class="mb-4">
                                     <svg class="w-16 h-16 text-yellow-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                                     </svg>
                                 </div>
-                                <h2 class="text-xl font-bold text-gray-900 mb-3">${shortMessage}</h2>
-                                <p class="text-gray-700 mb-4 leading-relaxed" style="font-size: 1rem; line-height: 1.6;">
-                                    ${displayMessage}
+                                <h2 class="text-xl font-bold text-gray-900 mb-4">${shortMessage}</h2>
+                                <p class="text-gray-600 mb-6 leading-relaxed">
+                                    ${friendlyMessage}
                                 </p>
                                 
-                                <!-- Error Code Box for Documentation -->
-                                <div class="bg-gray-100 border-l-4 border-gray-400 p-3 mb-4 rounded text-left" ${isArabic ? 'style="border-right: 4px solid #9CA3AF; border-left: none; text-align: right; direction: ltr;"' : 'style="direction: ltr;"'}>
-                                    <p class="text-xs text-gray-600 font-semibold uppercase mb-1">Error Code:</p>
-                                    <p class="text-sm font-mono text-gray-800 break-all">${errorCode}</p>
+                                <!-- Simple Error Code Box -->
+                                <div class="bg-gray-50 rounded-lg py-2 px-4 mb-6 inline-block">
+                                    <span class="text-xs text-gray-500 uppercase">${isArabic ? 'رمز الخطأ' : 'Error Code'}:</span>
+                                    <span class="text-sm font-mono font-bold text-gray-700 ml-2">${errorCode}</span>
                                 </div>
                                 
-                                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-left" ${isArabic ? 'style="border-right: 4px solid #FBBF24; border-left: none; text-align: right;"' : ''}>
-                                    <p class="text-sm text-yellow-800">
-                                        <span class="font-semibold">💡 ${isArabic ? 'نصيحة:' : 'Tip:'}</span>
-                                        ${isArabic ? 'يرجى محاولة الدفع مرة أخرى خلال 10 دقائق' : 'Please try again in 10 minutes'}
-                                    </p>
-                                </div>
                                 <div class="flex gap-3">
                                     <button onclick="document.getElementById('error-modal-timeout').remove();" 
-                                            class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-3 px-6 rounded-lg transition-colors">
+                                            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors">
                                         ${isArabic ? 'إغلاق' : 'Close'}
                                     </button>
                                     <button onclick="location.reload();" 
-                                            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                                        ${isArabic ? 'إعادة محاولة' : 'Retry'}
+                                            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                                        ${isArabic ? 'إعادة المحاولة' : 'Try Again'}
                                     </button>
                                 </div>
                             </div>
@@ -302,57 +294,51 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Error processing payment:', error);
                 
-                // Check if error contains timeout indicators
-                const errorMsg = error.toString().toLowerCase();
-                if (errorMsg.includes('timeout') || errorMsg.includes('network')) {
-                    // Show timeout error modal
-                    const isArabic = document.documentElement.dir === 'rtl';
-                    const errorModal = document.createElement('div');
-                    errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
-                    errorModal.id = 'error-modal-network';
-                    
-                    // Extract error code from error message if possible
-                    let technicalErrorCode = 'NETWORK_TIMEOUT';
-                    if (error.message && error.message.includes('cURL error')) {
-                        technicalErrorCode = error.message.match(/cURL error \d+/)[0] || technicalErrorCode;
-                    }
-                    
-                    errorModal.innerHTML = `
-                        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
-                            <div class="mb-4">
-                                <svg class="w-16 h-16 text-yellow-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <h2 class="text-xl font-bold text-gray-900 mb-3">
-                                ${isArabic ? 'خدمة البريد الجزائري مغلقة مؤقتاً' : 'Service Temporarily Unavailable'}
-                            </h2>
-                            <p class="text-gray-700 mb-4 leading-relaxed">
-                                ${isArabic ? 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.' : 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding.'}
-                            </p>
-                            
-                            <!-- Error Code Box for Documentation -->
-                            <div class="bg-gray-100 border-l-4 border-gray-400 p-3 mb-4 rounded text-left" ${isArabic ? 'style="border-right: 4px solid #9CA3AF; border-left: none; text-align: right; direction: ltr;"' : 'style="direction: ltr;"'}>
-                                <p class="text-xs text-gray-600 font-semibold uppercase mb-1">Error Code:</p>
-                                <p class="text-sm font-mono text-gray-800 break-all">${technicalErrorCode}</p>
-                            </div>
-                            
-                            <div class="flex gap-3">
-                                <button onclick="document.getElementById('error-modal-network').remove();" 
-                                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-semibold py-3 px-6 rounded-lg transition-colors">
-                                    ${isArabic ? 'إغلاق' : 'Close'}
-                                </button>
-                                <button onclick="location.reload();" 
-                                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                                    ${isArabic ? 'إعادة محاولة' : 'Retry'}
-                                </button>
-                            </div>
+                // Network/connection error - show friendly modal
+                const isArabic = document.documentElement.dir === 'rtl';
+                const errorModal = document.createElement('div');
+                errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+                errorModal.id = 'error-modal-network';
+                
+                const friendlyMessage = isArabic 
+                    ? 'عذراً، حدث خطأ في الاتصال. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.'
+                    : 'Sorry, a connection error occurred. Please check your internet connection and try again.';
+                
+                const shortMessage = isArabic 
+                    ? 'خطأ في الاتصال'
+                    : 'Connection Error';
+                
+                errorModal.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
+                        <div class="mb-4">
+                            <svg class="w-16 h-16 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
                         </div>
-                    `;
-                    document.body.appendChild(errorModal);
-                } else {
-                    alert('An error occurred. Please try again.');
-                }
+                        <h2 class="text-xl font-bold text-gray-900 mb-4">${shortMessage}</h2>
+                        <p class="text-gray-600 mb-6 leading-relaxed">
+                            ${friendlyMessage}
+                        </p>
+                        
+                        <!-- Simple Error Code Box -->
+                        <div class="bg-gray-50 rounded-lg py-2 px-4 mb-6 inline-block">
+                            <span class="text-xs text-gray-500 uppercase">${isArabic ? 'رمز الخطأ' : 'Error Code'}:</span>
+                            <span class="text-sm font-mono font-bold text-gray-700 ml-2">ERR-NET</span>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="document.getElementById('error-modal-network').remove();" 
+                                    class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors">
+                                ${isArabic ? 'إغلاق' : 'Close'}
+                            </button>
+                            <button onclick="location.reload();" 
+                                    class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                                ${isArabic ? 'إعادة المحاولة' : 'Try Again'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(errorModal);
                 
                 proceedBtn.disabled = false;
                 proceedBtn.textContent = 'Proceed with Baridimob';
