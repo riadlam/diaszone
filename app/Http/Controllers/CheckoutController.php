@@ -381,6 +381,24 @@ class CheckoutController extends Controller
     }
     
     /**
+     * Order success page for free coupon orders
+     */
+    public function orderSuccess(Order $order)
+    {
+        // Verify order belongs to current user
+        if ($order->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+        
+        // Load relationships
+        $order->load(['diamondPack', 'coupon']);
+        
+        return view('pages.order-success', [
+            'order' => $order,
+        ]);
+    }
+    
+    /**
      * API endpoint to get order by encrypted order_id
      * 
      * This endpoint:

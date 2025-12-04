@@ -86,6 +86,11 @@ Route::post('/webhook/telegram', [AdminController::class, 'telegramWebhook'])
 Route::get('/crypto/{encrypted_order_id}', [CheckoutController::class, 'cryptoPayment'])->name('crypto-payment');
 Route::get('/crypto/{encrypted_order_id}/success', [CheckoutController::class, 'cryptoPaymentSuccess'])->name('crypto-payment-success');
 
+// Order success page for free coupon orders
+Route::get('/order/success/{order}', [CheckoutController::class, 'orderSuccess'])
+    ->middleware('auth')
+    ->name('order.success');
+
 // API routes with rate limiting
 Route::post('/api/packs', [CheckoutController::class, 'getPacks'])
     ->middleware('throttle:30,1') // 30 requests per minute

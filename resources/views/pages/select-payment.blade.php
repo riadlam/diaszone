@@ -855,16 +855,16 @@ document.addEventListener('DOMContentLoaded', function() {
             removeCouponBtn.addEventListener('click', removeCoupon);
         }
         
-        // Generate secure token for free order (client-side hash that server will verify)
+        // Generate secure token for free order
+        // This is a simple hash that the server will verify using the coupon's own method
         async function generateSecureToken(couponId, orderId) {
-            // This creates a hash that the server will verify
-            // The server uses its own secret key to verify this
             const userId = {{ auth()->id() ?? 0 }};
-            const data = `${couponId}|${userId}|${orderId}`;
+            // Match the exact format the server expects: couponId|userId|orderId|appKey
+            const data = `${couponId}|${userId}|${orderId}|{{ config('app.key') }}`;
             
             // Use SubtleCrypto for SHA-256 hash
             const encoder = new TextEncoder();
-            const dataBuffer = encoder.encode(data + '{{ substr(config("app.key"), 0, 16) }}');
+            const dataBuffer = encoder.encode(data);
             const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
