@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\DiamondPack;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
+use App\Models\VipResellerStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -295,30 +296,144 @@ class CouponController extends Controller
                 'new_count' => $coupon->used_count,
             ]);
 
-            // Process the top-up via VIP Reseller
-            Log::info('Free order: Calling VIP Reseller API', [
-                'player_id' => $order->player_id,
-                'server_id' => $order->server_id,
-                'diamonds' => $diamondPack->diamonds,
+            // Process the top-up via VIP Reseller (same flow as processChargilyRecharge)
+            // Step 1: Get package code from diamond pack
+            $packageCode = $diamondPack->code ?? null;
+            
+            if (empty($packageCode)) {
+                Log::warning('Free order: Missing package code', [
+                    'order_id' => $order->id,
+                    'diamond_pack_id' => $diamondPack->id,
+                ]);
+                throw new \Exception('Package code not found');
+            }
+            
+            // Step 2: Validate nickname before processing
+            Log::info('Free order: Validating nickname', [
+                'user_id_ml' => $order->user_id_ml,
+                'zone_id_ml' => $order->zone_id_ml,
             ]);
             
-            $topUpResult = $this->vipResellerService->topUpMlbb(
-                $order->player_id,
-                $order->server_id,
-                $diamondPack->diamonds
+            $nicknameValidation = $this->vipResellerService->checkNickname($order->user_id_ml, $order->zone_id_ml);
+            
+            if ($nicknameValidation['result'] !== true) {
+                Log::error('Free order: Nickname validation failed', [
+                    'order_id' => $order->id,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                    'validation_message' => $nicknameValidation['message'] ?? 'Unknown error',
+                ]);
+                throw new \Exception('Nickname validation failed: ' . ($nicknameValidation['message'] ?? 'Invalid User ID or Zone ID'));
+            }
+            
+            $nickname = $nicknameValidation['data'] ?? 'Unknown';
+            Log::info('Free order: Nickname validated', [
+                'nickname' => $nickname,
+            ]);
+            
+            // Step 3: Call VIP Reseller API to place order
+            Log::info('Free order: Calling VIP Reseller placeOrder', [
+                'package_code' => $packageCode,
+                'user_id_ml' => $order->user_id_ml,
+                'zone_id_ml' => $order->zone_id_ml,
+            ]);
+            
+            $topUpResult = $this->vipResellerService->placeOrder(
+                $packageCode,
+                $order->user_id_ml,
+                $order->zone_id_ml
             );
             
             Log::info('Free order: VIP Reseller API response', [
-                'success' => $topUpResult['success'],
-                'order_id' => $topUpResult['order_id'] ?? null,
+                'result' => $topUpResult['result'],
+                'data' => $topUpResult['data'] ?? null,
                 'message' => $topUpResult['message'] ?? null,
             ]);
 
-            if ($topUpResult['success']) {
-                $order->update([
-                    'status' => 'completed',
-                    'vip_reseller_order_id' => $topUpResult['order_id'] ?? null,
+            // Step 4: Save response to vipreseller_status table (same as Chargily flow)
+            $apiData = $topUpResult['data'] ?? [];
+            $apiStatus = $apiData['status'] ?? 'error';
+            
+            // Map API status to our enum
+            $vipStatus = match(strtolower($apiStatus)) {
+                'waiting' => 'waiting',
+                'success', 'completed', 'paid' => 'success',
+                default => 'error',
+            };
+            
+            if ($topUpResult['result'] !== true) {
+                $vipStatus = 'error';
+            }
+            
+            // Prepare additional data
+            $additionalData = [
+                'full_response' => $topUpResult,
+                'balance' => $apiData['balance'] ?? null,
+                'message' => $topUpResult['message'] ?? null,
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'payment_method' => 'coupon_free',
+                'coupon_code' => $coupon->code,
+            ];
+            
+            // Save to vipreseller_status table
+            $vipResellerStatus = VipResellerStatus::create([
+                'order_id' => $order->id,
+                'trxid' => $apiData['trxid'] ?? null,
+                'data' => $apiData['data'] ?? $order->user_id_ml,
+                'zone' => $apiData['zone'] ?? $order->zone_id_ml,
+                'service' => $apiData['service'] ?? $packageCode,
+                'status' => $vipStatus,
+                'note' => $apiData['note'] ?? ($topUpResult['message'] ?? null),
+                'price' => $apiData['price'] ?? null,
+                'additional_data' => $additionalData,
+            ]);
+            
+            Log::info('Free order: VIP Reseller status saved', [
+                'vipreseller_status_id' => $vipResellerStatus->id,
+                'trxid' => $vipResellerStatus->trxid,
+                'status' => $vipStatus,
+            ]);
+
+            // Step 5: Update order status based on VIP Reseller response
+            if ($vipStatus === 'waiting') {
+                // VIP Reseller is processing - keep status as 'sending'
+                // The VIP Reseller webhook will update to 'completed' later
+                $order->update(['status' => 'sending']);
+                
+                DB::commit();
+                
+                Log::info('=== FREE ORDER SUBMITTED - WAITING FOR VIP RESELLER ===', [
+                    'order_id' => $order->id,
+                    'user_id' => $user->id,
+                    'coupon_code' => $coupon->code,
+                    'vip_status' => $vipStatus,
+                    'trxid' => $vipResellerStatus->trxid,
                 ]);
+                
+                // Send Telegram notification
+                $this->sendFreeOrderNotification($user, $order, $coupon, $diamondPack, 'waiting', $vipResellerStatus->trxid);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => __('coupons.order_processing'),
+                    'redirect_url' => route('order.success', ['order' => $order->id]),
+                ]);
+                
+            } elseif ($vipStatus === 'success') {
+                // VIP Reseller completed immediately
+                $order->update(['status' => 'completed']);
+                
+                // Fetch and save balance
+                try {
+                    $profileResult = $this->vipResellerService->getProfile();
+                    if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                        $vipResellerStatus->balance = (string) $profileResult['data']['balance'];
+                        $vipResellerStatus->save();
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to fetch balance after free order', ['error' => $e->getMessage()]);
+                }
 
                 DB::commit();
                 
@@ -326,29 +441,33 @@ class CouponController extends Controller
                     'order_id' => $order->id,
                     'user_id' => $user->id,
                     'coupon_code' => $coupon->code,
-                    'diamonds' => $diamondPack->diamonds,
-                    'vip_order_id' => $topUpResult['order_id'] ?? null,
+                    'trxid' => $vipResellerStatus->trxid,
                 ]);
 
-                // Send Telegram notification for free order (fraud monitoring)
-                $this->sendFreeOrderNotification($user, $order, $coupon, $diamondPack);
+                // Send Telegram notification
+                $this->sendFreeOrderNotification($user, $order, $coupon, $diamondPack, 'success', $vipResellerStatus->trxid);
 
                 return response()->json([
                     'success' => true,
                     'message' => __('coupons.order_completed'),
                     'redirect_url' => route('order.success', ['order' => $order->id]),
                 ]);
+                
             } else {
-                // Top-up failed
-                $order->update(['status' => 'failed']);
+                // VIP Reseller returned error
+                $order->update(['status' => 'cancelled']);
                 DB::commit();
 
-                Log::error('=== FREE ORDER FAILED - TOP-UP ERROR ===', [
+                Log::error('=== FREE ORDER FAILED - VIP RESELLER ERROR ===', [
                     'order_id' => $order->id,
                     'user_id' => $user->id,
+                    'vip_status' => $vipStatus,
                     'error' => $topUpResult['message'] ?? 'Unknown error',
                     'api_response' => $topUpResult,
                 ]);
+                
+                // Send Telegram notification for failed order
+                $this->sendFreeOrderNotification($user, $order, $coupon, $diamondPack, 'error', null, $topUpResult['message'] ?? 'Unknown error');
 
                 return response()->json([
                     'success' => false,
@@ -379,19 +498,43 @@ class CouponController extends Controller
     /**
      * Send Telegram notification for free orders (fraud monitoring)
      */
-    protected function sendFreeOrderNotification($user, $order, $coupon, $diamondPack)
+    protected function sendFreeOrderNotification($user, $order, $coupon, $diamondPack, $status = 'success', $trxid = null, $errorMessage = null)
     {
         try {
-            $message = "🎁 *FREE ORDER PROCESSED*\n\n"
+            $statusEmoji = match($status) {
+                'success' => '✅',
+                'waiting' => '⏳',
+                'error' => '❌',
+                default => '🎁',
+            };
+            
+            $statusText = match($status) {
+                'success' => 'COMPLETED',
+                'waiting' => 'PROCESSING',
+                'error' => 'FAILED',
+                default => 'PROCESSED',
+            };
+            
+            $message = "{$statusEmoji} <b>FREE ORDER {$statusText}</b>\n\n"
                 . "👤 User: {$user->name} (ID: {$user->id})\n"
                 . "📧 Email: {$user->email}\n"
-                . "🎮 Player: {$order->player_id} (Server: {$order->server_id})\n"
+                . "🎮 Player: {$order->user_id_ml} (Zone: {$order->zone_id_ml})\n"
                 . "💎 Pack: {$diamondPack->diamonds} diamonds\n"
                 . "💰 Original Price: {$diamondPack->price} DZD\n"
                 . "🎟️ Coupon: {$coupon->code}\n"
-                . "📅 Time: " . now()->format('Y-m-d H:i:s');
+                . "📋 Order #: {$order->order_number}\n";
+            
+            if ($trxid) {
+                $message .= "🔑 TrxID: {$trxid}\n";
+            }
+            
+            if ($errorMessage) {
+                $message .= "⚠️ Error: {$errorMessage}\n";
+            }
+            
+            $message .= "📅 Time: " . now()->format('Y-m-d H:i:s');
 
-            $this->telegramService->sendMessage($message);
+            TelegramService::sendMessage($message);
         } catch (\Exception $e) {
             Log::warning('Failed to send free order Telegram notification', [
                 'error' => $e->getMessage()

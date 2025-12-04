@@ -19,6 +19,7 @@ return [
     'invalid_order' => 'Commande invalide.',
     'order_not_pending' => 'Cette commande a déjà été traitée.',
     'order_completed' => 'Commande complétée avec succès!',
+    'order_processing' => 'Commande soumise avec succès! Vos diamants sont en cours de traitement.',
     'topup_failed' => 'Échec du rechargement. Veuillez contacter le support.',
     'processing_error' => 'Une erreur s\'est produite. Veuillez réessayer.',
     

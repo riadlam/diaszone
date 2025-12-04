@@ -19,6 +19,7 @@ return [
     'invalid_order' => 'Invalid order.',
     'order_not_pending' => 'This order has already been processed.',
     'order_completed' => 'Order completed successfully!',
+    'order_processing' => 'Order submitted successfully! Your diamonds are being processed.',
     'topup_failed' => 'Failed to process top-up. Please contact support.',
     'processing_error' => 'An error occurred. Please try again.',
     

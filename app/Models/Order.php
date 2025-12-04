@@ -26,7 +26,20 @@ class Order extends Model
         'server_bs',
         'notes',
         'tlg_message_id',
+        // Coupon fields
+        'coupon_id',
+        'discount_amount',
+        'original_price',
+        'final_price',
     ];
+
+    /**
+     * Get the coupon applied to this order.
+     */
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
+    }
 
     /**
      * Get the user that owns the order.
