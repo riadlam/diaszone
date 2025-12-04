@@ -119,8 +119,15 @@ class CouponController extends Controller
      */
     public function processFreeOrder(Request $request)
     {
+        Log::info('=== FREE ORDER PROCESS STARTED ===', [
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
         // Must be logged in
         if (!Auth::check()) {
+            Log::warning('Free order: User not authenticated', ['ip' => $request->ip()]);
             return response()->json([
                 'success' => false,
                 'message' => __('coupons.login_required'),
@@ -135,12 +142,27 @@ class CouponController extends Controller
         ]);
 
         $user = Auth::user();
+        Log::info('Free order: User authenticated', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'coupon_code' => $request->coupon_code,
+            'order_id' => $request->order_id,
+        ]);
+
         $coupon = Coupon::findByCode($request->coupon_code);
         $order = Order::findOrFail($request->order_id);
+        
+        Log::info('Free order: Coupon and order loaded', [
+            'coupon_found' => $coupon ? true : false,
+            'coupon_id' => $coupon?->id,
+            'order_id' => $order->id,
+            'order_status' => $order->status,
+            'order_user_id' => $order->user_id,
+        ]);
 
         // Security checks
         if (!$coupon) {
-            Log::warning('Free order attempt with invalid coupon', [
+            Log::warning('Free order: Invalid coupon code', [
                 'user_id' => $user->id,
                 'coupon_code' => $request->coupon_code
             ]);
@@ -152,11 +174,19 @@ class CouponController extends Controller
         }
 
         // Verify secure token (like webhook signature verification)
+        Log::info('Free order: Verifying secure token', [
+            'user_id' => $user->id,
+            'coupon_id' => $coupon->id,
+            'order_id' => $order->id,
+            'token_length' => strlen($request->secure_token),
+        ]);
+        
         if (!$coupon->verifySecureToken($request->secure_token, $user->id, $order->id)) {
-            Log::warning('Free order attempt with invalid token', [
+            Log::warning('Free order: Invalid secure token', [
                 'user_id' => $user->id,
                 'coupon_id' => $coupon->id,
-                'order_id' => $order->id
+                'order_id' => $order->id,
+                'token_provided' => substr($request->secure_token, 0, 16) . '...',
             ]);
             return response()->json([
                 'success' => false,
@@ -164,9 +194,22 @@ class CouponController extends Controller
                 'error_code' => 'INVALID_TOKEN'
             ], 403);
         }
+        
+        Log::info('Free order: Secure token verified successfully');
 
         // Verify coupon is 100% discount
+        Log::info('Free order: Checking if coupon is 100% discount', [
+            'discount_type' => $coupon->discount_type,
+            'discount_value' => $coupon->discount_value,
+            'is_full_discount' => $coupon->isFullDiscount(),
+        ]);
+        
         if (!$coupon->isFullDiscount()) {
+            Log::warning('Free order: Coupon is not 100% discount', [
+                'coupon_id' => $coupon->id,
+                'discount_type' => $coupon->discount_type,
+                'discount_value' => $coupon->discount_value,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => __('coupons.not_free_coupon'),
@@ -176,6 +219,10 @@ class CouponController extends Controller
 
         // Verify order belongs to user
         if ($order->user_id !== $user->id) {
+            Log::warning('Free order: Order does not belong to user', [
+                'order_user_id' => $order->user_id,
+                'auth_user_id' => $user->id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => __('coupons.invalid_order'),
@@ -185,6 +232,10 @@ class CouponController extends Controller
 
         // Verify order is pending
         if ($order->status !== 'pending') {
+            Log::warning('Free order: Order is not pending', [
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => __('coupons.order_not_pending'),
@@ -193,13 +244,26 @@ class CouponController extends Controller
         }
 
         // Check coupon can still be used
+        Log::info('Free order: Checking if user can use coupon', [
+            'coupon_id' => $coupon->id,
+            'user_id' => $user->id,
+            'coupon_max_uses' => $coupon->max_uses,
+            'coupon_used_count' => $coupon->used_count,
+        ]);
+        
         if (!$coupon->canBeUsedByUser($user->id)) {
+            Log::warning('Free order: User already used this coupon', [
+                'user_id' => $user->id,
+                'coupon_id' => $coupon->id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => __('coupons.already_used'),
                 'error_code' => 'ALREADY_USED'
             ], 400);
         }
+        
+        Log::info('Free order: All validation checks passed, starting transaction');
 
         // Start transaction
         DB::beginTransaction();
@@ -207,9 +271,22 @@ class CouponController extends Controller
             // Get the diamond pack
             $diamondPack = DiamondPack::findOrFail($order->diamond_pack_id);
             $originalPrice = $diamondPack->price;
+            
+            Log::info('Free order: Diamond pack loaded', [
+                'pack_id' => $diamondPack->id,
+                'diamonds' => $diamondPack->diamonds,
+                'original_price' => $originalPrice,
+            ]);
 
             // Calculate discount
             $discountInfo = $coupon->calculateDiscount($originalPrice);
+            
+            Log::info('Free order: Discount calculated', [
+                'original_amount' => $discountInfo['original_amount'],
+                'discount_amount' => $discountInfo['discount_amount'],
+                'final_amount' => $discountInfo['final_amount'],
+                'is_free' => $discountInfo['is_free'],
+            ]);
 
             // Update order with coupon info
             $order->update([
@@ -219,6 +296,8 @@ class CouponController extends Controller
                 'final_price' => $discountInfo['final_amount'],
                 'status' => 'processing',
             ]);
+            
+            Log::info('Free order: Order updated to processing', ['order_id' => $order->id]);
 
             // Record coupon usage
             CouponUsage::create([
@@ -229,16 +308,34 @@ class CouponController extends Controller
                 'original_amount' => $discountInfo['original_amount'],
                 'final_amount' => $discountInfo['final_amount'],
             ]);
+            
+            Log::info('Free order: Coupon usage recorded');
 
             // Increment coupon usage count
             $coupon->incrementUsage();
+            
+            Log::info('Free order: Coupon usage count incremented', [
+                'new_count' => $coupon->used_count,
+            ]);
 
             // Process the top-up via VIP Reseller
+            Log::info('Free order: Calling VIP Reseller API', [
+                'player_id' => $order->player_id,
+                'server_id' => $order->server_id,
+                'diamonds' => $diamondPack->diamonds,
+            ]);
+            
             $topUpResult = $this->vipResellerService->topUpMlbb(
                 $order->player_id,
                 $order->server_id,
                 $diamondPack->diamonds
             );
+            
+            Log::info('Free order: VIP Reseller API response', [
+                'success' => $topUpResult['success'],
+                'order_id' => $topUpResult['order_id'] ?? null,
+                'message' => $topUpResult['message'] ?? null,
+            ]);
 
             if ($topUpResult['success']) {
                 $order->update([
@@ -247,6 +344,14 @@ class CouponController extends Controller
                 ]);
 
                 DB::commit();
+                
+                Log::info('=== FREE ORDER COMPLETED SUCCESSFULLY ===', [
+                    'order_id' => $order->id,
+                    'user_id' => $user->id,
+                    'coupon_code' => $coupon->code,
+                    'diamonds' => $diamondPack->diamonds,
+                    'vip_order_id' => $topUpResult['order_id'] ?? null,
+                ]);
 
                 // Send Telegram notification for free order (fraud monitoring)
                 $this->sendFreeOrderNotification($user, $order, $coupon, $diamondPack);
@@ -261,9 +366,11 @@ class CouponController extends Controller
                 $order->update(['status' => 'failed']);
                 DB::commit();
 
-                Log::error('Free order top-up failed', [
+                Log::error('=== FREE ORDER FAILED - TOP-UP ERROR ===', [
                     'order_id' => $order->id,
-                    'error' => $topUpResult['message'] ?? 'Unknown error'
+                    'user_id' => $user->id,
+                    'error' => $topUpResult['message'] ?? 'Unknown error',
+                    'api_response' => $topUpResult,
                 ]);
 
                 return response()->json([
@@ -275,9 +382,13 @@ class CouponController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Free order processing error', [
+            Log::error('=== FREE ORDER FAILED - EXCEPTION ===', [
                 'order_id' => $order->id,
-                'error' => $e->getMessage()
+                'user_id' => $user->id ?? null,
+                'exception' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
