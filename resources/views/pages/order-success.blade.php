@@ -68,44 +68,13 @@
                         </div>
                     </div>
 
-                    <!-- Player Info + Account Info - Responsive Grid -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <!-- Game Account -->
-                        <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                            <h3 class="text-sm font-semibold text-blue-800 mb-2">{{ __('orders.game_account') }}</h3>
-                            @if($order->user_id_ml && $order->zone_id_ml)
-                                <p class="text-sm text-blue-700">
-                                    <span class="font-medium">User ID:</span> {{ $order->user_id_ml }}<br>
-                                    <span class="font-medium">Zone ID:</span> {{ $order->zone_id_ml }}
-                                </p>
-                            @elseif($order->player_id_ff)
-                                <p class="text-sm text-blue-700">
-                                    <span class="font-medium">Player ID:</span> {{ $order->player_id_ff }}
-                                </p>
-                            @elseif($order->player_id_pubg)
-                                <p class="text-sm text-blue-700">
-                                    <span class="font-medium">Player ID:</span> {{ $order->player_id_pubg }}
-                                </p>
-                            @elseif($order->player_id_hok)
-                                <p class="text-sm text-blue-700">
-                                    <span class="font-medium">Player ID:</span> {{ $order->player_id_hok }}
-                                </p>
-                            @elseif($order->user_id_bs)
-                                <p class="text-sm text-blue-700">
-                                    <span class="font-medium">User ID:</span> {{ $order->user_id_bs }}<br>
-                                    <span class="font-medium">Server:</span> {{ $order->server_bs }}
-                                </p>
-                            @endif
-                        </div>
-                        
-                        <!-- User Account -->
-                        <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-                            <h3 class="text-sm font-semibold text-indigo-800 mb-2">{{ __('orders.your_account') }}</h3>
-                            <p class="text-sm text-indigo-700">
-                                <span class="font-medium">{{ Auth::user()->name }}</span><br>
-                                <span class="text-indigo-600 break-all">{{ Auth::user()->email }}</span>
-                            </p>
-                        </div>
+                    <!-- Your Account -->
+                    <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                        <h3 class="text-sm font-semibold text-blue-800 mb-2">{{ __('orders.your_account') }}</h3>
+                        <p class="text-sm text-blue-700">
+                            <span class="font-medium">{{ Auth::user()->name }}</span><br>
+                            <span class="text-blue-600 break-all">{{ Auth::user()->email }}</span>
+                        </p>
                     </div>
 
                     <!-- Coupon Info (if applicable) -->
