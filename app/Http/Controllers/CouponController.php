@@ -192,8 +192,8 @@ class CouponController extends Controller
             ], 400);
         }
 
-        // Verify order belongs to user
-        if ($order->user_id !== $user->id) {
+        // Verify order belongs to user (use == for type-flexible comparison)
+        if ((int) $order->user_id !== (int) $user->id) {
             Log::warning('Free order: Order does not belong to user', [
                 'order_user_id' => $order->user_id,
                 'auth_user_id' => $user->id,
@@ -204,6 +204,8 @@ class CouponController extends Controller
                 'error_code' => 'INVALID_ORDER'
             ], 403);
         }
+        
+        Log::info('Free order: Order ownership verified');
 
         // Verify order is pending
         if ($order->status !== 'pending') {
