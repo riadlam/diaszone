@@ -106,15 +106,14 @@ Route::post('/api/orders/delete', [CheckoutController::class, 'deleteOrder'])
     ->middleware('throttle:10,1') // 10 requests per minute
     ->name('api.orders.delete');
 
-// Coupon API routes (require authentication)
-Route::middleware(['auth', 'throttle:10,1'])->group(function () {
-    Route::post('/api/coupon/validate', [CouponController::class, 'validate'])
-        ->name('api.coupon.validate');
-    Route::post('/api/coupon/remove', [CouponController::class, 'remove'])
-        ->name('api.coupon.remove');
-    Route::post('/api/coupon/process-free-order', [CouponController::class, 'processFreeOrder'])
-        ->name('api.coupon.process-free-order');
-});
+// Coupon API routes (auth checked in controller, not middleware)
+Route::post('/api/coupon/validate', [CouponController::class, 'validate'])
+    ->name('api.coupon.validate');
+Route::post('/api/coupon/remove', [CouponController::class, 'remove'])
+    ->name('api.coupon.remove');
+Route::post('/api/coupon/process-free-order', [CouponController::class, 'processFreeOrder'])
+    ->middleware('auth') // Only free order requires auth middleware
+    ->name('api.coupon.process-free-order');
 
 // Authentication routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');

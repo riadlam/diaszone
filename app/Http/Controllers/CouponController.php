@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\RateLimiter;
 
 class CouponController extends Controller
 {
@@ -35,20 +34,10 @@ class CouponController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => __('coupons.login_required'),
-                'error_code' => 'LOGIN_REQUIRED'
+                'error_code' => 'LOGIN_REQUIRED',
+                'require_login' => true
             ], 401);
         }
-
-        // Rate limiting - 10 attempts per minute
-        $key = 'coupon-validate:' . Auth::id();
-        if (RateLimiter::tooManyAttempts($key, 10)) {
-            return response()->json([
-                'success' => false,
-                'message' => __('coupons.rate_limited'),
-                'error_code' => 'RATE_LIMITED'
-            ], 429);
-        }
-        RateLimiter::hit($key, 60);
 
         $request->validate([
             'code' => 'required|string|max:50',
