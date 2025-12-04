@@ -152,6 +152,27 @@
                 </div>
             </div>
 
+            <!-- Screenshot Request -->
+            <div class="mt-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg p-5 text-center">
+                <div class="flex items-center justify-center gap-2 mb-3">
+                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 008.44-9.9c0-5.53-4.5-10.02-10-10.02z"/>
+                    </svg>
+                    <span class="text-white font-bold text-lg">{{ __('Share Your Success!') }}</span>
+                </div>
+                <p class="text-blue-100 text-sm mb-4">
+                    📸 {{ __('Please take a screenshot of this page and send it to our Facebook page to confirm your order!') }}
+                </p>
+                <a href="https://web.facebook.com/profile.php?id=61584183358240" 
+                   target="_blank"
+                   class="inline-flex items-center gap-2 bg-white hover:bg-gray-100 text-blue-600 font-bold py-3 px-6 rounded-lg transition-colors shadow-md">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 008.44-9.9c0-5.53-4.5-10.02-10-10.02z"/>
+                    </svg>
+                    {{ __('Send to DiasZone Facebook') }}
+                </a>
+            </div>
+
             <!-- Support Link -->
             <div class="mt-6 text-center">
                 <p class="text-sm text-gray-600">
