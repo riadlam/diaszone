@@ -138,7 +138,6 @@ class CouponController extends Controller
         $request->validate([
             'coupon_code' => 'required|string|max:50',
             'order_id' => 'required|integer',
-            'secure_token' => 'required|string',
         ]);
 
         $user = Auth::user();
@@ -172,30 +171,6 @@ class CouponController extends Controller
                 'error_code' => 'INVALID_CODE'
             ], 400);
         }
-
-        // Verify secure token (like webhook signature verification)
-        Log::info('Free order: Verifying secure token', [
-            'user_id' => $user->id,
-            'coupon_id' => $coupon->id,
-            'order_id' => $order->id,
-            'token_length' => strlen($request->secure_token),
-        ]);
-        
-        if (!$coupon->verifySecureToken($request->secure_token, $user->id, $order->id)) {
-            Log::warning('Free order: Invalid secure token', [
-                'user_id' => $user->id,
-                'coupon_id' => $coupon->id,
-                'order_id' => $order->id,
-                'token_provided' => substr($request->secure_token, 0, 16) . '...',
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => __('coupons.invalid_request'),
-                'error_code' => 'INVALID_TOKEN'
-            ], 403);
-        }
-        
-        Log::info('Free order: Secure token verified successfully');
 
         // Verify coupon is 100% discount
         Log::info('Free order: Checking if coupon is 100% discount', [

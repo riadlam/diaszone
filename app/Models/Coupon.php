@@ -158,7 +158,18 @@ class Coupon extends Model
     public function generateSecureToken(int $userId, int $orderId): string
     {
         $data = $this->id . '|' . $userId . '|' . $orderId . '|' . config('app.key');
-        return hash('sha256', $data);
+        $token = hash('sha256', $data);
+        
+        \Log::info('Coupon: generateSecureToken', [
+            'coupon_id' => $this->id,
+            'user_id' => $userId,
+            'order_id' => $orderId,
+            'app_key_length' => strlen(config('app.key')),
+            'data_string' => $data,
+            'expected_token' => substr($token, 0, 16) . '...',
+        ]);
+        
+        return $token;
     }
 
     /**

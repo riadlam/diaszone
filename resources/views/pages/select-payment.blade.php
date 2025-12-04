@@ -854,23 +854,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (removeCouponBtn) {
             removeCouponBtn.addEventListener('click', removeCoupon);
         }
-        
-        // Generate secure token for free order
-        // This is a simple hash that the server will verify using the coupon's own method
-        async function generateSecureToken(couponId, orderId) {
-            const userId = {{ auth()->id() ?? 0 }};
-            // Match the exact format the server expects: couponId|userId|orderId|appKey
-            const data = `${couponId}|${userId}|${orderId}|{{ config('app.key') }}`;
-            
-            // Use SubtleCrypto for SHA-256 hash
-            const encoder = new TextEncoder();
-            const dataBuffer = encoder.encode(data);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            
-            return hashHex;
-        }
         // ==================== END COUPON SYSTEM ====================
         
         // Function to update prices when currency or payment method changes
@@ -967,9 +950,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         const order = orderData.orders[0];
                         
-                        // Generate secure token and process free order
-                        const secureToken = await generateSecureToken(appliedCoupon.id, order.id);
-                        
+                        // Process free order (security verified server-side via auth + order ownership)
                         const freeOrderResponse = await fetch('{{ route("api.coupon.process-free-order") }}', {
                             method: 'POST',
                             headers: {
@@ -979,8 +960,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             },
                             body: JSON.stringify({
                                 coupon_code: appliedCoupon.code,
-                                order_id: order.id,
-                                secure_token: secureToken
+                                order_id: order.id
                             })
                         });
                         
