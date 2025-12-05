@@ -556,6 +556,27 @@ class CheckoutController extends Controller
     }
     
     /**
+     * Payment success page - shows success message and redirects to orders
+     */
+    public function paymentSuccess($encryptedOrderId)
+    {
+        try {
+            $orderId = Crypt::decryptString($encryptedOrderId);
+            $order = Order::with('diamondPack')->find($orderId);
+            
+            if (!$order) {
+                return redirect()->route('home')->with('error', 'Order not found');
+            }
+            
+            return view('pages.payment-success', [
+                'order' => $order,
+            ]);
+        } catch (\Exception $e) {
+            return redirect()->route('home')->with('error', 'Invalid order');
+        }
+    }
+    
+    /**
      * Handle Baridimob payment (Chargily Pay)
      */
     public function processBaridimobPayment(Request $request)
@@ -694,7 +715,7 @@ class CheckoutController extends Controller
                 'amount' => (int) round($amount), // Amount in DZD
                 'currency' => 'dzd',
                 'payment_method' => 'edahabia', // Baridimob uses EDAHABIA
-                'success_url' => route('baridimob-form', ['encrypted_order_id' => $request->encrypted_order_id]) . '?success=1',
+                'success_url' => route('payment.success', ['encrypted_order_id' => $request->encrypted_order_id]),
                 'failure_url' => route('baridimob-form', ['encrypted_order_id' => $request->encrypted_order_id]) . '?failed=1',
                 'description' => $description,
                 'locale' => 'en', // ar, en, or fr
