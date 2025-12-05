@@ -1110,12 +1110,21 @@ class AdminController extends Controller
                 } elseif (isset($webhookData['order_id'])) {
                     $orderId = $webhookData['order_id'];
                 } else {
-                    // Try to find order by user_id_ml and zone_id_ml
+                    // Try to find order by user_id_ml and zone_id_ml (Mobile Legends)
                     $order = Order::where('user_id_ml', $data)
                         ->where('zone_id_ml', $zone)
-                        ->where('status', 'completed')
+                        ->whereIn('status', ['sending', 'completed'])
                         ->latest()
                         ->first();
+                    
+                    // If not found, try Free Fire by player_id_ff
+                    if (!$order && !empty($data)) {
+                        $order = Order::where('player_id_ff', $data)
+                            ->whereIn('status', ['sending', 'completed'])
+                            ->latest()
+                            ->first();
+                    }
+                    
                     if ($order) {
                         $orderId = $order->id;
                     }
@@ -1178,12 +1187,20 @@ class AdminController extends Controller
             $order = $vipResellerStatus->order;
             
             if (!$order) {
-                // Try to find order by user_id_ml and zone_id_ml as fallback
+                // Try to find order by user_id_ml and zone_id_ml as fallback (Mobile Legends)
                 $order = Order::where('user_id_ml', $vipResellerStatus->data)
                     ->where('zone_id_ml', $vipResellerStatus->zone)
-                    ->where('status', 'completed')
+                    ->whereIn('status', ['sending', 'completed'])
                     ->latest()
                     ->first();
+                
+                // If not found, try Free Fire by player_id_ff (no zone required)
+                if (!$order && !empty($vipResellerStatus->data)) {
+                    $order = Order::where('player_id_ff', $vipResellerStatus->data)
+                        ->whereIn('status', ['sending', 'completed'])
+                        ->latest()
+                        ->first();
+                }
                 
                 // If found, update the vipreseller_status with order_id
                 if ($order) {

@@ -1175,71 +1175,23 @@ class CheckoutController extends Controller
             // Load order with diamond pack relationship
             $order->load('diamondPack');
             
-            // Only process Mobile Legends orders
+            // Get game type
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             
-            if ($gameType !== 'mobilelegends') {
-                Log::info('Chargily recharge skipped: Not a Mobile Legends order', [
+            // Only process Mobile Legends and Free Fire orders
+            if (!in_array($gameType, ['mobilelegends', 'freefire'])) {
+                Log::info('Chargily recharge skipped: Unsupported game type', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'game_type' => $gameType,
                 ]);
                 return [
                     'success' => false,
-                    'message' => 'Recharge only supported for Mobile Legends orders',
+                    'message' => 'Recharge only supported for Mobile Legends and Free Fire orders',
                 ];
             }
-
-            // Check if user_id_ml and zone_id_ml are set
-            if (empty($order->user_id_ml) || empty($order->zone_id_ml)) {
-                Log::warning('Chargily recharge skipped: Missing user_id_ml or zone_id_ml', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'user_id_ml' => $order->user_id_ml,
-                    'zone_id_ml' => $order->zone_id_ml,
-                ]);
-                return [
-                    'success' => false,
-                    'message' => 'Missing User ID or Zone ID for Mobile Legends',
-                ];
-            }
-
-            // STEP 1: Validate nickname BEFORE processing recharge
-            Log::info('Chargily: Validating nickname before recharge', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'user_id_ml' => $order->user_id_ml,
-                'zone_id_ml' => $order->zone_id_ml,
-            ]);
 
             $vipReseller = new VipResellerService();
-            $nicknameValidation = $vipReseller->checkNickname($order->user_id_ml, $order->zone_id_ml);
-
-            if ($nicknameValidation['result'] !== true) {
-                Log::error('Chargily recharge aborted: Nickname validation failed', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'user_id_ml' => $order->user_id_ml,
-                    'zone_id_ml' => $order->zone_id_ml,
-                    'validation_message' => $nicknameValidation['message'] ?? 'Unknown error',
-                ]);
-                return [
-                    'success' => false,
-                    'message' => 'Nickname validation failed: ' . ($nicknameValidation['message'] ?? 'Invalid User ID or Zone ID'),
-                ];
-            }
-
-            // Nickname validation successful
-            $nickname = $nicknameValidation['data'] ?? 'Unknown';
-            Log::info('Chargily: Nickname validation successful - Proceeding with recharge', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'user_id_ml' => $order->user_id_ml,
-                'zone_id_ml' => $order->zone_id_ml,
-                'nickname' => $nickname,
-            ]);
-
-            // Get package code from diamond_packs
             $packageCode = $order->diamondPack->code ?? null;
             
             if (empty($packageCode)) {
@@ -1253,13 +1205,98 @@ class CheckoutController extends Controller
                     'message' => 'Package code not found',
                 ];
             }
+            
+            // Handle based on game type
+            if ($gameType === 'mobilelegends') {
+                // Check if user_id_ml and zone_id_ml are set
+                if (empty($order->user_id_ml) || empty($order->zone_id_ml)) {
+                    Log::warning('Chargily recharge skipped: Missing user_id_ml or zone_id_ml', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'user_id_ml' => $order->user_id_ml,
+                        'zone_id_ml' => $order->zone_id_ml,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing User ID or Zone ID for Mobile Legends',
+                    ];
+                }
 
-            // STEP 2: Call VIP Reseller API to recharge
-            $result = $vipReseller->placeOrder(
-                $packageCode,
-                $order->user_id_ml,
-                $order->zone_id_ml
-            );
+                // STEP 1: Validate nickname BEFORE processing recharge (Mobile Legends only)
+                Log::info('Chargily: Validating nickname before recharge', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                ]);
+
+                $nicknameValidation = $vipReseller->checkNickname($order->user_id_ml, $order->zone_id_ml);
+
+                if ($nicknameValidation['result'] !== true) {
+                    Log::error('Chargily recharge aborted: Nickname validation failed', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'user_id_ml' => $order->user_id_ml,
+                        'zone_id_ml' => $order->zone_id_ml,
+                        'validation_message' => $nicknameValidation['message'] ?? 'Unknown error',
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Nickname validation failed: ' . ($nicknameValidation['message'] ?? 'Invalid User ID or Zone ID'),
+                    ];
+                }
+
+                // Nickname validation successful
+                $nickname = $nicknameValidation['data'] ?? 'Unknown';
+                Log::info('Chargily: Nickname validation successful - Proceeding with recharge', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                    'nickname' => $nickname,
+                ]);
+
+                // STEP 2: Call VIP Reseller API to recharge (Mobile Legends)
+                $result = $vipReseller->placeOrder(
+                    $packageCode,
+                    $order->user_id_ml,
+                    $order->zone_id_ml
+                );
+                
+                $playerId = $order->user_id_ml;
+                $zoneId = $order->zone_id_ml;
+                
+            } elseif ($gameType === 'freefire') {
+                // Check if player_id_ff is set
+                if (empty($order->player_id_ff)) {
+                    Log::warning('Chargily recharge skipped: Missing player_id_ff', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'player_id_ff' => $order->player_id_ff,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing Player ID for Free Fire',
+                    ];
+                }
+
+                // Free Fire doesn't support nickname check, proceed directly
+                Log::info('Chargily: Processing Free Fire recharge (no nickname check)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'player_id_ff' => $order->player_id_ff,
+                    'package_code' => $packageCode,
+                ]);
+
+                // STEP 2: Call VIP Reseller API to recharge (Free Fire)
+                $result = $vipReseller->placeFreefireOrder(
+                    $packageCode,
+                    $order->player_id_ff
+                );
+                
+                $playerId = $order->player_id_ff;
+                $zoneId = null; // Free Fire doesn't use zone_id
+            }
 
             // STEP 3: Save response to vipreseller_status table
             $apiData = $result['data'] ?? [];
@@ -1290,8 +1327,8 @@ class CheckoutController extends Controller
             $vipResellerStatus = VipResellerStatus::create([
                 'order_id' => $order->id,
                 'trxid' => $apiData['trxid'] ?? null,
-                'data' => $apiData['data'] ?? $order->user_id_ml,
-                'zone' => $apiData['zone'] ?? $order->zone_id_ml,
+                'data' => $apiData['data'] ?? $playerId,
+                'zone' => $apiData['zone'] ?? $zoneId,
                 'service' => $apiData['service'] ?? $packageCode,
                 'status' => $status,
                 'note' => $apiData['note'] ?? ($result['message'] ?? null),
@@ -1430,9 +1467,10 @@ class CheckoutController extends Controller
                 Log::info('Chargily: Recharge successful', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
+                    'game_type' => $gameType,
                     'package_code' => $packageCode,
-                    'user_id_ml' => $order->user_id_ml,
-                    'zone_id_ml' => $order->zone_id_ml,
+                    'player_id' => $playerId,
+                    'zone_id' => $zoneId,
                     'trxid' => $vipResellerStatus->trxid,
                 ]);
                 
@@ -1445,9 +1483,10 @@ class CheckoutController extends Controller
                 Log::error('Chargily: Recharge failed', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
+                    'game_type' => $gameType,
                     'package_code' => $packageCode,
-                    'user_id_ml' => $order->user_id_ml,
-                    'zone_id_ml' => $order->zone_id_ml,
+                    'player_id' => $playerId,
+                    'zone_id' => $zoneId,
                     'trxid' => $vipResellerStatus->trxid,
                     'api_response' => $result,
                 ]);
@@ -1467,11 +1506,15 @@ class CheckoutController extends Controller
             
             // Try to save error status
             try {
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                $playerId = $gameType === 'freefire' ? $order->player_id_ff : $order->user_id_ml;
+                $zoneId = $gameType === 'freefire' ? null : $order->zone_id_ml;
+                
                 VipResellerStatus::create([
                     'order_id' => $order->id,
                     'trxid' => null,
-                    'data' => $order->user_id_ml ?? null,
-                    'zone' => $order->zone_id_ml ?? null,
+                    'data' => $playerId ?? null,
+                    'zone' => $zoneId,
                     'service' => $order->diamondPack->code ?? null,
                     'status' => 'error',
                     'note' => 'Exception: ' . $e->getMessage(),
@@ -1480,6 +1523,7 @@ class CheckoutController extends Controller
                         'exception' => $e->getMessage(),
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
+                        'game_type' => $gameType,
                         'payment_method' => 'chargily',
                     ],
                 ]);

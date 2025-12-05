@@ -1,0 +1,1566 @@
+{
+    "result": true,
+    "data": [
+        {
+            "code": "FF5-S13",
+            "game": "Free Fire",
+            "name": "5 Diamonds",
+            "price": {
+                "basic": 767,
+                "premium": 763,
+                "special": 759
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "13",
+            "status": "available"
+        },
+        {
+            "code": "FF10-S13",
+            "game": "Free Fire",
+            "name": "10 Diamonds",
+            "price": {
+                "basic": 1530,
+                "premium": 1523,
+                "special": 1515
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "13",
+            "status": "available"
+        },
+        {
+            "code": "FF12-S13",
+            "game": "Free Fire",
+            "name": "12 Diamonds",
+            "price": {
+                "basic": 1768,
+                "premium": 1760,
+                "special": 1751
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "13",
+            "status": "available"
+        },
+        {
+            "code": "FF15-S13",
+            "game": "Free Fire",
+            "name": "15 Diamonds",
+            "price": {
+                "basic": 2293,
+                "premium": 2282,
+                "special": 2271
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "13",
+            "status": "available"
+        },
+        {
+            "code": "FF20-S13",
+            "game": "Free Fire",
+            "name": "20 Diamonds",
+            "price": {
+                "basic": 3056,
+                "premium": 3041,
+                "special": 3026
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF25-S13",
+            "game": "Free Fire",
+            "name": "25 Diamonds",
+            "price": {
+                "basic": 3818,
+                "premium": 3800,
+                "special": 3781
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF30-S13",
+            "game": "Free Fire",
+            "name": "30 Diamonds",
+            "price": {
+                "basic": 4618,
+                "premium": 4595,
+                "special": 4573
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF40-S13",
+            "game": "Free Fire",
+            "name": "40 Diamonds",
+            "price": {
+                "basic": 5568,
+                "premium": 5541,
+                "special": 5513
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF50-S13",
+            "game": "Free Fire",
+            "name": "50 Diamonds",
+            "price": {
+                "basic": 6155,
+                "premium": 6125,
+                "special": 6095
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF55-S13",
+            "game": "Free Fire",
+            "name": "55 Diamonds",
+            "price": {
+                "basic": 6924,
+                "premium": 6890,
+                "special": 6856
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF60-S13",
+            "game": "Free Fire",
+            "name": "60 Diamonds",
+            "price": {
+                "basic": 7631,
+                "premium": 7594,
+                "special": 7557
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF70-S13",
+            "game": "Free Fire",
+            "name": "70 Diamonds",
+            "price": {
+                "basic": 8046,
+                "premium": 8007,
+                "special": 7968
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF75-S13",
+            "game": "Free Fire",
+            "name": "75 Diamonds",
+            "price": {
+                "basic": 8797,
+                "premium": 8754,
+                "special": 8711
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF80-S13",
+            "game": "Free Fire",
+            "name": "80 Diamonds",
+            "price": {
+                "basic": 9554,
+                "premium": 9507,
+                "special": 9461
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF90-S13",
+            "game": "Free Fire",
+            "name": "90 Diamonds",
+            "price": {
+                "basic": 11054,
+                "premium": 11000,
+                "special": 10946
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF100-S13",
+            "game": "Free Fire",
+            "name": "100 Diamonds",
+            "price": {
+                "basic": 12326,
+                "premium": 12266,
+                "special": 12205
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF120-S13",
+            "game": "Free Fire",
+            "name": "120 Diamonds",
+            "price": {
+                "basic": 13760,
+                "premium": 13692,
+                "special": 13625
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF130-S13",
+            "game": "Free Fire",
+            "name": "130 Diamonds",
+            "price": {
+                "basic": 15249,
+                "premium": 15175,
+                "special": 15100
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF140-S13",
+            "game": "Free Fire",
+            "name": "140 Diamonds",
+            "price": {
+                "basic": 16943,
+                "premium": 16861,
+                "special": 16778
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF150-S13",
+            "game": "Free Fire",
+            "name": "150 Diamonds",
+            "price": {
+                "basic": 17366,
+                "premium": 17281,
+                "special": 17196
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF145-S13",
+            "game": "Free Fire",
+            "name": "145 Diamonds",
+            "price": {
+                "basic": 17692,
+                "premium": 17605,
+                "special": 17519
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF160-S13",
+            "game": "Free Fire",
+            "name": "160 Diamonds",
+            "price": {
+                "basic": 19093,
+                "premium": 19000,
+                "special": 18906
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF170-S13",
+            "game": "Free Fire",
+            "name": "170 Diamonds",
+            "price": {
+                "basic": 20767,
+                "premium": 20665,
+                "special": 20564
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF190-S13",
+            "game": "Free Fire",
+            "name": "190 Diamonds",
+            "price": {
+                "basic": 21961,
+                "premium": 21854,
+                "special": 21746
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF180-S13",
+            "game": "Free Fire",
+            "name": "180 Diamonds",
+            "price": {
+                "basic": 22304,
+                "premium": 22195,
+                "special": 22086
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF200-S13",
+            "game": "Free Fire",
+            "name": "200 Diamonds",
+            "price": {
+                "basic": 23460,
+                "premium": 23346,
+                "special": 23231
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FFMM-S13",
+            "game": "Free Fire",
+            "name": "Membership Mingguan",
+            "price": {
+                "basic": 25307,
+                "premium": 25184,
+                "special": 25060
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF210-S13",
+            "game": "Free Fire",
+            "name": "210 Diamonds",
+            "price": {
+                "basic": 25410,
+                "premium": 25286,
+                "special": 25162
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF250-S13",
+            "game": "Free Fire",
+            "name": "250 Diamonds",
+            "price": {
+                "basic": 29033,
+                "premium": 28892,
+                "special": 28750
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF260-S13",
+            "game": "Free Fire",
+            "name": "260 Diamonds",
+            "price": {
+                "basic": 30096,
+                "premium": 29949,
+                "special": 29802
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF280-S13",
+            "game": "Free Fire",
+            "name": "280 Diamonds",
+            "price": {
+                "basic": 33892,
+                "premium": 33726,
+                "special": 33561
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF300-S13",
+            "game": "Free Fire",
+            "name": "300 Diamonds",
+            "price": {
+                "basic": 34748,
+                "premium": 34578,
+                "special": 34409
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF355-S13",
+            "game": "Free Fire",
+            "name": "355 Diamonds",
+            "price": {
+                "basic": 42358,
+                "premium": 42152,
+                "special": 41945
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF360-S13",
+            "game": "Free Fire",
+            "name": "360 Diamonds",
+            "price": {
+                "basic": 43060,
+                "premium": 42850,
+                "special": 42640
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF375-S13",
+            "game": "Free Fire",
+            "name": "375 Diamonds",
+            "price": {
+                "basic": 43210,
+                "premium": 42999,
+                "special": 42788
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF400-S13",
+            "game": "Free Fire",
+            "name": "400 Diamonds",
+            "price": {
+                "basic": 45916,
+                "premium": 45692,
+                "special": 45468
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF405-S13",
+            "game": "Free Fire",
+            "name": "405 Diamonds",
+            "price": {
+                "basic": 45916,
+                "premium": 45692,
+                "special": 45468
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF420-S13",
+            "game": "Free Fire",
+            "name": "420 Diamonds",
+            "price": {
+                "basic": 48385,
+                "premium": 48149,
+                "special": 47913
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF425-S13",
+            "game": "Free Fire",
+            "name": "425 Diamonds",
+            "price": {
+                "basic": 50825,
+                "premium": 50577,
+                "special": 50329
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF475-S13",
+            "game": "Free Fire",
+            "name": "475 Diamonds",
+            "price": {
+                "basic": 53954,
+                "premium": 53691,
+                "special": 53428
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF510-S13",
+            "game": "Free Fire",
+            "name": "510 Diamonds",
+            "price": {
+                "basic": 58312,
+                "premium": 58028,
+                "special": 57743
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF515-S13",
+            "game": "Free Fire",
+            "name": "515 Diamonds",
+            "price": {
+                "basic": 58880,
+                "premium": 58593,
+                "special": 58306
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF495-S13",
+            "game": "Free Fire",
+            "name": "495 Diamonds",
+            "price": {
+                "basic": 59575,
+                "premium": 59284,
+                "special": 58994
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF520-S13",
+            "game": "Free Fire",
+            "name": "520 Diamonds",
+            "price": {
+                "basic": 59840,
+                "premium": 59548,
+                "special": 59256
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF500-S13",
+            "game": "Free Fire",
+            "name": "500 Diamonds",
+            "price": {
+                "basic": 59973,
+                "premium": 59680,
+                "special": 59388
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF545-S13",
+            "game": "Free Fire",
+            "name": "545 Diamonds",
+            "price": {
+                "basic": 61993,
+                "premium": 61691,
+                "special": 61388
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF565-S13",
+            "game": "Free Fire",
+            "name": "565 Diamonds",
+            "price": {
+                "basic": 67758,
+                "premium": 67427,
+                "special": 67097
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF600-S13",
+            "game": "Free Fire",
+            "name": "600 Diamonds",
+            "price": {
+                "basic": 68471,
+                "premium": 68137,
+                "special": 67803
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF655-S13",
+            "game": "Free Fire",
+            "name": "655 Diamonds",
+            "price": {
+                "basic": 75523,
+                "premium": 75155,
+                "special": 74786
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FFMB-S13",
+            "game": "Free Fire",
+            "name": "Membership Bulanan",
+            "price": {
+                "basic": 75869,
+                "premium": 75499,
+                "special": 75129
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF635-S13",
+            "game": "Free Fire",
+            "name": "635 Diamonds",
+            "price": {
+                "basic": 76589,
+                "premium": 76215,
+                "special": 75842
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF645-S13",
+            "game": "Free Fire",
+            "name": "645 Diamonds",
+            "price": {
+                "basic": 77654,
+                "premium": 77275,
+                "special": 76896
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF720-S13",
+            "game": "Free Fire",
+            "name": "720 Diamonds",
+            "price": {
+                "basic": 80463,
+                "premium": 80070,
+                "special": 79678
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF770-S13",
+            "game": "Free Fire",
+            "name": "770 Diamonds",
+            "price": {
+                "basic": 86894,
+                "premium": 86471,
+                "special": 86047
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF790-S13",
+            "game": "Free Fire",
+            "name": "790 Diamonds",
+            "price": {
+                "basic": 89380,
+                "premium": 88944,
+                "special": 88508
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF740-S13",
+            "game": "Free Fire",
+            "name": "740 Diamonds",
+            "price": {
+                "basic": 90481,
+                "premium": 90039,
+                "special": 89598
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF800-S13",
+            "game": "Free Fire",
+            "name": "800 Diamonds",
+            "price": {
+                "basic": 90841,
+                "premium": 90398,
+                "special": 89954
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF860-S13",
+            "game": "Free Fire",
+            "name": "860 Diamonds",
+            "price": {
+                "basic": 95402,
+                "premium": 94937,
+                "special": 94471
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF925-S13",
+            "game": "Free Fire",
+            "name": "925 Diamonds",
+            "price": {
+                "basic": 104883,
+                "premium": 104372,
+                "special": 103860
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF930-S13",
+            "game": "Free Fire",
+            "name": "930 Diamonds",
+            "price": {
+                "basic": 110618,
+                "premium": 110078,
+                "special": 109539
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1000-S13",
+            "game": "Free Fire",
+            "name": "1000 Diamonds",
+            "price": {
+                "basic": 113237,
+                "premium": 112685,
+                "special": 112132
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1050-S13",
+            "game": "Free Fire",
+            "name": "1050 Diamonds",
+            "price": {
+                "basic": 118669,
+                "premium": 118091,
+                "special": 117512
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1075-S13",
+            "game": "Free Fire",
+            "name": "1075 Diamonds",
+            "price": {
+                "basic": 121360,
+                "premium": 120768,
+                "special": 120176
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1080-S13",
+            "game": "Free Fire",
+            "name": "1080 Diamonds",
+            "price": {
+                "basic": 121873,
+                "premium": 121278,
+                "special": 120684
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1200-S13",
+            "game": "Free Fire",
+            "name": "1200 Diamonds",
+            "price": {
+                "basic": 135633,
+                "premium": 134972,
+                "special": 134310
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1215-S13",
+            "game": "Free Fire",
+            "name": "1215 Diamonds",
+            "price": {
+                "basic": 137119,
+                "premium": 136451,
+                "special": 135782
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1300-S13",
+            "game": "Free Fire",
+            "name": "1300 Diamonds",
+            "price": {
+                "basic": 147472,
+                "premium": 146753,
+                "special": 146033
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1450-S13",
+            "game": "Free Fire",
+            "name": "1450 Diamonds",
+            "price": {
+                "basic": 162719,
+                "premium": 161925,
+                "special": 161131
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1490-S13",
+            "game": "Free Fire",
+            "name": "1490 Diamonds",
+            "price": {
+                "basic": 167152,
+                "premium": 166337,
+                "special": 165521
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1510-S13",
+            "game": "Free Fire",
+            "name": "1510 Diamonds",
+            "price": {
+                "basic": 169356,
+                "premium": 168530,
+                "special": 167703
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1440-S13",
+            "game": "Free Fire",
+            "name": "1440 Diamonds",
+            "price": {
+                "basic": 170166,
+                "premium": 169336,
+                "special": 168506
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1580-S13",
+            "game": "Free Fire",
+            "name": "1580 Diamonds",
+            "price": {
+                "basic": 177735,
+                "premium": 176868,
+                "special": 176001
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1800-S13",
+            "game": "Free Fire",
+            "name": "1800 Diamonds",
+            "price": {
+                "basic": 208317,
+                "premium": 207301,
+                "special": 206285
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1875-S13",
+            "game": "Free Fire",
+            "name": "1875 Diamonds",
+            "price": {
+                "basic": 217375,
+                "premium": 216314,
+                "special": 215254
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF1975-S13",
+            "game": "Free Fire",
+            "name": "1975 Diamonds",
+            "price": {
+                "basic": 222784,
+                "premium": 221697,
+                "special": 220610
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2000-S13",
+            "game": "Free Fire",
+            "name": "2000 Diamonds",
+            "price": {
+                "basic": 237088,
+                "premium": 235931,
+                "special": 234775
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2140-S13",
+            "game": "Free Fire",
+            "name": "2140 Diamonds",
+            "price": {
+                "basic": 241746,
+                "premium": 240567,
+                "special": 239388
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2100-S13",
+            "game": "Free Fire",
+            "name": "2100 Diamonds",
+            "price": {
+                "basic": 244547,
+                "premium": 243354,
+                "special": 242161
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2190-S13",
+            "game": "Free Fire",
+            "name": "2190 Diamonds",
+            "price": {
+                "basic": 244590,
+                "premium": 243396,
+                "special": 242203
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2225-S13",
+            "game": "Free Fire",
+            "name": "2225 Diamonds",
+            "price": {
+                "basic": 248007,
+                "premium": 246797,
+                "special": 245587
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2210-S13",
+            "game": "Free Fire",
+            "name": "2210 Diamonds",
+            "price": {
+                "basic": 255113,
+                "premium": 253869,
+                "special": 252624
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2280-S13",
+            "game": "Free Fire",
+            "name": "2280 Diamonds",
+            "price": {
+                "basic": 255763,
+                "premium": 254516,
+                "special": 253268
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2200-S13",
+            "game": "Free Fire",
+            "name": "2200 Diamonds",
+            "price": {
+                "basic": 259848,
+                "premium": 258580,
+                "special": 257313
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2355-S13",
+            "game": "Free Fire",
+            "name": "2355 Diamonds",
+            "price": {
+                "basic": 272473,
+                "premium": 271144,
+                "special": 269814
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2400-S13",
+            "game": "Free Fire",
+            "name": "2400 Diamonds",
+            "price": {
+                "basic": 277757,
+                "premium": 276402,
+                "special": 275047
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2575-S13",
+            "game": "Free Fire",
+            "name": "2575 Diamonds",
+            "price": {
+                "basic": 298890,
+                "premium": 297432,
+                "special": 295974
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2750-S13",
+            "game": "Free Fire",
+            "name": "2750 Diamonds",
+            "price": {
+                "basic": 307821,
+                "premium": 306319,
+                "special": 304818
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF2720-S13",
+            "game": "Free Fire",
+            "name": "2720 Diamonds",
+            "price": {
+                "basic": 315495,
+                "premium": 313956,
+                "special": 312417
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF3000-S13",
+            "game": "Free Fire",
+            "name": "3000 Diamonds",
+            "price": {
+                "basic": 352867,
+                "premium": 351145,
+                "special": 349424
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF3310-S13",
+            "game": "Free Fire",
+            "name": "3310 Diamonds",
+            "price": {
+                "basic": 382669,
+                "premium": 380803,
+                "special": 378936
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF3640-S13",
+            "game": "Free Fire",
+            "name": "3640 Diamonds",
+            "price": {
+                "basic": 402313,
+                "premium": 400350,
+                "special": 398388
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF3675-S13",
+            "game": "Free Fire",
+            "name": "3675 Diamonds",
+            "price": {
+                "basic": 424182,
+                "premium": 422113,
+                "special": 420044
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF3800-S13",
+            "game": "Free Fire",
+            "name": "3800 Diamonds",
+            "price": {
+                "basic": 440033,
+                "premium": 437886,
+                "special": 435740
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF4000-S13",
+            "game": "Free Fire",
+            "name": "4000 Diamonds",
+            "price": {
+                "basic": 462676,
+                "premium": 460419,
+                "special": 458162
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF4050-S13",
+            "game": "Free Fire",
+            "name": "4050 Diamonds",
+            "price": {
+                "basic": 468714,
+                "premium": 466428,
+                "special": 464141
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF4340-S13",
+            "game": "Free Fire",
+            "name": "4340 Diamonds",
+            "price": {
+                "basic": 501169,
+                "premium": 498724,
+                "special": 496279
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF4450-S13",
+            "game": "Free Fire",
+            "name": "4450 Diamonds",
+            "price": {
+                "basic": 514755,
+                "premium": 512244,
+                "special": 509733
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF4720-S13",
+            "game": "Free Fire",
+            "name": "4720 Diamonds",
+            "price": {
+                "basic": 545701,
+                "premium": 543039,
+                "special": 540377
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF4850-S13",
+            "game": "Free Fire",
+            "name": "4850 Diamonds",
+            "price": {
+                "basic": 560796,
+                "premium": 558060,
+                "special": 555325
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF4800-S13",
+            "game": "Free Fire",
+            "name": "4800 Diamonds",
+            "price": {
+                "basic": 565042,
+                "premium": 562285,
+                "special": 559529
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF5600-S13",
+            "game": "Free Fire",
+            "name": "5600 Diamonds",
+            "price": {
+                "basic": 614590,
+                "premium": 611592,
+                "special": 608594
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF5500-S13",
+            "game": "Free Fire",
+            "name": "5500 Diamonds",
+            "price": {
+                "basic": 635518,
+                "premium": 632418,
+                "special": 629318
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF6000-S13",
+            "game": "Free Fire",
+            "name": "6000 Diamonds",
+            "price": {
+                "basic": 692882,
+                "premium": 689502,
+                "special": 686122
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF6480-S13",
+            "game": "Free Fire",
+            "name": "6480 Diamonds",
+            "price": {
+                "basic": 747225,
+                "premium": 743580,
+                "special": 739935
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF6550-S13",
+            "game": "Free Fire",
+            "name": "6550 Diamonds",
+            "price": {
+                "basic": 755528,
+                "premium": 751842,
+                "special": 748157
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF6900-S13",
+            "game": "Free Fire",
+            "name": "6900 Diamonds",
+            "price": {
+                "basic": 797040,
+                "premium": 793152,
+                "special": 789264
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF7290-S13",
+            "game": "Free Fire",
+            "name": "7290 Diamonds",
+            "price": {
+                "basic": 806151,
+                "premium": 802219,
+                "special": 798286
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF7310-S13",
+            "game": "Free Fire",
+            "name": "7310 Diamonds",
+            "price": {
+                "basic": 833269,
+                "premium": 829204,
+                "special": 825139
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF7340-S13",
+            "game": "Free Fire",
+            "name": "7340 Diamonds",
+            "price": {
+                "basic": 836288,
+                "premium": 832209,
+                "special": 828129
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF7360-S13",
+            "game": "Free Fire",
+            "name": "7360 Diamonds",
+            "price": {
+                "basic": 838553,
+                "premium": 834462,
+                "special": 830372
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF7430-S13",
+            "game": "Free Fire",
+            "name": "7430 Diamonds",
+            "price": {
+                "basic": 846855,
+                "premium": 842724,
+                "special": 838593
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF7645-S13",
+            "game": "Free Fire",
+            "name": "7645 Diamonds",
+            "price": {
+                "basic": 871763,
+                "premium": 867510,
+                "special": 863258
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF7650-S13",
+            "game": "Free Fire",
+            "name": "7650 Diamonds",
+            "price": {
+                "basic": 872517,
+                "premium": 868261,
+                "special": 864005
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF8010-S13",
+            "game": "Free Fire",
+            "name": "8010 Diamonds",
+            "price": {
+                "basic": 913275,
+                "premium": 908820,
+                "special": 904365
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF9290-S13",
+            "game": "Free Fire",
+            "name": "9290 Diamonds",
+            "price": {
+                "basic": 1033687,
+                "premium": 1028645,
+                "special": 1023602
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF9800-S13",
+            "game": "Free Fire",
+            "name": "9800 Diamonds",
+            "price": {
+                "basic": 1120838,
+                "premium": 1115370,
+                "special": 1109903
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF14580-S13",
+            "game": "Free Fire",
+            "name": "14580 Diamonds",
+            "price": {
+                "basic": 1640000,
+                "premium": 1632000,
+                "special": 1624000
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF36500-S13",
+            "game": "Free Fire",
+            "name": "36500 Diamonds",
+            "price": {
+                "basic": 4146125,
+                "premium": 4125900,
+                "special": 4105675
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF37050-S13",
+            "game": "Free Fire",
+            "name": "37050 Diamonds",
+            "price": {
+                "basic": 4294248,
+                "premium": 4273300,
+                "special": 4252353
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        },
+        {
+            "code": "FF73100-S13",
+            "game": "Free Fire",
+            "name": "73100 Diamonds",
+            "price": {
+                "basic": 8456260,
+                "premium": 8415010,
+                "special": 8373760
+            },
+            "description": "<ul><li>Instant Process</li><li>Masukan User ID dan Server (jika dibutuhkan). </li><li>Jika Pending Lebih 5 Menit Push ke Whatsapp Admin.</li></ul>",
+            "server": "S13",
+            "status": "available"
+        }
+    ],
+    "message": "Daftar layanan berhasil didapatkan."
+}
