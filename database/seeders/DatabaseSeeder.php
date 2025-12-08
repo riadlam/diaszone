@@ -27,6 +27,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             DiamondPackSeeder::class,
+            // populate base_price_dzd from price_dzd - 100 for existing packs
+            AddBasePriceToDiamondPacksSeeder::class,
             AdminUserSeeder::class,
             FreeFireDiamondPackSeeder::class,
             PubgMobileUcPackSeeder::class,

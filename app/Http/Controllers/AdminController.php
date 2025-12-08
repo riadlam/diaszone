@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Seller\SellerStorefrontController;
+use Illuminate\Support\Facades\Crypt;
 
 class AdminController extends Controller
 {
@@ -475,6 +477,64 @@ class AdminController extends Controller
                 'payment_info' => $paymentInfo,
             ]
         ]);
+    }
+
+    /**
+     * List orders pending flexy verification
+     */
+    public function flexyApprovals(Request $request)
+    {
+        $orders = Order::with(['seller', 'diamondPack'])
+            ->where('status', 'pending_flexy_verification')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+
+        return view('admin.flexy-approvals', compact('orders'));
+    }
+
+    /**
+     * Approve a Flexy order (mark processing and try to process)
+     */
+    public function approveFlexy(Request $request, $orderNumber)
+    {
+        $order = Order::where('order_number', $orderNumber)->firstOrFail();
+        if ($order->status !== 'pending_flexy_verification') {
+            return back()->with('error', 'Order not in pending flexy state.');
+        }
+
+        $order->status = 'processing';
+        $order->save();
+
+        // Try to process seller order (deduct wallet, complete)
+        try {
+            $processed = SellerStorefrontController::processSellerOrder($order);
+            if ($processed) {
+                $order->status = 'completed';
+            } else {
+                $order->status = 'failed';
+            }
+            $order->save();
+            return back()->with('success', 'Flexy order processed and updated.');
+        } catch (\Exception $e) {
+            Log::error('Failed to approve flexy order', ['order' => $order->id, 'error' => $e->getMessage()]);
+            return back()->with('error', 'Failed to process order.');
+        }
+    }
+
+    /**
+     * Reject a Flexy order (mark failed)
+     */
+    public function rejectFlexy(Request $request, $orderNumber)
+    {
+        $order = Order::where('order_number', $orderNumber)->firstOrFail();
+        if (!in_array($order->status, ['pending_flexy_verification'])) {
+            return back()->with('error', 'Order not in pending flexy state.');
+        }
+
+        $order->status = 'failed';
+        $order->save();
+
+        return back()->with('success', 'Flexy order rejected and marked failed.');
     }
 
     /**

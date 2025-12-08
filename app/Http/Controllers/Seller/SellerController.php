@@ -1,0 +1,945 @@
+<?php
+
+namespace App\Http\Controllers\Seller;
+
+use App\Http\Controllers\Controller;
+use App\Models\DiamondPack;
+use App\Models\Order;
+use App\Models\Seller;
+use App\Models\SellerGamePrice;
+use App\Services\VipResellerService;
+use App\Services\TelegramService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
+class SellerController extends Controller
+{
+    protected $vipResellerService;
+    protected $telegramService;
+
+    public function __construct(VipResellerService $vipResellerService, TelegramService $telegramService)
+    {
+        $this->vipResellerService = $vipResellerService;
+        $this->telegramService = $telegramService;
+    }
+
+    /**
+     * Get authenticated seller
+     */
+    protected function seller(): Seller
+    {
+        return Auth::guard('seller')->user();
+    }
+
+    /**
+     * Seller dashboard
+     */
+    public function dashboard()
+    {
+        $seller = $this->seller();
+
+        // Get statistics
+        $todayOrders = $seller->orders()->whereDate('created_at', today())->count();
+        $totalOrders = $seller->orders()->count();
+        $completedOrders = $seller->orders()->where('status', 'completed')->count();
+        $pendingOrders = $seller->orders()->whereIn('status', ['pending', 'processing'])->count();
+
+        // Revenue stats
+        $todayRevenue = $seller->orders()
+            ->whereDate('created_at', today())
+            ->where('status', 'completed')
+            ->sum('seller_profit');
+
+        $monthRevenue = $seller->orders()
+            ->whereMonth('created_at', now()->month)
+            ->where('status', 'completed')
+            ->sum('seller_profit');
+
+        // Recent orders
+        $recentOrders = $seller->orders()
+            ->with(['diamondPack', 'user'])
+            ->latest()
+            ->take(10)
+            ->get();
+
+        // Recent transactions
+        $recentTransactions = $seller->walletTransactions()
+            ->latest()
+            ->take(5)
+            ->get();
+
+        // Chart data - last 7 days
+        $chartData = $this->getChartData($seller, 7);
+
+        return view('seller.dashboard', compact(
+            'seller',
+            'todayOrders',
+            'totalOrders',
+            'completedOrders',
+            'pendingOrders',
+            'todayRevenue',
+            'monthRevenue',
+            'recentOrders',
+            'recentTransactions',
+            'chartData'
+        ));
+    }
+
+    /**
+     * Get chart data for last N days
+     */
+    protected function getChartData(Seller $seller, int $days): array
+    {
+        $data = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $orders = $seller->orders()
+                ->whereDate('created_at', $date)
+                ->where('status', 'completed')
+                ->count();
+            $revenue = $seller->orders()
+                ->whereDate('created_at', $date)
+                ->where('status', 'completed')
+                ->sum('seller_profit');
+
+            $data[] = [
+                'date' => $date->format('M d'),
+                'orders' => $orders,
+                'revenue' => (float) $revenue,
+            ];
+        }
+        return $data;
+    }
+
+    /**
+     * Show packs pricing page
+     */
+    public function packs(Request $request)
+    {
+        $seller = $this->seller();
+        $gameType = $request->get('game', 'mobilelegends');
+
+        // Get available game types
+        $gameTypes = DiamondPack::where('is_active', true)
+            ->select('game_type')
+            ->distinct()
+            ->pluck('game_type');
+
+        // Filter by allowed games
+        if (!empty($seller->allowed_games)) {
+            $gameTypes = $gameTypes->intersect($seller->allowed_games);
+        }
+
+        // Get packs for selected game
+        $packs = DiamondPack::where('game_type', $gameType)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('diamonds')
+            ->get();
+
+        // Get seller's custom prices
+        $sellerPrices = $seller->gamePrices()
+            ->whereIn('diamond_pack_id', $packs->pluck('id'))
+            ->get()
+            ->keyBy('diamond_pack_id');
+
+        return view('seller.packs', compact('seller', 'gameTypes', 'gameType', 'packs', 'sellerPrices'));
+    }
+
+    /**
+     * Update pack prices
+     */
+    public function updatePrices(Request $request)
+    {
+        $seller = $this->seller();
+
+        $validated = $request->validate([
+            'prices' => 'required|array',
+            'prices.*.pack_id' => 'required|exists:diamond_packs,id',
+            'prices.*.price_dzd' => 'required|numeric|min:0',
+            // flexy_price may be left empty for sellers who don't use Flexy — validate if present
+            'prices.*.flexy_price' => 'nullable|numeric|min:0',
+            'prices.*.is_active' => 'boolean',
+        ]);
+
+        foreach ($validated['prices'] as $priceData) {
+            $pack = DiamondPack::find($priceData['pack_id']);
+
+            // Validate minimum price based on the pack base price (DZD)
+            $baseDzd = $pack->base_price_dzd ?? $pack->price_dzd;
+
+            if ($priceData['price_dzd'] < $baseDzd) {
+                return back()->withErrors([
+                    'prices' => "Price for {$pack->name} must be at least {$baseDzd} DZD"
+                ]);
+            }
+
+            // If seller provided a Flexy price (DZD), ensure it is not lower than the base price (DZD)
+            if (!empty($priceData['flexy_price']) && is_numeric($priceData['flexy_price'])) {
+                if ($priceData['flexy_price'] < $baseDzd) {
+                    return back()->withErrors([
+                        'prices' => "Flexy price for {$pack->name} must be at least {$baseDzd} DZD"
+                    ]);
+                }
+            }
+
+            $updateData = [
+                'custom_price_dzd' => $priceData['price_dzd'],
+                'flexy_price' => $priceData['flexy_price'] ?? null,
+                // ensure is_active is stored as boolean/int (1/0)
+                'is_active' => isset($priceData['is_active']) ? (bool) $priceData['is_active'] : true,
+            ];
+
+            // Only update custom_price_usd if provided (we don't want to null out existing values)
+            if (array_key_exists('price_usd', $priceData)) {
+                $updateData['custom_price_usd'] = $priceData['price_usd'];
+            }
+
+            SellerGamePrice::updateOrCreate(
+                [
+                    'seller_id' => $seller->id,
+                    'diamond_pack_id' => $pack->id,
+                ],
+                $updateData
+            );
+        }
+
+        return back()->with('success', 'Prices updated successfully!');
+    }
+
+    /**
+     * Wallet page
+     */
+    public function wallet()
+    {
+        $seller = $this->seller();
+
+        $transactions = $seller->walletTransactions()
+            ->latest()
+            ->paginate(20);
+
+        $totalCredits = $seller->walletTransactions()->credits()->sum('amount');
+        $totalDebits = $seller->walletTransactions()->debits()->sum('amount');
+
+        // Top-up requests (pending) summary
+        $pendingTopups = $seller->walletRechargeAsks()->where('status', 'pending')->get();
+        $pendingTopupsSum = $pendingTopups->sum('amount');
+
+        return view('seller.wallet', compact('seller', 'transactions', 'totalCredits', 'totalDebits', 'pendingTopups', 'pendingTopupsSum'));
+    }
+
+    /**
+     * Orders page
+     */
+    public function orders(Request $request)
+    {
+        $seller = $this->seller();
+
+        $query = $seller->orders()->with(['diamondPack', 'user']);
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by game
+        if ($request->filled('game')) {
+            $query->whereHas('diamondPack', function ($q) use ($request) {
+                $q->where('game_type', $request->game);
+            });
+        }
+
+        // Filter by date
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Paginate the result set for the page
+        // Show 10 rows per page for seller orders
+        $orders = $query->latest()->paginate(10);
+
+        // Global counts (not limited to the current page) for the seller's orders
+        $globalQuery = $seller->orders();
+        $totalOrdersCount = $globalQuery->count();
+        $pendingFlexyCount = $globalQuery->where('status', 'pending_flexy_verification')->count();
+        $processingCount = $globalQuery->where('status', 'processing')->count();
+        $completedCount = $globalQuery->where('status', 'completed')->count();
+
+        return view('seller.orders', compact(
+            'seller', 'orders',
+            'totalOrdersCount', 'pendingFlexyCount', 'processingCount', 'completedCount'
+        ));
+    }
+
+    /**
+     * Statistics page
+     */
+    public function statistics()
+    {
+        $seller = $this->seller();
+
+        // Overall stats
+        $stats = [
+            'total_orders' => $seller->orders()->count(),
+            'completed_orders' => $seller->orders()->where('status', 'completed')->count(),
+            'total_revenue' => $seller->total_sales,
+            'total_profit' => $seller->total_earnings,
+            'wallet_balance' => $seller->wallet_balance,
+        ];
+
+        // Monthly breakdown
+        $monthlyStats = $seller->orders()
+            ->where('status', 'completed')
+            ->selectRaw('MONTH(created_at) as month, YEAR(created_at) as year, COUNT(*) as orders, SUM(seller_profit) as profit')
+            ->groupBy('year', 'month')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->take(12)
+            ->get();
+
+        // Top selling packs
+        $topPacks = $seller->orders()
+            ->where('status', 'completed')
+            ->with('diamondPack')
+            ->selectRaw('diamond_pack_id, COUNT(*) as count, SUM(seller_profit) as profit')
+            ->groupBy('diamond_pack_id')
+            ->orderBy('count', 'desc')
+            ->take(10)
+            ->get();
+
+        // Chart data - last 30 days
+        $chartData = $this->getChartData($seller, 30);
+
+        return view('seller.statistics', compact('seller', 'stats', 'monthlyStats', 'topPacks', 'chartData'));
+    }
+
+    /**
+     * Direct top-up page
+     */
+    public function directTopup()
+    {
+        $seller = $this->seller();
+
+        // Get available game types
+        $gameTypes = DiamondPack::where('is_active', true)
+            ->select('game_type')
+            ->distinct()
+            ->pluck('game_type');
+
+        // Filter by allowed games
+        if (!empty($seller->allowed_games)) {
+            $gameTypes = $gameTypes->intersect($seller->allowed_games);
+        }
+
+        return view('seller.direct-topup', compact('seller', 'gameTypes'));
+    }
+
+    /**
+     * Get packs for a game (API)
+     */
+    public function getGamePacks(Request $request)
+    {
+        $seller = $this->seller();
+        $gameType = $request->get('game_type');
+
+        // Check if seller can sell this game
+        if (!$seller->canSellGame($gameType)) {
+            return response()->json(['error' => 'You are not allowed to sell this game'], 403);
+        }
+
+        $packs = DiamondPack::where('game_type', $gameType)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('diamonds')
+            ->get();
+
+        // Add seller's custom prices
+        $sellerPrices = $seller->gamePrices()
+            ->whereIn('diamond_pack_id', $packs->pluck('id'))
+            ->get()
+            ->keyBy('diamond_pack_id');
+
+        $packsData = $packs->map(function ($pack) use ($sellerPrices) {
+            $customPrice = $sellerPrices->get($pack->id);
+            return [
+                'id' => $pack->id,
+                'name' => $pack->name,
+                'code' => $pack->code,
+                'diamonds' => $pack->diamonds,
+                'bonus_diamonds' => $pack->bonus_diamonds,
+                'total_diamonds' => $pack->total_diamonds,
+                'base_price_dzd' => $pack->base_price_dzd ?? $pack->price_dzd,
+                'base_price_usd' => $pack->price_usd,
+                'seller_price_dzd' => $customPrice ? $customPrice->custom_price_dzd : $pack->price_dzd,
+                'seller_price_usd' => $customPrice ? $customPrice->custom_price_usd : $pack->price_usd,
+                'is_active' => $customPrice ? $customPrice->is_active : true,
+            ];
+        });
+
+        return response()->json($packsData);
+    }
+
+    /**
+     * Process direct top-up order
+     */
+    public function processDirectTopup(Request $request)
+    {
+        $seller = $this->seller();
+
+        $validated = $request->validate([
+            'game_type' => 'required|string',
+            'pack_id' => 'required|exists:diamond_packs,id',
+            'player_id' => 'required|string',
+            'zone_id' => 'nullable|string',
+        ]);
+
+        $pack = DiamondPack::findOrFail($validated['pack_id']);
+
+        // Check if seller can sell this game
+        if (!$seller->canSellGame($pack->game_type)) {
+            return back()->withErrors(['error' => 'You are not allowed to sell this game']);
+        }
+
+        // Get seller's base cost (original pack price)
+        $baseCost = $pack->price_dzd;
+
+        // Check wallet balance
+        if ($seller->wallet_balance < $baseCost) {
+            return back()->withErrors(['error' => 'Insufficient wallet balance. You need ' . $baseCost . ' DZD']);
+        }
+
+        // Get seller's custom price
+        $customPrice = $seller->getCustomPrice($pack->id);
+        $sellingPrice = $customPrice ? $customPrice->custom_price_dzd : $pack->price_dzd;
+        $profit = $sellingPrice - $baseCost;
+
+        try {
+            DB::beginTransaction();
+
+            // Create order
+            $order = Order::create([
+                'order_number' => Order::generateOrderNumber(),
+                'seller_id' => $seller->id,
+                'diamond_pack_id' => $pack->id,
+                'status' => 'processing',
+                'user_id_ml' => $validated['game_type'] === 'mobilelegends' ? $validated['player_id'] : null,
+                'zone_id_ml' => $validated['game_type'] === 'mobilelegends' ? ($validated['zone_id'] ?? null) : null,
+                'player_id_ff' => $validated['game_type'] === 'freefire' ? $validated['player_id'] : null,
+                'player_id_pubg' => $validated['game_type'] === 'pubgmobile' ? $validated['player_id'] : null,
+                'player_id_hok' => $validated['game_type'] === 'honorofkings' ? $validated['player_id'] : null,
+                'user_id_bs' => $validated['game_type'] === 'bloodstrike' ? $validated['player_id'] : null,
+                'server_bs' => $validated['game_type'] === 'bloodstrike' ? ($validated['zone_id'] ?? null) : null,
+                'wallet_deducted' => true,
+                'seller_cost' => $baseCost,
+                'seller_profit' => $profit,
+                'is_direct_topup' => true,
+                'original_price' => $sellingPrice,
+                'final_price' => $sellingPrice,
+            ]);
+
+            // Deduct from wallet
+            $seller->deductWallet($baseCost, "Direct top-up order #{$order->order_number}", $order->id);
+
+            // Place order with VIP Reseller
+            $result = $this->placeVipResellerOrder($pack, $validated);
+
+            if ($result['success']) {
+                $order->update(['status' => 'completed']);
+                $seller->addEarnings($profit, $sellingPrice);
+
+                // Send Telegram notification
+                $this->sendDirectTopupNotification($seller, $order, $pack);
+
+                DB::commit();
+                return back()->with('success', 'Top-up completed successfully! Order #' . $order->order_number);
+            } else {
+                // Refund wallet
+                $seller->creditWallet($baseCost, "Refund for failed order #{$order->order_number}", null, 'refund');
+                $order->update(['status' => 'failed', 'notes' => $result['error']]);
+
+                DB::commit();
+                return back()->withErrors(['error' => 'Top-up failed: ' . $result['error']]);
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Direct top-up failed', [
+                'seller_id' => $seller->id,
+                'error' => $e->getMessage()
+            ]);
+            return back()->withErrors(['error' => 'An error occurred. Please try again.']);
+        }
+    }
+
+    /**
+     * Place order with VIP Reseller
+     */
+    protected function placeVipResellerOrder(DiamondPack $pack, array $data): array
+    {
+        try {
+            switch ($pack->game_type) {
+                case 'mobilelegends':
+                    $response = $this->vipResellerService->placeOrder(
+                        $pack->code,
+                        $data['player_id'],
+                        $data['zone_id'] ?? ''
+                    );
+                    break;
+
+                case 'freefire':
+                    $response = $this->vipResellerService->placeFreefireOrder(
+                        $pack->code,
+                        $data['player_id']
+                    );
+                    break;
+
+                case 'pubgmobile':
+                    $response = $this->vipResellerService->placePubgOrder(
+                        $pack->code,
+                        $data['player_id']
+                    );
+                    break;
+
+                case 'honorofkings':
+                    $response = $this->vipResellerService->placeHokOrder(
+                        $pack->code,
+                        $data['player_id']
+                    );
+                    break;
+
+                case 'bloodstrike':
+                    $response = $this->vipResellerService->placeBloodstrikeOrder(
+                        $pack->code,
+                        $data['player_id'],
+                        $data['zone_id'] ?? 'Global'
+                    );
+                    break;
+
+                default:
+                    return ['success' => false, 'error' => 'Unsupported game type'];
+            }
+
+            if (isset($response['result']) && $response['result'] === true) {
+                return ['success' => true, 'data' => $response];
+            }
+
+            return ['success' => false, 'error' => $response['message'] ?? 'Unknown error'];
+
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Send Telegram notification for direct top-up
+     */
+    protected function sendDirectTopupNotification(Seller $seller, Order $order, DiamondPack $pack): void
+    {
+        try {
+            $gameNames = [
+                'mobilelegends' => 'Mobile Legends',
+                'freefire' => 'Free Fire',
+                'pubgmobile' => 'PUBG Mobile',
+                'honorofkings' => 'Honor of Kings',
+                'bloodstrike' => 'Blood Strike',
+            ];
+
+            $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs;
+
+            $message = "🎮 *Direct Top-Up by Seller*\n\n";
+            $message .= "📦 Order: `{$order->order_number}`\n";
+            $message .= "👤 Seller: {$seller->name} (@{$seller->username})\n";
+            $message .= "🎯 Game: " . ($gameNames[$pack->game_type] ?? $pack->game_type) . "\n";
+            $message .= "💎 Pack: {$pack->name}\n";
+            $message .= "🆔 Player ID: `{$playerId}`\n";
+            $message .= "💰 Cost: {$order->seller_cost} DZD\n";
+            $message .= "📈 Profit: {$order->seller_profit} DZD\n";
+            $message .= "✅ Status: Completed";
+
+            $this->telegramService->sendMessage($message);
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to send Telegram notification for direct top-up', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Seller profile settings
+     */
+    public function profile()
+    {
+        $seller = $this->seller();
+        return view('seller.profile', compact('seller'));
+    }
+
+    /**
+     * Update seller profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $seller = $this->seller();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'store_name' => 'nullable|string|max:255',
+            'store_description' => 'nullable|string|max:1000',
+        ]);
+
+        $seller->update($validated);
+
+        return back()->with('success', 'Profile updated successfully!');
+    }
+
+    /**
+     * Seller settings page - show website parameters
+     */
+    public function settings()
+    {
+        // available games on platform
+        $availableGames = DiamondPack::where('is_active', true)
+            ->select('game_type')
+            ->distinct()
+            ->pluck('game_type')
+            ->toArray();
+
+        $seller = $this->seller();
+
+        $settings = [
+            'app_name' => config('app.name'),
+            'app_url' => config('app.url'),
+            'environment' => config('app.env'),
+            'locale' => config('app.locale'),
+            'timezone' => config('app.timezone'),
+            'currency_usd_to_dzd' => config('currency.usd_to_dzd'),
+            'mail_default' => config('mail.default'),
+            'mail_from' => config('mail.from.address'),
+            'postmark_configured' => !empty(config('services.postmark.key')),
+            'resend_configured' => !empty(config('services.resend.key')),
+            'telegram_configured' => !empty(config('telegram.bot_token')),
+        ];
+
+        return view('seller.settings', compact('settings', 'availableGames', 'seller'));
+    }
+
+    /**
+     * Update seller settings
+     */
+    public function updateSettings(Request $request)
+    {
+        $seller = $this->seller();
+
+        $availableGames = DiamondPack::where('is_active', true)
+            ->select('game_type')
+            ->distinct()
+            ->pluck('game_type')
+            ->toArray();
+
+        $validated = $request->validate([
+            'website_enabled' => 'sometimes|boolean',
+            // we accept a slug or a full url — we'll normalize it to the slug below
+            'website_url' => 'nullable|string|max:50',
+            'allowed_games' => 'nullable|array',
+            'allowed_games.*' => ['string', function ($attribute, $value, $fail) use ($availableGames) {
+                if (!in_array($value, $availableGames)) {
+                    $fail('Invalid game selected: ' . $value);
+                }
+            }],
+            'flexy_enabled' => 'sometimes|boolean',
+            'flexy_number' => 'nullable|string|max:50',
+            'flexy_instruction' => 'nullable|string|max:2000',
+        ]);
+
+        // Normalize values
+        $seller->website_enabled = (bool) ($validated['website_enabled'] ?? false);
+
+        // Normalize 'website_url' input to a slug (last path segment) and validate
+        if (array_key_exists('website_url', $validated)) {
+            $raw = trim($validated['website_url'] ?? '');
+            $slug = null;
+
+            if ($raw !== '') {
+                // if user entered a full URL, extract path and use the last segment
+                if (str_contains($raw, '://') || str_contains($raw, '/')) {
+                    $parts = parse_url($raw);
+                    $path = $parts['path'] ?? '';
+                    $segments = array_values(array_filter(explode('/', $path)));
+                    $slug = end($segments) ?: null;
+                } else {
+                    $slug = $raw;
+                }
+
+                if ($slug) {
+                    // normalize: allow letters, numbers, hyphen and underscore only
+                    $slug = strtolower($slug);
+                    $slug = preg_replace('/[^a-z0-9_-]+/', '', $slug);
+
+                    if (!preg_match('/^[a-z0-9_-]+$/', $slug)) {
+                        return back()->withErrors(['website_url' => 'Store slug can only contain letters, numbers, hyphens and underscores.']);
+                    }
+
+                    // ensure slug uniqueness (exclude current seller)
+                    if (\App\Models\Seller::where('website_url', $slug)->where('id', '!=', $seller->id)->exists()) {
+                        return back()->withErrors(['website_url' => 'This store slug is already taken. Please choose another.']);
+                    }
+                }
+            }
+
+            // Save the slug (or null if blank)
+            $seller->website_url = $slug ?: null;
+        }
+        $seller->allowed_games = $validated['allowed_games'] ?? [];
+        $seller->flexy_enabled = (bool) ($validated['flexy_enabled'] ?? false);
+        // Using only website_enabled / flexy_enabled going forward (no legacy flags)
+        // new simulation flags and flexy details
+        // removed: is_flexy/is_website simulation flags (now controlled via flexy_enabled / website_enabled)
+        $seller->flexy_number = $validated['flexy_number'] ?? $seller->flexy_number;
+        $seller->flexy_instruction = $validated['flexy_instruction'] ?? $seller->flexy_instruction;
+
+        $seller->save();
+
+        return back()->with('success', 'Settings updated successfully!');
+    }
+
+    /**
+     * Change seller password
+     */
+    public function changePassword(Request $request)
+    {
+        $seller = $this->seller();
+
+        $validated = $request->validate([
+            'current_password' => 'required',
+            'password' => ['required', 'confirmed', 'min:8'],
+        ]);
+
+        if (!Hash::check($validated['current_password'], $seller->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect']);
+        }
+
+        $seller->update([
+            'password' => Hash::make($validated['password'])
+        ]);
+
+        return back()->with('success', 'Password changed successfully!');
+    }
+
+    /**
+     * Get order details for AJAX modal
+     */
+    public function getOrderDetails(string $orderNumber)
+    {
+        $seller = $this->seller();
+
+        $order = $seller->orders()
+            ->with(['diamondPack', 'user'])
+            ->where('order_number', $orderNumber)
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'order' => $order
+        ]);
+    }
+
+    /**
+     * Confirm a Flexy order and process the top-up
+     */
+    public function confirmFlexyOrder(string $orderNumber)
+    {
+        $seller = $this->seller();
+
+        $order = $seller->orders()
+            ->with('diamondPack')
+            ->where('order_number', $orderNumber)
+            ->where('status', 'pending_flexy_verification')
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found or already processed'
+            ], 404);
+        }
+
+        $pack = $order->diamondPack;
+        $baseCost = $order->seller_cost;
+
+        // Check wallet balance
+        if ($seller->wallet_balance < $baseCost) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Insufficient wallet balance. You need ' . $baseCost . ' DZD'
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update order status to processing
+            $order->update(['status' => 'processing']);
+
+            // Deduct from wallet
+            $seller->deductWallet($baseCost, "Flexy order #{$order->order_number}", $order->id);
+            $order->update(['wallet_deducted' => true]);
+
+            // Determine player data based on game type
+            $gameType = $pack->game_type;
+            $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs;
+            $zoneId = $order->zone_id_ml ?? $order->server_bs ?? null;
+
+            $data = [
+                'game_type' => $gameType,
+                'player_id' => $playerId,
+                'zone_id' => $zoneId,
+            ];
+
+            // Place order with VIP Reseller
+            $result = $this->placeVipResellerOrder($pack, $data);
+
+            if ($result['success']) {
+                $order->update(['status' => 'completed']);
+                $seller->addEarnings($order->seller_profit, $order->final_price);
+
+                // Send Telegram notification
+                $this->sendFlexyConfirmNotification($seller, $order, $pack);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Order confirmed and processed successfully!'
+                ]);
+            } else {
+                // Refund wallet
+                $seller->creditWallet($baseCost, "Refund for failed order #{$order->order_number}", null, 'refund');
+                $order->update([
+                    'status' => 'failed',
+                    'notes' => $result['error'],
+                    'wallet_deducted' => false
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Top-up failed: ' . $result['error']
+                ], 400);
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Flexy order confirmation failed', [
+                'seller_id' => $seller->id,
+                'order_number' => $orderNumber,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing the order'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete an order (only pending/failed orders)
+     */
+    public function deleteOrder(string $orderNumber)
+    {
+        $seller = $this->seller();
+
+        $order = $seller->orders()
+            ->where('order_number', $orderNumber)
+            ->whereIn('status', ['pending', 'pending_flexy_verification', 'failed'])
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found or cannot be deleted'
+            ], 404);
+        }
+
+        try {
+            // Delete associated receipt file if exists
+            if ($order->flexy_receipt) {
+                $receiptPath = storage_path('app/public/' . $order->flexy_receipt);
+                if (file_exists($receiptPath)) {
+                    unlink($receiptPath);
+                }
+            }
+
+            $order->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to delete order', [
+                'seller_id' => $seller->id,
+                'order_number' => $orderNumber,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete order'
+            ], 500);
+        }
+    }
+
+    /**
+     * Send Telegram notification for Flexy order confirmation
+     */
+    protected function sendFlexyConfirmNotification(Seller $seller, Order $order, DiamondPack $pack): void
+    {
+        try {
+            $gameNames = [
+                'mobilelegends' => 'Mobile Legends',
+                'freefire' => 'Free Fire',
+                'pubgmobile' => 'PUBG Mobile',
+                'honorofkings' => 'Honor of Kings',
+                'bloodstrike' => 'Blood Strike',
+            ];
+
+            $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs;
+
+            $message = "💳 *Flexy Order Confirmed*\n\n";
+            $message .= "📦 Order: `{$order->order_number}`\n";
+            $message .= "👤 Seller: {$seller->name} (@{$seller->username})\n";
+            $message .= "🎯 Game: " . ($gameNames[$pack->game_type] ?? $pack->game_type) . "\n";
+            $message .= "💎 Pack: {$pack->name}\n";
+            $message .= "🆔 Player ID: `{$playerId}`\n";
+            $message .= "💰 Cost: {$order->seller_cost} DZD\n";
+            $message .= "📈 Profit: {$order->seller_profit} DZD\n";
+            $message .= "✅ Status: Completed";
+
+            $this->telegramService->sendMessage($message);
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to send Telegram notification for Flexy confirmation', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+}

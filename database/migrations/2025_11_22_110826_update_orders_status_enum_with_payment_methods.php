@@ -12,9 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // For MySQL, we need to modify the enum column
-        // First, modify the column to allow the new values
-        DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay', 'sending', 'completed', 'cancelled', 'refunded') DEFAULT 'pending'");
+        // For MySQL, we need to modify the enum column. Skip on SQLite/testing.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay', 'sending', 'completed', 'cancelled', 'refunded') DEFAULT 'pending'");
+        }
     }
 
     /**
@@ -22,7 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert to original enum values
-        DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'sending', 'completed', 'refunded') DEFAULT 'pending'");
+        // Revert to original enum values (only applicable to MySQL)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'sending', 'completed', 'refunded') DEFAULT 'pending'");
+        }
     }
 };

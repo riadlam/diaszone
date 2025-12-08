@@ -15,15 +15,41 @@
     }
     
     #ordersTable thead th {
-        background-color: #f9fafb;
-        border-bottom: 2px solid #e5e7eb;
-        padding: 0.75rem 1rem;
-        font-weight: 600;
-        font-size: 0.75rem;
+        background: linear-gradient(90deg, #fafafa, #f3f4f6); /* subtle light gradient */
+        border-bottom: 2px solid rgba(99,102,241,0.08);
+        padding: 0.95rem 1.4rem; /* increased header padding for clarity */
+        font-weight: 700;
+        font-size: 0.82rem;
         text-transform: uppercase;
         color: #4b5563;
         letter-spacing: 0.05em;
     }
+
+    /* Small helper to give header text a bit of breathing room */
+    #ordersTable thead th .th-title {
+        display: inline-block;
+        padding: 0.125rem 0;
+        margin: 0;
+        font-size: 0.9rem;
+        letter-spacing: 0.04em;
+    }
+
+    /* Sticky header with subtle shadow so the header separates from rows */
+    #ordersTable thead th {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        box-shadow: 0 10px 30px rgba(2,6,23,0.06), inset 0 -1px 0 rgba(0,0,0,0.02);
+        border-top: 2px solid rgba(99,102,241,0.06);
+        text-shadow: 0 0.5px 0 rgba(0,0,0,0.04);
+    }
+
+    #ordersTable thead th:first-child { border-top-left-radius: 0.5rem; }
+    #ordersTable thead th:last-child { border-top-right-radius: 0.5rem; }
+
+    /* Slightly separate row tones so header doesn't blend */
+    #ordersTable tbody tr { background: #fff; }
+    #ordersTable tbody tr:hover { background: #fbfbfd; }
     
     #ordersTable tbody td {
         padding: 0.75rem 1rem;
@@ -201,7 +227,7 @@
     <div class="fixed inset-0 overflow-y-auto">
         <div class="flex min-h-full items-center justify-center p-4">
             <!-- Modal panel -->
-            <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl border-2 border-gray-200 transform transition-all">
+            <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl border-2 border-gray-200 transform transition-all max-h-[90vh] flex flex-col">
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 rounded-t-xl border-b border-purple-800">
                     <div class="flex items-center justify-between">
@@ -214,8 +240,8 @@
                     </div>
                 </div>
                 
-                <!-- Modal Body (Scrollable) -->
-                <div class="bg-gray-50 max-h-[70vh] overflow-y-auto">
+                <!-- Modal Body (Scrollable area) -->
+                <div class="flex-1 overflow-auto bg-gray-50">
                     <div id="orderModalContent" class="p-6">
                         <!-- Loading state -->
                         <div class="text-center py-12">
@@ -226,7 +252,7 @@
                 </div>
                 
                 <!-- Order Details Table Container (Hidden initially) -->
-                <div id="orderDetailsTableContainer" class="bg-gray-50 max-h-[70vh] overflow-y-auto p-6 hidden">
+                <div id="orderDetailsTableContainer" class="p-6 hidden">
                     <table id="orderDetailsTable" class="display nowrap" style="width:100%">
                         <thead>
                             <tr>

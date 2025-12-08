@@ -31,6 +31,16 @@ class Order extends Model
         'discount_amount',
         'original_price',
         'final_price',
+        // Seller fields
+        'seller_id',
+        'wallet_deducted',
+        'seller_cost',
+        'seller_profit',
+        'is_direct_topup',
+        // Payment method and Flexy fields
+        'payment_method',
+        'flexy_receipt',
+        'flexy_description',
     ];
 
     /**
@@ -39,6 +49,14 @@ class Order extends Model
     public function coupon(): BelongsTo
     {
         return $this->belongsTo(Coupon::class);
+    }
+
+    /**
+     * Get the seller for this order.
+     */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /**

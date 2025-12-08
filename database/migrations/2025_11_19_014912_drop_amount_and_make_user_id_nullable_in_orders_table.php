@@ -12,8 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            // Drop the amount column
-            $table->dropColumn('amount');
+            // Drop the amount column if present
+            if (Schema::hasColumn('orders', 'amount')) {
+                $table->dropColumn('amount');
+            }
             
             // Make user_id nullable
             // First, drop the foreign key constraint
@@ -39,8 +41,10 @@ return new class extends Migration
             // Re-add the foreign key constraint
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             
-            // Re-add the amount column
-            $table->decimal('amount', 10, 2)->after('payment_method');
+            // Re-add the amount column if missing
+            if (!Schema::hasColumn('orders', 'amount')) {
+                $table->decimal('amount', 10, 2)->after('payment_method');
+            }
         });
     }
 };

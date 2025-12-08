@@ -12,8 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            // Drop the amount column
-            $table->dropColumn('amount');
+            // Drop the amount column if present (safe for sqlite/testing)
+            if (Schema::hasColumn('orders', 'amount')) {
+                $table->dropColumn('amount');
+            }
             
             // Make user_id nullable
             // First, drop the foreign key constraint
@@ -31,8 +33,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            // Re-add the amount column
-            $table->decimal('amount', 10, 2)->after('payment_method');
+            // Re-add the amount column if missing
+            if (!Schema::hasColumn('orders', 'amount')) {
+                $table->decimal('amount', 10, 2)->after('payment_method');
+            }
             
             // Make user_id not nullable again
             // First, drop the foreign key constraint

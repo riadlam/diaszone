@@ -93,21 +93,7 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-4 md:p-6">
-                <h2 class="text-lg md:text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-                <div class="space-y-3">
-                    <a href="{{ route('admin.orders') }}" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors text-center">
-                        View All Orders
-                    </a>
-                    <a href="{{ route('admin.users') }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors text-center">
-                        Manage Users
-                    </a>
-                    <a href="{{ route('admin.settings') }}" class="block w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors text-center">
-                        Settings
-                    </a>
-                </div>
-            </div>
+            <!-- Quick Actions removed per design request -->
         </div>
 
         <!-- Recent Orders -->

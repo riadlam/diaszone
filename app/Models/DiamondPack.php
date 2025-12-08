@@ -14,6 +14,7 @@ class DiamondPack extends Model
         'bonus_diamonds',
         'price',
         'price_dzd',
+        'base_price_dzd',
         'price_usd',
         'discount_percentage',
         'is_active',
@@ -23,6 +24,7 @@ class DiamondPack extends Model
     protected $casts = [
         'price' => 'decimal:2',
         'price_dzd' => 'decimal:2',
+        'base_price_dzd' => 'decimal:2',
         'price_usd' => 'decimal:2',
         'discount_percentage' => 'decimal:2',
         'is_active' => 'boolean',

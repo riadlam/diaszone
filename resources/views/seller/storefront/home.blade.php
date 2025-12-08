@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ $seller->store_name ?? $seller->name }} - DiasZone</title>
+    <link rel="icon" type="image/png" href="{{ asset('storage/images_homepage/favicon.png') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .game-card {
+            transition: all 0.3s ease;
+        }
+        .game-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen">
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-xl">{{ substr($seller->name, 0, 1) }}</span>
+                    </div>
+                    <div>
+                        <h1 class="text-white font-bold text-xl">{{ $seller->store_name ?? $seller->name }}</h1>
+                        <p class="text-gray-400 text-sm">Game Top-Up Store</p>
+                    </div>
+                </div>
+                <a href="{{ route('home') }}" class="text-gray-400 hover:text-white text-sm">
+                    Powered by DiasZone
+                </a>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        @if($seller->store_description)
+            <div class="mb-8 p-4 bg-slate-800 rounded-xl border border-slate-700">
+                <p class="text-gray-300">{{ $seller->store_description }}</p>
+            </div>
+        @endif
+        
+        <h2 class="text-2xl font-bold text-white mb-6">Choose a Game</h2>
+        
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            @foreach($games as $game)
+                <a href="{{ route('seller.store.game', ['username' => $seller->username, 'gameType' => $game['type']]) }}" 
+                   class="game-card bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 flex flex-col">
+                    <div class="w-full h-48 bg-slate-700 overflow-hidden flex-shrink-0 relative">
+                        @if($game['type'] === 'mobilelegends')
+                            <img src="{{ asset('storage/images_homepage/ml.webp') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
+                        @elseif($game['type'] === 'freefire')
+                            <img src="{{ asset('storage/images_homepage/Free_Fire.webp') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
+                        @elseif($game['type'] === 'pubgmobile')
+                            <img src="{{ asset('storage/images_homepage/games/pubg.png') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
+                        @else
+                            <div class="w-full h-48 bg-blue-500/20 flex items-center justify-center">
+                                <span class="text-4xl">🎮</span>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="p-4 text-center flex-shrink-0">
+                        <h3 class="text-white font-bold">{{ $game['name'] }}</h3>
+                        <p class="text-gray-400 text-sm">Top Up Now</p>
+                    </div>
+                </a>
+            @endforeach
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-slate-800 border-t border-slate-700 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 py-6 text-center">
+            <p class="text-gray-400 text-sm">
+                © {{ date('Y') }} {{ $seller->store_name ?? $seller->name }}. 
+                Powered by <a href="{{ route('home') }}" class="text-blue-400 hover:text-blue-300">DiasZone</a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

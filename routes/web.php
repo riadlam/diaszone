@@ -6,6 +6,10 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CouponController;
+use App\Http\Controllers\Seller\SellerAuthController;
+use App\Http\Controllers\Seller\SellerController;
+use App\Http\Controllers\Seller\SellerStorefrontController;
+use App\Http\Controllers\Admin\SellerManagementController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
 
@@ -171,5 +175,81 @@ Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin', 'throttle:60,
     Route::get('/orders/data', [AdminController::class, 'orders'])->name('orders.data'); // DataTables endpoint
     Route::get('/orders/{orderNumber}', [AdminController::class, 'getOrderDetails'])->name('orders.details');
     Route::patch('/orders/{orderNumber}/status', [AdminController::class, 'updateOrderStatus'])->name('orders.update-status');
+    // Flexy approval flows
+    Route::get('/flexy-approvals', [AdminController::class, 'flexyApprovals'])->name('flexy.approvals');
+    Route::patch('/flexy-approvals/{orderNumber}/approve', [AdminController::class, 'approveFlexy'])->name('flexy.approvals.approve');
+    Route::patch('/flexy-approvals/{orderNumber}/reject', [AdminController::class, 'rejectFlexy'])->name('flexy.approvals.reject');
+    // Payouts removed - platform no longer supports seller payouts
+    // Top-up requests management
+    Route::get('/topups', [\App\Http\Controllers\Admin\TopupController::class, 'index'])->name('topups.index');
+    Route::patch('/topups/{topup}/approve', [\App\Http\Controllers\Admin\TopupController::class, 'approve'])->name('topups.approve');
+    Route::patch('/topups/{topup}/reject', [\App\Http\Controllers\Admin\TopupController::class, 'reject'])->name('topups.reject');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+
+    // Seller Management Routes
+    Route::prefix('sellers')->name('sellers.')->group(function () {
+        Route::get('/', [SellerManagementController::class, 'index'])->name('index');
+        Route::get('/create', [SellerManagementController::class, 'create'])->name('create');
+        Route::post('/', [SellerManagementController::class, 'store'])->name('store');
+        Route::get('/{seller}', [SellerManagementController::class, 'show'])->name('show');
+        Route::get('/{seller}/edit', [SellerManagementController::class, 'edit'])->name('edit');
+        Route::put('/{seller}', [SellerManagementController::class, 'update'])->name('update');
+        Route::delete('/{seller}', [SellerManagementController::class, 'destroy'])->name('destroy');
+        Route::post('/{seller}/topup', [SellerManagementController::class, 'topupWallet'])->name('topup');
+        Route::post('/{seller}/deduct', [SellerManagementController::class, 'deductWallet'])->name('deduct');
+        Route::patch('/{seller}/status', [SellerManagementController::class, 'updateStatus'])->name('status');
+        Route::get('/{seller}/pricing', [SellerManagementController::class, 'pricing'])->name('pricing');
+        Route::get('/{seller}/orders', [SellerManagementController::class, 'orders'])->name('orders');
+        Route::get('/{seller}/transactions', [SellerManagementController::class, 'transactions'])->name('transactions');
+    });
 });
+
+// =====================================================
+// SELLER ROUTES
+// =====================================================
+
+// Seller Auth Routes (Guest sellers only)
+Route::prefix('seller')->name('seller.')->group(function () {
+    Route::get('/login', [SellerAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [SellerAuthController::class, 'login'])->name('login.submit');
+    Route::get('/register', [SellerAuthController::class, 'showRegisterForm'])->name('register');
+    Route::post('/register', [SellerAuthController::class, 'register'])->name('register.submit');
+    Route::post('/logout', [SellerAuthController::class, 'logout'])->name('logout');
+});
+
+// Seller Dashboard Routes (Protected by seller middleware)
+Route::prefix('seller')->name('seller.')->middleware('seller')->group(function () {
+    Route::get('/dashboard', [SellerController::class, 'dashboard'])->name('dashboard');
+    Route::get('/packs', [SellerController::class, 'packs'])->name('packs');
+    Route::post('/packs/update-prices', [SellerController::class, 'updatePrices'])->name('packs.update-prices');
+    Route::get('/wallet', [SellerController::class, 'wallet'])->name('wallet');
+    // Seller payouts removed - leave route out
+    // Seller-initiated top-up requests (admin approval required to credit wallet)
+    Route::post('/topup/request', [App\Http\Controllers\Seller\SellerTopupController::class, 'store'])->name('topup.request');
+    Route::get('/orders', [SellerController::class, 'orders'])->name('orders');
+    Route::get('/statistics', [SellerController::class, 'statistics'])->name('statistics');
+    Route::get('/direct-topup', [SellerController::class, 'directTopup'])->name('direct-topup');
+    Route::post('/direct-topup', [SellerController::class, 'processDirectTopup'])->name('direct-topup.process');
+    Route::get('/profile', [SellerController::class, 'profile'])->name('profile');
+    Route::get('/settings', [SellerController::class, 'settings'])->name('settings');
+    Route::post('/settings', [SellerController::class, 'updateSettings'])->name('settings.update');
+    Route::put('/profile', [SellerController::class, 'updateProfile'])->name('profile.update');
+    Route::post('/profile/password', [SellerController::class, 'changePassword'])->name('profile.password');
+    
+    // Order Management API
+    Route::get('/orders/{orderNumber}', [SellerController::class, 'getOrderDetails'])->name('orders.details');
+    Route::patch('/orders/{orderNumber}/confirm', [SellerController::class, 'confirmFlexyOrder'])->name('orders.confirm');
+    Route::delete('/orders/{orderNumber}', [SellerController::class, 'deleteOrder'])->name('orders.delete');
+    
+    // API for seller dashboard
+    Route::get('/api/packs', [SellerController::class, 'getGamePacks'])->name('api.packs');
+});
+
+// Seller Storefront Public Routes
+Route::get('/store/{username}', [SellerStorefrontController::class, 'home'])->name('seller.store.home');
+Route::get('/store/{username}/{gameType}', [SellerStorefrontController::class, 'gamePage'])->name('seller.store.game');
+Route::get('/store/{username}/{gameType}/packs', [SellerStorefrontController::class, 'getPacksApi'])->name('seller.store.packs');
+Route::post('/store/{username}/checkout', [SellerStorefrontController::class, 'checkout'])->name('seller.store.checkout');
+Route::get('/store/{username}/payment-method', [SellerStorefrontController::class, 'showPaymentMethod'])->name('seller.store.payment-method');
+Route::post('/store/{username}/payment', [SellerStorefrontController::class, 'processPayment'])->name('seller.store.payment');
+Route::get('/store/payment/success/{encrypted_order_id}', [SellerStorefrontController::class, 'paymentSuccess'])->name('seller.payment.success');

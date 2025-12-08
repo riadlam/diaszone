@@ -12,8 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add 'pending_confirmation' to the status enum
-        DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay', 'pending_confirmation', 'sending', 'completed', 'cancelled', 'refunded') DEFAULT 'pending'");
+        // Add 'pending_confirmation' to the status enum (MySQL only)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay', 'pending_confirmation', 'sending', 'completed', 'cancelled', 'refunded') DEFAULT 'pending'");
+        }
     }
 
     /**
@@ -21,7 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Remove 'pending_confirmation' from the enum
-        DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay', 'sending', 'completed', 'cancelled', 'refunded') DEFAULT 'pending'");
+        // Remove 'pending_confirmation' from the enum (MySQL only)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay', 'sending', 'completed', 'cancelled', 'refunded') DEFAULT 'pending'");
+        }
     }
 };
