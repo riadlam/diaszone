@@ -62,9 +62,9 @@
     @stack('styles')
 </head>
 <body class="bg-gray-100">
-    <div class="flex h-screen overflow-hidden">
+    <div class="flex min-h-screen">
         <!-- Sidebar -->
-        <aside class="admin-sidebar w-64 flex-shrink-0 hidden lg:block">
+        <aside class="admin-sidebar w-64 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
             <div class="flex flex-col h-full">
                 <!-- Logo -->
                 <div class="p-6 border-b border-purple-800/30">
@@ -157,7 +157,7 @@
         </aside>
         
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col">
             <!-- Top Bar (Mobile) -->
             <header class="bg-white shadow-sm border-b border-gray-200 lg:hidden">
                 <div class="flex items-center justify-between p-4">
@@ -248,8 +248,8 @@
             <!-- Mobile Overlay -->
             <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden"></div>
             
-            <!-- Content Area -->
-            <main class="flex-1 overflow-y-auto bg-gray-50 min-h-screen">
+            <!-- Content Area (scrollable) -->
+            <main class="flex-1 bg-gray-50 overflow-y-auto max-h-screen">
                 @yield('content')
             </main>
         </div>
@@ -298,4 +298,3 @@
     @stack('scripts')
 </body>
 </html>
-
