@@ -247,9 +247,14 @@ Route::prefix('seller')->name('seller.')->middleware('seller')->group(function (
 
 // Seller Storefront Public Routes
 Route::get('/store/{username}', [SellerStorefrontController::class, 'home'])->name('seller.store.home');
-Route::get('/store/{username}/{gameType}', [SellerStorefrontController::class, 'gamePage'])->name('seller.store.game');
-Route::get('/store/{username}/{gameType}/packs', [SellerStorefrontController::class, 'getPacksApi'])->name('seller.store.packs');
-Route::post('/store/{username}/checkout', [SellerStorefrontController::class, 'checkout'])->name('seller.store.checkout');
+// Specific storefront routes (must be placed before the generic game page to avoid collisions)
 Route::get('/store/{username}/payment-method', [SellerStorefrontController::class, 'showPaymentMethod'])->name('seller.store.payment-method');
 Route::post('/store/{username}/payment', [SellerStorefrontController::class, 'processPayment'])->name('seller.store.payment');
+Route::post('/store/{username}/checkout', [SellerStorefrontController::class, 'checkout'])->name('seller.store.checkout');
+Route::get('/store/payment/success/{encrypted_order_id}', [SellerStorefrontController::class, 'paymentSuccess'])->name('seller.payment.success');
+// API endpoint: get flexy-specific seller price for a pack (used by storefront JS)
+Route::get('/store/{username}/pack/{pack}/flexy-price', [SellerStorefrontController::class, 'getFlexyPrice'])->name('seller.store.flexy-price');
+// Generic game route should come last to avoid matching specific paths like 'payment-method' or 'pack'
+Route::get('/store/{username}/{gameType}', [SellerStorefrontController::class, 'gamePage'])->name('seller.store.game');
+Route::get('/store/{username}/{gameType}/packs', [SellerStorefrontController::class, 'getPacksApi'])->name('seller.store.packs');
 Route::get('/store/payment/success/{encrypted_order_id}', [SellerStorefrontController::class, 'paymentSuccess'])->name('seller.payment.success');

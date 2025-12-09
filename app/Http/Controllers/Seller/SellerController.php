@@ -425,6 +425,8 @@ class SellerController extends Controller
         $profit = $sellingPrice - $baseCost;
 
         try {
+            // Capture seller balance before any changes for reporting
+            $walletBefore = (float) $seller->wallet_balance;
             // Prevent duplicate submissions using cache lock
             $lockKey = 'seller_direct_topup_lock:' . $seller->id . ':' . $pack->id . ':' . md5($validated['player_id']);
             $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 10);
@@ -919,15 +921,6 @@ class SellerController extends Controller
         }
 
         try {
-            DB::beginTransaction();
-
-            // Update order status to processing
-            $order->update(['status' => 'processing']);
-
-            // Deduct from wallet
-            $seller->deductWallet($baseCost, "Flexy order #{$order->order_number}", $order->id);
-            $order->update(['wallet_deducted' => true]);
-
             // Determine player data based on game type
             $gameType = $pack->game_type;
             $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs;
@@ -939,38 +932,89 @@ class SellerController extends Controller
                 'zone_id' => $zoneId,
             ];
 
-            // Place order with VIP Reseller
+            // Snapshot wallet before external top-up and any deductions
+            $walletBefore = (float) $seller->wallet_balance;
+
+            // Place order with VIP Reseller first (do not deduct wallet yet)
             $result = $this->placeVipResellerOrder($pack, $data);
 
-            if ($result['success']) {
-                $order->update(['status' => 'completed']);
-                $seller->addEarnings($order->seller_profit, $order->final_price);
-
-                // Send Telegram notification
-                $this->sendFlexyConfirmNotification($seller, $order, $pack);
-
-                DB::commit();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Order confirmed and processed successfully!'
-                ]);
-            } else {
-                // Refund wallet
-                $seller->creditWallet($baseCost, "Refund for failed order #{$order->order_number}", null, $order->id, 'refund');
-                $order->update([
-                    'status' => 'failed',
-                    'notes' => $result['error'],
-                    'wallet_deducted' => false
-                ]);
-
-                DB::commit();
-
+            if (!$result['success']) {
+                // Mark order failed on top-up failure and leave wallet unchanged
+                $order->update(['status' => 'failed', 'notes' => $result['error'] ?? 'VIP Reseller error']);
+                Log::warning('Flexy top-up failed at VIP reseller step', ['order_id' => $order->id, 'error' => $result['error'] ?? null]);
+                // Notify via Telegram about the failed top-up
+                try {
+                    $this->sendFlexyFailureNotification($seller, $order, $pack, $result['error'] ?? 'VIP Reseller error', $walletBefore);
+                } catch (\Throwable $ex) {
+                    Log::warning('Failed to send telegram failure notification', ['order_id'=>$order->id, 'error'=>$ex->getMessage()]);
+                }
                 return response()->json([
                     'success' => false,
-                    'message' => 'Top-up failed: ' . $result['error']
+                    'message' => 'Top-up failed: ' . ($result['error'] ?? 'Unknown')
                 ], 400);
             }
+
+            // VIP Reseller succeeded — now deduct seller wallet and update order atomically
+            DB::beginTransaction();
+
+            // Ensure wallet still has funds (avoid TOCTOU problems)
+            $seller->refresh();
+            if ($seller->wallet_balance < $baseCost) {
+                // No funds to charge — mark failed and return error (VIP already executed)
+                $order->update(['status' => 'failed', 'notes' => 'Insufficient wallet after top-up confirmation']);
+                Log::error('Seller missing funds after successful VIP top-up', ['seller_id' => $seller->id, 'order_id' => $order->id, 'required' => $baseCost]);
+                // Inform via Telegram that VIP top-up happened but seller lacked funds
+                try {
+                    $this->sendFlexyFailureNotification($seller, $order, $pack, 'Insufficient wallet after successful VIP top-up', (float)$seller->wallet_balance);
+                } catch (\Throwable $ex) {
+                    Log::warning('Failed to send telegram notification for insufficient wallet after VIP', ['order_id'=>$order->id,'error'=>$ex->getMessage()]);
+                }
+                DB::commit();
+                return response()->json(['success' => false, 'message' => 'Insufficient wallet balance to deduct the cost. Contact admin.'], 400);
+            }
+
+            // Mark processing then deduct within transaction
+            $order->update(['status' => 'processing']);
+            $seller->deductWallet($baseCost, "Flexy order #{$order->order_number}", $order->id);
+            $order->update(['wallet_deducted' => true, 'status' => 'completed']);
+
+            // Add earnings (totals) and credit profit to seller wallet (idempotent)
+            $seller->addEarnings($order->seller_profit, $order->final_price);
+            try { if ($order->seller_id && !$order->seller_profit_paid) { $order->creditSellerProfit(); } } catch (\Throwable $ex) { Log::warning('Seller confirm: Failed to credit seller profit', ['order_id'=>$order->id,'error'=>$ex->getMessage()]); }
+
+            // (Telegram success notification sent below once the final balances are known)
+
+            DB::commit();
+
+            // Refresh seller to ensure current state
+            $seller->refresh();
+            $walletAfter = (float) $seller->wallet_balance;
+
+            // Notify via Telegram about success with wallet details
+            try {
+                $this->sendFlexyConfirmNotification($seller, $order, $pack, $walletBefore, $walletAfter);
+            } catch (\Throwable $ex) {
+                Log::warning('Failed to send telegram success notification', ['order_id'=>$order->id,'error'=>$ex->getMessage()]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order confirmed and processed successfully!',
+                'order' => [
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'wallet_deducted' => (bool) $order->wallet_deducted,
+                    'seller_cost' => (float) $order->seller_cost,
+                    'seller_profit' => (float) $order->seller_profit,
+                    'final_price' => (float) $order->final_price,
+                ],
+                'seller' => [
+                    'id' => $seller->id,
+                    'username' => $seller->username,
+                    'wallet_before' => $walletBefore,
+                    'wallet_after' => $walletAfter,
+                ]
+            ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1039,7 +1083,7 @@ class SellerController extends Controller
     /**
      * Send Telegram notification for Flexy order confirmation
      */
-    protected function sendFlexyConfirmNotification(Seller $seller, Order $order, DiamondPack $pack): void
+    protected function sendFlexyConfirmNotification(Seller $seller, Order $order, DiamondPack $pack, ?float $walletBefore = null, ?float $walletAfter = null): void
     {
         try {
             $gameNames = [
@@ -1060,12 +1104,56 @@ class SellerController extends Controller
             $message .= "🆔 Player ID: `{$playerId}`\n";
             $message .= "💰 Cost: {$order->seller_cost} DZD\n";
             $message .= "📈 Profit: {$order->seller_profit} DZD\n";
-            $message .= "✅ Status: Completed";
+            $message .= "✅ Status: Completed\n";
+
+            if (!is_null($walletBefore) || !is_null($walletAfter)) {
+                $message .= "\n🏦 <b>Seller Wallet</b>:\n";
+                if (!is_null($walletBefore)) $message .= "• Balance before: " . number_format($walletBefore, 2) . " DZD\n";
+                if (!is_null($walletAfter)) $message .= "• Balance after: " . number_format($walletAfter, 2) . " DZD\n";
+            }
 
             $this->telegramService->sendMessage($message);
 
         } catch (\Exception $e) {
             Log::warning('Failed to send Telegram notification for Flexy confirmation', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Send Telegram notification for Flexy top-up failure
+     */
+    protected function sendFlexyFailureNotification(Seller $seller, Order $order, DiamondPack $pack, string $reason, ?float $walletBalance = null): void
+    {
+        try {
+            $gameNames = [
+                'mobilelegends' => 'Mobile Legends',
+                'freefire' => 'Free Fire',
+                'pubgmobile' => 'PUBG Mobile',
+                'honorofkings' => 'Honor of Kings',
+                'bloodstrike' => 'Blood Strike',
+            ];
+
+            $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs;
+
+            $message = "⚠️ <b>Flexy Order Failed</b>\n\n";
+            $message .= "📦 Order: `{$order->order_number}`\n";
+            $message .= "👤 Seller: {$seller->name} (@{$seller->username})\n";
+            $message .= "🎯 Game: " . ($gameNames[$pack->game_type] ?? $pack->game_type) . "\n";
+            $message .= "💎 Pack: {$pack->name}\n";
+            $message .= "🆔 Player ID: `{$playerId}`\n";
+            $message .= "❌ Reason: {$reason}\n";
+
+            if (!is_null($walletBalance)) {
+                $message .= "\n🏦 <b>Seller Wallet</b>: " . number_format($walletBalance, 2) . " DZD\n";
+            }
+
+            $this->telegramService->sendMessage($message);
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to send Telegram notification for Flexy failure', [
                 'order_id' => $order->id,
                 'error' => $e->getMessage()
             ]);

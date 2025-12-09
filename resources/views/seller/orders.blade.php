@@ -619,11 +619,68 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showToast('Order confirmed and processed successfully!', 'success');
+                // Show immediate feedback and update UI row
+                showToast('Top-up requested — processing with VIP reseller...', 'success');
                 closeConfirmModal();
-                setTimeout(() => location.reload(), 1500);
+
+                // Update row status to processing
+                const row = document.querySelector(`[data-order="${currentOrderNumber}"]`);
+                if (row) {
+                    row.dataset.status = 'processing';
+                    const statusEl = row.querySelector('td:nth-child(5) span');
+                    if (statusEl) {
+                        statusEl.className = 'inline-block px-3 py-1 text-xs rounded-full font-medium bg-blue-500/20 text-blue-400';
+                        statusEl.textContent = 'Processing';
+                    }
+                }
+
+                // If server returned the final order and seller info, update the row fully
+                if (data.order) {
+                    // Update price and profit
+                    if (row) {
+                        const priceCell = row.querySelector('td:nth-child(4)');
+                        if (priceCell) {
+                            priceCell.querySelector('p')?.textContent = Number(data.order.final_price).toLocaleString() + ' DZD';
+                            // profit show
+                            priceCell.querySelectorAll('p')[1] && (priceCell.querySelectorAll('p')[1].textContent = '+' + Number(data.order.seller_profit).toLocaleString());
+                        }
+                    }
+
+                    // If seller info present show wallet change snackbar
+                    if (data.seller) {
+                        const before = Number(data.seller.wallet_before).toLocaleString();
+                        const after = Number(data.seller.wallet_after).toLocaleString();
+                        showToast(`Wallet changed: ${before} → ${after} DZD`, 'success');
+                    }
+
+                    // Update row dataset to completed
+                    if (row) {
+                        row.dataset.status = data.order.status || 'completed';
+                        const statusEl = row.querySelector('td:nth-child(5) span');
+                        if (statusEl) {
+                            statusEl.className = 'inline-block px-3 py-1 text-xs rounded-full font-medium bg-green-500/20 text-green-400';
+                            statusEl.textContent = 'Completed';
+                        }
+                    }
+                }
+
+                // Re-enable UI state after a little while
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Confirm</span>';
+                }, 1000);
             } else {
+                // Failed to process: show message and update row status to failed
                 showToast(data.message || 'Failed to confirm order', 'error');
+                const row = document.querySelector(`[data-order="${currentOrderNumber}"]`);
+                if (row) {
+                    row.dataset.status = 'failed';
+                    const statusEl = row.querySelector('td:nth-child(5) span');
+                    if (statusEl) {
+                        statusEl.className = 'inline-block px-3 py-1 text-xs rounded-full font-medium bg-red-500/20 text-red-400';
+                        statusEl.textContent = 'Failed';
+                    }
+                }
                 btn.disabled = false;
                 btn.innerHTML = '<span>Confirm</span>';
             }

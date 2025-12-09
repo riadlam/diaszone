@@ -171,6 +171,50 @@ class SellerStorefrontController extends Controller
     }
 
     /**
+     * Return seller-specific flexy price for a given pack (AJAX endpoint)
+     * This ensures the client cannot set the flexy price and gets server-calculated value.
+     */
+    public function getFlexyPrice(Request $request, string $username, $pack)
+    {
+        $seller = Seller::where('username', $username)
+            ->where('status', 'active')
+            ->firstOrFail();
+
+        if (!$seller->website_enabled) {
+            return response()->json(['success' => false, 'message' => 'Store not available'], 404);
+        }
+
+        $packModel = DiamondPack::find($pack);
+        if (!$packModel) {
+            return response()->json(['success' => false, 'message' => 'Pack not found'], 404);
+        }
+
+        // Make sure seller can sell that game
+        if (!$seller->canSellGame($packModel->game_type)) {
+            return response()->json(['success' => false, 'message' => 'Game not available'], 404);
+        }
+
+        // Ensure flexy is enabled for seller
+        if (!$seller->flexy_enabled) {
+            return response()->json(['success' => false, 'message' => 'Flexy disabled for this seller'], 403);
+        }
+
+        $customPrice = $seller->getCustomPrice($packModel->id);
+
+        // If seller has a specific flexy_price configured, prefer it. Otherwise fall back to seller custom price or pack price.
+        $flexyPrice = null;
+        if ($customPrice && !is_null($customPrice->flexy_price)) {
+            $flexyPrice = (float) $customPrice->flexy_price;
+        } elseif ($customPrice) {
+            $flexyPrice = (float) $customPrice->custom_price_dzd;
+        } else {
+            $flexyPrice = (float) $packModel->price_dzd;
+        }
+
+        return response()->json(['success' => true, 'flexy_price' => $flexyPrice]);
+    }
+
+    /**
      * Show payment method selection page
      */
     public function showPaymentMethod(Request $request, string $username)
@@ -306,7 +350,20 @@ class SellerStorefrontController extends Controller
                 // Store receipt file
                 $receiptPath = $request->file('receipt')->store('flexy-receipts', 'public');
 
-                // We intentionally do NOT call Chargily/VipReseller here — Flexy is manual transfer waiting verification
+                // We intentionally do NOT call Chargily here — Flexy is manual transfer waiting verification.
+                // However, the price charged to the client for Flexy must be server-calculated and stored.
+                // Determine the Flexy final price server-side (use seller flexy_price if configured)
+                $customFlex = $seller->getCustomPrice($pack->id);
+                if ($customFlex && !is_null($customFlex->flexy_price)) {
+                    $sellingPrice = (float) $customFlex->flexy_price;
+                } elseif ($customFlex) {
+                    $sellingPrice = (float) $customFlex->custom_price_dzd;
+                } else {
+                    $sellingPrice = (float) $pack->price_dzd;
+                }
+
+                // Recalculate profit relative to seller internal cost
+                $profit = $sellingPrice - $baseCost;
                 Log::info('Creating Flexy order without triggering Chargily or VipReseller', ['order_for_pack' => $pack->id, 'seller_id' => $seller->id]);
 
                 // Create order with flexy payment
@@ -369,8 +426,8 @@ class SellerStorefrontController extends Controller
                 'seller_cost' => $baseCost,
                 'seller_profit' => $profit,
                 'is_direct_topup' => false,
-                'original_price' => $sellingPrice,
-                'final_price' => $sellingPrice,
+                    'original_price' => $sellingPrice,
+                    'final_price' => $sellingPrice,
                 'payment_method' => 'baridimob',
             ]);
 

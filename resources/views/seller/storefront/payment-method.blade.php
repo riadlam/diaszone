@@ -194,6 +194,8 @@
             <form action="{{ route('seller.store.payment', ['username' => $seller->username]) }}" method="POST" id="payment-form" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="pack_id" value="{{ $pack['id'] }}">
+                <!-- final_price is populated by server and client-side updated for Flexy selection (server will re-validate) -->
+                <input type="hidden" name="final_price" id="final_price" value="{{ (int)$pack['price_dzd'] }}">
                 <input type="hidden" name="game_type" value="{{ $gameType }}">
                 <input type="hidden" name="player_id" value="{{ $playerData['player_id'] }}">
                 @if($playerData['zone_id'])
@@ -289,7 +291,7 @@
                 <div class="mt-8 p-4 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-xl">
                     <div class="flex justify-between items-center">
                         <span class="text-gray-300 font-medium">Total Amount</span>
-                        <span class="text-2xl font-bold text-white">{{ (int)$pack['price_dzd'] }} DZD</span>
+                        <span id="total-amount" class="text-2xl font-bold text-white">{{ (int)$pack['price_dzd'] }} DZD</span>
                     </div>
                 </div>
                 
@@ -354,7 +356,7 @@
                             <p class="text-cyan-300 text-sm font-medium mb-1 flex items-center gap-2">
                                 <span>💰</span> Amount to Send:
                             </p>
-                            <p class="text-white font-bold text-3xl">{{ (int)$pack['price_dzd'] }} <span class="text-xl text-cyan-300">DZD</span></p>
+                            <p class="text-white font-bold text-3xl"><span id="flexy-amount">{{ (int)$pack['price_dzd'] }}</span> <span class="text-xl text-cyan-300">DZD</span></p>
                         </div>
 
                         <!-- Upload Receipt -->
@@ -673,6 +675,67 @@
                 closeFlexyModal();
             }
         });
+
+        // --- Dynamic Flexy price fetching ---
+        (function() {
+            const defaultPrice = {{ (int)$pack['price_dzd'] }};
+            const totalAmountEl = document.getElementById('total-amount');
+            const flexyAmountEl = document.getElementById('flexy-amount');
+            const radios = document.querySelectorAll('input[name="payment_method"]');
+
+            // URL for fetching flexy price (server-calculated secure endpoint)
+            const flexyPriceUrl = '{{ route('seller.store.flexy-price', ['username' => $seller->username, 'pack' => $pack['id']]) }}';
+
+            async function showFlexyPrice() {
+                try {
+                    const res = await fetch(flexyPriceUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                    if (!res.ok) {
+                        console.warn('Flexy price fetch failed', res.status);
+                        // fallback to default
+                        totalAmountEl.textContent = defaultPrice + ' DZD';
+                        if (flexyAmountEl) flexyAmountEl.textContent = defaultPrice;
+                        return;
+                    }
+
+                    const json = await res.json();
+                    if (!json.success) {
+                        console.warn('Flexy price API returned non-success', json.message);
+                        totalAmountEl.textContent = defaultPrice + ' DZD';
+                        if (flexyAmountEl) flexyAmountEl.textContent = defaultPrice;
+                        return;
+                    }
+
+                    const price = Math.round(json.flexy_price);
+                    totalAmountEl.textContent = price + ' DZD';
+                    if (flexyAmountEl) flexyAmountEl.textContent = price;
+                    const finalInput = document.getElementById('final_price');
+                    if (finalInput) finalInput.value = price;
+                } catch (err) {
+                    console.error('Error fetching flexy price', err);
+                    totalAmountEl.textContent = defaultPrice + ' DZD';
+                    if (flexyAmountEl) flexyAmountEl.textContent = defaultPrice;
+                    const finalInput = document.getElementById('final_price');
+                    if (finalInput) finalInput.value = defaultPrice;
+                }
+            }
+
+            // Listen for selection changes
+            radios.forEach(r => r.addEventListener('change', function(e) {
+                    if (this.value === 'flexy') {
+                    showFlexyPrice();
+                } else {
+                    // restore to default
+                    totalAmountEl.textContent = defaultPrice + ' DZD';
+                    if (flexyAmountEl) flexyAmountEl.textContent = defaultPrice;
+                }
+            }));
+
+            // If page loads with flexy pre-selected, fetch price
+            const selected = document.querySelector('input[name="payment_method"]:checked');
+            if (selected && selected.value === 'flexy') {
+                showFlexyPrice();
+            }
+        })();
     </script>
 </body>
 </html>
