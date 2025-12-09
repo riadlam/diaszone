@@ -688,6 +688,13 @@
 
             async function showFlexyPrice() {
                 try {
+                    // disable proceed button while retrieving server price
+                    const proceedBtn = document.getElementById('proceed-btn');
+                    if (proceedBtn) {
+                        proceedBtn.disabled = true;
+                        proceedBtn.dataset.savedHtml = proceedBtn.innerHTML;
+                        proceedBtn.innerHTML = `<svg class="w-4 h-4 spinner mr-2" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span>Checking price...</span>`;
+                    }
                     const res = await fetch(flexyPriceUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
                     if (!res.ok) {
                         console.warn('Flexy price fetch failed', res.status);
@@ -716,6 +723,16 @@
                     if (flexyAmountEl) flexyAmountEl.textContent = defaultPrice;
                     const finalInput = document.getElementById('final_price');
                     if (finalInput) finalInput.value = defaultPrice;
+                } finally {
+                    const proceedBtn = document.getElementById('proceed-btn');
+                    if (proceedBtn) {
+                        // restore original state
+                        proceedBtn.disabled = false;
+                        if (proceedBtn.dataset && proceedBtn.dataset.savedHtml) {
+                            proceedBtn.innerHTML = proceedBtn.dataset.savedHtml;
+                            delete proceedBtn.dataset.savedHtml;
+                        }
+                    }
                 }
             }
 
