@@ -324,6 +324,15 @@ class SellerStorefrontController extends Controller
             return back()->withErrors(['error' => 'Flexy payment is disabled for this seller']);
         }
 
+        // Re-validate selling price against base cost to prevent tampering (server-side)
+        if ($sellingPrice < $baseCost) {
+            Log::warning('Seller selling price is below base cost', ['seller_id' => $seller->id, 'pack_id' => $pack->id, 'selling_price' => $sellingPrice, 'base_cost' => $baseCost]);
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Invalid price configuration detected. Please contact the seller.'], 400);
+            }
+            return back()->withErrors(['error' => 'Invalid price configuration detected. Please contact the seller.']);
+        }
+
         // Check seller wallet balance — skip for Flexy transfers because buyer sends receipt
         if (($validated['payment_method'] ?? '') !== 'flexy') {
             if ($seller->wallet_balance < $baseCost) {
@@ -582,6 +591,19 @@ class SellerStorefrontController extends Controller
         }
 
         $pack = $order->diamondPack;
+        // Recalculate expected base cost from the pack to protect against tampering
+        $expectedBaseCost = $pack->base_price_dzd ?? $pack->price_dzd;
+
+        // If the stored order seller_cost doesn't match the pack base cost, reject processing
+        if ((float)$order->seller_cost != (float)$expectedBaseCost) {
+            Log::error('Order seller_cost mismatch when processing seller order', [
+                'order_id' => $order->id,
+                'order_seller_cost' => $order->seller_cost,
+                'expected_base' => $expectedBaseCost
+            ]);
+            return false;
+        }
+
         $baseCost = $order->seller_cost;
 
         // Check wallet balance

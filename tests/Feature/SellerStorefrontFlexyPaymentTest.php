@@ -104,6 +104,16 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
             'is_direct_topup' => false,
         ]);
 
+        // Ensure seller has the matching SellerGamePrice so server-side validation passes
+        SellerGamePrice::create([
+            'seller_id' => $seller->id,
+            'diamond_pack_id' => $pack->id,
+            'custom_price_dzd' => 1500.00,
+            'custom_price_usd' => 6.00,
+            'flexy_price' => 1333.00,
+            'is_active' => true,
+        ]);
+
         // Mock VipResellerService to simulate successful top-up
         $mock = \Mockery::mock(VipResellerService::class);
         // Simulate successful VIP reseller top-up
@@ -174,6 +184,16 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
             'final_price' => 1333.00,
             'payment_method' => 'flexy',
             'is_direct_topup' => false,
+        ]);
+
+        // Add matching seller price so server-side validation uses expected values
+        SellerGamePrice::create([
+            'seller_id' => $seller->id,
+            'diamond_pack_id' => $pack->id,
+            'custom_price_dzd' => 1500.00,
+            'custom_price_usd' => 6.00,
+            'flexy_price' => 1333.00,
+            'is_active' => true,
         ]);
 
         // In this insufficient-wallet case we should return early from the controller

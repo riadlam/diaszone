@@ -422,6 +422,12 @@ class SellerController extends Controller
         // Get seller's custom price
         $customPrice = $seller->getCustomPrice($pack->id);
         $sellingPrice = $customPrice ? $customPrice->custom_price_dzd : $pack->price_dzd;
+        // Validate server-side that seller selling price is not below base cost
+        if ($sellingPrice < $baseCost) {
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => 'Invalid seller pricing configuration. Please contact admin.'], 400)
+                : back()->withErrors(['error' => 'Invalid seller pricing configuration. Please contact admin.']);
+        }
         $profit = $sellingPrice - $baseCost;
 
         try {
@@ -910,7 +916,34 @@ class SellerController extends Controller
         }
 
         $pack = $order->diamondPack;
-        $baseCost = $order->seller_cost;
+
+        // Recalculate expected costs server-side to prevent tampering:
+        // - expected base cost is the pack base_price_dzd or pack price
+        // - expected final price for flexy uses seller.flexy_price when configured, otherwise seller custom price or pack price
+        $expectedBaseCost = $pack->base_price_dzd ?? $pack->price_dzd;
+
+        $customPrice = $seller->getCustomPrice($pack->id);
+        $expectedFinalPrice = null;
+        if ($customPrice && !is_null($customPrice->flexy_price)) {
+            $expectedFinalPrice = (float) $customPrice->flexy_price;
+        } elseif ($customPrice) {
+            $expectedFinalPrice = (float) $customPrice->custom_price_dzd;
+        } else {
+            $expectedFinalPrice = (float) $pack->price_dzd;
+        }
+
+        // Defensive server-side validations: ensure stored order values are consistent
+        if ((float)$order->seller_cost != (float)$expectedBaseCost
+            || (float)$order->final_price != (float)$expectedFinalPrice
+            || (float)$order->seller_profit != (float)($expectedFinalPrice - $expectedBaseCost)) {
+            Log::warning('Flexy order values mismatch — possible tampering', ['order_id' => $order->id, 'order_seller_cost' => $order->seller_cost, 'expected_base' => $expectedBaseCost, 'order_final' => $order->final_price, 'expected_final' => $expectedFinalPrice]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Order data mismatch detected. Please refresh and try again.'
+            ], 400);
+        }
+
+        $baseCost = $expectedBaseCost;
 
         // Check wallet balance — ensure seller has funds before attempting VIP top-up
         if ($seller->wallet_balance < $baseCost) {
