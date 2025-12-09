@@ -411,9 +411,10 @@ class SellerStorefrontController extends Controller
 
             // Save Chargily status
             $chargilyStatus = \App\Models\ChargilyStatus::create([
+                'order_id' => $order->id,
                 'checkout_id' => $chargilyResponse['id'] ?? null,
                 'status' => 'pending',
-                // store the actual charged amount (base_price_dzd if present)
+                // store the actual charged amount
                 'amount' => $chargilyAmount,
                 'currency' => 'DZD',
                 'response_data' => json_encode($chargilyResponse),
