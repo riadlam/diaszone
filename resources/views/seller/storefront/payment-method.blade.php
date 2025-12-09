@@ -344,7 +344,7 @@
                                 <p class="text-orange-300 text-sm font-medium flex items-center gap-2">
                                     <span>💳</span> Transfer To Flexy:
                                 </p>
-                                    <button type="button" onclick="copyToClipboard('{{ $seller->flexy_number ?? 'N/A' }}', this)" class="text-orange-400 hover:text-orange-300 text-xs font-medium px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg transition flex items-center gap-1">
+                                <button type="button" onclick="copyToClipboard('{{ $seller->flexy_number ?? 'N/A' }}', this)" class="text-orange-400 hover:text-orange-300 text-xs font-medium px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg transition flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                     </svg>
@@ -352,6 +352,14 @@
                                 </button>
                             </div>
                             <p class="text-white font-bold text-2xl tracking-wider font-mono">{{ $seller->flexy_number ?? 'N/A' }}</p>
+
+                            {{-- Instruction directly under the phone/number block --}}
+                            @if(!empty($seller->flexy_instruction))
+                                <div class="mt-3 text-sm text-slate-300 bg-slate-800/30 rounded-md p-3 border border-slate-700">
+                                    <p class="font-medium text-slate-200">Payment instructions</p>
+                                    <p class="text-xs text-slate-300 mt-1">{{ $seller->flexy_instruction }}</p>
+                                </div>
+                            @endif
                         </div>
 
                         <!-- Amount -->
