@@ -48,13 +48,23 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
             'is_active' => true,
         ]);
 
+        // Stub VipResellerService check to allow Mobile Legends nickname validation
+        $this->app->instance(\App\Services\VipResellerService::class, new class {
+            public function checkNickname($userId, $zoneId) {
+                return ['result' => true, 'data' => 'NickOK'];
+            }
+        });
+
         $response = $this->post(route('seller.store.payment', ['username' => $seller->username]), [
             'pack_id' => $pack->id,
             'game_type' => 'mobilelegends',
             'player_id' => '1111',
+            'zone_id' => '8888',
             'payment_method' => 'flexy',
             'receipt' => UploadedFile::fake()->create('receipt.pdf', 100, 'application/pdf')
         ]);
+
+        // (VipResellerService stub already bound above)
 
         $response->assertRedirect();
 

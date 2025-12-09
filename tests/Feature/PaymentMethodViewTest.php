@@ -35,8 +35,13 @@ class PaymentMethodViewTest extends TestCase
             'sort_order' => 1,
         ]);
 
+        // Mock VipResellerService to return a valid nickname so the page renders
+        $vipMock = \Mockery::mock(\App\Services\VipResellerService::class);
+        $vipMock->shouldReceive('checkNickname')->andReturn(['result' => true, 'data' => 'PlayerName'])->once();
+        $this->app->instance(\App\Services\VipResellerService::class, $vipMock);
+
         // Query the view endpoint with required params
-        $response = $this->get(route('seller.store.payment-method', ['username' => $seller->username]) . '?pack_id=' . $pack->id . '&game_type=mobilelegends&player_id=11111');
+        $response = $this->get(route('seller.store.payment-method', ['username' => $seller->username]) . '?pack_id=' . $pack->id . '&game_type=mobilelegends&player_id=11111&zone_id=1010');
         $response->assertStatus(200);
 
         // Check that the page contains the element IDs our JS will use

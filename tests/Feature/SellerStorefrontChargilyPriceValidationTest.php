@@ -47,6 +47,7 @@ class SellerStorefrontChargilyPriceValidationTest extends TestCase
             'pack_id' => $pack->id,
             'game_type' => 'mobilelegends',
             'player_id' => 'player123',
+            'zone_id' => '9001',
             'payment_method' => 'baridimob'
         ]);
 

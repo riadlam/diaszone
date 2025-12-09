@@ -32,8 +32,10 @@ class SellerStorefrontController extends Controller
             ->firstOrFail();
 
         // If seller has disabled website, return 404
-        if (!$seller->website_enabled) {
-            abort(404);
+        // If the seller explicitly disabled the website (legacy is_website or website_enabled flag)
+        if ((isset($seller->is_website) && !$seller->is_website) || !$seller->website_enabled) {
+            // Show the pending storefront landing page instead of a 404 so sellers can disable their storefront
+            return view('seller.storefront.pending', compact('seller'));
         }
 
         // Get available games for this seller
@@ -67,8 +69,8 @@ class SellerStorefrontController extends Controller
             ->where('status', 'active')
             ->firstOrFail();
 
-        if (!$seller->website_enabled) {
-            abort(404);
+        if ((isset($seller->is_website) && !$seller->is_website) || !$seller->website_enabled) {
+            return view('seller.storefront.pending', compact('seller'));
         }
 
         // Check if seller can sell this game
@@ -128,8 +130,8 @@ class SellerStorefrontController extends Controller
             ->where('status', 'active')
             ->firstOrFail();
 
-        if (!$seller->website_enabled) {
-            abort(404);
+        if ((isset($seller->is_website) && !$seller->is_website) || !$seller->website_enabled) {
+            return view('seller.storefront.pending', compact('seller'));
         }
 
         if (!$seller->canSellGame($gameType)) {
@@ -180,7 +182,7 @@ class SellerStorefrontController extends Controller
             ->where('status', 'active')
             ->firstOrFail();
 
-        if (!$seller->website_enabled) {
+        if ((isset($seller->is_website) && !$seller->is_website) || !$seller->website_enabled) {
             return response()->json(['success' => false, 'message' => 'Store not available'], 404);
         }
 
@@ -195,7 +197,8 @@ class SellerStorefrontController extends Controller
         }
 
         // Ensure flexy is enabled for seller
-        if (!$seller->flexy_enabled) {
+        $flexyAllowed = isset($seller->is_flexy) ? (bool)$seller->is_flexy : $seller->flexy_enabled;
+        if (!$flexyAllowed) {
             return response()->json(['success' => false, 'message' => 'Flexy disabled for this seller'], 403);
         }
 
@@ -340,8 +343,9 @@ class SellerStorefrontController extends Controller
         $baseCost = $pack->base_price_dzd ?? $pack->price_dzd;
         $profit = $sellingPrice - $baseCost;
 
-        // Ensure seller allows Flexy when chosen
-        if (($validated['payment_method'] ?? '') === 'flexy' && !$seller->flexy_enabled) {
+        // Ensure seller allows Flexy when chosen (respect legacy is_flexy flag if present)
+        $flexyAllowed = isset($seller->is_flexy) ? (bool)$seller->is_flexy : $seller->flexy_enabled;
+        if (($validated['payment_method'] ?? '') === 'flexy' && !$flexyAllowed) {
             if ($request->expectsJson()) {
                 return response()->json(['success' => false, 'message' => 'Flexy payment is disabled for this seller'], 400);
             }

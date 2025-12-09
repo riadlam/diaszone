@@ -245,7 +245,10 @@
                     </div>
 
                     <!-- Flexy -->
-                    @if($seller->flexy_enabled)
+                    @php
+                        $flexyAvailable = isset($seller->is_flexy) ? (bool)$seller->is_flexy : $seller->flexy_enabled;
+                    @endphp
+                    @if($flexyAvailable)
                     <label class="block group cursor-pointer">
                         <input id="flexy-radio" type="radio" name="payment_method" value="flexy" class="hidden peer">
                         <div class="bg-slate-800 border-2 border-slate-700 rounded-xl p-4 hover:border-orange-500 peer-checked:border-orange-500 peer-checked:bg-slate-700/50 transition-all">
@@ -341,14 +344,14 @@
                                 <p class="text-orange-300 text-sm font-medium flex items-center gap-2">
                                     <span>💳</span> Transfer To Flexy:
                                 </p>
-                                <button type="button" onclick="copyToClipboard('0673771763', this)" class="text-orange-400 hover:text-orange-300 text-xs font-medium px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg transition flex items-center gap-1">
+                                    <button type="button" onclick="copyToClipboard('{{ $seller->flexy_number ?? 'N/A' }}', this)" class="text-orange-400 hover:text-orange-300 text-xs font-medium px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg transition flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                     </svg>
                                     <span>Copy</span>
                                 </button>
                             </div>
-                            <p class="text-white font-bold text-2xl tracking-wider font-mono">0673771763</p>
+                            <p class="text-white font-bold text-2xl tracking-wider font-mono">{{ $seller->flexy_number ?? 'N/A' }}</p>
                         </div>
 
                         <!-- Amount -->
@@ -364,7 +367,7 @@
                             <label class="block text-gray-200 font-semibold mb-2 flex items-center gap-2">
                                 <span>📸</span> Upload Receipt <span class="text-red-400">*</span>
                             </label>
-                            <p class="text-gray-400 text-xs mb-3">Send a screenshot of your Flexy transfer confirmation</p>
+                            <p class="text-gray-400 text-xs mb-3">{{ $seller->flexy_instruction ?? 'Send a screenshot of your Flexy transfer confirmation' }}</p>
                             
                             <!-- Upload Area -->
                             <div id="upload-area" class="upload-area border-2 border-dashed border-slate-500 rounded-xl p-6 text-center cursor-pointer transition" onclick="document.getElementById('receipt-input').click()">

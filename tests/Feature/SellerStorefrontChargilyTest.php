@@ -46,6 +46,11 @@ class SellerStorefrontChargilyTest extends TestCase
 
         $this->app->instance(\App\Services\ChargilyPayV2Service::class, $mock);
 
+        // Mock VipResellerService to accept nickname
+        $vipMock = \Mockery::mock(\App\Services\VipResellerService::class);
+        $vipMock->shouldReceive('checkNickname')->andReturn(['result' => true, 'data' => 'PlayerName'])->once();
+        $this->app->instance(\App\Services\VipResellerService::class, $vipMock);
+
         // Post to the storefront payment endpoint (baridimob) and expect redirect
         $response = $this->post(route('seller.store.payment', ['username' => $seller->username]), [
             'pack_id' => $pack->id,
@@ -113,6 +118,11 @@ class SellerStorefrontChargilyTest extends TestCase
         ]);
 
         $this->app->instance(\App\Services\ChargilyPayV2Service::class, $mock);
+
+        // Mock VipResellerService to accept nickname for the second case as well
+        $vipMock = \Mockery::mock(\App\Services\VipResellerService::class);
+        $vipMock->shouldReceive('checkNickname')->andReturn(['result' => true, 'data' => 'PlayerName'])->once();
+        $this->app->instance(\App\Services\VipResellerService::class, $vipMock);
 
         $response = $this->post(route('seller.store.payment', ['username' => $seller->username]), [
             'pack_id' => $pack->id,
