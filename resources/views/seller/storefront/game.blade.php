@@ -301,6 +301,49 @@
     </footer>
     
     <script>
+        // Fallback globals: If app.js hasn't loaded yet, provide minimal implementations
+        // so inline storefront code won't crash while waiting for the main bundle.
+        if (typeof window.showValidationError !== 'function') {
+            window.showValidationError = function(message) {
+                try {
+                    // Minimal visible error area placed inside the checkout form if available
+                    const existing = document.getElementById('nickname-validation-error');
+                    if (existing) existing.remove();
+
+                    const errorDiv = document.createElement('div');
+                    errorDiv.id = 'nickname-validation-error';
+                    errorDiv.className = 'mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg';
+                    errorDiv.innerHTML = `<p class="text-sm font-semibold text-red-800 mb-1">Validation Failed</p><p class="text-sm text-red-700">${message}</p>`;
+
+                    const target = document.getElementById('checkout-form') || document.getElementById('order-form') || document.body;
+                    target.appendChild(errorDiv);
+                    errorDiv.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+
+                    setTimeout(() => { if (errorDiv.parentNode) errorDiv.remove(); }, 8000);
+                } catch (e) { console.error('Fallback showValidationError failed', e); }
+            };
+        }
+
+        if (typeof window.showNicknameSuccess !== 'function') {
+            window.showNicknameSuccess = function(nickname, callback) {
+                try {
+                    const existing = document.getElementById('nickname-success-popup');
+                    if (existing) existing.remove();
+
+                    const popup = document.createElement('div');
+                    popup.id = 'nickname-success-popup';
+                    popup.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
+                    popup.innerHTML = `
+                        <div class="bg-white rounded-xl shadow p-6 max-w-sm w-full mx-4 text-center">
+                            <h3 class="text-lg font-bold text-gray-900 mb-2">Nickname Verified</h3>
+                            <p class="text-xl font-semibold text-purple-600 mb-2">${nickname}</p>
+                            <p class="text-sm text-gray-600">Continuing to checkout </p>
+                        </div>`;
+                    document.body.appendChild(popup);
+                    setTimeout(() => { popup.remove(); if (callback) callback(); }, 1000);
+                } catch (e) { console.error('Fallback showNicknameSuccess failed', e); }
+            };
+        }
         let selectedPackId = null;
         const sellerUsername = '{{ $seller->username }}';
         const gameType = '{{ $gameType }}';
