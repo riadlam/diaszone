@@ -1060,7 +1060,7 @@ class CheckoutController extends Controller
                             
                             // Update Telegram message if exists, otherwise send new one
                             try {
-                                $order->load('diamondPack', 'user', 'vipResellerStatuses');
+                                $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                                 $updatedMessage = TelegramService::formatOrderMessage($order);
                                 $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
                                 
@@ -1108,7 +1108,7 @@ class CheckoutController extends Controller
                                 if ($order->tlg_message_id) {
                                     try {
                                         $order->refresh();
-                                        $order->load('diamondPack', 'user', 'vipResellerStatuses');
+                                        $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                                         $updatedMessage = TelegramService::formatOrderMessage($order);
                                         // Update header if still showing old status
                                         if (strpos($updatedMessage, '🆕 <b>New Order Created</b>') !== false) {
@@ -1277,6 +1277,41 @@ class CheckoutController extends Controller
                     'nickname' => $nickname,
                 ]);
 
+                // For seller storefront orders: deduct seller wallet (base cost) before placing the VIP order
+                if ($order->seller_id && !$order->wallet_deducted) {
+                    // Attempt to deduct from seller wallet. If this fails, stop and record error status.
+                    $sellerChargeResult = \App\Http\Controllers\Seller\SellerStorefrontController::processSellerOrder($order);
+                    if ($sellerChargeResult !== true) {
+                        Log::error('Chargily recharge aborted: seller insufficient balance', [
+                            'order_id' => $order->id,
+                            'seller_id' => $order->seller_id,
+                            'seller_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                            'required' => $order->seller_cost,
+                        ]);
+
+                        // Save an error vipreseller status so admin can review
+                        $vipResellerStatus = VipResellerStatus::create([
+                            'order_id' => $order->id,
+                            'trxid' => null,
+                            'data' => null,
+                            'zone' => null,
+                            'service' => $packageCode,
+                            'status' => 'error',
+                            'note' => 'Insufficient seller wallet balance',
+                            'price' => null,
+                            'additional_data' => [
+                                'required' => $order->seller_cost,
+                                'wallet_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                            ],
+                        ]);
+
+                        return [
+                            'success' => false,
+                            'message' => 'Seller has insufficient wallet balance to process this order.',
+                        ];
+                    }
+                }
+
                 // STEP 2: Call VIP Reseller API to recharge (Mobile Legends)
                 $result = $vipReseller->placeOrder(
                     $packageCode,
@@ -1308,6 +1343,39 @@ class CheckoutController extends Controller
                     'player_id_ff' => $order->player_id_ff,
                     'package_code' => $packageCode,
                 ]);
+
+                // For seller storefront orders: deduct seller wallet (base cost) before placing the VIP order
+                if ($order->seller_id && !$order->wallet_deducted) {
+                    $sellerChargeResult = \App\Http\Controllers\Seller\SellerStorefrontController::processSellerOrder($order);
+                    if ($sellerChargeResult !== true) {
+                        Log::error('Chargily recharge aborted: seller insufficient balance (Free Fire)', [
+                            'order_id' => $order->id,
+                            'seller_id' => $order->seller_id,
+                            'seller_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                            'required' => $order->seller_cost,
+                        ]);
+
+                        $vipResellerStatus = VipResellerStatus::create([
+                            'order_id' => $order->id,
+                            'trxid' => null,
+                            'data' => null,
+                            'zone' => null,
+                            'service' => $packageCode,
+                            'status' => 'error',
+                            'note' => 'Insufficient seller wallet balance',
+                            'price' => null,
+                            'additional_data' => [
+                                'required' => $order->seller_cost,
+                                'wallet_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                            ],
+                        ]);
+
+                        return [
+                            'success' => false,
+                            'message' => 'Seller has insufficient wallet balance to process this order.',
+                        ];
+                    }
+                }
 
                 // STEP 2: Call VIP Reseller API to recharge (Free Fire)
                 $result = $vipReseller->placeFreefireOrder(
@@ -1385,7 +1453,7 @@ class CheckoutController extends Controller
                 // Update Telegram message if exists (always update when VIP Reseller status changes)
                 if ($order->tlg_message_id) {
                     try {
-                        $order->load('diamondPack', 'user', 'vipResellerStatuses');
+                        $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                         $updatedMessage = TelegramService::formatOrderMessage($order);
                         $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
@@ -1443,7 +1511,7 @@ class CheckoutController extends Controller
                 // Update Telegram message if exists (always update when VIP Reseller status changes)
                 if ($order->tlg_message_id) {
                     try {
-                        $order->load('diamondPack', 'user', 'vipResellerStatuses');
+                        $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                         $updatedMessage = TelegramService::formatOrderMessage($order);
                         $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
@@ -1471,7 +1539,7 @@ class CheckoutController extends Controller
                 // Update Telegram message if exists
                 if ($order->tlg_message_id) {
                     try {
-                        $order->load('diamondPack', 'user', 'vipResellerStatuses');
+                        $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                         $updatedMessage = TelegramService::formatOrderMessage($order);
                         $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '❌ <b>Order Error - VIP Reseller Failed</b>', $updatedMessage);
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);

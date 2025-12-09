@@ -19,6 +19,8 @@ class SellerTopupController extends Controller
             'seller_note' => 'nullable|string|max:2000',
             'receipt' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
             'payment_type' => 'required|string|in:ccp,crypto,baridimob',
+            // Phone is required for baridimob payments (algerie poste)
+            'phone' => 'required_if:payment_type,baridimob|string|max:32',
         ]);
 
         $amount = round($validated['amount'], 2);

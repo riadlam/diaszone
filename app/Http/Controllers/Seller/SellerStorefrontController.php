@@ -268,7 +268,8 @@ class SellerStorefrontController extends Controller
         // Get seller's price
         $customPrice = $seller->getCustomPrice($pack->id);
         $sellingPrice = $customPrice ? $customPrice->custom_price_dzd : $pack->price_dzd;
-        $baseCost = $pack->price_dzd;
+        // Seller internal cost should use pack.base_price_dzd when available
+        $baseCost = $pack->base_price_dzd ?? $pack->price_dzd;
         $profit = $sellingPrice - $baseCost;
 
         // Ensure seller allows Flexy when chosen
@@ -379,12 +380,30 @@ class SellerStorefrontController extends Controller
             $failureUrl = route('seller.store.game', ['username' => $seller->username, 'gameType' => $pack->game_type]);
 
             $chargilyService = app(ChargilyPayV2Service::class);
-            $chargilyResponse = $chargilyService->createCheckout(
-                $sellingPrice,
-                "Order {$order->order_number} - {$pack->name}",
-                $successUrl,
-                $failureUrl
-            );
+            // Charge the customer the selling price (seller custom price if set)
+            $chargilyAmount = $sellingPrice;
+
+            // Build a structured checkout payload aligned with CheckoutController
+            $checkoutData = [
+                'amount' => (int) round($chargilyAmount),
+                'currency' => 'dzd',
+                'payment_method' => 'edahabia',
+                'success_url' => $successUrl,
+                'failure_url' => $failureUrl,
+                'description' => "Order {$order->order_number} - {$pack->name}",
+                'locale' => 'en',
+            ];
+
+            // Add webhook endpoint when not running locally/testing
+            $isLocalhost = in_array(config('app.env'), ['local', 'testing']) || 
+                          str_contains(request()->getHost(), 'localhost') ||
+                          str_contains(request()->getHost(), '127.0.0.1');
+
+            if (!$isLocalhost) {
+                $checkoutData['webhook_endpoint'] = route('baridimob.webhook');
+            }
+
+            $chargilyResponse = $chargilyService->createCheckout($checkoutData);
 
             if (!$chargilyResponse || !isset($chargilyResponse['checkout_url'])) {
                 throw new \Exception('Failed to create payment');
@@ -394,12 +413,29 @@ class SellerStorefrontController extends Controller
             $chargilyStatus = \App\Models\ChargilyStatus::create([
                 'checkout_id' => $chargilyResponse['id'] ?? null,
                 'status' => 'pending',
-                'amount' => $sellingPrice,
+                // store the actual charged amount (base_price_dzd if present)
+                'amount' => $chargilyAmount,
                 'currency' => 'DZD',
                 'response_data' => json_encode($chargilyResponse),
             ]);
 
             $order->update(['chargily_status_id' => $chargilyStatus->id]);
+
+            // Send initial Telegram notification for storefront orders (include seller)
+            try {
+                $order->load('diamondPack', 'seller');
+                $message = \App\Services\TelegramService::formatOrderMessage($order);
+                $messageId = \App\Services\TelegramService::sendMessage($message);
+                if ($messageId) {
+                    $order->tlg_message_id = $messageId;
+                    $order->save();
+                }
+            } catch (\Exception $e) {
+                Log::error('Telegram send failed for seller storefront order', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             DB::commit();
 

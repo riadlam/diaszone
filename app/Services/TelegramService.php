@@ -246,38 +246,54 @@ class TelegramService
         $discountAmount = ($priceDzd * $discountPercentage) / 100;
         $amount = $priceDzd - $discountAmount;
         
-        $userName = $order->user ? $order->user->name : 'Guest';
-        $userEmail = $order->user ? $order->user->email : 'N/A';
+        // Escape input for HTML parse mode to avoid injection
+        $escape = function ($s) {
+            if (is_null($s)) return '';
+            return htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        };
+
+        $userName = $order->user ? $escape($order->user->name) : 'Guest';
+        $userEmail = $order->user ? $escape($order->user->email) : 'N/A';
         
         $message = "🆕 <b>New Order Created</b>\n\n";
-        $message .= "📦 <b>Order:</b> {$order->order_number}\n";
-        $message .= "🎮 <b>Game:</b> {$gameName}\n";
-        $message .= "💎 <b>Pack:</b> {$packName}\n";
+        $message .= "📦 <b>Order:</b> {$escape($order->order_number)}\n";
+        $message .= "🎮 <b>Game:</b> {$escape($gameName)}\n";
+        $message .= "💎 <b>Pack:</b> {$escape($packName)}\n";
         $message .= "💰 <b>Amount:</b> " . number_format($amount, 0) . " DZD\n";
         $message .= "📊 <b>Status:</b> " . ucfirst(str_replace('_', ' ', $order->status)) . "\n";
         $message .= "👤 <b>User:</b> {$userName}\n";
+        // Include seller information when present (seller storefront orders)
+        if (isset($order->seller) && $order->seller) {
+            $sellerName = $order->seller->name ?? $order->seller->username ?? 'Seller';
+            $sellerUsername = $order->seller->username ?? null;
+            $message .= "🏬 <b>Seller:</b> {$escape($sellerName)}";
+            if ($sellerUsername) {
+                $message .= " ({$sellerUsername})";
+            }
+            $message .= "\n";
+        }
         $message .= "📧 <b>Email:</b> {$userEmail}\n";
         
         // Add game-specific details
         if ($gameType === 'mobilelegends') {
             if ($order->user_id_ml) {
-                $message .= "🆔 <b>User ID:</b> {$order->user_id_ml}\n";
+                $message .= "🆔 <b>User ID:</b> {$escape($order->user_id_ml)}\n";
             }
             if ($order->zone_id_ml) {
-                $message .= "🌍 <b>Zone ID:</b> {$order->zone_id_ml}\n";
+                $message .= "🌍 <b>Zone ID:</b> {$escape($order->zone_id_ml)}\n";
             }
         } elseif ($gameType === 'freefire' && $order->player_id_ff) {
-            $message .= "🆔 <b>Player ID:</b> {$order->player_id_ff}\n";
+            $message .= "🆔 <b>Player ID:</b> {$escape($order->player_id_ff)}\n";
         } elseif ($gameType === 'pubgmobile' && $order->player_id_pubg) {
-            $message .= "🆔 <b>Player ID:</b> {$order->player_id_pubg}\n";
+            $message .= "🆔 <b>Player ID:</b> {$escape($order->player_id_pubg)}\n";
         } elseif ($gameType === 'honorofkings' && $order->player_id_hok) {
-            $message .= "🆔 <b>Player ID:</b> {$order->player_id_hok}\n";
+            $message .= "🆔 <b>Player ID:</b> {$escape($order->player_id_hok)}\n";
         } elseif ($gameType === 'bloodstrike') {
             if ($order->user_id_bs) {
-                $message .= "🆔 <b>User ID:</b> {$order->user_id_bs}\n";
+                $message .= "🆔 <b>User ID:</b> {$escape($order->user_id_bs)}\n";
             }
             if ($order->server_bs) {
-                $message .= "🖥️ <b>Server:</b> {$order->server_bs}\n";
+                $message .= "🖥️ <b>Server:</b> {$escape($order->server_bs)}\n";
             }
         }
         
