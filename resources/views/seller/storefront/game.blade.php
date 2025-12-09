@@ -38,6 +38,11 @@
             70% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
             100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
         }
+
+        /* Force-hide desktop offers on mobile in case preview/emulator quirks occur */
+        @media screen and (max-width: 1023px) {
+            .desktop-packs { display: none !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-900 min-h-screen">
@@ -66,8 +71,9 @@
     <!-- Main Content -->
     <main class="max-w-6xl mx-auto px-4 py-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Packs Grid -->
-            <div class="lg:col-span-2">
+            <!-- Packs Grid (desktop only) -->
+            <!-- hide on small screens and show only for desktop (lg and up) -->
+            <div class="desktop-packs hidden lg:block lg:col-span-2">
                 <h2 class="text-xl font-bold text-white mb-4">Select a Package</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             @foreach($packsWithPrices as $pack)
@@ -183,10 +189,24 @@
                     <div class="mt-6 text-center text-gray-400">No packages available</div>
                 @endif
             </div>
+
+            {{-- On mobile we use a dropdown / bottom-sheet. Add the select button inside the order column (lg:hidden) and include the bottom-sheet component below. --}}
             
             <!-- Order Form -->
             <div class="lg:col-span-1">
                 <div class="bg-slate-800 rounded-xl p-6 sticky top-4 border border-slate-700">
+                    <!-- Mobile: Select Pack Button (shows bottom-sheet) -->
+                    <div class="lg:hidden mb-4" id="mobile-select-pack-container">
+                        <button id="mobile-select-pack-btn" type="button" class="w-full bg-purple-700 hover:bg-purple-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors shadow-md hover:shadow-lg flex items-center justify-between">
+                            <span id="mobile-selected-pack-text" class="text-left w-full pr-2">
+                                <span class="block text-sm font-medium">Select a Package</span>
+                                <span id="mobile-selected-pack-details" class="text-xs opacity-75 hidden"></span>
+                            </span>
+                            <svg class="w-5 h-5 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                    </div>
                     <h3 class="text-lg font-bold text-white mb-4">Order Details</h3>
                     
                     <form action="{{ route('seller.store.checkout', ['username' => $seller->username]) }}" method="POST" id="checkout-form">
@@ -253,6 +273,9 @@
                         </button>
                     </form>
                     
+                    {{-- Use the shared DiasZone mobile bottom-sheet component for mobile offers (hidden on desktop) --}}
+                    @include('components.mobile-bottom-sheet', ['packs' => $packs, 'gameType' => $gameType, 'gameTitle' => $gameName])
+
                     <!-- Cookie Notice -->
                     <div id="cookie-notice" class="hidden mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                         <p class="text-blue-300 text-xs flex items-center gap-2">
@@ -330,8 +353,11 @@
                 }
             }
             
-            // Select saved pack
-            if (packId) {
+            // Only auto-select a saved pack when we're confident the user is on a
+            // desktop-like environment (avoid auto selection in mobile previews/emulators).
+            const isDesktopView = window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine)').matches;
+
+            if (packId && isDesktopView) {
                 const packCard = document.querySelector(`[data-pack-id="${packId}"]`);
                 if (packCard) {
                     packCard.click();
@@ -410,9 +436,57 @@
             document.getElementById('btn-spinner').classList.remove('hidden');
         });
         
-        // Load saved data on page load
+        // Load saved data on page load and wire mobile dropdown behavior
         document.addEventListener('DOMContentLoaded', function() {
             loadFromCookies();
+
+            // Mobile bottom-sheet controls (if present)
+            const mobileSelectBtn = document.getElementById('mobile-select-pack-btn');
+            const bottomSheet = document.getElementById('mobile-pack-bottom-sheet');
+            const bottomOverlay = document.getElementById('bottom-sheet-overlay');
+            const closeSheetBtn = document.getElementById('close-bottom-sheet-btn');
+
+            function openBottomSheet() {
+                if (!bottomSheet) return;
+                bottomSheet.style.display = 'flex';
+                setTimeout(() => bottomSheet.style.transform = 'translateY(0)', 20);
+                if (bottomOverlay) bottomOverlay.style.display = 'block';
+            }
+
+            function closeBottomSheet() {
+                if (!bottomSheet) return;
+                bottomSheet.style.transform = 'translateY(100%)';
+                if (bottomOverlay) bottomOverlay.style.display = 'none';
+                setTimeout(() => bottomSheet.style.display = 'none', 220);
+            }
+
+            if (mobileSelectBtn) mobileSelectBtn.addEventListener('click', openBottomSheet);
+            if (closeSheetBtn) closeSheetBtn.addEventListener('click', closeBottomSheet);
+            if (bottomOverlay) bottomOverlay.addEventListener('click', closeBottomSheet);
+
+            // Wire up mobile bottom-sheet list items
+            document.querySelectorAll('.mobile-pack-item').forEach(el => {
+                el.addEventListener('click', function() {
+                    const id = this.getAttribute('data-pack-id');
+                    const name = this.getAttribute('data-pack-name');
+                    const price = parseFloat(this.getAttribute('data-pack-price-dzd') || '0');
+                    const diamonds = parseInt(this.getAttribute('data-pack-diamonds') || '0');
+                    const bonus = parseInt(this.getAttribute('data-pack-bonus') || '0');
+
+                    selectPack(id, name, price, diamonds, bonus);
+
+                    // Update mobile selected text if present
+                    const mobileText = document.getElementById('mobile-selected-pack-text');
+                    const mobileDetails = document.getElementById('mobile-selected-pack-details');
+                    if (mobileText && mobileDetails) {
+                        mobileText.querySelector('span')?.classList.add('text-sm');
+                        mobileDetails.classList.remove('hidden');
+                        mobileDetails.textContent = `${Math.floor(price).toLocaleString()} DZD`;
+                    }
+
+                    closeBottomSheet();
+                });
+            });
         });
     </script>
 </body>
