@@ -655,7 +655,7 @@
                         showToast(`Wallet changed: ${before} → ${after} DZD`, 'success');
                     }
 
-                    // Update row dataset to completed
+                    // Update row dataset to completed and update actions (remove confirm button)
                     if (row) {
                         row.dataset.status = data.order.status || 'completed';
                         const statusEl = row.querySelector('td:nth-child(5) span');
@@ -663,14 +663,34 @@
                             statusEl.className = 'inline-block px-3 py-1 text-xs rounded-full font-medium bg-green-500/20 text-green-400';
                             statusEl.textContent = 'Completed';
                         }
+
+                        // Update action buttons: remove confirm button and ensure view button remains
+                        const actionsCell = row.querySelector('td:nth-child(7) .flex');
+                        if (actionsCell) {
+                            // Remove any confirm/action-confirm buttons
+                            actionsCell.querySelectorAll('.action-btn-confirm').forEach(btn => btn.remove());
+
+                            // If a view button does not exist, insert a simple view button so user can still view details
+                            if (!actionsCell.querySelector('.action-btn-view')) {
+                                const viewBtn = document.createElement('button');
+                                viewBtn.className = 'action-btn action-btn-view';
+                                viewBtn.title = 'View Details';
+                                viewBtn.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`;
+                                // Wire view to existing viewOrder function
+                                viewBtn.addEventListener('click', function(e){ viewOrder(row.getAttribute('data-order')); });
+                                actionsCell.prepend(viewBtn);
+                            }
+                        }
                     }
                 }
 
-                // Re-enable UI state after a little while
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<span>Confirm</span>';
-                }, 1000);
+                // Re-enable UI state after a little while if not completed
+                if (!data.order || (data.order && data.order.status !== 'completed')) {
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span>Confirm</span>';
+                    }, 1000);
+                }
             } else {
                 // Failed to process: show message and update row status to failed
                 showToast(data.message || 'Failed to confirm order', 'error');
