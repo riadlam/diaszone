@@ -784,7 +784,8 @@ class SellerController extends Controller
         $validated = $request->validate([
             'website_enabled' => 'sometimes|boolean',
             // we accept a slug or a full url — we'll normalize it to the slug below
-            'website_url' => 'nullable|string|max:50',
+            // When website is enabled, store slug is required
+            'website_url' => 'required_if:website_enabled,1|string|max:50',
             'allowed_games' => 'nullable|array',
             'allowed_games.*' => ['string', function ($attribute, $value, $fail) use ($availableGames) {
                 if (!in_array($value, $availableGames)) {
@@ -792,7 +793,8 @@ class SellerController extends Controller
                 }
             }],
             'flexy_enabled' => 'sometimes|boolean',
-            'flexy_number' => 'nullable|string|max:50',
+            // flexy_number is required when flexy_enabled is set to 1 (toggle ON)
+            'flexy_number' => 'required_if:flexy_enabled,1|nullable|string|max:50',
             'flexy_instruction' => 'nullable|string|max:2000',
         ]);
 
@@ -824,8 +826,12 @@ class SellerController extends Controller
                         return back()->withErrors(['website_url' => 'Store slug can only contain letters, numbers, hyphens and underscores.']);
                     }
 
-                    // ensure slug uniqueness (exclude current seller)
-                    if (\App\Models\Seller::where('website_url', $slug)->where('id', '!=', $seller->id)->exists()) {
+                    // ensure slug uniqueness (exclude current seller) across website_url and username
+                    $conflictQuery = \App\Models\Seller::where(function ($q) use ($slug) {
+                        $q->where('website_url', $slug)->orWhere('username', $slug);
+                    })->where('id', '!=', $seller->id);
+
+                    if ($conflictQuery->exists()) {
                         return back()->withErrors(['website_url' => 'This store slug is already taken. Please choose another.']);
                     }
                 }
@@ -833,6 +839,13 @@ class SellerController extends Controller
 
             // Save the slug (or null if blank)
             $seller->website_url = $slug ?: null;
+
+            // If website is enabled and a slug is provided, update the seller username
+            // to match the store slug so public store URLs change accordingly.
+            if ($seller->website_enabled && $seller->website_url) {
+                // username uniqueness already validated above against other sellers
+                $seller->username = $seller->website_url;
+            }
         }
         $seller->allowed_games = $validated['allowed_games'] ?? [];
         $seller->flexy_enabled = (bool) ($validated['flexy_enabled'] ?? false);
@@ -845,6 +858,32 @@ class SellerController extends Controller
         $seller->save();
 
         return back()->with('success', 'Settings updated successfully!');
+    }
+
+    /**
+     * AJAX: Check whether a slug/username is available for the current seller
+     * POST payload: { slug: 'desired-name' }
+     */
+    public function checkSlugAvailability(Request $request)
+    {
+        $seller = $this->seller();
+
+        $data = $request->validate([
+            'slug' => ['required', 'string', 'max:50', 'regex:/^[a-zA-Z0-9_-]+$/']
+        ]);
+
+        $slug = strtolower(preg_replace('/[^a-z0-9_-]+/', '', $data['slug']));
+
+        // Check if any other seller uses this slug either as username or website_url
+        $exists = \App\Models\Seller::where(function ($q) use ($slug) {
+            $q->where('username', $slug)->orWhere('website_url', $slug);
+        })->where('id', '!=', $this->seller()->id)->exists();
+
+        return response()->json([
+            'available' => !$exists,
+            'slug' => $slug,
+            'message' => $exists ? 'This slug is already in use' : 'Available'
+        ], 200);
     }
 
     /**

@@ -233,6 +233,8 @@ Route::prefix('seller')->name('seller.')->middleware('seller')->group(function (
     Route::get('/profile', [SellerController::class, 'profile'])->name('profile');
     Route::get('/settings', [SellerController::class, 'settings'])->name('settings');
     Route::post('/settings', [SellerController::class, 'updateSettings'])->name('settings.update');
+    // AJAX endpoint to check whether a desired store slug / username is available
+    Route::post('/settings/check-slug', [SellerController::class, 'checkSlugAvailability'])->name('settings.check-slug');
     Route::put('/profile', [SellerController::class, 'updateProfile'])->name('profile.update');
     Route::post('/profile/password', [SellerController::class, 'changePassword'])->name('profile.password');
     

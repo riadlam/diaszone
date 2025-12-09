@@ -33,6 +33,14 @@
                         <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
                             <span id="store-prefix" class="px-3 py-2 text-slate-400 text-xs select-none bg-slate-900/30 border-r border-slate-700">{{ rtrim(config('app.url'), '/') }}/store/</span>
                             <input id="store-slug-input" type="text" name="website_url" value="{{ old('website_url', $seller->website_url ?? $seller->username) }}" placeholder="sellerriad" class="flex-1 px-3 py-2 bg-transparent text-white outline-none" aria-describedby="store-prefix">
+                        
+                        <div class="flex items-center justify-between gap-3">
+                            <p id="store-slug-error" class="text-xs text-red-400 mt-1 hidden">Store slug is required when website is enabled.</p>
+                            <div id="store-slug-status" class="text-xs mt-1 ml-auto flex items-center gap-2 text-gray-400 hidden">
+                                <svg id="store-slug-spinner" class="w-4 h-4 animate-spin text-gray-400 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                                <span id="store-slug-status-text" class="hidden"></span>
+                            </div>
+                        </div>
                         </div>
 
                         <p id="store-preview" class="text-xs text-gray-500 mt-2">Preview: <a href="{{ $seller->getStoreUrl() }}" target="_blank" class="text-blue-400 underline">{{ $seller->getStoreUrl() }}</a></p>
@@ -76,7 +84,8 @@
                     <div id="flexy-details" class="p-4 bg-slate-700/30 rounded-lg {{ $seller->flexy_enabled ? '' : 'hidden' }}">
                         <p class="text-sm text-gray-300 font-medium mb-2">Flexy details (optional)</p>
                         <p class="text-xs text-gray-400 mb-2">Number and instructions that will be displayed to customers when they choose Flexy.</p>
-                        <input type="text" name="flexy_number" value="{{ old('flexy_number', $seller->flexy_number ?? '') }}" placeholder="e.g., 0673771763" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none mb-2">
+                        <input id="flexy-number-input" type="text" name="flexy_number" value="{{ old('flexy_number', $seller->flexy_number ?? '') }}" placeholder="e.g., 0673771763" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none mb-2">
+                        <p id="flexy-number-error" class="text-xs text-red-400 mt-1 hidden">Flexy number is required when Flexy is enabled.</p>
                         <textarea name="flexy_instruction" rows="3" placeholder="Short transfer instructions or account details" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none">{{ old('flexy_instruction', $seller->flexy_instruction ?? '') }}</textarea>
                     </div>
 
@@ -112,6 +121,109 @@
         if (this.checked) flexyDetails.classList.remove('hidden'); else flexyDetails.classList.add('hidden');
     });
 
+    // Prevent form submission if flexy is enabled but flexy_number is empty
+    const settingsForm = document.querySelector('form[action="{{ route('seller.settings.update') }}"]');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', function (e) {
+            // Website slug required if website is enabled
+            const websiteToggle = document.getElementById('website-enabled-toggle');
+            const slugInputEl = document.getElementById('store-slug-input');
+            const slugErrorEl = document.getElementById('store-slug-error');
+            if (websiteToggle && websiteToggle.checked) {
+                if (!slugInputEl || slugInputEl.value.trim() === '') {
+                    e.preventDefault();
+                    if (slugErrorEl) {
+                        slugErrorEl.classList.remove('hidden');
+                        slugErrorEl.classList.add('animate-pulse');
+                        setTimeout(() => slugErrorEl.classList.remove('animate-pulse'), 800);
+                    }
+                    slugInputEl?.focus();
+                    return false;
+                }
+            }
+            const flexyToggle = document.getElementById('flexy-enabled-toggle');
+            const flexyNumber = document.getElementById('flexy-number-input');
+            const errorEl = document.getElementById('flexy-number-error');
+            if (flexyToggle && flexyToggle.checked) {
+                if (!flexyNumber || flexyNumber.value.trim() === '') {
+                    e.preventDefault();
+                    if (errorEl) {
+                        errorEl.classList.remove('hidden');
+                        // brief pulse to draw attention
+                        errorEl.classList.add('animate-pulse');
+                        setTimeout(() => errorEl.classList.remove('animate-pulse'), 800);
+                    }
+                    flexyNumber?.focus();
+                    return false;
+                }
+            }
+            // hide errors if present and valid
+            if (errorEl) errorEl.classList.add('hidden');
+            if (slugErrorEl) slugErrorEl.classList.add('hidden');
+            return true;
+        });
+    }
+
+    // Debounced AJAX check for slug availability
+    function debounce(fn, wait) {
+        let t;
+        return function(...args) {
+            clearTimeout(t);
+            t = setTimeout(() => fn.apply(this, args), wait);
+        };
+    }
+
+    async function checkSlugAvailability(slug) {
+        const statusEl = document.getElementById('store-slug-status');
+        const spinner = document.getElementById('store-slug-spinner');
+        const statusText = document.getElementById('store-slug-status-text');
+        if (!statusEl || !statusText || !spinner) return;
+
+        if (!slug) {
+            statusEl.classList.add('hidden');
+            statusText.classList.add('hidden');
+            spinner.classList.add('hidden');
+            return;
+        }
+
+        statusEl.classList.remove('hidden');
+        statusText.classList.add('hidden');
+        spinner.classList.remove('hidden');
+
+        try {
+            const res = await fetch("{{ route('seller.settings.check-slug') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({ slug })
+            });
+
+            const json = await res.json();
+            spinner.classList.add('hidden');
+            statusText.classList.remove('hidden');
+            if (json.available) {
+                statusText.textContent = 'Available';
+                statusText.classList.remove('text-red-400');
+                statusText.classList.add('text-green-400');
+            } else {
+                statusText.textContent = json.message || 'Taken';
+                statusText.classList.remove('text-green-400');
+                statusText.classList.add('text-red-400');
+            }
+        } catch (e) {
+            spinner.classList.add('hidden');
+            statusText.classList.remove('hidden');
+            statusText.textContent = 'Check failed';
+            statusText.classList.remove('text-green-400');
+            statusText.classList.add('text-red-400');
+        }
+    }
+
+    const debouncedCheckSlug = debounce((val) => checkSlugAvailability(val), 450);
+
     // Update preview while editing slug and prevent invalid characters client-side
     const slugInput = document.getElementById('store-slug-input');
     const prefix = document.getElementById('store-prefix');
@@ -128,6 +240,15 @@
         if (hint) {
             hint.classList.toggle('text-red-400', invalid);
             hint.textContent = invalid ? 'Invalid characters detected — only letters, numbers, hyphen and underscore are allowed.' : 'Allowed characters: letters, numbers, hyphen (-) and underscore (_).';
+        }
+
+        // run debounced availability check for allowed slug (lowercase, cleaned)
+        const cleaned = slug.toLowerCase().replace(/[^a-z0-9_-]+/g, '');
+        if (cleaned.length > 0 && !/[^a-z0-9_-]/i.test(slug)) {
+            debouncedCheckSlug(cleaned);
+        } else {
+            // hide status if invalid or empty
+            checkSlugAvailability('');
         }
     }
 
