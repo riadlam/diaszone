@@ -406,12 +406,17 @@ class SellerController extends Controller
             return back()->withErrors(['error' => 'You are not allowed to sell this game']);
         }
 
-        // Get seller's base cost (original pack price)
-        $baseCost = $pack->price_dzd;
+        // Get seller's base cost (original pack price). Prefer base_price_dzd when available.
+        $baseCost = $pack->base_price_dzd ?? $pack->price_dzd;
 
-        // Check wallet balance
+        // Note: intentionally not applying a rate limit here so high-volume trusted sellers
+        // can perform many direct top-ups in quick succession. We still keep a cache lock
+        // per (seller,pack,player) to protect against duplicate submissions.
+        // Ensure seller has at least the base cost available before placing order
         if ($seller->wallet_balance < $baseCost) {
-            return back()->withErrors(['error' => 'Insufficient wallet balance. You need ' . $baseCost . ' DZD']);
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => 'Insufficient wallet balance. You need ' . $baseCost . ' DZD'], 400)
+                : back()->withErrors(['error' => 'Insufficient wallet balance. You need ' . $baseCost . ' DZD']);
         }
 
         // Get seller's custom price
@@ -420,9 +425,19 @@ class SellerController extends Controller
         $profit = $sellingPrice - $baseCost;
 
         try {
+            // Prevent duplicate submissions using cache lock
+            $lockKey = 'seller_direct_topup_lock:' . $seller->id . ':' . $pack->id . ':' . md5($validated['player_id']);
+            $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 10);
+
+            if (!$lock->get()) {
+                return $request->wantsJson()
+                    ? response()->json(['success' => false, 'message' => 'Another top-up is processing for this player — please wait.'], 423)
+                    : back()->withErrors(['error' => 'Another top-up is processing for this player — please wait.']);
+            }
+
             DB::beginTransaction();
 
-            // Create order
+            // create order placeholder (will be updated)
             $order = Order::create([
                 'order_number' => Order::generateOrderNumber(),
                 'seller_id' => $seller->id,
@@ -435,7 +450,7 @@ class SellerController extends Controller
                 'player_id_hok' => $validated['game_type'] === 'honorofkings' ? $validated['player_id'] : null,
                 'user_id_bs' => $validated['game_type'] === 'bloodstrike' ? $validated['player_id'] : null,
                 'server_bs' => $validated['game_type'] === 'bloodstrike' ? ($validated['zone_id'] ?? null) : null,
-                'wallet_deducted' => true,
+                'wallet_deducted' => false,
                 'seller_cost' => $baseCost,
                 'seller_profit' => $profit,
                 'is_direct_topup' => true,
@@ -443,37 +458,126 @@ class SellerController extends Controller
                 'final_price' => $sellingPrice,
             ]);
 
-            // Deduct from wallet
-            $seller->deductWallet($baseCost, "Direct top-up order #{$order->order_number}", $order->id);
+            // Send initial Telegram notification for the new order (processing)
+            try {
+                $order->load('diamondPack', 'seller');
+                $initialMessage = \App\Services\TelegramService::formatOrderMessage($order);
+                $messageId = \App\Services\TelegramService::sendMessage($initialMessage);
+                if ($messageId) {
+                    $order->tlg_message_id = $messageId;
+                    $order->save();
+                    Log::info('DirectTopup: saved initial telegram message id', ['order_id' => $order->id, 'message_id' => $messageId]);
+                } else {
+                    Log::info('DirectTopup: initial telegram send returned falsy', ['order_id' => $order->id]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to send initial Telegram message for direct top-up', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
-            // Place order with VIP Reseller
+            // Place order with VIP Reseller (only call VIP when seller has sufficient funds)
             $result = $this->placeVipResellerOrder($pack, $validated);
 
             if ($result['success']) {
-                $order->update(['status' => 'completed']);
+                // Deduct from wallet now that VIP accepted order
+                $tx = $seller->deductWallet($baseCost, "Direct top-up order #{$order->order_number}", $order->id);
+
+                // Persist vipreseller_status and update order
+                $apiData = $result['data']['data'] ?? [];
+
+                $vipResellerStatus = \App\Models\VipResellerStatus::create([
+                    'order_id' => $order->id,
+                    'trxid' => $apiData['trxid'] ?? null,
+                    'data' => $apiData['data'] ?? $validated['player_id'],
+                    'zone' => $apiData['zone'] ?? ($validated['zone_id'] ?? null),
+                    'service' => $apiData['service'] ?? $pack->code,
+                    'status' => 'success',
+                    'note' => $apiData['note'] ?? null,
+                    'price' => $apiData['price'] ?? null,
+                    'additional_data' => $result,
+                ]);
+
+                $order->update(['status' => 'completed', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);
+
+                if ($tx) {
+                    Log::info('Direct topup: Seller wallet deducted', ['seller_id' => $seller->id, 'order_id' => $order->id, 'tx_id' => $tx->id]);
+                }
+
                 $seller->addEarnings($profit, $sellingPrice);
 
-                // Send Telegram notification
-                $this->sendDirectTopupNotification($seller, $order, $pack);
+                // Update Telegram message with final status / VIP result if available
+                try {
+                    if ($order->tlg_message_id) {
+                        $order->refresh();
+                        $order->load('diamondPack', 'vipResellerStatuses', 'seller');
+                        $updatedMessage = \App\Services\TelegramService::formatOrderMessage($order);
+                        // Replace header to show completion
+                        if (strpos($updatedMessage, '🆕 <b>New Order Created</b>') !== false) {
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Top-up Completed</b>', $updatedMessage);
+                        }
+                        Log::info('DirectTopup: editing telegram message', ['order_id' => $order->id, 'tlg_message_id' => $order->tlg_message_id]);
+                        \App\Services\TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                    } else {
+                        // Fallback: send a new notification
+                        $this->sendDirectTopupNotification($seller, $order, $pack);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to update Telegram message after direct top-up success', [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
 
                 DB::commit();
-                return back()->with('success', 'Top-up completed successfully! Order #' . $order->order_number);
+
+                // release lock
+                $lock->release();
+
+                return $request->wantsJson()
+                    ? response()->json(['success' => true, 'order_number' => $order->order_number, 'status' => 'completed'])
+                    : back()->with('success', 'Top-up completed successfully! Order #' . $order->order_number);
             } else {
-                // Refund wallet
-                $seller->creditWallet($baseCost, "Refund for failed order #{$order->order_number}", null, 'refund');
+                // VIP Reseller call failed — mark order failed and do NOT deduct wallet
                 $order->update(['status' => 'failed', 'notes' => $result['error']]);
 
                 DB::commit();
-                return back()->withErrors(['error' => 'Top-up failed: ' . $result['error']]);
+                // Update Telegram message to reflect failure if available
+                try {
+                    if ($order->tlg_message_id) {
+                        $order->refresh();
+                        $order->load('diamondPack', 'vipResellerStatuses', 'seller');
+                        $updatedMessage = \App\Services\TelegramService::formatOrderMessage($order);
+                        if (strpos($updatedMessage, '🆕 <b>New Order Created</b>') !== false) {
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '❌ <b>Top-up Failed</b>', $updatedMessage);
+                        }
+                        \App\Services\TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to update Telegram message after direct top-up failure', [
+                        'order_id' => $order->id ?? null,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                $lock->release();
+
+                return $request->wantsJson()
+                    ? response()->json(['success' => false, 'message' => 'Top-up failed: ' . ($result['error'] ?? 'Unknown')], 400)
+                    : back()->withErrors(['error' => 'Top-up failed: ' . $result['error']]);
             }
 
         } catch (\Exception $e) {
             DB::rollBack();
+            try { $lock->release(); } catch (\Throwable $ex) {}
             Log::error('Direct top-up failed', [
                 'seller_id' => $seller->id,
                 'error' => $e->getMessage()
             ]);
-            return back()->withErrors(['error' => 'An error occurred. Please try again.']);
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => 'An error occurred. Please try again.'], 500)
+                : back()->withErrors(['error' => 'An error occurred. Please try again.']);
         }
     }
 
@@ -562,7 +666,19 @@ class SellerController extends Controller
             $message .= "📈 Profit: {$order->seller_profit} DZD\n";
             $message .= "✅ Status: Completed";
 
-            $this->telegramService->sendMessage($message);
+            // If an admin message exists for this order, update it; otherwise send a new message
+            try {
+                if ($order->tlg_message_id) {
+                    \App\Services\TelegramService::editMessageText($order->tlg_message_id, $message);
+                } else {
+                    \App\Services\TelegramService::sendMessage($message);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to send/edit direct-topup Telegram message', [
+                    'order_id' => $order->id ?? null,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
         } catch (\Exception $e) {
             Log::warning('Failed to send Telegram notification for direct top-up', [

@@ -70,6 +70,8 @@
                 </div>
             </div>
             
+            <div id="topup-status" class="mt-3 text-sm text-gray-300 hidden"></div>
+
             <button type="submit" id="submit-btn" disabled
                 class="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-lg hover:from-blue-700 hover:to-cyan-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
                 Process Top-Up
@@ -206,16 +208,67 @@ document.getElementById('pack_id').addEventListener('change', function() {
     summary.classList.remove('hidden');
 });
 
-document.getElementById('topup-form').addEventListener('submit', function(e) {
+document.getElementById('topup-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById('submit-btn');
+    const statusEl = document.getElementById('topup-status');
+    statusEl.classList.add('hidden');
+
     const playerId = document.getElementById('player_id').value;
     if (!playerId) {
-        e.preventDefault();
-        alert('Please enter a Player ID');
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = 'Please enter a Player ID';
+        statusEl.classList.add('text-red-400');
         return;
     }
-    
-    document.getElementById('submit-btn').disabled = true;
-    document.getElementById('submit-btn').textContent = 'Processing...';
+
+    submitBtn.disabled = true;
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Processing...';
+
+    const formData = new FormData(this);
+
+    // Clear previous status
+    statusEl.classList.remove('text-red-400', 'text-green-400');
+
+    try {
+        const resp = await fetch(this.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            body: formData
+        });
+
+        const json = await resp.json().catch(() => ({ success: false, message: 'Invalid server response' }));
+
+        if (resp.ok && json.success) {
+            statusEl.classList.remove('hidden');
+            statusEl.classList.add('text-green-400');
+            statusEl.textContent = `Top-up completed — Order #${json.order_number}`;
+
+            // Keep the button disabled briefly to avoid double-click; update UI
+            submitBtn.textContent = 'Completed';
+            setTimeout(() => { submitBtn.disabled = false; submitBtn.textContent = originalText; }, 2000);
+
+            // Optionally: reset form after success
+            document.getElementById('summary').classList.add('hidden');
+            this.reset();
+        } else {
+            statusEl.classList.remove('hidden');
+            statusEl.classList.add('text-red-400');
+            statusEl.textContent = json.message || 'Top-up failed. Please try again.';
+
+            // Re-enable button so seller can try again
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    } catch (err) {
+        statusEl.classList.remove('hidden');
+        statusEl.classList.add('text-red-400');
+        statusEl.textContent = 'Network error. Please try again.';
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
 });
 </script>
 @endpush
