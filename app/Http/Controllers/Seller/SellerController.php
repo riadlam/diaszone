@@ -912,11 +912,12 @@ class SellerController extends Controller
         $pack = $order->diamondPack;
         $baseCost = $order->seller_cost;
 
-        // Check wallet balance
+        // Check wallet balance — ensure seller has funds before attempting VIP top-up
         if ($seller->wallet_balance < $baseCost) {
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient wallet balance. You need ' . $baseCost . ' DZD'
+                'insufficient_wallet' => true,
+                'message' => 'Insufficient wallet balance. Please top up your wallet before confirming. You need ' . $baseCost . ' DZD'
             ], 400);
         }
 
@@ -1051,19 +1052,18 @@ class SellerController extends Controller
         }
 
         try {
-            // Delete associated receipt file if exists
-            if ($order->flexy_receipt) {
-                $receiptPath = storage_path('app/public/' . $order->flexy_receipt);
-                if (file_exists($receiptPath)) {
-                    unlink($receiptPath);
-                }
-            }
+            // Mark order as cancelled rather than deleting it
+            $order->update(['status' => 'cancelled']);
 
-            $order->delete();
+            // Do NOT delete receipt files or database entries to keep audit trail
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order deleted successfully'
+                'message' => 'Order cancelled successfully',
+                'order' => [
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                ]
             ]);
 
         } catch (\Exception $e) {

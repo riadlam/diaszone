@@ -269,7 +269,7 @@
                         }
                         elseif ($status === 'processing') $statusClass = 'bg-blue-500/20 text-blue-400';
                     @endphp
-                    <tr data-order="{{ $order->order_number }}" data-status="{{ $status }}" class="hover:bg-slate-700/50">
+                    <tr data-order="{{ $order->order_number }}" data-status="{{ $status }}" data-seller-cost="{{ (float)$order->seller_cost }}" class="hover:bg-slate-700/50">
                         <td class="px-4 py-4">
                             <p class="font-medium text-white text-sm">{{ $order->order_number }}</p>
                             @if($order->is_direct_topup)
@@ -448,6 +448,8 @@
 <!-- The orders table will only initialise DataTables when jQuery is present in the page. We avoid loading the DataTables bundle unconditionally because the app doesn't ship jQuery by default which would cause 'jQuery is not defined' errors. -->
 <script>
     const csrfToken = '{{ csrf_token() }}';
+    // Current authenticated seller wallet balance (used for client-side pre-checks)
+    const sellerWalletBalance = {{ (float)($seller->wallet_balance ?? 0) }};
     let currentOrderNumber = null;
     
     // Filter by status
@@ -586,6 +588,15 @@
     
     // Confirm Order Modal
     function confirmOrder(orderNumber) {
+        // Quick client-side guard — if seller wallet is clearly insufficient, show helpful message
+        const row = document.querySelector(`[data-order="${orderNumber}"]`);
+        if (row) {
+            const cost = parseFloat(row.getAttribute('data-seller-cost') || '0');
+            if (sellerWalletBalance < cost) {
+                showToast(`Insufficient wallet balance — please top up your wallet before confirming. You need ${cost} DZD`, 'error');
+                return; // keep actions unchanged so seller can top up then retry
+            }
+        }
         currentOrderNumber = orderNumber;
         document.getElementById('confirm-order-number').textContent = orderNumber;
         document.getElementById('confirm-modal').classList.remove('hidden');
@@ -692,6 +703,15 @@
                     }, 1000);
                 }
             } else {
+                // If insufficient wallet funds, show helpful message and keep order row unchanged so seller can top-up
+                if (data.insufficient_wallet || (data.message && data.message.toLowerCase().includes('insufficient'))) {
+                    showToast(data.message || 'Please top up your wallet before confirming this order', 'error');
+                    // don't change actions — keep confirm button available so seller can confirm after top up
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>Confirm</span>';
+                    return;
+                }
+
                 // Failed to process: show message and update row status to failed
                 showToast(data.message || 'Failed to confirm order', 'error');
                 const row = document.querySelector(`[data-order="${currentOrderNumber}"]`);
@@ -749,11 +769,38 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showToast('Order deleted successfully!', 'success');
+                // We flag order as cancelled instead of removing it from DOM
+                showToast('Order cancelled successfully!', 'success');
                 closeDeleteModal();
-                setTimeout(() => location.reload(), 1500);
+
+                const row = document.querySelector(`[data-order="${currentOrderNumber}"]`);
+                if (row) {
+                    row.dataset.status = data.order?.status || 'cancelled';
+                    // update status label
+                    const statusEl = row.querySelector('td:nth-child(5) span');
+                    if (statusEl) {
+                        statusEl.className = 'inline-block px-3 py-1 text-xs rounded-full font-medium bg-red-500/20 text-red-400';
+                        statusEl.textContent = 'Cancelled';
+                    }
+
+                    // remove confirm and delete buttons
+                    const actionsCell = row.querySelector('td:nth-child(7) .flex');
+                    if (actionsCell) {
+                        actionsCell.querySelectorAll('.action-btn-confirm, .action-btn-delete').forEach(el => el.remove());
+                        // ensure view button exists
+                        if (!actionsCell.querySelector('.action-btn-view')) {
+                            const viewBtn = document.createElement('button');
+                            viewBtn.className = 'action-btn action-btn-view';
+                            viewBtn.title = 'View Details';
+                            viewBtn.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`;
+                            viewBtn.addEventListener('click', function(e){ viewOrder(row.getAttribute('data-order')); });
+                            actionsCell.prepend(viewBtn);
+                        }
+                    }
+                }
+
             } else {
-                showToast(data.message || 'Failed to delete order', 'error');
+                showToast(data.message || 'Failed to cancel order', 'error');
                 btn.disabled = false;
                 btn.innerHTML = '<span>Delete</span>';
             }

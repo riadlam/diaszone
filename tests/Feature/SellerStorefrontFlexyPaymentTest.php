@@ -176,27 +176,33 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
             'is_direct_topup' => false,
         ]);
 
-        $mock = \Mockery::mock(VipResellerService::class);
-        $mock->shouldReceive('placeOrder')->andReturn(['result' => false, 'message' => 'VIP out of stock'])->once();
-        $this->app->instance(VipResellerService::class, $mock);
+        // In this insufficient-wallet case we should return early from the controller
+        // and NOT attempt a VIP top-up nor send Telegram notifications. Ensure no
+        // expectations are set for those services.
+        $vipMock = \Mockery::mock(VipResellerService::class);
+        $vipMock->shouldNotReceive('placeOrder');
+        $this->app->instance(VipResellerService::class, $vipMock);
 
         $tMock = \Mockery::mock(\App\Services\TelegramService::class);
-        $tMock->shouldReceive('sendMessage')->once()->with(\Mockery::on(function ($msg) use ($order) {
-            return str_contains($msg, $order->order_number) && str_contains($msg, 'VIP out of stock');
-        }))->andReturn(null);
+        $tMock->shouldNotReceive('sendMessage');
         $this->app->instance(\App\Services\TelegramService::class, $tMock);
 
         $this->actingAs($seller, 'seller');
 
+        // reduce seller wallet below required cost
+        $seller->wallet_balance = 100.00;
+        $seller->save();
+
         $resp = $this->patchJson(route('seller.orders.confirm', ['orderNumber' => $order->order_number]));
-        $resp->assertStatus(400)->assertJson(['success' => false]);
+        $resp->assertStatus(400)->assertJson(['success' => false, 'insufficient_wallet' => true]);
 
         $order->refresh();
         $seller->refresh();
 
-        $this->assertEquals('failed', $order->status);
+        // Because the seller did not have enough balance, the order should remain pending for flexy verification
+        $this->assertEquals('pending_flexy_verification', $order->status);
         $this->assertFalse((bool)$order->wallet_deducted);
-        // Wallet unchanged
-        $this->assertEquals(5000.00, (float)$seller->wallet_balance);
+        // Wallet unchanged (still 100 after our manual reduction)
+        $this->assertEquals(100.00, (float)$seller->wallet_balance);
     }
 }
