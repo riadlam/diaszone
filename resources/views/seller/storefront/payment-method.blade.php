@@ -497,7 +497,8 @@
                     fetch(form.action, {
                         method: 'POST',
                         body: fd,
-                        headers: { 'Accept': 'application/json' },
+                        // Ask server for JSON; X-Requested-With helps some middleware detect AJAX
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     }).then(async (res) => {
                         // If server redirects, follow it
                         if (res.redirected) {
@@ -508,8 +509,15 @@
                         try { json = await res.json(); } catch (e) { /* ignore */ }
 
                         if (!res.ok) {
-                            // Friendly message for customers, keep internal details vague
-                            showToast('This seller is temporarily unable to accept purchases. Please try again later or pick another seller.', 'error');
+                            // Friendly message for customers — intentionally generic so it doesn't expose internal seller status.
+                            const customerMsg = 'This seller is temporarily unable to accept purchases. Please try again later or pick another seller.';
+
+                            // If server returned JSON with a message, log it for debugging (seller/internal visibility)
+                            try {
+                                if (json && json.message) console.warn('Payment submission server message:', json.message);
+                            } catch (e) {}
+
+                            showToast(customerMsg, 'error');
                             return;
                         }
 
