@@ -1,7 +1,7 @@
 <div id="whatsapp-fab" aria-hidden="false">
     <style>
-        /* WhatsApp FAB - site-wide (moved slightly higher) */
-        #whatsapp-fab { position: fixed; right: 35px; bottom: 45px; z-index: 9999; }
+        /* WhatsApp FAB - site-wide */
+        #whatsapp-fab { position: fixed; right: 20px; bottom: 20px; z-index: 9999; }
         .whatsapp-fab-button { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 999px; background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); box-shadow: 0 8px 24px rgba(18,140,126,0.2); cursor: pointer; border: none; }
         .whatsapp-fab-button:focus { outline: 2px solid rgba(255,255,255,0.28); outline-offset: 2px; }
         .whatsapp-fab-icon { width: 24px; height: 24px; color: #fff; }
