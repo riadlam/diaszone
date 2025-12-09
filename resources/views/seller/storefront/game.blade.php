@@ -7,6 +7,29 @@
     <title>{{ $gameName }} - {{ $seller->store_name ?? $seller->name }}</title>
     <link rel="icon" type="image/png" href="{{ asset('storage/images_homepage/favicon.png') }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        // Early fallback: define no-op global helpers so other scripts can safely call them
+        // (they will be overwritten later by the real implementations in app.js)
+        if (typeof window !== 'undefined') {
+            if (typeof window.showValidationError !== 'function') {
+                window.showValidationError = function (message) {
+                    // minimal fallback: console and tiny inline UI
+                    console.warn('showValidationError (fallback):', message);
+                    try {
+                        const existing = document.getElementById('nickname-validation-error');
+                        if (existing) existing.remove();
+                        const errorDiv = document.createElement('div');
+                        errorDiv.id = 'nickname-validation-error';
+                        errorDiv.textContent = message || 'Validation failed';
+                        (document.getElementById('checkout-form') || document.body).appendChild(errorDiv);
+                    } catch (e) { /* ignore */ }
+                };
+            }
+            if (typeof window.showNicknameSuccess !== 'function') {
+                window.showNicknameSuccess = function (nickname, cb) { console.info('showNicknameSuccess (fallback):', nickname); if (cb) cb(); };
+            }
+        }
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         body { font-family: 'Cairo', sans-serif; }

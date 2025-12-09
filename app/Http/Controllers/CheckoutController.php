@@ -479,11 +479,17 @@ class CheckoutController extends Controller
             $result = $vipResellerService->checkNickname($request->user_id, $request->zone_id);
 
             // Return the API response directly: {"result": true/false, "data": "nickname", "message": "..."}
+            // Build a friendly message when the external service returned no message
+            $message = $result['message'] ?? null;
+            if (empty($message) && ($result['result'] ?? false) === false) {
+                $message = 'Nickname not found or invalid for the provided User ID / Zone ID.';
+            }
+
             return response()->json([
                 'result' => $result['result'] ?? false,
                 'data' => $result['data'] ?? null,
-                'message' => $result['message'] ?? 'Validation failed',
-            ], $result['result'] === true ? 200 : 400);
+                'message' => $message,
+            ], ($result['result'] === true) ? 200 : 400);
         } catch (\Exception $e) {
             Log::error('Nickname validation error: ' . $e->getMessage(), [
                 'user_id' => $request->user_id,
