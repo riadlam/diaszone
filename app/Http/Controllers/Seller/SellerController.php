@@ -796,6 +796,8 @@ class SellerController extends Controller
             // flexy_number is required when flexy_enabled is set to 1 (toggle ON)
             'flexy_number' => 'required_if:flexy_enabled,1|nullable|string|max:50',
             'flexy_instruction' => 'nullable|string|max:2000',
+            'store_logo' => 'nullable|file|image|mimes:png,jpg,jpeg,webp|max:5120',
+            'store_banner' => 'nullable|file|image|mimes:png,jpg,jpeg,webp|max:8192',
         ]);
 
         // Normalize values
@@ -862,6 +864,30 @@ class SellerController extends Controller
         // removed: is_flexy/is_website simulation flags (now controlled via flexy_enabled / website_enabled)
         $seller->flexy_number = $validated['flexy_number'] ?? $seller->flexy_number;
         $seller->flexy_instruction = $validated['flexy_instruction'] ?? $seller->flexy_instruction;
+
+        // Handle uploaded store_logo and store_banner
+        if ($request->hasFile('store_logo')) {
+            $file = $request->file('store_logo');
+            if ($file->isValid()) {
+                // delete old if present
+                if ($seller->store_logo) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($seller->store_logo);
+                }
+                $path = $file->store('seller-logos', 'public');
+                $seller->store_logo = $path;
+            }
+        }
+
+        if ($request->hasFile('store_banner')) {
+            $file = $request->file('store_banner');
+            if ($file->isValid()) {
+                if ($seller->store_banner) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($seller->store_banner);
+                }
+                $path = $file->store('seller-banners', 'public');
+                $seller->store_banner = $path;
+            }
+        }
 
         $seller->save();
 

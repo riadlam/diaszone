@@ -114,6 +114,46 @@ class SellerSettingsTest extends TestCase
         $getOld->assertStatus(404);
     }
 
+    public function test_upload_logo_and_banner_saved_and_shown_on_storefront()
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $seller = Seller::factory()->create([
+            'website_enabled' => true,
+            'website_url' => 'myslug',
+            'username' => 'myslug',
+            'store_name' => 'My Store'
+        ]);
+
+        $this->actingAs($seller, 'seller');
+
+        $logo = \Illuminate\Http\UploadedFile::fake()->create('logo.png', 100, 'image/png');
+        $banner = \Illuminate\Http\UploadedFile::fake()->create('banner.jpg', 400, 'image/jpeg');
+
+        $resp = $this->post(route('seller.settings.update'), [
+            'website_enabled' => 1,
+            'website_url' => 'myslug',
+            'store_logo' => $logo,
+            'store_banner' => $banner,
+        ]);
+
+        $resp->assertStatus(302);
+
+        $seller->refresh();
+
+        $this->assertNotNull($seller->store_logo);
+        $this->assertNotNull($seller->store_banner);
+
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($seller->store_logo);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($seller->store_banner);
+
+        // The storefront home should include the asset URLs (mobile markup still present in HTML)
+        $home = $this->get(route('seller.store.home', ['username' => $seller->username]));
+        $home->assertStatus(200);
+        $home->assertSee($seller->store_logo);
+        $home->assertSee($seller->store_banner);
+    }
+
     public function test_slug_conflict_with_existing_username_fails()
     {
         // another seller has username 'taken'

@@ -4,7 +4,7 @@
 @section('header', 'Settings')
 
 @section('content')
-<form action="{{ route('seller.settings.update') }}" method="POST">
+<form action="{{ route('seller.settings.update') }}" method="POST" enctype="multipart/form-data">
     @csrf
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="col-span-2">
@@ -12,6 +12,40 @@
                 <h3 class="text-lg font-bold mb-4">Website Controls</h3>
 
                 <div class="space-y-4">
+                    <!-- Store images: logo and banner -->
+                    <div class="p-4 bg-slate-700/20 rounded-lg flex flex-col gap-4">
+                        <div>
+                            <label class="text-xs text-gray-400 mb-2 block">Store Logo (circle)</label>
+                            <div class="flex items-center gap-3">
+                                <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-700">
+                                    @if($seller->store_logo)
+                                        <img id="store-logo-preview" src="{{ asset('storage/' . $seller->store_logo) }}" class="w-full h-full object-cover" alt="logo">
+                                    @else
+                                        <span id="store-logo-placeholder" class="text-white font-bold">{{ substr($seller->name, 0, 1) }}</span>
+                                    @endif
+                                </div>
+                                <div class="flex-1">
+                                    <input id="store-logo-input" type="file" name="store_logo" accept="image/*" class="text-xs text-gray-400">
+                                    <p class="text-xs text-gray-400 mt-2">Recommended: square image, 400x400. Max 5 MB.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-400 mb-2 block">Cover banner (mobile only)</label>
+                            <div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
+                                @if($seller->store_banner)
+                                    <img id="store-banner-preview" src="{{ asset('storage/' . $seller->store_banner) }}" class="w-full h-36 object-cover sm:hidden" alt="banner">
+                                @else
+                                    <div id="store-banner-placeholder" class="w-full h-36 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-700 flex items-center justify-center sm:hidden">
+                                        <span class="text-gray-400 text-sm">No banner — mobile-only header will show a placeholder</span>
+                                    </div>
+                                @endif
+                            </div>
+                            <input id="store-banner-input" type="file" name="store_banner" accept="image/*" class="text-xs text-gray-400 mt-2">
+                            <p class="text-xs text-gray-400 mt-1">Recommended: wide image, 800x300. Max 8 MB.</p>
+                        </div>
+                    </div>
                     <div class="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
                         <div>
                             <p class="text-sm text-gray-300 font-medium">Enable dynamic website</p>
@@ -257,6 +291,36 @@
     slugInput?.addEventListener('input', updatePreview);
     // initialise preview when the page loads
     updatePreview();
+
+    // Image previews for logo/banner
+    const logoInput = document.getElementById('store-logo-input');
+    const logoPreview = document.getElementById('store-logo-preview');
+    const logoPlaceholder = document.getElementById('store-logo-placeholder');
+
+    logoInput?.addEventListener('change', function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        if (logoPreview) {
+            logoPreview.src = url;
+            logoPreview.classList.remove('hidden');
+        }
+        if (logoPlaceholder) logoPlaceholder.classList.add('hidden');
+    });
+
+    const bannerInput = document.getElementById('store-banner-input');
+    const bannerPreview = document.getElementById('store-banner-preview');
+    const bannerPlaceholder = document.getElementById('store-banner-placeholder');
+    bannerInput?.addEventListener('change', function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        if (bannerPreview) {
+            bannerPreview.src = url;
+            bannerPreview.classList.remove('hidden');
+        }
+        if (bannerPlaceholder) bannerPlaceholder.classList.add('hidden');
+    });
 </script>
 @endpush
 @endsection

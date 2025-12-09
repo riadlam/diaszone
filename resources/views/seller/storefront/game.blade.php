@@ -93,6 +93,34 @@
     
     <!-- Main Content -->
     <main class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Mobile-only store header: banner and circular logo (Facebook-like) -->
+        <div class="sm:hidden mb-6">
+            <div class="w-full h-40 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-700 overflow-hidden rounded-xl">
+                @if(!empty($seller->store_banner))
+                    <img src="{{ asset('storage/' . $seller->store_banner) }}" alt="Banner" class="w-full h-full object-cover">
+                @else
+                    <div class="w-full h-full bg-gradient-to-r from-indigo-700 via-indigo-900 to-slate-800 flex items-center justify-center">
+                        <span class="text-gray-300">Store banner (mobile)</span>
+                    </div>
+                @endif
+            </div>
+
+            <div class="-mt-10 flex items-center gap-4 px-2">
+                <div class="w-20 h-20 rounded-full overflow-hidden border-4 border-slate-900 bg-slate-800 flex items-center justify-center">
+                    @if($seller->store_logo)
+                        <img src="{{ asset('storage/' . $seller->store_logo) }}" alt="Logo" class="w-full h-full object-cover">
+                    @else
+                        <span class="text-white font-bold text-xl">{{ substr($seller->name, 0, 1) }}</span>
+                    @endif
+                </div>
+                <div>
+                    <h1 class="text-white text-lg font-bold">{{ $seller->store_name ?? $seller->name }}</h1>
+                    @if($seller->store_description)
+                        <p class="text-gray-400 text-sm mt-1">{{ $seller->store_description }}</p>
+                    @endif
+                </div>
+            </div>
+        </div>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Packs Grid (desktop only) -->
             <!-- hide on small screens and show only for desktop (lg and up) -->
