@@ -226,4 +226,27 @@ class SellerSettingsTest extends TestCase
         $this->assertFalse($seller->website_enabled);
         $this->assertNotEquals('taken', $seller->username);
     }
+
+    public function test_settings_page_shows_filename_and_choose_buttons()
+    {
+        $seller = Seller::factory()->create([
+            'store_logo' => 'seller-logos/logo.png',
+            'store_logo_thumb' => 'seller-logos/thumbs/logo_thumb.png',
+            'store_banner' => 'seller-banners/banner.jpg',
+            'store_banner_resized' => 'seller-banners/resized/banner_resized.jpg',
+        ]);
+
+        $this->actingAs($seller, 'seller');
+
+        $resp = $this->get(route('seller.settings'));
+        $resp->assertStatus(200);
+
+        // Filename spans and choose buttons should be present in the settings HTML
+        $resp->assertSee('id="store-logo-filename"', false);
+        $resp->assertSee('logo.png', false);
+        $resp->assertSee('id="store-banner-filename"', false);
+        $resp->assertSee('banner.jpg', false);
+        $resp->assertSee('id="choose-logo-btn"', false);
+        $resp->assertSee('id="choose-banner-btn"', false);
+    }
 }

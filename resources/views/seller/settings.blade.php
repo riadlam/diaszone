@@ -28,8 +28,13 @@
                                     @endif
                                 </div>
                                 <div class="flex-1">
-                                    <input id="store-logo-input" type="file" name="store_logo" accept="image/*" class="text-xs text-gray-400">
-                                    <p class="text-xs text-gray-400 mt-2">Recommended: square image, 400x400. Max 5 MB.</p>
+                                    <!-- hidden real input; custom controls below to avoid 'No file chosen' text -->
+                                    <input id="store-logo-input" type="file" name="store_logo" accept="image/*" class="hidden">
+                                    <div class="flex items-center gap-2">
+                                        <button id="choose-logo-btn" type="button" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs">Change Logo</button>
+                                        <span id="store-logo-filename" class="text-xs text-gray-300">{{ $seller->store_logo ? basename($seller->store_logo) : 'No file chosen' }}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-2">Recommended: square image, 400×400. Max 5 MB.</p>
                                 </div>
                             </div>
                         </div>
@@ -38,20 +43,25 @@
                             <label class="text-xs text-gray-400 mb-2 block">Cover banner (mobile only)</label>
                             <div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
                                 @if($seller->store_banner_resized ?? $seller->store_banner)
-                                    <div class="relative w-full h-36 overflow-hidden">
-                                        <img id="store-banner-preview" src="{{ asset('storage/' . ($seller->store_banner_resized ?? $seller->store_banner)) }}" class="w-full h-full object-cover sm:hidden" alt="banner">
-                                        @if($seller->store_banner)
-                                            <button id="remove-banner-btn" type="button" class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded">Remove</button>
-                                        @endif
-                                    </div>
+                                        <div class="relative w-full h-36 overflow-hidden">
+                                            <img id="store-banner-preview" src="{{ asset('storage/' . ($seller->store_banner_resized ?? $seller->store_banner)) }}" class="w-full h-full object-cover sm:hidden" alt="banner">
+                                            @if($seller->store_banner)
+                                                <button id="remove-banner-btn" type="button" class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded">Remove</button>
+                                            @endif
+                                        </div>
                                 @else
                                     <div id="store-banner-placeholder" class="w-full h-36 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-700 flex items-center justify-center sm:hidden">
                                         <span class="text-gray-400 text-sm">No banner — mobile-only header will show a placeholder</span>
                                     </div>
                                 @endif
                             </div>
-                            <input id="store-banner-input" type="file" name="store_banner" accept="image/*" class="text-xs text-gray-400 mt-2">
-                            <p class="text-xs text-gray-400 mt-1">Recommended: wide image, 800x300. Max 8 MB.</p>
+                            <!-- hidden real file input and custom controls to show filename + preview -->
+                            <input id="store-banner-input" type="file" name="store_banner" accept="image/*" class="hidden">
+                            <div class="flex items-center gap-2 mt-2">
+                                <button id="choose-banner-btn" type="button" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs">Change banner</button>
+                                <span id="store-banner-filename" class="text-xs text-gray-300">{{ $seller->store_banner ? basename($seller->store_banner) : 'No file chosen' }}</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Recommended: wide image, 800×300. Max 8 MB.</p>
                         </div>
                     </div>
                     <div class="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
@@ -314,6 +324,9 @@
             logoPreview.classList.remove('hidden');
         }
         if (logoPlaceholder) logoPlaceholder.classList.add('hidden');
+        // update filename UI
+        const fn = document.getElementById('store-logo-filename');
+        if (fn && this.files && this.files[0]) fn.textContent = this.files[0].name;
     });
 
     const bannerInput = document.getElementById('store-banner-input');
@@ -328,6 +341,17 @@
             bannerPreview.classList.remove('hidden');
         }
         if (bannerPlaceholder) bannerPlaceholder.classList.add('hidden');
+        // update filename UI
+        const bf = document.getElementById('store-banner-filename');
+        if (bf && this.files && this.files[0]) bf.textContent = this.files[0].name;
+    });
+
+    // wire custom choose buttons to hidden input
+    document.getElementById('choose-logo-btn')?.addEventListener('click', function () {
+        document.getElementById('store-logo-input')?.click();
+    });
+    document.getElementById('choose-banner-btn')?.addEventListener('click', function () {
+        document.getElementById('store-banner-input')?.click();
     });
 
     // Remove image handlers
