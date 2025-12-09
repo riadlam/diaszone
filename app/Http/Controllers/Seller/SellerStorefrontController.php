@@ -403,16 +403,39 @@ class SellerStorefrontController extends Controller
                 $checkoutData['webhook_endpoint'] = route('baridimob.webhook');
             }
 
+            Log::info('Chargily createCheckout request', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'checkout_payload' => $checkoutData,
+            ]);
+
             $chargilyResponse = $chargilyService->createCheckout($checkoutData);
+
+            Log::info('Chargily createCheckout response', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'response' => $chargilyResponse,
+            ]);
 
             if (!$chargilyResponse || !isset($chargilyResponse['checkout_url'])) {
                 throw new \Exception('Failed to create payment');
             }
 
             // Save Chargily status
+            $checkoutIdValue = $chargilyResponse['checkout_id'] ?? $chargilyResponse['id'] ?? null;
+
+            if (empty($checkoutIdValue)) {
+                Log::warning('Chargily createCheckout returned empty checkout id', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'response' => $chargilyResponse,
+                ]);
+            }
+
             $chargilyStatus = \App\Models\ChargilyStatus::create([
                 'order_id' => $order->id,
-                'checkout_id' => $chargilyResponse['id'] ?? null,
+                // Accept either 'checkout_id' or legacy 'id' coming from service
+                'checkout_id' => $checkoutIdValue,
                 'status' => 'pending',
                 // store the actual charged amount
                 'amount' => $chargilyAmount,
@@ -421,6 +444,12 @@ class SellerStorefrontController extends Controller
             ]);
 
             $order->update(['chargily_status_id' => $chargilyStatus->id]);
+
+            Log::info('Chargily status saved for order', [
+                'order_id' => $order->id,
+                'chargily_status_id' => $chargilyStatus->id,
+                'checkout_id' => $chargilyStatus->checkout_id,
+            ]);
 
             // Send initial Telegram notification for storefront orders (include seller)
             try {
@@ -513,7 +542,25 @@ class SellerStorefrontController extends Controller
             DB::beginTransaction();
 
             // Deduct from seller wallet
-            $seller->deductWallet($baseCost, "Order #{$order->order_number}", $order->id);
+            $tx = $seller->deductWallet($baseCost, "Order #{$order->order_number}", $order->id);
+            if ($tx) {
+                Log::info('Seller wallet deducted for order', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'seller_id' => $seller->id,
+                    'amount_deducted' => $baseCost,
+                    'balance_before' => $tx->balance_before ?? null,
+                    'balance_after' => $tx->balance_after ?? null,
+                    'transaction_id' => $tx->id ?? null,
+                ]);
+            } else {
+                Log::error('Seller wallet deduction returned no transaction record', [
+                    'order_id' => $order->id,
+                    'seller_id' => $seller->id,
+                    'required' => $baseCost,
+                ]);
+            }
+
             $order->update(['wallet_deducted' => true]);
 
             // Add earnings

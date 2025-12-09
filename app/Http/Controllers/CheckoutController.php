@@ -994,8 +994,17 @@ class CheckoutController extends Controller
                 // Try to find by chargily_status first
                 $chargilyStatus = ChargilyStatus::where('checkout_id', $checkoutId)->first();
                 
-                if ($chargilyStatus && $chargilyStatus->order_id) {
-                    $order = Order::find($chargilyStatus->order_id);
+                if ($chargilyStatus) {
+                    if ($chargilyStatus->order_id) {
+                        $order = Order::find($chargilyStatus->order_id);
+                    } else {
+                        // Detailed log when chargily_status exists but not linked to an order
+                        Log::warning('Chargily Pay v2 webhook: Found ChargilyStatus without order_id', [
+                            'chargily_status_id' => $chargilyStatus->id,
+                            'checkout_id' => $chargilyStatus->checkout_id,
+                            'chargily_response_snippet' => substr(json_encode($chargilyStatus->webhook_data ?? $chargilyStatus->response_data ?? []), 0, 400),
+                        ]);
+                    }
                 }
                 
                 // If not found, try to find by bmccp invoice_number
@@ -1003,6 +1012,12 @@ class CheckoutController extends Controller
                     $bmccp = \App\Models\Bmccp::where('invoice_number', $checkoutId)->first();
                     if ($bmccp) {
                         $order = Order::where('bmccp_id', $bmccp->id)->first();
+                        if (!$order) {
+                            Log::warning('Chargily Pay v2 webhook: bmccp matched but no order found for bmccp', [
+                                'bmccp_id' => $bmccp->id,
+                                'invoice_number' => $bmccp->invoice_number,
+                            ]);
+                        }
                     }
                 }
             }
@@ -1010,6 +1025,11 @@ class CheckoutController extends Controller
             // STEP 4: Save/Update chargily_status
             if ($chargilyStatus) {
                 // Update existing status
+                Log::info('Chargily Pay v2: Updating existing ChargilyStatus from webhook', [
+                    'chargily_status_id' => $chargilyStatus->id,
+                    'checkout_id' => $chargilyStatus->checkout_id,
+                    'event' => $eventType,
+                ]);
                 $chargilyStatus->update([
                     'event_type' => $eventType,
                     'status' => $checkoutStatus ?? 'pending',
@@ -1020,6 +1040,11 @@ class CheckoutController extends Controller
                     'webhook_data' => $webhookData,
                 ]);
             } else {
+                Log::info('Chargily Pay v2: Creating new ChargilyStatus from webhook', [
+                    'checkout_id' => $checkoutId,
+                    'order_id_candidate' => $order ? $order->id : null,
+                    'event' => $eventType,
+                ]);
                 // Create new status record
                 $chargilyStatus = ChargilyStatus::create([
                     'order_id' => $order ? $order->id : null,
@@ -1037,6 +1062,11 @@ class CheckoutController extends Controller
                 if ($order) {
                     $order->chargily_status_id = $chargilyStatus->id;
                     $order->save();
+                    Log::info('Chargily Pay v2: Linked new ChargilyStatus to order', [
+                        'chargily_status_id' => $chargilyStatus->id,
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                    ]);
                 }
             }
             
@@ -1166,10 +1196,22 @@ class CheckoutController extends Controller
                         break;
                 }
             } else {
-                Log::warning('Chargily Pay v2 webhook: Order not found', [
+                // Provide detailed logging to help troubleshooting missing order links
+                $details = [
                     'checkout_id' => $checkoutId,
                     'event_type' => $eventType,
-                ]);
+                ];
+                if ($chargilyStatus) {
+                    $details['chargily_status_id'] = $chargilyStatus->id;
+                    $details['chargily_status_order_id'] = $chargilyStatus->order_id;
+                    $details['chargily_status_webhook_data_snippet'] = substr(json_encode($chargilyStatus->webhook_data ?? $chargilyStatus->response_data ?? []), 0, 400);
+                }
+                if (isset($bmccp) && $bmccp) {
+                    $details['bmccp_id'] = $bmccp->id;
+                    $details['bmccp_invoice_number'] = $bmccp->invoice_number;
+                }
+
+                Log::warning('Chargily Pay v2 webhook: Order not found', $details);
             }
             
             // STEP 6: Return 200 OK response
@@ -1313,11 +1355,28 @@ class CheckoutController extends Controller
                 }
 
                 // STEP 2: Call VIP Reseller API to recharge (Mobile Legends)
+                Log::info('Chargily: Calling VIP Reseller API for Mobile Legends', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'package_code' => $packageCode,
+                    'player_id' => $order->user_id_ml,
+                    'zone_id' => $order->zone_id_ml,
+                    'seller_id' => $order->seller_id,
+                    'wallet_deducted' => $order->wallet_deducted,
+                    'seller_cost' => $order->seller_cost,
+                ]);
+
                 $result = $vipReseller->placeOrder(
                     $packageCode,
                     $order->user_id_ml,
                     $order->zone_id_ml
                 );
+
+                Log::info('Chargily: VIP Reseller API response', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'api_result' => $result,
+                ]);
                 
                 $playerId = $order->user_id_ml;
                 $zoneId = $order->zone_id_ml;
@@ -1378,10 +1437,26 @@ class CheckoutController extends Controller
                 }
 
                 // STEP 2: Call VIP Reseller API to recharge (Free Fire)
+                Log::info('Chargily: Calling VIP Reseller API for Free Fire', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'package_code' => $packageCode,
+                    'player_id' => $order->player_id_ff,
+                    'seller_id' => $order->seller_id,
+                    'wallet_deducted' => $order->wallet_deducted,
+                    'seller_cost' => $order->seller_cost,
+                ]);
+
                 $result = $vipReseller->placeFreefireOrder(
                     $packageCode,
                     $order->player_id_ff
                 );
+
+                Log::info('Chargily: VIP Reseller API response (Free Fire)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'api_result' => $result,
+                ]);
                 
                 $playerId = $order->player_id_ff;
                 $zoneId = null; // Free Fire doesn't use zone_id

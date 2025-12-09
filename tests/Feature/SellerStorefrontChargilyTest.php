@@ -38,6 +38,7 @@ class SellerStorefrontChargilyTest extends TestCase
 
         // Mock Chargily service to avoid external network call
         $mock = \Mockery::mock(\App\Services\ChargilyPayV2Service::class);
+        // Simulate service returning legacy 'id' key
         $mock->shouldReceive('createCheckout')->once()->andReturn([
             'id' => 'ck_test_123',
             'checkout_url' => 'https://pay.chargily.net/checkout/ck_test_123'
@@ -104,9 +105,10 @@ class SellerStorefrontChargilyTest extends TestCase
             'is_active' => true,
         ]);
 
+        // Simulate service returning 'checkout_id' top-level key (newer format)
         $mock = \Mockery::mock(\App\Services\ChargilyPayV2Service::class);
         $mock->shouldReceive('createCheckout')->once()->andReturn([
-            'id' => 'ck_test_custom_123',
+            'checkout_id' => 'ck_test_custom_123',
             'checkout_url' => 'https://pay.chargily.net/checkout/ck_test_custom_123'
         ]);
 
