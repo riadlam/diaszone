@@ -843,7 +843,15 @@ class SellerController extends Controller
             // If website is enabled and a slug is provided, update the seller username
             // to match the store slug so public store URLs change accordingly.
             if ($seller->website_enabled && $seller->website_url) {
-                // username uniqueness already validated above against other sellers
+                // final safety check: ensure no other seller took the slug in the time since validation
+                $conflict = \App\Models\Seller::where(function ($q) use ($seller) {
+                    $q->where('username', $seller->website_url)->orWhere('website_url', $seller->website_url);
+                })->where('id', '!=', $seller->id)->exists();
+
+                if ($conflict) {
+                    return back()->withErrors(['website_url' => 'This store slug was taken by another seller. Please choose another.']);
+                }
+
                 $seller->username = $seller->website_url;
             }
         }

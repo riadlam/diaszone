@@ -31,8 +31,8 @@
 
                         <!-- UX: show non-editable base prefix + editable slug (common multivendor pattern) -->
                         <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-                            <span id="store-prefix" class="px-3 py-2 text-slate-400 text-xs select-none bg-slate-900/30 border-r border-slate-700">{{ rtrim(config('app.url'), '/') }}/store/</span>
-                            <input id="store-slug-input" type="text" name="website_url" value="{{ old('website_url', $seller->website_url ?? $seller->username) }}" placeholder="sellerriad" class="flex-1 px-3 py-2 bg-transparent text-white outline-none" aria-describedby="store-prefix">
+                            <span id="store-prefix" class="px-3 py-2 text-slate-400 text-xs select-none bg-slate-900/30 border-r border-slate-700">https://diaszone.com/store/</span>
+                            <input id="store-slug-input" type="text" name="website_url" value="{{ old('website_url', $seller->website_url ?? $seller->username) }}" placeholder="sellerriad" class="flex-1 px-3 py-2 bg-transparent text-white outline-none" aria-describedby="store-prefix" data-original="{{ $seller->website_url ?? $seller->username }}">
                         
                         <div class="flex items-center justify-between gap-3">
                             <p id="store-slug-error" class="text-xs text-red-400 mt-1 hidden">Store slug is required when website is enabled.</p>
@@ -244,10 +244,12 @@
 
         // run debounced availability check for allowed slug (lowercase, cleaned)
         const cleaned = slug.toLowerCase().replace(/[^a-z0-9_-]+/g, '');
-        if (cleaned.length > 0 && !/[^a-z0-9_-]/i.test(slug)) {
+        const original = (slugInput?.dataset?.original ?? '').toString().toLowerCase().replace(/[^a-z0-9_-]+/g, '');
+        // Only check availability when user has changed the slug from the original value
+        if (cleaned.length > 0 && cleaned !== original && !/[^a-z0-9_-]/i.test(slug)) {
             debouncedCheckSlug(cleaned);
         } else {
-            // hide status if invalid or empty
+            // hide status if invalid, empty, or unchanged
             checkSlugAvailability('');
         }
     }
