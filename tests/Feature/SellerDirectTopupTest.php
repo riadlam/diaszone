@@ -57,9 +57,13 @@ class SellerDirectTopupTest extends TestCase
 
         $order = Order::where('seller_id', $seller->id)->first();
 
-        // wallet deducted (base_price_dzd)
+        // wallet deducted (base_price_dzd) and profit credited
         $seller->refresh();
-        $this->assertEquals(800.00, (float) $seller->wallet_balance);
+        // initial:1000 - baseCost(200) + profit(600) = 1400
+        $this->assertEquals(1400.00, (float) $seller->wallet_balance);
+
+        // ensure seller profit marked as paid on order
+        $this->assertTrue((bool) $order->fresh()->seller_profit_paid);
 
         $this->assertDatabaseHas('vipreseller_status', ['order_id' => $order->id, 'trxid' => 't123', 'status' => 'success']);
 

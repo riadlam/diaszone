@@ -168,6 +168,7 @@ class SellerManagementController extends Controller
             $validated['amount'],
             $description,
             auth()->id(),
+            null,
             'admin_topup'
         );
 

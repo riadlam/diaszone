@@ -423,6 +423,8 @@ class CouponController extends Controller
             } elseif ($vipStatus === 'success') {
                 // VIP Reseller completed immediately
                 $order->update(['status' => 'completed']);
+                // Credit seller profit if applicable
+                try { if ($order->seller_id && !$order->seller_profit_paid) { $order->creditSellerProfit(); } } catch (\Throwable $ex) { Log::warning('CouponController: Failed to credit seller profit', ['order_id'=>$order->id,'error'=>$ex->getMessage()]); }
                 
                 // Fetch and save balance
                 try {

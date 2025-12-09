@@ -39,6 +39,8 @@ class ChargilyWebhookSellerStorefrontTest extends TestCase
             'seller_id' => $seller->id,
             'diamond_pack_id' => $pack->id,
             'status' => 'pending',
+            'user_id_ml' => 'player123',
+            'zone_id_ml' => '1',
             'wallet_deducted' => false,
             'seller_cost' => 500.00,
             'seller_profit' => 100.00,
@@ -88,8 +90,16 @@ class ChargilyWebhookSellerStorefrontTest extends TestCase
 
         $response->assertStatus(200);
 
-        // Reload order and ensure status moved to sending (and not cancelled)
+        // Reload order and seller; ensure status moved to completed and profit was credited
         $order->refresh();
-        $this->assertContains($order->status, ['sending', 'completed', 'pending', 'sending']);
+        $seller->refresh();
+
+        $this->assertEquals('completed', $order->status);
+
+        // Wallet should have been deducted (seller_cost) then credited with profit
+        // initial 2000 - seller_cost(500) + seller_profit(100) = 1600
+        $this->assertEquals(1600.00, (float) $seller->wallet_balance);
+
+        $this->assertDatabaseHas('vipreseller_status', ['order_id' => $order->id, 'trxid' => 't1', 'status' => 'success']);
     }
 }

@@ -36,12 +36,59 @@ class Order extends Model
         'wallet_deducted',
         'seller_cost',
         'seller_profit',
+        'seller_profit_paid',
+        'seller_profit_paid_at',
         'is_direct_topup',
         // Payment method and Flexy fields
         'payment_method',
         'flexy_receipt',
         'flexy_description',
     ];
+
+    protected $casts = [
+        'seller_profit_paid' => 'boolean',
+        'seller_profit_paid_at' => 'datetime',
+    ];
+
+    /**
+     * Credit seller wallet with the order profit (idempotent)
+     * Returns true if credited, false if already paid or not applicable
+     */
+    public function creditSellerProfit(): bool
+    {
+        // no seller or no profit
+        if (!$this->seller_id || !$this->seller_profit || (float) $this->seller_profit <= 0) {
+            return false;
+        }
+
+        // already paid
+        if ($this->seller_profit_paid) {
+            return false;
+        }
+
+        $seller = $this->seller;
+        if (!$seller) return false;
+
+        try {
+            \DB::beginTransaction();
+
+            // Credit seller wallet
+            $seller->creditWallet((float) $this->seller_profit, "Profit for order #{$this->order_number}", null, $this->id, 'order_profit');
+
+            // mark order as paid
+            $this->seller_profit_paid = true;
+            $this->seller_profit_paid_at = now();
+            $this->save();
+
+            \DB::commit();
+            \Log::info('Order profit credited to seller wallet', ['order_id' => $this->id, 'seller_id' => $seller->id, 'amount' => $this->seller_profit]);
+            return true;
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Failed to credit order profit to seller wallet', ['order_id' => $this->id, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
 
     /**
      * Get the coupon applied to this order.

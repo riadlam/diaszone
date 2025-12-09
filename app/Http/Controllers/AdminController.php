@@ -510,6 +510,8 @@ class AdminController extends Controller
             $processed = SellerStorefrontController::processSellerOrder($order);
             if ($processed) {
                 $order->status = 'completed';
+                // Credit seller profit if applicable
+                try { if ($order->seller_id && !$order->seller_profit_paid) { $order->creditSellerProfit(); } } catch (\Throwable $e) { Log::warning('Admin: Failed to credit seller profit after flexy approval', ['order_id'=>$order->id,'error'=>$e->getMessage()]); }
             } else {
                 $order->status = 'failed';
             }
@@ -725,7 +727,7 @@ class AdminController extends Controller
                 'zone_id_ml' => $order->zone_id_ml,
             ]);
 
-            $vipReseller = new VipResellerService();
+            $vipReseller = app(VipResellerService::class);
             $nicknameValidation = $vipReseller->checkNickname($order->user_id_ml, $order->zone_id_ml);
 
             if ($nicknameValidation['result'] !== true) {
@@ -836,6 +838,15 @@ class AdminController extends Controller
                         'vip_status' => $status,
                     ]);
                     
+                    // Credit seller profit if applicable
+                    try {
+                        if ($order->seller_id && !$order->seller_profit_paid) {
+                            $order->creditSellerProfit();
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Admin: Failed to credit seller profit after VIP success', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                    }
+
                     // Update Telegram message if exists
                     if ($order->tlg_message_id) {
                         try {
@@ -854,7 +865,7 @@ class AdminController extends Controller
             } elseif ($status === 'success') {
                 // Fetch balance from VIP Reseller API when status becomes success
                 try {
-                    $vipReseller = new VipResellerService();
+                    $vipReseller = app(VipResellerService::class);
                     $profileResult = $vipReseller->getProfile();
                     
                     if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
@@ -1128,7 +1139,7 @@ class AdminController extends Controller
                 // Fetch balance when status becomes success
                 if ($mappedStatus === 'success' && $oldStatus !== 'success') {
                     try {
-                        $vipReseller = new VipResellerService();
+                        $vipReseller = app(VipResellerService::class);
                         $profileResult = $vipReseller->getProfile();
                         
                         if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
@@ -1519,6 +1530,14 @@ class AdminController extends Controller
                     
                     // Reload order to get updated status from processRecharge
                     $order->refresh();
+                    // If order completed after processing, credit seller profit
+                    try {
+                        if ($order->status === 'completed' && $order->seller_id && !$order->seller_profit_paid) {
+                            $order->creditSellerProfit();
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Admin: Failed to credit seller profit after processing recharge', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                    }
                     $order->load('diamondPack', 'user', 'vipResellerStatuses');
                     
                     // Update Telegram message with proper header
@@ -1690,7 +1709,7 @@ class AdminController extends Controller
                         $currentBalanceIdr = null;
                         $currentBalanceUsd = null;
                         try {
-                            $vipReseller = new VipResellerService();
+                            $vipReseller = app(VipResellerService::class);
                             $profileResult = $vipReseller->getProfile();
                             
                             if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {

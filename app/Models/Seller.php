@@ -157,7 +157,7 @@ class Seller extends Authenticatable
     /**
      * Credit wallet and create transaction
      */
-    public function creditWallet(float $amount, string $description, ?int $adminId = null, string $referenceType = 'admin_topup'): void
+    public function creditWallet(float $amount, string $description, ?int $adminId = null, ?int $referenceId = null, string $referenceType = 'admin_topup'): void
     {
         $balanceBefore = $this->wallet_balance;
         $this->wallet_balance += $amount;
@@ -170,6 +170,7 @@ class Seller extends Authenticatable
             'balance_after' => $this->wallet_balance,
             'description' => $description,
             'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
             'admin_id' => $adminId,
         ]);
     }

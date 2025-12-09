@@ -41,7 +41,7 @@ class PayoutController extends Controller
         try {
             // Refund the reserved funds by crediting the seller wallet
             $seller = $payout->seller;
-            $seller->creditWallet($payout->amount, 'Payout rejected #' . $payout->id, auth()->id(), 'payout_refund');
+            $seller->creditWallet($payout->amount, 'Payout rejected #' . $payout->id, auth()->id(), $payout->id, 'payout_refund');
 
             $payout->status = 'rejected';
             $payout->admin_note = $request->input('admin_note');

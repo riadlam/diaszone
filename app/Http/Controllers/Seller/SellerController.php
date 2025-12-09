@@ -507,6 +507,19 @@ class SellerController extends Controller
 
                 $seller->addEarnings($profit, $sellingPrice);
 
+                // Credit seller profit to wallet (idempotent) for direct top-ups
+                try {
+                    if (!$order->seller_profit_paid && (float) $order->seller_profit > 0) {
+                        $seller->creditWallet((float) $order->seller_profit, "Profit for order #{$order->order_number}", null, $order->id, 'order_profit');
+                        $order->seller_profit_paid = true;
+                        $order->seller_profit_paid_at = now();
+                        $order->save();
+                        Log::info('DirectTopup: seller profit credited to wallet', ['order_id' => $order->id, 'seller_id' => $seller->id, 'amount' => $order->seller_profit]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('DirectTopup: Failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                }
+
                 // Update Telegram message with final status / VIP result if available
                 try {
                     if ($order->tlg_message_id) {
@@ -944,7 +957,7 @@ class SellerController extends Controller
                 ]);
             } else {
                 // Refund wallet
-                $seller->creditWallet($baseCost, "Refund for failed order #{$order->order_number}", null, 'refund');
+                $seller->creditWallet($baseCost, "Refund for failed order #{$order->order_number}", null, $order->id, 'refund');
                 $order->update([
                     'status' => 'failed',
                     'notes' => $result['error'],

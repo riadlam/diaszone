@@ -26,7 +26,7 @@ class TopupController extends Controller
             $seller = $topup->seller;
 
             // Credit the seller's wallet and create a transaction
-            $seller->creditWallet($topup->amount, 'Top-up approved #' . $topup->id, auth()->id(), 'topup');
+            $seller->creditWallet($topup->amount, 'Top-up approved #' . $topup->id, auth()->id(), $topup->id, 'topup');
 
             // Try to link the most recent wallet transaction as the reference
             $tx = $seller->walletTransactions()->latest()->first();

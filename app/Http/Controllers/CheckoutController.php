@@ -475,7 +475,7 @@ class CheckoutController extends Controller
         ]);
 
         try {
-            $vipResellerService = new VipResellerService();
+            $vipResellerService = app(VipResellerService::class);
             $result = $vipResellerService->checkNickname($request->user_id, $request->zone_id);
 
             // Return the API response directly: {"result": true/false, "data": "nickname", "message": "..."}
@@ -1254,7 +1254,7 @@ class CheckoutController extends Controller
                 ];
             }
 
-            $vipReseller = new VipResellerService();
+            $vipReseller = app(VipResellerService::class);
             $packageCode = $order->diamondPack->code ?? null;
             
             if (empty($packageCode)) {
@@ -1542,7 +1542,7 @@ class CheckoutController extends Controller
             } elseif ($status === 'success') {
                 // Fetch balance from VIP Reseller API when status becomes success
                 try {
-                    $vipReseller = new VipResellerService();
+                    $vipReseller = app(VipResellerService::class);
                     $profileResult = $vipReseller->getProfile();
                     
                     if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
@@ -1581,6 +1581,14 @@ class CheckoutController extends Controller
                         'new_status' => 'completed',
                         'vip_status' => $status,
                     ]);
+                    // Credit seller profit if applicable and not already paid
+                    try {
+                        if ($order->seller_id && !$order->seller_profit_paid) {
+                            $order->creditSellerProfit();
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Chargily: Failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                    }
                 }
                 
                 // Update Telegram message if exists (always update when VIP Reseller status changes)
