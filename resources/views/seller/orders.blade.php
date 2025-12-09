@@ -444,8 +444,8 @@
 @endsection
 
 @push('scripts')
-<!-- DataTables JS -->
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<!-- DataTables JS (loaded only when jQuery is available) -->
+<!-- The orders table will only initialise DataTables when jQuery is present in the page. We avoid loading the DataTables bundle unconditionally because the app doesn't ship jQuery by default which would cause 'jQuery is not defined' errors. -->
 <script>
     const csrfToken = '{{ csrf_token() }}';
     let currentOrderNumber = null;
@@ -635,15 +635,17 @@
                 }
 
                 // If server returned the final order and seller info, update the row fully
-                if (data.order) {
+                    if (data.order) {
                     // Update price and profit
                     if (row) {
-                        const priceCell = row.querySelector('td:nth-child(4)');
-                        if (priceCell) {
-                            priceCell.querySelector('p')?.textContent = Number(data.order.final_price).toLocaleString() + ' DZD';
-                            // profit show
-                            priceCell.querySelectorAll('p')[1] && (priceCell.querySelectorAll('p')[1].textContent = '+' + Number(data.order.seller_profit).toLocaleString());
-                        }
+                            const priceCell = row.querySelector('td:nth-child(4)');
+                            if (priceCell) {
+                                const firstP = priceCell.querySelector('p');
+                                if (firstP) firstP.textContent = Number(data.order.final_price).toLocaleString() + ' DZD';
+
+                                const secondP = priceCell.querySelectorAll('p')[1];
+                                if (secondP) secondP.textContent = '+' + Number(data.order.seller_profit).toLocaleString();
+                            }
                     }
 
                     // If seller info present show wallet change snackbar
