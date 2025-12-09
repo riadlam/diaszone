@@ -36,6 +36,7 @@
         @endunless
     </div>
     
+    @include('components.whatsapp-fab')
     @stack('scripts')
 </body>
 </html>

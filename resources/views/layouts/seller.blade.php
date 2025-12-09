@@ -323,6 +323,7 @@
         });
     </script>
     
+    @include('components.whatsapp-fab')
     @stack('scripts')
 </body>
 </html>
