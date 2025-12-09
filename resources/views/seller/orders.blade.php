@@ -285,7 +285,7 @@
                                 <div class="flex flex-col items-center gap-1">
                                     <span class="inline-flex items-center px-3 py-0.5 rounded-full bg-orange-600 text-white text-xs font-semibold uppercase tracking-wide">Flexy</span>
                                     @if($order->flexy_receipt)
-                                        <a href="{{ asset('storage/' . $order->flexy_receipt) }}" target="_blank" class="text-cyan-400 hover:text-cyan-300 text-xs">Receipt</a>
+                                        <a href="{{ asset('storage_public/' . $order->flexy_receipt) }}" target="_blank" class="text-cyan-400 hover:text-cyan-300 text-xs">Receipt</a>
                                     @endif
                                 </div>
                             @else
@@ -516,11 +516,11 @@
         else if (order.status === 'failed') statusClass = 'bg-red-500/20 text-red-400';
         
         let receiptHtml = '';
-        if (order.flexy_receipt) {
+                    if (order.flexy_receipt) {
             receiptHtml = `
                 <div class="mt-4 p-4 bg-slate-700/50 rounded-lg">
                     <p class="text-gray-400 text-sm mb-2">Flexy Receipt:</p>
-                    <a href="/storage/${order.flexy_receipt}" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline text-sm">View Receipt Image</a>
+                    <a href="/storage_public/${order.flexy_receipt}" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline text-sm">View Receipt Image</a>
                     ${order.flexy_description ? `<p class="text-gray-300 text-sm mt-2">${order.flexy_description}</p>` : ''}
                 </div>
             `;
