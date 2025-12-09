@@ -580,17 +580,40 @@
             });
         }
 
+        let _isSubmittingFlexy = false;
         function confirmFlexyAndSubmit() {
             const receiptInput = document.getElementById('receipt-input');
             const confirmBtn = document.getElementById('confirm-flexy-btn');
+
+            // Prevent double-clicks / multiple submissions
+            if (_isSubmittingFlexy) return false;
 
             if (!receiptInput || receiptInput.files.length === 0) {
                 alert('Please upload a receipt file');
                 return false;
             }
 
+            // Additional client-side validation: file size & mime check (mirror server rules)
+            const file = receiptInput.files[0];
+            if (!file) {
+                alert('No file selected. Please upload a receipt file');
+                return false;
+            }
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                alert('Receipt file too large. Maximum 10MB allowed.');
+                return false;
+            }
+            const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf'];
+            if (file.type && !allowedTypes.includes(file.type)) {
+                // type may be empty for some files; allow server to recheck but warn user
+                alert('Unsupported receipt file type. Allowed: PNG, JPG, JPEG, PDF.');
+                return false;
+            }
+
             // Show loading state
             confirmBtn.disabled = true;
+            _isSubmittingFlexy = true;
             confirmBtn.innerHTML = `
                 <svg class="w-5 h-5 spinner" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -651,11 +674,13 @@
                 } catch (err) {
                     console.error(err);
                     alert('Network error while submitting. Please try again.');
-                } finally {
+                    } finally {
                     if (confirmBtn) {
+                        // re-enable only on failure; if server redirected we won't reach here
                         confirmBtn.disabled = false;
                         confirmBtn.innerHTML = '<span>Submit Order</span>';
                     }
+                    _isSubmittingFlexy = false;
                 }
             })();
         }

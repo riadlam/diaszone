@@ -365,6 +365,14 @@ class SellerStorefrontController extends Controller
         if ($pack->game_type === 'mobilelegends') {
             try {
                 $vipSvc = app(VipResellerService::class);
+                // Basic numeric check to avoid non-numeric input reaching external service
+                if (!preg_match('/^\d+$/', $validated['player_id'] ?? '') || !preg_match('/^\d+$/', $validated['zone_id'] ?? '')) {
+                    if ($request->expectsJson()) {
+                        return response()->json(['success' => false, 'message' => 'User ID and Zone ID must be numeric for Mobile Legends'], 422);
+                    }
+                    return back()->withErrors(['player_id' => 'User ID and Zone ID must be numeric for Mobile Legends'])->withInput();
+                }
+
                 $check = $vipSvc->checkNickname($validated['player_id'], $validated['zone_id']);
                 if (!isset($check['result']) || $check['result'] !== true || empty($check['data'])) {
                     if ($request->expectsJson()) {
@@ -410,8 +418,43 @@ class SellerStorefrontController extends Controller
                     throw new \Exception('Receipt file is required for Flexy payment');
                 }
 
-                // Store receipt file
-                $receiptPath = $request->file('receipt')->store('flexy-receipts', 'public');
+                $file = $request->file('receipt');
+                if (!$file || !$file->isValid()) {
+                    throw new \Exception('Uploaded receipt file is not valid');
+                }
+
+                // Defense-in-depth: strict server-side MIME and size validation
+                $allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
+                $mime = $file->getClientMimeType();
+                $size = $file->getSize();
+                if (!in_array($mime, $allowedMimes, true)) {
+                    throw new \Exception('Invalid receipt file type');
+                }
+                if ($size > 10 * 1024 * 1024) {
+                    throw new \Exception('Receipt file too large');
+                }
+
+                // Virus scan the temporary upload path before storing
+                $scanner = app(\App\Services\VirusScannerService::class);
+                $scan = $scanner->scanFile($file->getPathname());
+                if (!$scan['clean']) {
+                    // Ensure any started transaction is rolled back before returning
+                    DB::rollBack();
+                    Log::warning('Virus scanner rejected uploaded receipt', ['message' => $scan['message'] ?? null]);
+                    if ($request->expectsJson()) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Receipt flagged by virus scanner: ' . ($scan['message'] ?? 'infected')
+                        ], 422);
+                    }
+                    return back()->withErrors(['receipt' => 'Receipt flagged by virus scanner: ' . ($scan['message'] ?? 'infected')]);
+                }
+
+                // Store receipt file to public disk after scanning
+                $receiptPath = $file->store('flexy-receipts', 'public');
+                if (!$receiptPath) {
+                    throw new \Exception('Failed to store receipt file');
+                }
 
                 // We intentionally do NOT call Chargily here — Flexy is manual transfer waiting verification.
                 // However, the price charged to the client for Flexy must be server-calculated and stored.
@@ -451,7 +494,8 @@ class SellerStorefrontController extends Controller
                     'final_price' => $sellingPrice,
                     'payment_method' => 'flexy',
                     'flexy_receipt' => $receiptPath,
-                    'flexy_description' => $validated['description'] ?? null,
+                    // sanitize description to prevent any HTML/JS injection
+                    'flexy_description' => !empty($validated['description']) ? strip_tags($validated['description']) : null,
                 ]);
 
                 DB::commit();

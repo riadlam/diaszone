@@ -55,6 +55,11 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
             }
         });
 
+        // Mock VirusScannerService to return clean for our fake upload
+        $this->app->instance(\App\Services\VirusScannerService::class, new class {
+            public function scanFile($p) { return ['clean' => true, 'message' => 'clean']; }
+        });
+
         $response = $this->post(route('seller.store.payment', ['username' => $seller->username]), [
             'pack_id' => $pack->id,
             'game_type' => 'mobilelegends',
@@ -74,6 +79,91 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
         $this->assertEquals(333.00, (float) $order->seller_profit);
         $this->assertEquals('pending_flexy_verification', $order->status);
         $this->assertFalse((bool) $order->wallet_deducted);
+    }
+
+    public function test_flexy_requires_receipt()
+    {
+        $seller = Seller::factory()->create([
+            'username' => 'flexy-no-receipt',
+            'website_enabled' => true,
+            'flexy_enabled' => true,
+            'wallet_balance' => 5000,
+        ]);
+
+        $pack = DiamondPack::create([
+            'game_type' => 'mobilelegends',
+            'name' => 'Flexy Pack',
+            'code' => 'FPX',
+            'diamonds' => 50,
+            'price' => 5.00,
+            'price_dzd' => 600.00,
+            'base_price_dzd' => 500.00,
+            'price_usd' => 2.5,
+            'discount_percentage' => 0,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $resp = $this->postJson(route('seller.store.payment', ['username' => $seller->username]), [
+            'pack_id' => $pack->id,
+            'game_type' => 'mobilelegends',
+            'player_id' => '1111',
+            'zone_id' => '2222',
+            'payment_method' => 'flexy',
+        ]);
+
+        // Expect 422 validation error for missing receipt
+        $resp->assertStatus(422);
+        $resp->assertJsonStructure(['message', 'errors']);
+    }
+
+    public function test_flexy_rejects_infected_receipt()
+    {
+        $seller = Seller::factory()->create([
+            'username' => 'flexy-infected',
+            'website_enabled' => true,
+            'flexy_enabled' => true,
+            'wallet_balance' => 5000,
+        ]);
+
+        $pack = DiamondPack::create([
+            'game_type' => 'mobilelegends',
+            'name' => 'Infected Pack',
+            'code' => 'FPINF',
+            'diamonds' => 25,
+            'price' => 3.00,
+            'price_dzd' => 360.00,
+            'base_price_dzd' => 300.00,
+            'price_usd' => 1.5,
+            'discount_percentage' => 0,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        // Bind VipResellerService stub to allow ML nickname verification
+        $this->app->instance(\App\Services\VipResellerService::class, new class {
+            public function checkNickname($userId, $zoneId) { return ['result' => true, 'data' => 'NickOK']; }
+        });
+
+        // Mock VirusScannerService to return infected
+        $this->app->instance(\App\Services\VirusScannerService::class, new class {
+            public function scanFile($p) { return ['clean' => false, 'message' => 'EICAR-Test-Signature']; }
+        });
+
+        $resp = $this->post(route('seller.store.payment', ['username' => $seller->username]), [
+            'pack_id' => $pack->id,
+            'game_type' => 'mobilelegends',
+            'player_id' => '1111',
+            'zone_id' => '8888',
+            'payment_method' => 'flexy',
+            'receipt' => UploadedFile::fake()->create('receipt.pdf', 100, 'application/pdf')
+        ], ['Accept' => 'application/json']);
+
+        $resp->assertStatus(422);
+        $resp->assertJsonFragment(['success' => false]);
+
+        // Ensure no order created
+        $this->assertEquals(0, Order::count());
     }
 
     public function test_confirm_flexy_order_places_vip_reseller_and_deducts_wallet_and_credits_profit()
