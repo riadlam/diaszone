@@ -462,6 +462,18 @@
             document.cookie = `${prefix}pack_id=${encodeURIComponent(packId)}; expires=${expireStr}; path=/; SameSite=Lax`;
         }
 
+        // Simple toast utility for customer-facing messages
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-6 right-6 z-50 max-w-sm py-3 px-4 rounded-lg shadow-lg text-sm font-medium ${type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
         function handleProceed(e) {
             e = e || window.event;
             const flexyRadio = document.getElementById('flexy-radio');
@@ -476,9 +488,45 @@
             // Save to cookies before submitting
             saveToCookies();
             
-            // Submit the form for other methods
-            var form = document.getElementById('payment-form');
-            if (form) form.submit();
+                // Submit the form via AJAX to give client-friendly toasts on common failures
+                var form = document.getElementById('payment-form');
+                if (form) {
+                    // Use FormData so file inputs are supported if present
+                    const fd = new FormData(form);
+                    // Inform server we accept JSON so it can respond with JSON when appropriate
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'Accept': 'application/json' },
+                    }).then(async (res) => {
+                        // If server redirects, follow it
+                        if (res.redirected) {
+                            window.location = res.url; return;
+                        }
+
+                        let json = {};
+                        try { json = await res.json(); } catch (e) { /* ignore */ }
+
+                        if (!res.ok) {
+                            // Friendly message for customers, keep internal details vague
+                            showToast('This seller is temporarily unable to accept purchases. Please try again later or pick another seller.', 'error');
+                            return;
+                        }
+
+                        // On success expect checkout_url for redirect
+                        const url = json.checkout_url || json.redirect_url;
+                        if (url) {
+                            window.location = url;
+                            return;
+                        }
+
+                        // Fallback: reload the page
+                        window.location.reload();
+                    }).catch((err) => {
+                        console.error('Payment submit failed', err);
+                        showToast('Something went wrong while processing your payment. Please try again.', 'error');
+                    });
+                }
         }
 
         function openFlexyModal() {

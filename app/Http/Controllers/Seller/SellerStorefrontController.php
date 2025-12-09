@@ -633,6 +633,15 @@ class SellerStorefrontController extends Controller
 
             DB::commit();
 
+            // If the client requested JSON (AJAX), return checkout_url in JSON so client JS can redirect
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'checkout_url' => $chargilyResponse['checkout_url'] ?? null,
+                    'checkout_id' => $chargilyResponse['checkout_id'] ?? $chargilyResponse['id'] ?? null,
+                ], 200);
+            }
+
             return redirect($chargilyResponse['checkout_url']);
 
         } catch (\Exception $e) {

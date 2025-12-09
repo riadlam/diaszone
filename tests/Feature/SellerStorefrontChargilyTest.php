@@ -78,6 +78,86 @@ class SellerStorefrontChargilyTest extends TestCase
         ]);
     }
 
+    public function test_baridimob_ajax_returns_checkout_url()
+    {
+        $seller = Seller::factory()->create([
+            'username' => 'ajaxseller',
+            'website_enabled' => true,
+            'wallet_balance' => 5000,
+        ]);
+
+        $pack = DiamondPack::create([
+            'game_type' => 'mobilelegends',
+            'name' => 'AJAX Pack',
+            'code' => 'AJX',
+            'diamonds' => 50,
+            'price' => 1.0,
+            'price_dzd' => 500,
+            'base_price_dzd' => 400,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $mock = \Mockery::mock(\App\Services\ChargilyPayV2Service::class);
+        $mock->shouldReceive('createCheckout')->once()->andReturn([
+            'checkout_id' => 'ck_ajax_123',
+            'checkout_url' => 'https://pay.chargily.net/checkout/ck_ajax_123'
+        ]);
+        $this->app->instance(\App\Services\ChargilyPayV2Service::class, $mock);
+
+        $vipMock = \Mockery::mock(\App\Services\VipResellerService::class);
+        $vipMock->shouldReceive('checkNickname')->andReturn(['result' => true, 'data' => 'PlayerName'])->once();
+        $this->app->instance(\App\Services\VipResellerService::class, $vipMock);
+
+        $resp = $this->postJson(route('seller.store.payment', ['username' => $seller->username]), [
+            'pack_id' => $pack->id,
+            'game_type' => 'mobilelegends',
+            'player_id' => '11111',
+            'zone_id' => '2222',
+            'payment_method' => 'baridimob',
+        ]);
+
+        $resp->assertStatus(200);
+        $resp->assertJsonStructure(['success', 'checkout_url', 'checkout_id']);
+        $this->assertEquals('https://pay.chargily.net/checkout/ck_ajax_123', $resp->json('checkout_url'));
+    }
+
+    public function test_baridimob_ajax_insufficient_balance_returns_400()
+    {
+        $seller = Seller::factory()->create([
+            'username' => 'lowwallet',
+            'website_enabled' => true,
+            'wallet_balance' => 100,
+        ]);
+
+        $pack = DiamondPack::create([
+            'game_type' => 'mobilelegends',
+            'name' => 'Expensive Pack',
+            'code' => 'EXP',
+            'diamonds' => 50,
+            'price' => 10.0,
+            'price_dzd' => 1000,
+            'base_price_dzd' => 800,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $vipMock = \Mockery::mock(\App\Services\VipResellerService::class);
+        $vipMock->shouldReceive('checkNickname')->andReturn(['result' => true, 'data' => 'PlayerName'])->once();
+        $this->app->instance(\App\Services\VipResellerService::class, $vipMock);
+
+        $resp = $this->postJson(route('seller.store.payment', ['username' => $seller->username]), [
+            'pack_id' => $pack->id,
+            'game_type' => 'mobilelegends',
+            'player_id' => '11111',
+            'zone_id' => '2222',
+            'payment_method' => 'baridimob',
+        ]);
+
+        $resp->assertStatus(400);
+        $resp->assertJson(['success' => false]);
+    }
+
     public function test_seller_custom_price_is_charged_to_client()
     {
         $seller = Seller::factory()->create([
