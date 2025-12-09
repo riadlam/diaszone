@@ -228,7 +228,10 @@ class SellerStorefrontController extends Controller
             'pack_id' => 'required|exists:diamond_packs,id',
             'game_type' => 'required|string',
             'player_id' => 'required|string',
-            'zone_id' => 'nullable|string',
+            // Zone ID is required for Mobile Legends specifically
+            'zone_id' => 'required_if:game_type,mobilelegends|string|nullable',
+            // nickname may be provided by client after confirmation (optional)
+            'nickname' => 'nullable|string',
         ]);
 
         $pack = DiamondPack::findOrFail($validated['pack_id']);
@@ -261,7 +264,26 @@ class SellerStorefrontController extends Controller
         $playerData = [
             'player_id' => $validated['player_id'],
             'zone_id' => $validated['zone_id'] ?? null,
+            'nickname' => $validated['nickname'] ?? null,
         ];
+
+        // For Mobile Legends, server-side validate nickname via VipResellerService
+        if ($validated['game_type'] === 'mobilelegends') {
+            try {
+                $vip = app(VipResellerService::class);
+                $check = $vip->checkNickname($validated['player_id'], $validated['zone_id']);
+
+                if (!isset($check['result']) || $check['result'] !== true || empty($check['data'])) {
+                    return back()->withErrors(['player_id' => 'Unable to verify nickname for Mobile Legends. Please check your User ID and Zone ID.'])->withInput();
+                }
+
+                // Use the verified nickname (override if not provided by client)
+                $playerData['nickname'] = $check['data'];
+            } catch (\Exception $e) {
+                \Log::error('VIP reseller service failure during showPaymentMethod: ' . $e->getMessage(), ['player_id' => $validated['player_id'], 'zone_id' => $validated['zone_id']]);
+                return back()->withErrors(['player_id' => 'Unable to verify nickname at this time. Please try again later.'])->withInput();
+            }
+        }
 
         return view('seller.storefront.payment-method', [
             'seller' => $seller,
@@ -288,11 +310,13 @@ class SellerStorefrontController extends Controller
             'has_file' => $request->hasFile('receipt')
         ]);
 
-        $validated = $request->validate([
+          $validated = $request->validate([
               'pack_id' => 'required|exists:diamond_packs,id',
               'game_type' => 'required|string',
               'player_id' => 'required|string',
-              'zone_id' => 'nullable|string',
+              // zone_id required for Mobile Legends
+              'zone_id' => 'required_if:game_type,mobilelegends|string|nullable',
+              'nickname' => 'nullable|string',
               'payment_method' => 'required|in:baridimob,flexy',
               // receipt should be required when using flexy
               'receipt' => 'required_if:payment_method,flexy|file|mimes:png,jpg,jpeg,pdf|max:10240',
@@ -331,6 +355,32 @@ class SellerStorefrontController extends Controller
                 return response()->json(['success' => false, 'message' => 'Invalid price configuration detected. Please contact the seller.'], 400);
             }
             return back()->withErrors(['error' => 'Invalid price configuration detected. Please contact the seller.']);
+        }
+
+        // For Mobile Legends, ensure nickname is valid server-side (defense in depth)
+        if ($pack->game_type === 'mobilelegends') {
+            try {
+                $vipSvc = app(VipResellerService::class);
+                $check = $vipSvc->checkNickname($validated['player_id'], $validated['zone_id']);
+                if (!isset($check['result']) || $check['result'] !== true || empty($check['data'])) {
+                    if ($request->expectsJson()) {
+                        return response()->json(['success' => false, 'message' => 'Unable to verify Mobile Legends nickname. Please check your User ID / Zone ID.'], 422);
+                    }
+                    return back()->withErrors(['player_id' => 'Unable to verify Mobile Legends nickname. Please check your User ID / Zone ID.'])->withInput();
+                }
+
+                // If server provided nickname exists, ensure consistency (optional)
+                if (!empty($validated['nickname']) && $validated['nickname'] !== $check['data']) {
+                    // If mismatch, prefer verified nickname but warn the user
+                    $validated['nickname'] = $check['data'];
+                }
+            } catch (\Exception $e) {
+                Log::error('VIP reseller check failed during processPayment: ' . $e->getMessage(), ['player_id' => $validated['player_id'], 'zone_id' => $validated['zone_id']]);
+                if ($request->expectsJson()) {
+                    return response()->json(['success' => false, 'message' => 'Nickname validation service unavailable. Please try again later.'], 500);
+                }
+                return back()->withErrors(['player_id' => 'Nickname validation service unavailable. Please try again later.'])->withInput();
+            }
         }
 
         // Check seller wallet balance — skip for Flexy transfers because buyer sends receipt

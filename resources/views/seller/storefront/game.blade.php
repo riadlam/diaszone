@@ -421,19 +421,129 @@
         }
         
         document.getElementById('checkout-form').addEventListener('submit', function(e) {
-            if (!selectedPackId) {
-                e.preventDefault();
-                alert('Please select a package first');
-                return;
+            try {
+                if (!selectedPackId) {
+                    e.preventDefault();
+                    alert('Please select a package first');
+                    return;
+                }
+
+                // Save to cookies
+                saveToCookies();
+
+                // If Mobile Legends, perform nickname validation & confirmation before submitting
+                if (gameType === 'mobilelegends') {
+                    e.preventDefault();
+
+                    const userId = document.getElementById('player_id')?.value?.trim() || '';
+                    const zoneId = document.getElementById('zone_id')?.value?.trim() || '';
+
+                    if (!userId || !zoneId) {
+                        alert('Please enter both User ID and Zone ID');
+                        return;
+                    }
+
+                    // Show temporary loading state
+                    const checkoutBtn = document.getElementById('checkout-btn');
+                    if (checkoutBtn) {
+                        checkoutBtn.disabled = true;
+                        document.getElementById('btn-text').textContent = 'Validating...';
+                        document.getElementById('btn-spinner').classList.remove('hidden');
+                    }
+
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+                    fetch('/api/validate-nickname', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ user_id: userId, zone_id: zoneId })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        // Revert loading if something goes wrong later
+                        if (!data || data.result !== true || !data.data) {
+                            if (checkoutBtn) {
+                                checkoutBtn.disabled = false;
+                                document.getElementById('btn-text').textContent = 'Proceed to Payment';
+                                document.getElementById('btn-spinner').classList.add('hidden');
+                            }
+
+                            // Show validation error message near the form
+                            const message = (data && data.message) ? data.message : 'Failed to validate nickname. Please check your User ID and Zone ID.';
+                            showValidationError(message);
+                            return;
+                        }
+
+                        const nickname = data.data;
+
+                        // Build a full-screen confirmation overlay
+                        // Remove any existing overlays
+                        const existing = document.getElementById('ml-nickname-confirm-overlay');
+                        if (existing) existing.remove();
+
+                        const overlay = document.createElement('div');
+                        overlay.id = 'ml-nickname-confirm-overlay';
+                        overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4';
+                        overlay.innerHTML = `
+                            <div class=\"w-full max-w-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 rounded-2xl p-8 border border-slate-600 text-center shadow-2xl\">
+                                <h2 class=\"text-2xl font-bold text-white mb-3\">Confirm Nickname</h2>
+                                <p class=\"text-sm text-slate-300 mb-6\">We found this nickname for your Mobile Legends account. Please confirm it is correct before we proceed to checkout.</p>
+                                <div class=\"bg-slate-900/60 border border-slate-700 rounded-xl p-6 mb-6\">
+                                            <p class=\"text-xs text-slate-400 mb-2\">Detected nickname</p>
+                                            <p class=\"text-3xl font-extrabold text-purple-400 break-words\">${nickname}</p>
+                                        </div>
+                                        <p class=\"text-sm text-slate-400 mb-4\">This will be displayed for 2 seconds before continuing to checkout.</p>
+                                        <p class=\"text-xs text-slate-400 mt-2\">If this nickname is incorrect you can double-check your ID and Zone ID and try again.</p>
+                            </div>
+                        `;
+
+                        document.body.appendChild(overlay);
+
+                        // Auto-continue after 2 seconds (show nickname briefly)
+                        setTimeout(() => {
+                            // Add hidden input for nickname so server can validate / show it later
+                            let nicknameInput = document.getElementById('input_nickname');
+                            if (!nicknameInput) {
+                                nicknameInput = document.createElement('input');
+                                nicknameInput.type = 'hidden';
+                                nicknameInput.name = 'nickname';
+                                nicknameInput.id = 'input_nickname';
+                                document.getElementById('checkout-form').appendChild(nicknameInput);
+                            }
+                            nicknameInput.value = nickname;
+
+                            // Remove overlay then submit (small delay to ensure overlay fade visible)
+                            overlay.remove();
+                            document.getElementById('checkout-form').submit();
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Nickname validation error', err);
+                        if (checkoutBtn) {
+                            checkoutBtn.disabled = false;
+                            document.getElementById('btn-text').textContent = 'Proceed to Payment';
+                            document.getElementById('btn-spinner').classList.add('hidden');
+                        }
+                        showValidationError('Error validating nickname. Please try again.');
+                    });
+
+                    // We're handling submission async — return early
+                    return;
+                }
+
+                // Non-ML games: show loading state and allow form to submit
+                // Show loading state
+                document.getElementById('checkout-btn').disabled = true;
+                document.getElementById('btn-text').textContent = 'Processing...';
+                document.getElementById('btn-spinner').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Checkout submit handler error', error);
             }
-            
-            // Save to cookies
-            saveToCookies();
-            
-            // Show loading state
-            document.getElementById('checkout-btn').disabled = true;
-            document.getElementById('btn-text').textContent = 'Processing...';
-            document.getElementById('btn-spinner').classList.remove('hidden');
         });
         
         // Load saved data on page load and wire mobile dropdown behavior
