@@ -750,8 +750,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         zone_id: zoneId
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
+                .then(async (response) => {
+                    let data = {};
+                    try { data = await response.json(); } catch (e) { data = {}; }
+                    return { ok: response.ok, status: response.status, data };
+                })
+                .then(({ok, status, data}) => {
+                    isValidating = false;
+
+                    if (!ok) {
+                        if (buyNowBtn) {
+                            buyNowBtn.disabled = false;
+                            buyNowBtn.textContent = 'Buy Now';
+                        }
+                        const message = (data && data.message) ? data.message : 'Nickname validation failed. Please check your User ID and Zone ID.';
+                        showValidationError(message);
+                        return;
+                    }
                     isValidating = false;
                     
                     if (buyNowBtn) {
@@ -954,6 +969,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 1000);
     }
+
+// Expose helper functions to global window so inline page scripts can call them
+try {
+    window.showValidationError = showValidationError;
+    window.showNicknameSuccess = showNicknameSuccess;
+} catch (e) {
+    // In environments where window is not available (e.g., SSR tests), ignore
+}
     
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {

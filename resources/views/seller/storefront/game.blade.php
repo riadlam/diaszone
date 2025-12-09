@@ -462,8 +462,25 @@
                         },
                         body: JSON.stringify({ user_id: userId, zone_id: zoneId })
                     })
-                    .then(r => r.json())
-                    .then(data => {
+                    .then(async (r) => {
+                        // Parse JSON body if available and attach status
+                        let parsed = {};
+                        try { parsed = await r.json(); } catch (e) { parsed = {}; }
+                        return { ok: r.ok, status: r.status, body: parsed };
+                    })
+                    .then(({ok, status, body}) => {
+                        const data = body;
+                        if (!ok) {
+                            // 400 responses likely indicate invalid user/zone — show message to user
+                            const message = data && data.message ? data.message : 'Nickname validation failed. Please check your User ID and Zone ID.';
+                            if (checkoutBtn) {
+                                checkoutBtn.disabled = false;
+                                document.getElementById('btn-text').textContent = 'Proceed to Payment';
+                                document.getElementById('btn-spinner').classList.add('hidden');
+                            }
+                            showValidationError(message);
+                            return;
+                        }
                         // Revert loading if something goes wrong later
                         if (!data || data.result !== true || !data.data) {
                             if (checkoutBtn) {
