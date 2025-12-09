@@ -143,15 +143,62 @@ class SellerSettingsTest extends TestCase
 
         $this->assertNotNull($seller->store_logo);
         $this->assertNotNull($seller->store_banner);
+        $this->assertNotNull($seller->store_logo_thumb);
+        $this->assertNotNull($seller->store_banner_resized);
 
         \Illuminate\Support\Facades\Storage::disk('public')->assertExists($seller->store_logo);
         \Illuminate\Support\Facades\Storage::disk('public')->assertExists($seller->store_banner);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($seller->store_logo_thumb);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($seller->store_banner_resized);
 
         // The storefront home should include the asset URLs (mobile markup still present in HTML)
         $home = $this->get(route('seller.store.home', ['username' => $seller->username]));
         $home->assertStatus(200);
         $home->assertSee($seller->store_logo);
         $home->assertSee($seller->store_banner);
+    }
+
+    public function test_remove_logo_and_banner_via_ajax()
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        // prepare fake files
+        \Illuminate\Support\Facades\Storage::disk('public')->put('seller-logos/logo.png', 'file');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('seller-logos/thumbs/logo_thumb.png', 'file');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('seller-banners/banner.jpg', 'file');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('seller-banners/resized/banner_resized.jpg', 'file');
+
+        $seller = Seller::factory()->create([
+            'website_enabled' => true,
+            'website_url' => 'removeslug',
+            'username' => 'removeslug',
+            'store_logo' => 'seller-logos/logo.png',
+            'store_logo_thumb' => 'seller-logos/thumbs/logo_thumb.png',
+            'store_banner' => 'seller-banners/banner.jpg',
+            'store_banner_resized' => 'seller-banners/resized/banner_resized.jpg',
+        ]);
+
+        $this->actingAs($seller, 'seller');
+
+        // remove logo
+        $resp = $this->postJson(route('seller.settings.remove-image'), ['type' => 'logo']);
+        $resp->assertStatus(200)->assertJson(['success' => true]);
+
+        $seller->refresh();
+        $this->assertNull($seller->store_logo);
+        $this->assertNull($seller->store_logo_thumb);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing('seller-logos/logo.png');
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing('seller-logos/thumbs/logo_thumb.png');
+
+        // remove banner
+        $resp2 = $this->postJson(route('seller.settings.remove-image'), ['type' => 'banner']);
+        $resp2->assertStatus(200)->assertJson(['success' => true]);
+
+        $seller->refresh();
+        $this->assertNull($seller->store_banner);
+        $this->assertNull($seller->store_banner_resized);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing('seller-banners/banner.jpg');
+        \Illuminate\Support\Facades\Storage::disk('public')->assertMissing('seller-banners/resized/banner_resized.jpg');
     }
 
     public function test_slug_conflict_with_existing_username_fails()

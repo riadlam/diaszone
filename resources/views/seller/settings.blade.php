@@ -17,11 +17,14 @@
                         <div>
                             <label class="text-xs text-gray-400 mb-2 block">Store Logo (circle)</label>
                             <div class="flex items-center gap-3">
-                                <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-700">
-                                    @if($seller->store_logo)
-                                        <img id="store-logo-preview" src="{{ asset('storage/' . $seller->store_logo) }}" class="w-full h-full object-cover" alt="logo">
+                                <div class="relative w-16 h-16 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-700">
+                                    @if($seller->store_logo_thumb ?? $seller->store_logo)
+                                        <img id="store-logo-preview" src="{{ asset('storage/' . ($seller->store_logo_thumb ?? $seller->store_logo)) }}" class="w-full h-full object-cover" alt="logo">
                                     @else
                                         <span id="store-logo-placeholder" class="text-white font-bold">{{ substr($seller->name, 0, 1) }}</span>
+                                    @endif
+                                    @if($seller->store_logo)
+                                        <button id="remove-logo-btn" type="button" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
                                     @endif
                                 </div>
                                 <div class="flex-1">
@@ -34,8 +37,13 @@
                         <div>
                             <label class="text-xs text-gray-400 mb-2 block">Cover banner (mobile only)</label>
                             <div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
-                                @if($seller->store_banner)
-                                    <img id="store-banner-preview" src="{{ asset('storage/' . $seller->store_banner) }}" class="w-full h-36 object-cover sm:hidden" alt="banner">
+                                @if($seller->store_banner_resized ?? $seller->store_banner)
+                                    <div class="relative w-full h-36 overflow-hidden">
+                                        <img id="store-banner-preview" src="{{ asset('storage/' . ($seller->store_banner_resized ?? $seller->store_banner)) }}" class="w-full h-full object-cover sm:hidden" alt="banner">
+                                        @if($seller->store_banner)
+                                            <button id="remove-banner-btn" type="button" class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded">Remove</button>
+                                        @endif
+                                    </div>
                                 @else
                                     <div id="store-banner-placeholder" class="w-full h-36 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-700 flex items-center justify-center sm:hidden">
                                         <span class="text-gray-400 text-sm">No banner — mobile-only header will show a placeholder</span>
@@ -320,6 +328,36 @@
             bannerPreview.classList.remove('hidden');
         }
         if (bannerPlaceholder) bannerPlaceholder.classList.add('hidden');
+    });
+
+    // Remove image handlers
+    document.getElementById('remove-logo-btn')?.addEventListener('click', async function () {
+        if (!confirm('Remove store logo?')) return;
+        const res = await fetch('{{ route('seller.settings.remove-image') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+            body: JSON.stringify({ type: 'logo' })
+        });
+        if (res.ok) {
+            // remove preview
+            document.getElementById('store-logo-preview')?.remove();
+            document.getElementById('store-logo-placeholder')?.classList.remove('hidden');
+            this.remove();
+        }
+    });
+
+    document.getElementById('remove-banner-btn')?.addEventListener('click', async function () {
+        if (!confirm('Remove store banner?')) return;
+        const res = await fetch('{{ route('seller.settings.remove-image') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
+            body: JSON.stringify({ type: 'banner' })
+        });
+        if (res.ok) {
+            document.getElementById('store-banner-preview')?.remove();
+            document.getElementById('store-banner-placeholder')?.classList.remove('hidden');
+            this.remove();
+        }
     });
 </script>
 @endpush

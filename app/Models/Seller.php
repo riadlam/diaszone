@@ -23,6 +23,8 @@ class Seller extends Authenticatable
         'store_description',
         'store_logo',
         'store_banner',
+        'store_logo_thumb',
+        'store_banner_resized',
         'wallet_balance',
         'total_earnings',
         'total_sales',

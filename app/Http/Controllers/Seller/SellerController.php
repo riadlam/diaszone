@@ -875,6 +875,44 @@ class SellerController extends Controller
                 }
                 $path = $file->store('seller-logos', 'public');
                 $seller->store_logo = $path;
+
+                // Attempt to generate square thumbnail (400x400) if GD or Imagick available
+                $thumbPath = null;
+                try {
+                    if (function_exists('imagecreatefromstring')) {
+                        $contents = file_get_contents($file->getPathname());
+                        $src = @imagecreatefromstring($contents);
+                        if ($src) {
+                            $w = imagesx($src);
+                            $h = imagesy($src);
+                            $size = min($w, $h);
+                            $thumb = imagecreatetruecolor(400, 400);
+                            // preserve alpha for PNG/WebP
+                            imagealphablending($thumb, false);
+                            imagesavealpha($thumb, true);
+                            // center crop
+                            $srcX = ($w - $size) / 2;
+                            $srcY = ($h - $size) / 2;
+                            imagecopyresampled($thumb, $src, 0, 0, $srcX, $srcY, 400, 400, $size, $size);
+                            ob_start();
+                            // use PNG for thumbnail to preserve quality/transparency
+                            imagepng($thumb);
+                            $thumbData = ob_get_clean();
+                            imagedestroy($thumb);
+                            imagedestroy($src);
+
+                            $thumbName = 'seller-logos/thumbs/' . uniqid('logo_thumb_') . '.png';
+                            \Illuminate\Support\Facades\Storage::disk('public')->put($thumbName, $thumbData);
+                            $thumbPath = $thumbName;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // If processing fails, do nothing — fallback to using the original
+                    \Log::warning('Logo thumbnail generation failed: ' . $e->getMessage());
+                }
+
+                // Fallback when thumbnail couldn't be generated — point to original
+                $seller->store_logo_thumb = $thumbPath ?: $path;
             }
         }
 
@@ -886,12 +924,88 @@ class SellerController extends Controller
                 }
                 $path = $file->store('seller-banners', 'public');
                 $seller->store_banner = $path;
+
+                // Attempt to generate resized banner (max 1200x400)
+                $resizedPath = null;
+                try {
+                    if (function_exists('imagecreatefromstring')) {
+                        $contents = file_get_contents($file->getPathname());
+                        $src = @imagecreatefromstring($contents);
+                        if ($src) {
+                            $w = imagesx($src);
+                            $h = imagesy($src);
+                            $maxW = 1200; $maxH = 400;
+                            $ratio = min($maxW / $w, $maxH / $h, 1);
+                            $newW = (int) round($w * $ratio);
+                            $newH = (int) round($h * $ratio);
+                            $dst = imagecreatetruecolor($newW, $newH);
+                            imagealphablending($dst, false);
+                            imagesavealpha($dst, true);
+                            imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
+                            ob_start();
+                            imagejpeg($dst, null, 85);
+                            $data = ob_get_clean();
+                            imagedestroy($dst);
+                            imagedestroy($src);
+
+                            $resizedName = 'seller-banners/resized/' . uniqid('banner_resized_') . '.jpg';
+                            \Illuminate\Support\Facades\Storage::disk('public')->put($resizedName, $data);
+                            $resizedPath = $resizedName;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Banner resize failed: ' . $e->getMessage());
+                }
+
+                $seller->store_banner_resized = $resizedPath ?: $path;
             }
         }
 
         $seller->save();
 
         return back()->with('success', 'Settings updated successfully!');
+    }
+
+    /**
+     * Remove stored image (logo or banner)
+     */
+    public function removeImage(Request $request)
+    {
+        $seller = $this->seller();
+
+        $validated = $request->validate([
+            'type' => ['required', 'in:logo,banner']
+        ]);
+
+        $type = $validated['type'];
+
+        if ($type === 'logo') {
+            if ($seller->store_logo) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($seller->store_logo);
+            }
+            if ($seller->store_logo_thumb) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($seller->store_logo_thumb);
+            }
+            $seller->store_logo = null;
+            $seller->store_logo_thumb = null;
+        } else {
+            if ($seller->store_banner) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($seller->store_banner);
+            }
+            if ($seller->store_banner_resized) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($seller->store_banner_resized);
+            }
+            $seller->store_banner = null;
+            $seller->store_banner_resized = null;
+        }
+
+        $seller->save();
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return back()->with('success', 'Image removed');
     }
 
     /**
