@@ -872,10 +872,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.head.appendChild(style);
         }
         
-        // Insert error message after the form
-        const orderForm = document.getElementById('order-form');
+        // Insert error message after a sensible container so it's visible on all pages
+        // Prefer the specific storefront checkout form, then legacy order-form, then wrapper, else fallback to body
+        const orderForm = document.getElementById('checkout-form') || document.getElementById('order-form') || document.getElementById('order-form-wrapper');
         if (orderForm) {
+            // If the form is visible, append inside; otherwise fall back to body
             orderForm.appendChild(errorDiv);
+        } else {
+            document.body.appendChild(errorDiv);
             
             // Scroll to error
             errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
