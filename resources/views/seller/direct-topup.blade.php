@@ -235,11 +235,22 @@ document.getElementById('topup-form').addEventListener('submit', async function(
     try {
         const resp = await fetch(this.action, {
             method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
             body: formData
         });
 
-        const json = await resp.json().catch(() => ({ success: false, message: 'Invalid server response' }));
+        // Try to parse JSON but fall back to text if server returned HTML/redirect
+        let json;
+        try {
+            json = await resp.json();
+        } catch (_e) {
+            const text = await resp.text().catch(() => null);
+            json = { success: false, message: text || 'Invalid server response' };
+        }
 
         if (resp.ok && json.success) {
             statusEl.classList.remove('hidden');
