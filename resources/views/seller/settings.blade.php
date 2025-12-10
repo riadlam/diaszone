@@ -138,7 +138,8 @@
                         <p class="text-xs text-gray-400 mb-2">Number and instructions that will be displayed to customers when they choose Flexy.</p>
                         <input id="flexy-number-input" type="text" name="flexy_number" value="{{ old('flexy_number', $seller->flexy_number ?? '') }}" placeholder="e.g., 0673771763" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none mb-2">
                         <p id="flexy-number-error" class="text-xs text-red-400 mt-1 hidden">Flexy number is required when Flexy is enabled.</p>
-                        <textarea name="flexy_instruction" rows="3" placeholder="Short transfer instructions or account details" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none">{{ old('flexy_instruction', $seller->flexy_instruction ?? '') }}</textarea>
+                        <textarea id="flexy-instruction-input" name="flexy_instruction" rows="3" placeholder="Short transfer instructions or account details" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none">{{ old('flexy_instruction', $seller->flexy_instruction ?? '') }}</textarea>
+                        <p id="flexy-instruction-error" class="field-error hidden">Flexy instructions are required.</p>
                     </div>
 
                 </div>
@@ -154,17 +155,56 @@
 </form>
 
 @push('scripts')
+<style>
+    /* Modern toast styles (tailwind-like) */
+    .toast-container { position: fixed; top: 1.25rem; right: 1.25rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; }
+    .toast-item { min-width: 260px; max-width: 360px; padding: .6rem .75rem; border-radius: .5rem; box-shadow: 0 10px 30px rgba(2,6,23,0.4); color: #fff; display: flex; align-items: flex-start; gap: .5rem; transform: translateY(-10px); opacity: 0; transition: all .28s cubic-bezier(0.2,0.8,0.2,1); }
+    .toast-item.show { transform: translateY(0); opacity: 1; }
+    .toast-item.success { background: linear-gradient(90deg,#059669,#10b981); }
+    .toast-item.error { background: linear-gradient(90deg,#ef4444,#f97316); }
+    .toast-item .toast-msg { flex: 1; font-size: .875rem; line-height: 1.2; }
+    .toast-item .toast-close { cursor: pointer; opacity: .9; margin-left: .5rem; }
+    .toast-cta { margin-left: .5rem; color: rgba(255,255,255,0.95); text-decoration: underline; font-weight: 600; }
+    .field-error { color: #fb7185; font-size: .825rem; margin-top: .375rem; }
+</style>
 <script>
     // Simple toast utility used by many seller pages — tiny copy from orders view
-    function showToast(message, type = 'success') {
+    // Modern toast system
+    const toastContainer = document.createElement('div');
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+    function showToast(message, type = 'success', options = {}) {
         const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        document.body.appendChild(toast);
+        toast.className = `toast-item ${type}`;
+        const icon = document.createElement('div');
+        icon.className = 'toast-icon';
+        icon.innerHTML = type === 'error' ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.9989 6.99902H12.0089" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9V13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 5V19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        const msg = document.createElement('div');
+        msg.className = 'toast-msg';
+        msg.textContent = message;
+        const close = document.createElement('button');
+        close.className = 'toast-close';
+        close.innerHTML = '✕';
+        close.onclick = () => { toast.remove(); };
+        toast.appendChild(icon);
+        toast.appendChild(msg);
+        if (options.cta) {
+            const cta = document.createElement('a');
+            cta.className = 'toast-cta';
+            cta.href = options.cta.href || '#';
+            cta.textContent = options.cta.text || 'Fix it';
+            // leave target as same window (open in current app) intentionally
+            toast.appendChild(cta);
+        }
+        toast.appendChild(close);
+        toastContainer.appendChild(toast);
+        // Animate
+        setTimeout(() => toast.classList.add('show'), 30);
+        const timeout = options.duration || 4500;
         setTimeout(() => {
-            toast.style.opacity = '0';
+            toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        }, timeout);
     }
     document.getElementById('website-enabled-toggle')?.addEventListener('change', function () {
         const row = document.getElementById('store-url-row');
@@ -188,7 +228,7 @@
             flexyDetails.classList.remove('hidden');
 
             const flexyNumber = document.getElementById('flexy-number-input');
-            const flexyInstructionEl = document.querySelector('textarea[name="flexy_instruction"]');
+                const flexyInstructionEl = document.getElementById('flexy-instruction-input');
             const errorEl = document.getElementById('flexy-number-error');
 
             // Validate required flexy fields client-side to provide immediate feedback
@@ -204,14 +244,14 @@
             // Next, call backend AJAX check to ensure all packs configured with flexy_price
             try {
                 // Use the packs route to fetch which game types are missing flexy
-                const url = new URL("{{ route('seller.packs') }}", window.location.origin);
+                    const url = new URL("{{ route('seller.packs') }}", window.location.origin);
                 url.searchParams.set('ajax', '1');
                 const spinner = document.createElement('span');
                 spinner.className = 'flexy-check-spinner';
                 spinner.textContent = 'Checking prices...';
                 document.body.appendChild(spinner);
 
-                const resp = await fetch(url.toString(), { credentials: 'same-origin' });
+                    const resp = await fetch(url.toString(), { credentials: 'same-origin' });
                 spinner.remove();
                 if (!resp.ok) {
                     showToast('Unable to validate Flexy prices. Please try again later.', 'error');
@@ -262,7 +302,9 @@
             }
             const flexyToggle = document.getElementById('flexy-enabled-toggle');
             const flexyNumber = document.getElementById('flexy-number-input');
+            const flexyInstructionEl = document.getElementById('flexy-instruction-input');
             const errorEl = document.getElementById('flexy-number-error');
+            const instrEl = document.getElementById('flexy-instruction-error');
             if (flexyToggle && flexyToggle.checked) {
                 if (!flexyNumber || flexyNumber.value.trim() === '') {
                     e.preventDefault();
@@ -274,6 +316,18 @@
                     }
                     flexyNumber?.focus();
                         return false;
+                }
+                // check instructions inline too
+                if (!flexyInstructionEl || flexyInstructionEl.value.trim() === '') {
+                    e.preventDefault();
+                    if (instrEl) {
+                        instrEl.classList.remove('hidden');
+                        instrEl.textContent = 'Please provide Flexy instructions.';
+                        flexyInstructionEl?.classList.add('border-red-400');
+                    }
+                    flexyInstructionEl?.focus();
+                    showToast('Please add a Flexy number and instructions before enabling Flexy.', 'error', { cta: { href: '{{ route('seller.settings') }}', text: 'Complete Flexy details' } });
+                    return false;
                 }
                     // Check if all packs have flexy price (ajax) before submitting
                     try {
@@ -315,7 +369,6 @@
     }
 
     async function checkSlugAvailability(slug) {
-        const statusEl = document.getElementById('store-slug-status');
         const spinner = document.getElementById('store-slug-spinner');
         const statusText = document.getElementById('store-slug-status-text');
         if (!statusEl || !statusText || !spinner) return;
@@ -357,7 +410,6 @@
         } catch (e) {
             spinner.classList.add('hidden');
             statusText.classList.remove('hidden');
-            statusText.textContent = 'Check failed';
             statusText.classList.remove('text-green-400');
             statusText.classList.add('text-red-400');
         }
@@ -473,11 +525,45 @@
         }
     });
 
+    // Remove inline errors and borders when user types
+    (function attachInlineFieldListeners() {
+        const flexyNumber = document.getElementById('flexy-number-input');
+        const flexyInstructionEl = document.getElementById('flexy-instruction-input');
+        const flexyNumberErrorEl = document.getElementById('flexy-number-error');
+        const flexyInstructionErrorEl = document.getElementById('flexy-instruction-error');
+        if (flexyNumber) {
+            flexyNumber.addEventListener('input', function () {
+                if (flexyNumberErrorEl) flexyNumberErrorEl.classList.add('hidden');
+                flexyNumber.classList.remove('border-red-400');
+            });
+        }
+        if (flexyInstructionEl) {
+            flexyInstructionEl.addEventListener('input', function () {
+                if (flexyInstructionErrorEl) flexyInstructionErrorEl.classList.add('hidden');
+                flexyInstructionEl.classList.remove('border-red-400');
+            });
+        }
+    })();
+
     // Show server-side errors and success messages as toasts for better UX
     (function showServerFlash() {
         try {
             const serverErrors = @json($errors->all());
+            const serverErrorsMap = @json($errors->messages());
             if (Array.isArray(serverErrors) && serverErrors.length) {
+                // show inline errors for specific fields if present
+                if (serverErrorsMap.flexy_number && serverErrorsMap.flexy_number.length) {
+                    const el = document.getElementById('flexy-number-error');
+                    const field = document.getElementById('flexy-number-input');
+                    if (el) { el.classList.remove('hidden'); el.textContent = serverErrorsMap.flexy_number.join(' '); }
+                    if (field) field.classList.add('border-red-400');
+                }
+                if (serverErrorsMap.flexy_instruction && serverErrorsMap.flexy_instruction.length) {
+                    const el = document.getElementById('flexy-instruction-error');
+                    const field = document.getElementById('flexy-instruction-input');
+                    if (el) { el.classList.remove('hidden'); el.textContent = serverErrorsMap.flexy_instruction.join(' '); }
+                    if (field) field.classList.add('border-red-400');
+                }
                 serverErrors.forEach(m => showToast(m, 'error'));
             }
             const successMsg = @json(session('success'));
