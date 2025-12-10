@@ -285,7 +285,8 @@
                                 <div class="flex flex-col items-center gap-1">
                                     <span class="inline-flex items-center px-3 py-0.5 rounded-full bg-orange-600 text-white text-xs font-semibold uppercase tracking-wide">Flexy</span>
                                     @if($order->flexy_receipt)
-                                        <a href="{{ asset('storage_public/' . $order->flexy_receipt) }}" target="_blank" class="text-cyan-400 hover:text-cyan-300 text-xs">Receipt</a>
+                                        {{-- Use root-relative path to avoid APP_URL/public prefix being injected by asset() in some setups --}}
+                                        <a href="/{{ trim('storage_public/' . $order->flexy_receipt, '/') }}" target="_blank" class="text-cyan-400 hover:text-cyan-300 text-xs">Receipt</a>
                                     @endif
                                 </div>
                             @else
