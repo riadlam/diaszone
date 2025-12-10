@@ -132,6 +132,8 @@
                                 <div class="w-11 h-6 bg-slate-600 peer-focus:ring-2 peer-focus:ring-orange-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                             </label>
                         </div>
+                        <p id="flexy-toggle-help" class="text-xs text-gray-300 mt-2 hidden">Once enabled, enter your Flexy number and instructions below and ensure that Flexy prices are configured for your packs on the <a href="{{ route('seller.packs') }}" class="text-blue-400 underline">Packs</a> page. <strong class="text-white">Remember to Save changes</strong> for these settings to take effect.</p>
+                        <p id="flexy-enabled-error" class="field-error hidden"></p>
 
                     <div id="flexy-details" class="p-4 bg-slate-700/30 rounded-lg {{ $seller->flexy_enabled ? '' : 'hidden' }}">
                         <p class="text-sm text-gray-300 font-medium mb-2">Flexy details (optional)</p>
@@ -218,62 +220,17 @@
         }
     });
     // Show/hide flexy details when flexy_enabled toggled
-    document.getElementById('flexy-enabled-toggle')?.addEventListener('change', async function (e) {
+    document.getElementById('flexy-enabled-toggle')?.addEventListener('change', function (e) {
         const flexyDetails = document.getElementById('flexy-details');
         if (!flexyDetails) return;
 
-        // When enabling, perform some client-side checks: flexy number/instruction and per-pack flexy prices
+        // When enabling, show helper and Flexy details; do not run validations here — validations and toasts are shown on Save.
         if (this.checked) {
-            // temporarily show the details for quick validation
             flexyDetails.classList.remove('hidden');
-
+            const help = document.getElementById('flexy-toggle-help');
+            if (help) help.classList.remove('hidden');
             const flexyNumber = document.getElementById('flexy-number-input');
-                const flexyInstructionEl = document.getElementById('flexy-instruction-input');
-            const errorEl = document.getElementById('flexy-number-error');
-
-            // Validate required flexy fields client-side to provide immediate feedback
-            if (!flexyNumber || flexyNumber.value.trim() === '' || !flexyInstructionEl || flexyInstructionEl.value.trim() === '') {
-                e.preventDefault();
-                showToast('Please add a Flexy number and instructions before enabling Flexy.', 'error');
-                // revert the toggle to off
-                this.checked = false;
-                flexyDetails.classList.add('hidden');
-                return;
-            }
-
-            // Next, call backend AJAX check to ensure all packs configured with flexy_price
-            try {
-                // Use the packs route to fetch which game types are missing flexy
-                    const url = new URL("{{ route('seller.packs') }}", window.location.origin);
-                url.searchParams.set('ajax', '1');
-                const spinner = document.createElement('span');
-                spinner.className = 'flexy-check-spinner';
-                spinner.textContent = 'Checking prices...';
-                document.body.appendChild(spinner);
-
-                    const resp = await fetch(url.toString(), { credentials: 'same-origin' });
-                spinner.remove();
-                if (!resp.ok) {
-                    showToast('Unable to validate Flexy prices. Please try again later.', 'error');
-                    this.checked = false;
-                    flexyDetails.classList.add('hidden');
-                    return;
-                }
-                const json = await resp.json();
-                const missing = json.missing_flexy || [];
-                if (missing.length > 0) {
-                    showToast('Please configure a Flexy price for every pack in: ' + missing.map(x => x.charAt(0).toUpperCase() + x.slice(1)).join(', ') + '. Visit Packs to update prices.', 'error');
-                    this.checked = false;
-                    flexyDetails.classList.add('hidden');
-                    return;
-                }
-            } catch (err) {
-                console.warn('Flexy check failed', err);
-                showToast('Unable to validate Flexy prices. Please try again later.', 'error');
-                this.checked = false;
-                flexyDetails.classList.add('hidden');
-                return;
-            }
+            flexyNumber?.focus();
         } else {
             // user disabled Flexy; hide details
             flexyDetails.classList.add('hidden');
@@ -300,60 +257,41 @@
                     return false;
                 }
             }
+
+            // Check Flexy fields only when Flexy toggle is checked
             const flexyToggle = document.getElementById('flexy-enabled-toggle');
             const flexyNumber = document.getElementById('flexy-number-input');
             const flexyInstructionEl = document.getElementById('flexy-instruction-input');
             const errorEl = document.getElementById('flexy-number-error');
             const instrEl = document.getElementById('flexy-instruction-error');
+
             if (flexyToggle && flexyToggle.checked) {
                 if (!flexyNumber || flexyNumber.value.trim() === '') {
                     e.preventDefault();
                     if (errorEl) {
                         errorEl.classList.remove('hidden');
-                        // brief pulse to draw attention
                         errorEl.classList.add('animate-pulse');
                         setTimeout(() => errorEl.classList.remove('animate-pulse'), 800);
                     }
                     flexyNumber?.focus();
-                        return false;
+                    return false;
                 }
-                // check instructions inline too
                 if (!flexyInstructionEl || flexyInstructionEl.value.trim() === '') {
                     e.preventDefault();
                     if (instrEl) {
                         instrEl.classList.remove('hidden');
-                        instrEl.textContent = 'Please provide Flexy instructions.';
-                        flexyInstructionEl?.classList.add('border-red-400');
                     }
                     flexyInstructionEl?.focus();
-                    showToast('Please add a Flexy number and instructions before enabling Flexy.', 'error', { cta: { href: '{{ route('seller.settings') }}', text: 'Complete Flexy details' } });
                     return false;
                 }
-                    // Check if all packs have flexy price (ajax) before submitting
-                    try {
-                        const url = new URL("{{ route('seller.packs') }}", window.location.origin);
-                        url.searchParams.set('ajax', '1');
-                        const resp = await fetch(url.toString(), { credentials: 'same-origin' });
-                        if (resp.ok) {
-                            const json = await resp.json();
-                            if (json.missing_flexy && json.missing_flexy.length > 0) {
-                                e.preventDefault();
-                                showToast('To enable Flexy, add Flexy prices for packs in: ' + json.missing_flexy.map(x => x.charAt(0).toUpperCase() + x.slice(1)).join(', ') + '. Visit Packs to update prices.', 'error');
-                                return false;
-                            }
-                        } else {
-                            e.preventDefault();
-                            showToast('Unable to validate Flexy pricing. Please try again.', 'error');
-                            return false;
-                        }
-                    } catch (err) {
-                        e.preventDefault();
-                        showToast('Unable to validate Flexy pricing; request failed.', 'error');
-                        return false;
-                    }
+
+                // NOTE: We no longer call the ajax to check pack completeness here.
+                // Pack-level flexy price checks and server-side validations will be handled by the backend on save.
             }
+
             // hide errors if present and valid
             if (errorEl) errorEl.classList.add('hidden');
+            if (instrEl) instrEl.classList.add('hidden');
             if (slugErrorEl) slugErrorEl.classList.add('hidden');
             return true;
         });
@@ -564,6 +502,11 @@
                     if (el) { el.classList.remove('hidden'); el.textContent = serverErrorsMap.flexy_instruction.join(' '); }
                     if (field) field.classList.add('border-red-400');
                 }
+                if (serverErrorsMap.flexy_enabled && serverErrorsMap.flexy_enabled.length) {
+                    const el = document.getElementById('flexy-enabled-error');
+                    if (el) { el.classList.remove('hidden'); el.textContent = serverErrorsMap.flexy_enabled.join(' '); }
+                }
+                // Also show toasts for all server errors so the user sees a compact summary
                 serverErrors.forEach(m => showToast(m, 'error'));
             }
             const successMsg = @json(session('success'));
