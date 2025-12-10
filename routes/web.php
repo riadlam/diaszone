@@ -211,9 +211,11 @@ Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin', 'throttle:60,
 // Seller Auth Routes (Guest sellers only)
 Route::prefix('seller')->name('seller.')->group(function () {
     Route::get('/login', [SellerAuthController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [SellerAuthController::class, 'login'])->name('login.submit');
+    // Protect login POST with rate limit to prevent brute force
+    Route::post('/login', [SellerAuthController::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
     Route::get('/register', [SellerAuthController::class, 'showRegisterForm'])->name('register');
-    Route::post('/register', [SellerAuthController::class, 'register'])->name('register.submit');
+    // Protect registration with rate limit to prevent abuse
+    Route::post('/register', [SellerAuthController::class, 'register'])->middleware('throttle:3,1')->name('register.submit');
     Route::post('/logout', [SellerAuthController::class, 'logout'])->name('logout');
 });
 

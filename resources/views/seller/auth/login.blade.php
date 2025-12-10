@@ -14,8 +14,8 @@
 <body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md">
         <div class="text-center mb-8">
-            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <span class="text-white font-bold text-2xl">DZ</span>
+            <div class="w-16 h-16 mx-auto mb-4">
+                <img src="{{ storage_public_url('images_homepage/diaszonelogo.jpeg') }}" alt="DiasZone logo" class="w-16 h-16 object-contain rounded-xl mx-auto" />
             </div>
             <h1 class="text-white text-2xl font-bold">Seller Login</h1>
             <p class="text-gray-400">Welcome back to DiasZone</p>
