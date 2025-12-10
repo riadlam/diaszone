@@ -64,6 +64,21 @@ class Seller extends Authenticatable
         'allowed_games' => 'array',
     ];
 
+    protected static function booted()
+    {
+        parent::booted();
+
+        // Ensure default values for newly created sellers are disabled
+        static::creating(function (Seller $seller) {
+            if (! isset($seller->website_enabled)) {
+                $seller->website_enabled = false;
+            }
+            if (! isset($seller->flexy_enabled)) {
+                $seller->flexy_enabled = false;
+            }
+        });
+    }
+
     /**
      * Get seller's custom game prices
      */
