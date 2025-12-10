@@ -58,7 +58,7 @@
                 @endif
             </div>
 
-            <div class="-mt-10 flex items-center gap-4 px-2">
+                <div class="-mt-10 flex items-center gap-4 px-2">
                 <div class="w-20 h-20 rounded-full overflow-hidden border-4 border-slate-900 bg-slate-800 flex items-center justify-center">
                     @if($seller->store_logo_thumb ?? $seller->store_logo)
                         <img src="{{ storage_public_url($seller->store_logo_thumb ?? $seller->store_logo) }}" alt="Logo" class="w-full h-full object-cover">
@@ -67,9 +67,9 @@
                     @endif
                 </div>
                 <div>
-                    <h1 class="text-white text-lg font-bold">{{ $seller->store_name ?? $seller->name }}</h1>
+                    <h1 class="text-white text-lg font-bold" style="text-shadow: 0 6px 18px rgba(0,0,0,0.7);">{{ $seller->store_name ?? $seller->name }}</h1>
                     @if($seller->store_description)
-                        <p class="text-gray-400 text-sm mt-1">{{ $seller->store_description }}</p>
+                        <p class="text-gray-400 text-sm mt-1" style="text-shadow: 0 4px 12px rgba(0,0,0,0.55);">{{ $seller->store_description }}</p>
                     @endif
                 </div>
             </div>

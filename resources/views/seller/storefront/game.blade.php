@@ -87,8 +87,8 @@
                         @endif
                     </div>
                     <div>
-                        <h1 class="text-white font-bold">{{ $seller->store_name ?? $seller->name }}</h1>
-                        <p class="text-gray-400 text-sm">{{ $gameName }} Top-Up</p>
+                        <h1 class="text-white font-bold" style="text-shadow: 0 6px 18px rgba(0,0,0,0.7);">{{ $seller->store_name ?? $seller->name }}</h1>
+                        <p class="text-gray-400 text-sm" style="text-shadow: 0 4px 12px rgba(0,0,0,0.55);">{{ $gameName }} Top-Up</p>
                     </div>
                 </div>
             </div>
