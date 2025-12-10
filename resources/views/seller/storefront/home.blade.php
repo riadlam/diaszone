@@ -24,8 +24,12 @@
         <div class="max-w-6xl mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-xl">{{ substr($seller->name, 0, 1) }}</span>
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center overflow-hidden">
+                        @if(!empty($seller->store_logo_thumb ?? $seller->store_logo))
+                            <img src="/storage_public/{{ $seller->store_logo_thumb ?? $seller->store_logo }}" alt="{{ $seller->store_name ?? $seller->name }}" class="w-full h-full object-cover" />
+                        @else
+                            <span class="text-white font-bold text-xl">{{ substr($seller->name, 0, 1) }}</span>
+                        @endif
                     </div>
                     <div>
                         <h1 class="text-white font-bold text-xl">{{ $seller->store_name ?? $seller->name }}</h1>
@@ -70,11 +74,7 @@
                 </div>
             </div>
         </div>
-        @if($seller->store_description)
-            <div class="mb-8 p-4 bg-slate-800 rounded-xl border border-slate-700">
-                <p class="text-gray-300">{{ $seller->store_description }}</p>
-            </div>
-        @endif
+        {{-- Description moved to store header under store name (redundant here) --}}
         
         <h2 class="text-2xl font-bold text-white mb-6">Choose a Game</h2>
         

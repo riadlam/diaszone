@@ -79,8 +79,13 @@
                 <!-- Logo -->
                 <div class="p-6 border-b border-blue-800/30">
                     <a href="{{ route('seller.dashboard') }}" class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold text-xl">DZ</span>
+                        @php $me = Auth::guard('seller')->user(); @endphp
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center overflow-hidden">
+                            @if(!empty($me->store_logo_thumb ?? $me->store_logo))
+                                <img src="/storage_public/{{ $me->store_logo_thumb ?? $me->store_logo }}" alt="{{ $me->store_name ?? $me->name }}" class="w-full h-full object-cover" />
+                            @else
+                                <span class="text-white font-bold text-xl">DZ</span>
+                            @endif
                         </div>
                         <div>
                             <h1 class="text-white font-bold text-xl">DiasZone</h1>
@@ -199,11 +204,16 @@
                         <p class="text-gray-400 text-sm">Welcome back, {{ Auth::guard('seller')->user()->name }}</p>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <span class="text-sm text-gray-400">
-                            {{ Auth::guard('seller')->user()->store_name ?? Auth::guard('seller')->user()->name }}
-                        </span>
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold">{{ substr(Auth::guard('seller')->user()->name, 0, 1) }}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm text-gray-400 mr-2">{{ Auth::guard('seller')->user()->store_name ?? Auth::guard('seller')->user()->name }}</span>
+                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center overflow-hidden">
+                                @php $me2 = Auth::guard('seller')->user(); @endphp
+                                @if(!empty($me2->store_logo_thumb ?? $me2->store_logo))
+                                    <img src="/storage_public/{{ $me2->store_logo_thumb ?? $me2->store_logo }}" alt="{{ $me2->store_name ?? $me2->name }}" class="w-full h-full object-cover rounded-full" />
+                                @else
+                                    <span class="text-white font-bold">{{ substr($me2->name, 0, 1) }}</span>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
