@@ -82,7 +82,7 @@
                         @php $me = Auth::guard('seller')->user(); @endphp
                         <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center overflow-hidden">
                             @if(!empty($me->store_logo_thumb ?? $me->store_logo))
-                                <img src="/storage_public/{{ $me->store_logo_thumb ?? $me->store_logo }}" alt="{{ $me->store_name ?? $me->name }}" class="w-full h-full object-cover" />
+                                <img src="{{ storage_public_url($me->store_logo_thumb ?? $me->store_logo) }}" alt="{{ $me->store_name ?? $me->name }}" class="w-full h-full object-cover" />
                             @else
                                 <span class="text-white font-bold text-xl">DZ</span>
                             @endif
@@ -209,7 +209,7 @@
                             <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center overflow-hidden">
                                 @php $me2 = Auth::guard('seller')->user(); @endphp
                                 @if(!empty($me2->store_logo_thumb ?? $me2->store_logo))
-                                    <img src="/storage_public/{{ $me2->store_logo_thumb ?? $me2->store_logo }}" alt="{{ $me2->store_name ?? $me2->name }}" class="w-full h-full object-cover rounded-full" />
+                                    <img src="{{ storage_public_url($me2->store_logo_thumb ?? $me2->store_logo) }}" alt="{{ $me2->store_name ?? $me2->name }}" class="w-full h-full object-cover rounded-full" />
                                 @else
                                     <span class="text-white font-bold">{{ substr($me2->name, 0, 1) }}</span>
                                 @endif

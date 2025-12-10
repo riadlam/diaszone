@@ -38,11 +38,11 @@
                                             $ext = pathinfo(storage_path('app/public/' . $order->flexy_receipt), PATHINFO_EXTENSION);
                                         @endphp
                                         @if(in_array(strtolower($ext), ['png','jpg','jpeg','webp']))
-                                            <a href="/storage_public/{{ $order->flexy_receipt }}" target="_blank">
-                                                <img src="/storage_public/{{ $order->flexy_receipt }}" alt="receipt" class="w-20 h-12 object-cover rounded" />
+                                            <a href="{{ storage_public_url($order->flexy_receipt) }}" target="_blank">
+                                                <img src="{{ storage_public_url($order->flexy_receipt) }}" alt="receipt" class="w-20 h-12 object-cover rounded" />
                                             </a>
                                         @else
-                                            <a href="/storage_public/{{ $order->flexy_receipt }}" target="_blank" class="text-blue-600 underline">Download</a>
+                                            <a href="{{ storage_public_url($order->flexy_receipt) }}" target="_blank" class="text-blue-600 underline">Download</a>
                                         @endif
                                     @else
                                         -

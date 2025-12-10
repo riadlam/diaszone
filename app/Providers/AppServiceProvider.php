@@ -11,7 +11,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Load application helpers (global functions)
+        $helpers = __DIR__ . '/../helpers.php';
+        if (file_exists($helpers)) require_once $helpers;
     }
 
     /**
@@ -20,5 +22,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->app->useLangPath(base_path('lang'));
+        // storage_public_url helper is declared in global namespace
     }
 }

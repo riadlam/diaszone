@@ -143,7 +143,7 @@
                     </a>
                     <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center overflow-hidden">
                         @if(!empty($seller->store_logo_thumb ?? $seller->store_logo))
-                            <img src="/storage_public/{{ $seller->store_logo_thumb ?? $seller->store_logo }}" alt="{{ $seller->store_name ?? $seller->name }}" class="w-full h-full object-cover" />
+                            <img src="{{ storage_public_url($seller->store_logo_thumb ?? $seller->store_logo) }}" alt="{{ $seller->store_name ?? $seller->name }}" class="w-full h-full object-cover" />
                         @else
                             <span class="text-white font-bold">{{ substr($seller->name, 0, 1) }}</span>
                         @endif

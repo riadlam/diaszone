@@ -19,7 +19,7 @@
                             <div class="flex items-center gap-3">
                                 <div class="relative w-16 h-16 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-700">
                                     @if($seller->store_logo_thumb ?? $seller->store_logo)
-                                        <img id="store-logo-preview" src="/storage_public/{{ $seller->store_logo_thumb ?? $seller->store_logo }}" class="w-full h-full object-cover" alt="logo">
+                                        <img id="store-logo-preview" src="{{ storage_public_url($seller->store_logo_thumb ?? $seller->store_logo) }}" class="w-full h-full object-cover" alt="logo">
                                     @else
                                         <span id="store-logo-placeholder" class="text-white font-bold">{{ substr($seller->name, 0, 1) }}</span>
                                     @endif
@@ -44,7 +44,7 @@
                             <div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
                                 @if($seller->store_banner_resized ?? $seller->store_banner)
                                         <div class="relative w-full h-36 overflow-hidden">
-                                            <img id="store-banner-preview" src="/storage_public/{{ $seller->store_banner_resized ?? $seller->store_banner }}" class="w-full h-full object-cover sm:hidden" alt="banner">
+                                            <img id="store-banner-preview" src="{{ storage_public_url($seller->store_banner_resized ?? $seller->store_banner) }}" class="w-full h-full object-cover" alt="banner">
                                             @if($seller->store_banner)
                                                 <button id="remove-banner-btn" type="button" class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded">Remove</button>
                                             @endif

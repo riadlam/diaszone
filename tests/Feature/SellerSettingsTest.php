@@ -245,6 +245,9 @@ class SellerSettingsTest extends TestCase
         $resp->assertSee('id="store-logo-filename"', false);
         $resp->assertSee('logo.png', false);
         $resp->assertSee('id="store-banner-filename"', false);
+        // Preview image should be present and point to the storage_public path
+        $resp->assertSee('id="store-banner-preview"', false);
+        $resp->assertSee('/storage_public/seller-banners/resized/banner_resized.jpg', false);
         $resp->assertSee('banner.jpg', false);
         $resp->assertSee('id="choose-logo-btn"', false);
         $resp->assertSee('id="choose-banner-btn"', false);
