@@ -45,7 +45,8 @@
         <div class="sm:hidden mb-6">
             <div class="w-full h-40 bg-gradient-to-r from-gray-700 via-gray-800 to-gray-700 overflow-hidden rounded-xl">
                 @if(!empty($seller->store_banner_resized ?? $seller->store_banner))
-                    <img src="{{ asset('storage/' . ($seller->store_banner_resized ?? $seller->store_banner)) }}" alt="Banner" class="w-full h-full object-cover">
+                    {{-- Use root-relative storage_public path so hosted URLs don't get a /public prefix injected by asset() --}}
+                    <img src="/storage_public/{{ $seller->store_banner_resized ?? $seller->store_banner }}" alt="Banner" class="w-full h-full object-cover">
                 @else
                     <div class="w-full h-full bg-gradient-to-r from-indigo-700 via-indigo-900 to-slate-800 flex items-center justify-center">
                         <span class="text-gray-300">Store banner (mobile)</span>
@@ -56,7 +57,7 @@
             <div class="-mt-10 flex items-center gap-4 px-2">
                 <div class="w-20 h-20 rounded-full overflow-hidden border-4 border-slate-900 bg-slate-800 flex items-center justify-center">
                     @if($seller->store_logo_thumb ?? $seller->store_logo)
-                        <img src="{{ asset('storage/' . ($seller->store_logo_thumb ?? $seller->store_logo)) }}" alt="Logo" class="w-full h-full object-cover">
+                        <img src="/storage_public/{{ $seller->store_logo_thumb ?? $seller->store_logo }}" alt="Logo" class="w-full h-full object-cover">
                     @else
                         <span class="text-white font-bold text-xl">{{ substr($seller->name, 0, 1) }}</span>
                     @endif
