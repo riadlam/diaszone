@@ -1,5 +1,3 @@
-    // ...existing code...
-<?php
 
 namespace App\Http\Controllers\Seller;
 
