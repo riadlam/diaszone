@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
@@ -144,6 +145,38 @@ class SellerController extends Controller
             ->whereIn('diamond_pack_id', $packs->pluck('id'))
             ->get()
             ->keyBy('diamond_pack_id');
+
+        // If requested via AJAX, return a JSON payload that indicates whether
+        // all packs have flexy_price configured; this is used by the settings
+        // page to prevent enabling Flexy when seller pricing is incomplete.
+        if ($request->wantsJson() || $request->query('ajax')) {
+            // We want to return which game types are missing flexy pricing
+            $missing = [];
+            // iterate all game types available to seller (we'll compute missing via a single query)
+            $types = $gameTypes;
+                // Build a list of types that contain at least one pack missing a flexy_price
+                $rows = \DB::table('diamond_packs')
+                    ->leftJoin('seller_game_prices', function ($join) use ($seller) {
+                        $join->on('seller_game_prices.diamond_pack_id', '=', 'diamond_packs.id')
+                            ->where('seller_game_prices.seller_id', $seller->id);
+                    })
+                    ->select('diamond_packs.game_type', \DB::raw('count(diamond_packs.id) as total'), \DB::raw('sum(case when seller_game_prices.flexy_price is not null then 1 else 0 end) as provided'))
+                    ->where('diamond_packs.is_active', true)
+                    ->when(!empty($seller->allowed_games), function ($q) use ($seller) {
+                        $q->whereIn('diamond_packs.game_type', $seller->allowed_games);
+                    })
+                    ->groupBy('diamond_packs.game_type')
+                    ->havingRaw('provided < total')
+                    ->get();
+
+                $missing = $rows->pluck('game_type')->unique()->values()->toArray();
+
+            // Our $missing was computed via a single query — it's already an array of types
+            // Nothing else to do here.
+            
+
+            return response()->json(['missing_flexy' => $missing]);
+        }
 
         return view('seller.packs', compact('seller', 'gameTypes', 'gameType', 'packs', 'sellerPrices'));
     }
@@ -983,51 +1016,50 @@ class SellerController extends Controller
             }
         }
 
-
-        // Validation: if seller enables Flexy ensure both number, instructions, and flexy prices for all games
+        // Validation: if seller enables Flexy ensure both number and instructions exist
         if ($seller->flexy_enabled) {
             $hasNumber = !empty(trim((string) ($seller->flexy_number ?? '')));
             $hasInstruction = !empty(trim((string) ($seller->flexy_instruction ?? '')));
 
-            $errors = [];
-            if (! $hasNumber) {
-                $errors['flexy_number'] = 'Please provide your Flexy number before enabling.';
-            }
-            if (! $hasInstruction) {
-                $errors['flexy_instruction'] = 'Please provide Flexy instructions before enabling.';
-            }
+            if (! $hasNumber || ! $hasInstruction) {
+                $seller->flexy_enabled = false;
 
-            // Check for flexy price for all allowed/available games
-            $allowedGames = $seller->allowed_games;
-            if (empty($allowedGames)) {
-                // If none selected, all games are allowed
-                $allowedGames = \App\Models\DiamondPack::where('is_active', true)
-                    ->select('game_type')
-                    ->distinct()
-                    ->pluck('game_type')
-                    ->toArray();
+                $errors = [];
+                if (! $hasNumber) {
+                    $errors['flexy_number'] = 'Please provide your Flexy number before enabling.';
+                }
+                if (! $hasInstruction) {
+                    $errors['flexy_instruction'] = 'Please provide Flexy instructions before enabling.';
+                }
+
+                return back()->withErrors($errors)->withInput();
             }
-            $missingFlexy = [];
-            foreach ($allowedGames as $gameType) {
-                $packs = \App\Models\DiamondPack::where('game_type', $gameType)
-                    ->where('is_active', true)
-                    ->pluck('id');
-                $hasFlexy = \App\Models\SellerGamePrice::where('seller_id', $seller->id)
-                    ->whereIn('diamond_pack_id', $packs)
-                    ->whereNotNull('flexy_price')
-                    ->where('flexy_price', '>', 0)
-                    ->count();
-                if ($packs->count() > 0 && $hasFlexy < $packs->count()) {
-                    $missingFlexy[] = $gameType;
+        }
+
+        // Additional validation: ensure seller has a flexy_price configured for every
+        // active diamond pack they are offering (based on allowed_games). If not,
+        // block enabling flexy and return a helpful message listing affected games.
+        if ($seller->flexy_enabled) {
+            // Determine game types to check — if seller has allowed_games set, only those
+            $gameTypesToCheck = !empty($seller->allowed_games) ? $seller->allowed_games : DiamondPack::where('is_active', true)->distinct()->pluck('game_type')->toArray();
+            $missing = [];
+            foreach ($gameTypesToCheck as $gType) {
+                $packs = DiamondPack::where('game_type', $gType)->where('is_active', true)->get();
+                foreach ($packs as $pack) {
+                    $price = $seller->gamePrices()->where('diamond_pack_id', $pack->id)->first();
+                    // missing or flexy price null means incomplete
+                    if (! $price || is_null($price->flexy_price)) {
+                        $missing[] = $gType;
+                        break; // only need to know this game type is missing some flexy prices
+                    }
                 }
             }
-            if (!empty($missingFlexy)) {
-                $errors['flexy_enabled'] = 'To enable Flexy, you must set a Flexy price for every pack in: ' . implode(', ', array_map('ucfirst', $missingFlexy)) . '.';
-            }
 
-            if (!empty($errors)) {
+            if (!empty($missing)) {
                 $seller->flexy_enabled = false;
-                return back()->withErrors($errors)->withInput();
+                $missingUnique = array_unique($missing);
+                $labels = array_map(function ($v) { return ucfirst($v); }, $missingUnique);
+                return back()->withErrors(['flexy_enabled' => 'To enable Flexy, please configure a Flexy price for every pack in: ' . implode(', ', $labels)])->withInput();
             }
         }
 

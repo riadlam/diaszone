@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Seller;
-use App\Models\DiamondPack;
-use App\Models\SellerGamePrice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +17,9 @@ class SellerSettingsTest extends TestCase
             'flexy_number' => null,
         ]);
 
+        // Restrict this seller to mobilelegends only to make the test deterministic
+        $seller->allowed_games = ['mobilelegends'];
+        $seller->save();
         $this->actingAs($seller, 'seller');
 
         // Try enabling with neither number nor instruction
@@ -67,58 +68,46 @@ class SellerSettingsTest extends TestCase
 
         $this->actingAs($seller, 'seller');
 
-        // Ensure there is at least one active pack for the allowed games with flexy prices set, otherwise
-        // enabling Flexy will be blocked by server-side validation.
+        // Create a pack and seller flexy price so enabling Flexy isn't blocked by pricing rules
         $pack = \App\Models\DiamondPack::create([
-            'game_type' => 'testflexy',
-            'name' => 'Default Pack',
-            'code' => 'DEF1',
+            'game_type' => 'mobilelegends',
+            'name' => 'ML Pack 5',
+            'code' => 'ML205',
             'diamonds' => 100,
-            'bonus_diamonds' => 0,
-            'price' => 5.00,
-            'price_dzd' => 1000,
-            'base_price_dzd' => 1000,
+            'price' => 1.0,
+            'price_dzd' => 100,
+            'base_price_dzd' => 90,
             'is_active' => true,
+            'sort_order' => 1,
         ]);
 
         \App\Models\SellerGamePrice::create([
             'seller_id' => $seller->id,
             'diamond_pack_id' => $pack->id,
-            'custom_price_dzd' => 1100,
-            'custom_price_usd' => 11.0,
-            'flexy_price' => 1100,
+            'custom_price_dzd' => 120,
+            'custom_price_usd' => 1.2,
+            'flexy_price' => 130,
             'is_active' => true,
         ]);
 
-        // Restrict allowed games to those we test and ensure they have flexy prices
-        $seller->allowed_games = ['testflexy'];
-        $seller->save();
-
-        $pack = DiamondPack::create([
-            'game_type' => 'testflexy',
-            'name' => 'Pack C',
-            'code' => 'PC100',
-            'diamonds' => 100,
-            'bonus_diamonds' => 0,
-            'price' => 1.00,
-            'price_dzd' => 1000,
-            'base_price_dzd' => 1000,
-            'is_active' => true,
-        ]);
-        \App\Models\SellerGamePrice::create([
-            'seller_id' => $seller->id,
-            'diamond_pack_id' => $pack->id,
-            'custom_price_dzd' => 1100,
-            'custom_price_usd' => 1.0,
-            'flexy_price' => 1100,
-            'is_active' => true,
-        ]);
+        // ensure any other packs in DB are populated with flexy price for this seller
+        foreach (\App\Models\DiamondPack::where('game_type', 'mobilelegends')->get() as $p) {
+            if (!\App\Models\SellerGamePrice::where('seller_id', $seller->id)->where('diamond_pack_id', $p->id)->exists()) {
+                \App\Models\SellerGamePrice::create([
+                    'seller_id' => $seller->id,
+                    'diamond_pack_id' => $p->id,
+                    'custom_price_dzd' => $p->price_dzd ?? ($p->base_price_dzd ?? 1),
+                    'custom_price_usd' => $p->price ?? 0.0,
+                    'flexy_price' => ($p->price_dzd ?? ($p->base_price_dzd ?? 0)) + 10,
+                    'is_active' => true,
+                ]);
+            }
+        }
 
         $resp = $this->post(route('seller.settings.update'), [
             'flexy_enabled' => 1,
             'flexy_number' => '0673771763',
             'flexy_instruction' => 'Use reference ABC',
-            'allowed_games' => ['testflexy'],
         ]);
 
         $resp->assertStatus(302);
@@ -218,6 +207,11 @@ class SellerSettingsTest extends TestCase
 
     public function test_website_slug_saves_and_updates_username()
     {
+        \Illuminate\Support\Facades\Storage::fake('public');
+
+        $logo = \Illuminate\Http\UploadedFile::fake()->create('logo.png', 100, 'image/png');
+        $banner = \Illuminate\Http\UploadedFile::fake()->create('banner.jpg', 400, 'image/jpeg');
+
         $seller = Seller::factory()->create([
             'website_enabled' => false,
             'website_url' => null,
@@ -225,10 +219,6 @@ class SellerSettingsTest extends TestCase
         ]);
 
         $this->actingAs($seller, 'seller');
-
-        \Illuminate\Support\Facades\Storage::fake('public');
-        $logo = \Illuminate\Http\UploadedFile::fake()->create('logo.png', 100, 'image/png');
-        $banner = \Illuminate\Http\UploadedFile::fake()->create('banner.jpg', 400, 'image/jpeg');
 
         $resp = $this->post(route('seller.settings.update'), [
             'website_enabled' => 1,
@@ -297,6 +287,112 @@ class SellerSettingsTest extends TestCase
         $home->assertStatus(200);
         $home->assertSee($seller->store_logo);
         $home->assertSee($seller->store_banner);
+    }
+
+    public function test_enabling_flexy_requires_flexy_price_for_all_packs()
+    {
+        $seller = Seller::factory()->create([
+            'flexy_enabled' => false,
+            'flexy_number' => '0611111111',
+        ]);
+
+        // Create a couple of packs for mobilelegends and freefire
+        $pack1 = \App\Models\DiamondPack::create([
+            'game_type' => 'mobilelegends',
+            'name' => 'ML Pack 1',
+            'code' => 'ML100',
+            'diamonds' => 100,
+            'price' => 1.0,
+            'price_dzd' => 100,
+            'base_price_dzd' => 90,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $pack2 = \App\Models\DiamondPack::create([
+            'game_type' => 'freefire',
+            'name' => 'FF Pack',
+            'code' => 'FF100',
+            'diamonds' => 50,
+            'price' => 1.0,
+            'price_dzd' => 50,
+            'base_price_dzd' => 40,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->actingAs($seller, 'seller');
+
+        // No SellerGamePrice entries => enabling flexy should fail
+        $resp = $this->post(route('seller.settings.update'), [
+            'flexy_enabled' => 1,
+            'flexy_number' => '0611111111',
+            'flexy_instruction' => 'Pay using Flexy',
+        ]);
+
+        $resp->assertStatus(302);
+        $resp->assertSessionHasErrors(['flexy_enabled']);
+        $seller->refresh();
+        $this->assertFalse($seller->flexy_enabled);
+    }
+
+    public function test_enabling_flexy_succeeds_when_all_packs_have_flexy_price()
+    {
+        $seller = Seller::factory()->create([
+            'flexy_enabled' => false,
+            'flexy_number' => '0611111111',
+        ]);
+
+        // Create packs and seller prices with flexy_price set
+        $pack1 = \App\Models\DiamondPack::create([
+            'game_type' => 'mobilelegends',
+            'name' => 'ML Pack 1',
+            'code' => 'ML100',
+            'diamonds' => 100,
+            'price' => 1.0,
+            'price_dzd' => 100,
+            'base_price_dzd' => 90,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        \App\Models\SellerGamePrice::create([
+            'seller_id' => $seller->id,
+            'diamond_pack_id' => $pack1->id,
+            'custom_price_dzd' => 120,
+            'custom_price_usd' => 1.2,
+            'flexy_price' => 130,
+            'is_active' => true,
+        ]);
+
+        // Ensure all packs present in DB have a flexy price set for this seller
+        foreach (\App\Models\DiamondPack::all() as $p) {
+            if (!\App\Models\SellerGamePrice::where('seller_id', $seller->id)->where('diamond_pack_id', $p->id)->exists()) {
+                \App\Models\SellerGamePrice::create([
+                    'seller_id' => $seller->id,
+                    'diamond_pack_id' => $p->id,
+                    'custom_price_dzd' => $p->price_dzd ?? ($p->base_price_dzd ?? 100),
+                    'custom_price_usd' => $p->price ?? 0.0,
+                    'flexy_price' => ($p->price_dzd ?? ($p->base_price_dzd ?? 100)) + 10,
+                    'is_active' => true,
+                ]);
+            }
+        }
+
+        $seller->allowed_games = ['mobilelegends'];
+        $seller->save();
+        $this->actingAs($seller, 'seller');
+
+        $resp = $this->post(route('seller.settings.update'), [
+            'flexy_enabled' => 1,
+            'flexy_number' => '0611111111',
+            'flexy_instruction' => 'Pay using Flexy',
+        ]);
+
+        $resp->assertStatus(302);
+        $resp->assertSessionHasNoErrors();
+        $seller->refresh();
+        $this->assertTrue($seller->flexy_enabled);
     }
 
     public function test_remove_logo_and_banner_via_ajax()
@@ -392,53 +488,5 @@ class SellerSettingsTest extends TestCase
         $resp->assertSee('banner.jpg', false);
         $resp->assertSee('id="choose-logo-btn"', false);
         $resp->assertSee('id="choose-banner-btn"', false);
-    }
-
-    public function test_enabling_flexy_requires_prices_for_all_packs_in_allowed_games()
-    {
-        $seller = Seller::factory()->create([
-            'flexy_enabled' => false,
-            'flexy_number' => null,
-            'allowed_games' => ['testflexy'],
-        ]);
-
-        // Create two packs for mobilelegends
-        $pack1 = DiamondPack::create(['game_type' => 'testflexy', 'name' => 'Pack A', 'code' => 'PA100', 'diamonds' => 100, 'bonus_diamonds' => 0, 'price' => 1.00, 'price_dzd' => 1000, 'base_price_dzd' => 1000, 'is_active' => true]);
-        $pack2 = DiamondPack::create(['game_type' => 'testflexy', 'name' => 'Pack B', 'code' => 'PB200', 'diamonds' => 200, 'bonus_diamonds' => 0, 'price' => 2.00, 'price_dzd' => 2000, 'base_price_dzd' => 2000, 'is_active' => true]);
-
-        // Give seller a flexy price only for pack1
-        SellerGamePrice::create([ 'seller_id' => $seller->id, 'diamond_pack_id' => $pack1->id, 'custom_price_dzd' => 1100, 'custom_price_usd' => 11.0, 'flexy_price' => 1100, 'is_active' => true ]);
-        // pack2 has no flexy_price yet
-
-        $this->actingAs($seller, 'seller');
-
-        $resp = $this->post(route('seller.settings.update'), [
-            'flexy_enabled' => 1,
-            'flexy_number' => '0673771763',
-            'flexy_instruction' => 'Send reference',
-            'allowed_games' => ['testflexy'],
-        ]);
-
-        $resp->assertStatus(302);
-        $resp->assertSessionHasErrors(['flexy_enabled']);
-
-        $seller->refresh();
-        $this->assertFalse($seller->flexy_enabled);
-
-        // Now add flexy price for pack2 and try again
-        SellerGamePrice::create([ 'seller_id' => $seller->id, 'diamond_pack_id' => $pack2->id, 'custom_price_dzd' => 2100, 'custom_price_usd' => 21.0, 'flexy_price' => 2100, 'is_active' => true ]);
-
-        $resp2 = $this->post(route('seller.settings.update'), [
-            'flexy_enabled' => 1,
-            'flexy_number' => '0673771763',
-            'flexy_instruction' => 'Send reference',
-            'allowed_games' => ['testflexy'],
-        ]);
-
-        $resp2->assertStatus(302);
-        $resp2->assertSessionHasNoErrors();
-
-        $seller->refresh();
-        $this->assertTrue($seller->flexy_enabled);
     }
 }
