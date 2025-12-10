@@ -178,16 +178,72 @@
         }
     });
     // Show/hide flexy details when flexy_enabled toggled
-    document.getElementById('flexy-enabled-toggle')?.addEventListener('change', function () {
+    document.getElementById('flexy-enabled-toggle')?.addEventListener('change', async function (e) {
         const flexyDetails = document.getElementById('flexy-details');
         if (!flexyDetails) return;
-        if (this.checked) flexyDetails.classList.remove('hidden'); else flexyDetails.classList.add('hidden');
+
+        // When enabling, perform some client-side checks: flexy number/instruction and per-pack flexy prices
+        if (this.checked) {
+            // temporarily show the details for quick validation
+            flexyDetails.classList.remove('hidden');
+
+            const flexyNumber = document.getElementById('flexy-number-input');
+            const flexyInstructionEl = document.querySelector('textarea[name="flexy_instruction"]');
+            const errorEl = document.getElementById('flexy-number-error');
+
+            // Validate required flexy fields client-side to provide immediate feedback
+            if (!flexyNumber || flexyNumber.value.trim() === '' || !flexyInstructionEl || flexyInstructionEl.value.trim() === '') {
+                e.preventDefault();
+                showToast('Please add a Flexy number and instructions before enabling Flexy.', 'error');
+                // revert the toggle to off
+                this.checked = false;
+                flexyDetails.classList.add('hidden');
+                return;
+            }
+
+            // Next, call backend AJAX check to ensure all packs configured with flexy_price
+            try {
+                // Use the packs route to fetch which game types are missing flexy
+                const url = new URL("{{ route('seller.packs') }}", window.location.origin);
+                url.searchParams.set('ajax', '1');
+                const spinner = document.createElement('span');
+                spinner.className = 'flexy-check-spinner';
+                spinner.textContent = 'Checking prices...';
+                document.body.appendChild(spinner);
+
+                const resp = await fetch(url.toString(), { credentials: 'same-origin' });
+                spinner.remove();
+                if (!resp.ok) {
+                    showToast('Unable to validate Flexy prices. Please try again later.', 'error');
+                    this.checked = false;
+                    flexyDetails.classList.add('hidden');
+                    return;
+                }
+                const json = await resp.json();
+                const missing = json.missing_flexy || [];
+                if (missing.length > 0) {
+                    showToast('Please configure a Flexy price for every pack in: ' + missing.map(x => x.charAt(0).toUpperCase() + x.slice(1)).join(', ') + '. Visit Packs to update prices.', 'error');
+                    this.checked = false;
+                    flexyDetails.classList.add('hidden');
+                    return;
+                }
+            } catch (err) {
+                console.warn('Flexy check failed', err);
+                showToast('Unable to validate Flexy prices. Please try again later.', 'error');
+                this.checked = false;
+                flexyDetails.classList.add('hidden');
+                return;
+            }
+        } else {
+            // user disabled Flexy; hide details
+            flexyDetails.classList.add('hidden');
+        }
     });
 
     // Prevent form submission if flexy is enabled but flexy_number is empty
     const settingsForm = document.querySelector('form[action="{{ route('seller.settings.update') }}"]');
     if (settingsForm) {
-        settingsForm.addEventListener('submit', function (e) {
+        settingsForm.addEventListener('submit', async function (e) {
             // Website slug required if website is enabled
             const websiteToggle = document.getElementById('website-enabled-toggle');
             const slugInputEl = document.getElementById('store-slug-input');
@@ -217,8 +273,30 @@
                         setTimeout(() => errorEl.classList.remove('animate-pulse'), 800);
                     }
                     flexyNumber?.focus();
-                    return false;
+                        return false;
                 }
+                    // Check if all packs have flexy price (ajax) before submitting
+                    try {
+                        const url = new URL("{{ route('seller.packs') }}", window.location.origin);
+                        url.searchParams.set('ajax', '1');
+                        const resp = await fetch(url.toString(), { credentials: 'same-origin' });
+                        if (resp.ok) {
+                            const json = await resp.json();
+                            if (json.missing_flexy && json.missing_flexy.length > 0) {
+                                e.preventDefault();
+                                showToast('To enable Flexy, add Flexy prices for packs in: ' + json.missing_flexy.map(x => x.charAt(0).toUpperCase() + x.slice(1)).join(', ') + '. Visit Packs to update prices.', 'error');
+                                return false;
+                            }
+                        } else {
+                            e.preventDefault();
+                            showToast('Unable to validate Flexy pricing. Please try again.', 'error');
+                            return false;
+                        }
+                    } catch (err) {
+                        e.preventDefault();
+                        showToast('Unable to validate Flexy pricing; request failed.', 'error');
+                        return false;
+                    }
             }
             // hide errors if present and valid
             if (errorEl) errorEl.classList.add('hidden');

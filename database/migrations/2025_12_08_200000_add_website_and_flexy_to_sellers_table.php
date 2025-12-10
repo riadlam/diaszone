@@ -9,9 +9,9 @@ return new class extends Migration
     public function up()
     {
         Schema::table('sellers', function (Blueprint $table) {
-            $table->boolean('website_enabled')->default(true)->after('store_description');
+            $table->boolean('website_enabled')->default(false)->after('store_description');
             $table->string('website_url')->nullable()->after('website_enabled');
-            $table->boolean('flexy_enabled')->default(true)->after('website_url');
+            $table->boolean('flexy_enabled')->default(false)->after('website_url');
         });
     }
 
