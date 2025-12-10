@@ -167,10 +167,47 @@
         }
     });
     // Show/hide flexy details when flexy_enabled toggled
-    document.getElementById('flexy-enabled-toggle')?.addEventListener('change', function () {
+
+    // Toast utility (copied from orders view)
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    document.getElementById('flexy-enabled-toggle')?.addEventListener('change', async function () {
         const flexyDetails = document.getElementById('flexy-details');
         if (!flexyDetails) return;
-        if (this.checked) flexyDetails.classList.remove('hidden'); else flexyDetails.classList.add('hidden');
+        if (this.checked) {
+            // Client-side check: require flexy price for all allowed/available games
+            try {
+                const res = await fetch("{{ route('seller.packs') }}?ajax=1", {
+                    headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']')?.content || '' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.missing_flexy && data.missing_flexy.length) {
+                        showToast('To enable Flexy, set a Flexy price for every pack in: ' + data.missing_flexy.map(g => g.charAt(0).toUpperCase() + g.slice(1)).join(', '), 'error');
+                        this.checked = false;
+                        flexyDetails.classList.add('hidden');
+                        return;
+                    }
+                }
+            } catch (e) {
+                showToast('Could not verify Flexy prices. Please check your connection.', 'error');
+                this.checked = false;
+                flexyDetails.classList.add('hidden');
+                return;
+            }
+            flexyDetails.classList.remove('hidden');
+        } else {
+            flexyDetails.classList.add('hidden');
+        }
     });
 
     // Prevent form submission if flexy is enabled but flexy_number is empty

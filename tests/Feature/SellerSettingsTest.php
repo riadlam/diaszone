@@ -10,7 +10,7 @@ class SellerSettingsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_enabling_flexy_requires_number()
+    public function test_enabling_flexy_requires_number_and_instruction()
     {
         $seller = Seller::factory()->create([
             'flexy_enabled' => false,
@@ -19,21 +19,44 @@ class SellerSettingsTest extends TestCase
 
         $this->actingAs($seller, 'seller');
 
+        // Try enabling with neither number nor instruction
         $resp = $this->post(route('seller.settings.update'), [
             'flexy_enabled' => 1,
             'flexy_number' => '',
+            'flexy_instruction' => '',
         ]);
 
-        // Should redirect back with validation errors
         $resp->assertStatus(302);
-        $resp->assertSessionHasErrors(['flexy_number']);
+        $resp->assertSessionHasErrors(['flexy_number', 'flexy_instruction']);
 
         $seller->refresh();
-        $this->assertFalse($seller->flexy_enabled, 'flexy_enabled should remain false when validation fails');
-        $this->assertNull($seller->flexy_number, 'flexy_number should not be set when validation fails');
+        $this->assertFalse($seller->flexy_enabled);
+        $this->assertNull($seller->flexy_number);
+
+        // Try enabling with number but no instruction
+        $resp2 = $this->post(route('seller.settings.update'), [
+            'flexy_enabled' => 1,
+            'flexy_number' => '0666000000',
+            'flexy_instruction' => '',
+        ]);
+        $resp2->assertStatus(302);
+        $resp2->assertSessionHasErrors(['flexy_instruction']);
+        $seller->refresh();
+        $this->assertFalse($seller->flexy_enabled);
+
+        // Try enabling with instruction but no number
+        $resp3 = $this->post(route('seller.settings.update'), [
+            'flexy_enabled' => 1,
+            'flexy_number' => '',
+            'flexy_instruction' => 'Send payment',
+        ]);
+        $resp3->assertStatus(302);
+        $resp3->assertSessionHasErrors(['flexy_number']);
+        $seller->refresh();
+        $this->assertFalse($seller->flexy_enabled);
     }
 
-    public function test_enabling_flexy_with_number_saves()
+    public function test_enabling_flexy_with_number_and_instruction_saves()
     {
         $seller = Seller::factory()->create([
             'flexy_enabled' => false,
@@ -55,6 +78,68 @@ class SellerSettingsTest extends TestCase
         $this->assertTrue($seller->flexy_enabled);
         $this->assertEquals('0673771763', $seller->flexy_number);
         $this->assertEquals('Use reference ABC', $seller->flexy_instruction);
+    }
+
+    public function test_enabling_website_requires_logo_and_banner()
+    {
+        $seller = Seller::factory()->create([
+            'website_enabled' => false,
+            'website_url' => null,
+            'store_logo' => null,
+            'store_logo_thumb' => null,
+            'store_banner' => null,
+            'store_banner_resized' => null,
+        ]);
+
+        $this->actingAs($seller, 'seller');
+
+        // Try enabling with nothing
+        $resp = $this->post(route('seller.settings.update'), [
+            'website_enabled' => 1,
+            'website_url' => 'mywebslug',
+        ]);
+        $resp->assertStatus(302);
+        $resp->assertSessionHasErrors(['store_logo', 'store_banner']);
+        $seller->refresh();
+        $this->assertFalse($seller->website_enabled);
+
+        // Add only logo
+        $logo = \Illuminate\Http\UploadedFile::fake()->create('logo.png', 100, 'image/png');
+        $resp2 = $this->post(route('seller.settings.update'), [
+            'website_enabled' => 1,
+            'website_url' => 'mywebslug',
+            'store_logo' => $logo,
+        ]);
+        $resp2->assertStatus(302);
+        $resp2->assertSessionHasErrors(['store_banner']);
+        $seller->refresh();
+        $this->assertFalse($seller->website_enabled);
+
+        // Add only banner
+        $banner = \Illuminate\Http\UploadedFile::fake()->create('banner.jpg', 400, 'image/jpeg');
+        $resp3 = $this->post(route('seller.settings.update'), [
+            'website_enabled' => 1,
+            'website_url' => 'mywebslug',
+            'store_banner' => $banner,
+        ]);
+        $resp3->assertStatus(302);
+        $resp3->assertSessionHasErrors(['store_logo']);
+        $seller->refresh();
+        $this->assertFalse($seller->website_enabled);
+
+        // Add both logo and banner
+        $logo2 = \Illuminate\Http\UploadedFile::fake()->create('logo2.png', 100, 'image/png');
+        $banner2 = \Illuminate\Http\UploadedFile::fake()->create('banner2.jpg', 400, 'image/jpeg');
+        $resp4 = $this->post(route('seller.settings.update'), [
+            'website_enabled' => 1,
+            'website_url' => 'mywebslug',
+            'store_logo' => $logo2,
+            'store_banner' => $banner2,
+        ]);
+        $resp4->assertStatus(302);
+        $resp4->assertSessionHasNoErrors();
+        $seller->refresh();
+        $this->assertTrue($seller->website_enabled);
     }
 
     public function test_website_enabled_requires_slug()

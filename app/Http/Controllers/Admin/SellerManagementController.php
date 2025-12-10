@@ -100,6 +100,9 @@ class SellerManagementController extends Controller
             'status' => $validated['status'],
             'wallet_balance' => $validated['wallet_balance'] ?? 0,
             'allowed_games' => $validated['allowed_games'] ?? null,
+            // keep website and flexy disabled by default when admin creates a seller
+            'website_enabled' => false,
+            'flexy_enabled' => false,
         ]);
 
         // If initial balance, create transaction
@@ -201,7 +204,17 @@ class SellerManagementController extends Controller
             'status' => 'required|in:active,pending,suspended',
         ]);
 
-        $seller->update(['status' => $validated['status']]);
+        // When activating/accepting a new seller, ensure public website/flexy remain disabled
+        // until the seller fills required fields and explicitly enables them.
+        if ($validated['status'] === 'active') {
+            $seller->update([
+                'status' => $validated['status'],
+                'website_enabled' => false,
+                'flexy_enabled' => false,
+            ]);
+        } else {
+            $seller->update(['status' => $validated['status']]);
+        }
 
         return back()->with('success', "Seller status updated to {$validated['status']}!");
     }
