@@ -15,6 +15,36 @@ use Illuminate\Support\Facades\Session;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
+// Temporary debug route to help diagnose SellerController resolution errors.
+// Remove when debugging is complete.
+Route::get('/debug/seller-controller', function () {
+    try {
+        $env = app()->environment();
+        $sellerExists = class_exists(\App\Http\Controllers\Seller\SellerController::class);
+        $bound = app()->bound(\App\Http\Controllers\Seller\SellerController::class);
+        $instantiable = null;
+        $err = null;
+        try {
+            $inst = app(\App\Http\Controllers\Seller\SellerController::class);
+            $instantiable = get_class($inst);
+        } catch (\Throwable $e) {
+            $err = $e->getMessage();
+            $instantiable = null;
+        }
+        return response()->json([
+            'environment' => $env,
+            'class_exists' => $sellerExists,
+            'bound_in_container' => $bound,
+            'instantiable' => $instantiable,
+            'error' => $err,
+            'php_version' => phpversion(),
+            'cache_driver' => config('cache.default') ?? null,
+        ], 200);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // Test translation debug route
 Route::get('/test/translation', function() {
     $loader = app('translation.loader');
