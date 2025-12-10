@@ -69,9 +69,7 @@
             </div>
         </div>
         
-        <div class="mt-6 text-center">
-            <a href="{{ route('home') }}" class="text-gray-400 hover:text-white text-sm">← Back to Main Website</a>
-        </div>
+        {{-- Back to main website link removed as requested --}}
     </div>
 </body>
 </html>

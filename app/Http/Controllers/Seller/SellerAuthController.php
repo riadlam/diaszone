@@ -97,8 +97,10 @@ class SellerAuthController extends Controller
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:50|unique:sellers|alpha_dash',
             'email' => 'required|string|email|max:255|unique:sellers',
-            'phone' => 'nullable|string|max:20',
-            'store_name' => 'nullable|string|max:255',
+            'phone' => 'required|string|max:20',
+            'store_name' => 'required|string|max:255',
+            'main_platform' => 'required|string|in:facebook,instagram,tiktok',
+            'platform_url' => 'required|url|max:2048',
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
@@ -107,11 +109,13 @@ class SellerAuthController extends Controller
         $safeStore = isset($validated['store_name']) ? strip_tags(substr($validated['store_name'], 0, 255)) : null;
 
         $seller = Seller::create([
-            'name' => $validated['name'],
+            'name' => $safeName,
             'username' => strtolower($validated['username']),
             'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
+            'phone' => $validated['phone'],
             'store_name' => $safeStore ?? ($safeName . "'s Store"),
+            'main_platform' => $validated['main_platform'],
+            'platform_url' => $validated['platform_url'],
             'password' => Hash::make($validated['password']),
             'status' => 'pending', // Needs admin approval
             'wallet_balance' => 0,

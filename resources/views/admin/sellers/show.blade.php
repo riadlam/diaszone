@@ -47,6 +47,14 @@
                     <p class="text-gray-900">{{ $seller->store_name ?? $seller->name }}</p>
                 </div>
                 <div>
+                    <p class="text-gray-500 text-sm">Primary Platform</p>
+                    <p class="text-gray-900">{{ ucfirst($seller->main_platform ?? 'N/A') }}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500 text-sm">Platform URL</p>
+                    <p class="text-gray-900">@if(!empty($seller->platform_url))<a href="{{ $seller->platform_url }}" target="_blank" class="text-blue-600 underline">{{ $seller->platform_url }}</a>@else N/A @endif</p>
+                </div>
+                <div>
                     <p class="text-gray-500 text-sm">Registered</p>
                     <p class="text-gray-900">{{ $seller->created_at->format('M d, Y') }}</p>
                 </div>

@@ -57,15 +57,33 @@
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Phone (optional)</label>
-                    <input type="text" name="phone" value="{{ old('phone') }}"
+                    <label class="block text-gray-300 text-sm mb-2">Phone</label>
+                    <input type="text" name="phone" value="{{ old('phone') }}" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Store Name (optional)</label>
-                    <input type="text" name="store_name" value="{{ old('store_name') }}"
+                    <label class="block text-gray-300 text-sm mb-2">Store Name</label>
+                    <input type="text" name="store_name" value="{{ old('store_name') }}" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
+                </div>
+
+                <div>
+                    <label class="block text-gray-300 text-sm mb-2">Where do most of your customers come from?</label>
+                    <select id="main-platform-select" name="main_platform" required class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
+                        <option value="">Select platform</option>
+                        <option value="facebook" {{ old('main_platform')=='facebook' ? 'selected' : '' }}>Facebook</option>
+                        <option value="instagram" {{ old('main_platform')=='instagram' ? 'selected' : '' }}>Instagram</option>
+                        <option value="tiktok" {{ old('main_platform')=='tiktok' ? 'selected' : '' }}>TikTok</option>
+                    </select>
+                    <p class="text-gray-500 text-xs mt-1">Choose the platform where most of your customers come from.</p>
+                </div>
+
+                <div id="platform-url-row" class="hidden">
+                    <label class="block text-gray-300 text-sm mb-2">Platform Page URL</label>
+                    <input id="platform-url-input" type="url" name="platform_url" value="{{ old('platform_url') }}" placeholder="https://facebook.com/yourpage"
+                        class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
+                    <p class="text-gray-500 text-xs mt-1">Enter a public URL to your page/profile on the chosen platform.</p>
                 </div>
                 
                 <div>
@@ -97,9 +115,26 @@
             </div>
         </div>
         
-        <div class="mt-6 text-center">
-            <a href="{{ route('home') }}" class="text-gray-400 hover:text-white text-sm">← Back to Main Website</a>
-        </div>
+            {{-- Back to main website link removed as per request --}}
     </div>
+    <script>
+        const platformSelect = document.getElementById('main-platform-select');
+        const platformRow = document.getElementById('platform-url-row');
+        const platformInput = document.getElementById('platform-url-input');
+
+        function updatePlatformVisibility() {
+            if (!platformSelect) return;
+            const v = platformSelect.value;
+            if (v) {
+                platformRow.classList.remove('hidden');
+                platformInput.setAttribute('required', 'required');
+            } else {
+                platformRow.classList.add('hidden');
+                platformInput.removeAttribute('required');
+            }
+        }
+        platformSelect?.addEventListener('change', updatePlatformVisibility);
+        updatePlatformVisibility();
+    </script>
 </body>
 </html>

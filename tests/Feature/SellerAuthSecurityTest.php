@@ -57,4 +57,50 @@ class SellerAuthSecurityTest extends TestCase
             $resp2->assertSessionHasErrors('email');
         }
     }
+
+    public function test_registration_requires_phone_store_and_platform()
+    {
+        // missing phone/store_name/main_platform/platform_url
+        $resp = $this->post(route('seller.register.submit'), [
+            'name' => 'Test',
+            'username' => 'testuser',
+            'email' => 'test@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123'
+        ]);
+
+        $resp->assertStatus(302);
+        $resp->assertSessionHasErrors(['phone', 'store_name', 'main_platform', 'platform_url']);
+    }
+
+    public function test_successful_registration_saves_platform_and_admin_preview()
+    {
+        $resp = $this->post(route('seller.register.submit'), [
+            'name' => 'New Seller',
+            'username' => 'new-seller-1',
+            'email' => 'new@example.com',
+            'phone' => '0612345678',
+            'store_name' => 'New Store',
+            'main_platform' => 'instagram',
+            'platform_url' => 'https://instagram.com/newstore',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!'
+        ]);
+
+        $resp->assertStatus(302);
+        $this->assertDatabaseHas('sellers', [
+            'email' => 'new@example.com',
+            'main_platform' => 'instagram',
+            'platform_url' => 'https://instagram.com/newstore'
+        ]);
+
+        $seller = \App\Models\Seller::where('email', 'new@example.com')->first();
+        $admin = \App\Models\User::factory()->create(['is_admin' => true, 'status' => 'active']);
+        $this->actingAs($admin);
+
+        $page = $this->get(route('admin.sellers.show', ['seller' => $seller->id]));
+        $page->assertStatus(200);
+        $page->assertSee('Instagram');
+        $page->assertSee('https://instagram.com/newstore', false);
+    }
 }

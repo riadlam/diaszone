@@ -36,7 +36,9 @@ class Seller extends Authenticatable
         'flexy_instruction',
         'status',
         'allowed_games',
-    ];
+          'main_platform',
+          'platform_url',
+     ];
 
     protected $hidden = [
         'password',
