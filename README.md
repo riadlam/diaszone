@@ -57,3 +57,47 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Digiflazz configuration
+
+If you wish to use Digiflazz as the top-up provider, set the following environment variables in your `.env` file:
+
+- `DIGIFLAZZ_USERNAME` - your Digiflazz username
+- `DIGIFLAZZ_SIGN` - your Digiflazz API sign/key
+- `DIGIFLAZZ_BASE_URL` - optional, defaults to `https://api.digiflazz.com/v1`
+
+When `DIGIFLAZZ_USERNAME` and `DIGIFLAZZ_SIGN` are present, the app will route top-up requests to Digiflazz automatically.
+
+### Webhook configuration
+
+To receive Digiflazz status updates, configure a webhook URL in your Digiflazz dashboard to point to:
+
+	POST https://your-domain.example/webhook/digiflazz
+
+Set a webhook secret in your `.env` file to validate payloads:
+
+- `DIGIFLAZZ_WEBHOOK_SECRET` - secret used to validate `X-Hub-Signature` header (HMAC-SHA1). This application enforces the presence of this secret in non-local environments and will reject webhook requests without a valid signature.
+
+The webhook will contain a JSON payload with a top-level `data` object (see Digiflazz docs). The application will save events to a new `digiflazz_statuses` table and try to associate them with the corresponding `orders` record automatically.
+
+Database migration:
+
+Run the migration to create the `digiflazz_statuses` table:
+
+```bash
+php artisan migrate
+```
+
+Status updates — webhook-only (no WebSocket or client polling)
+----------------------------------------------------------------
+
+Per project policy, order status changes are driven exclusively by Digiflazz webhook callbacks. The server persists Digiflazz events to `digiflazz_statuses` and updates the corresponding `orders` record; clients should read the order status from the server when appropriate (e.g., page load or manual refresh).
+
+Notes and operational guidance:
+
+- Do NOT rely on WebSocket broadcasting or client-side polling for status updates — those mechanisms have been removed from the codebase by design.
+- The application will not trigger Digiflazz requests from client-side status checks. All server-initiated Digiflazz calls are made only during the initial top-up submission and are protected by server-side duplicate checks.
+- To test end-to-end, configure `DIGIFLAZZ_WEBHOOK_SECRET` and point Digiflazz webhook to `/webhook/digiflazz`; then simulate payloads to verify `digiflazz_statuses` creation and `orders` status transitions.
+
+If you need real-time push notifications in the future, consider re-introducing a broadcasting driver and client Echo wiring as a separate opt-in feature, but note this repository currently enforces webhook-only status flow.
+

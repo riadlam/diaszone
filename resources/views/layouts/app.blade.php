@@ -37,7 +37,8 @@
     </div>
     
     @include('components.whatsapp-fab')
-    @stack('scripts')
+        @stack('scripts')
+        <!-- No real-time or polling scripts — order status is authoritative on the server and is changed only by webhooks. Clients should refresh to see updates. -->
 </body>
 </html>
 

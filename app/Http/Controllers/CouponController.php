@@ -338,11 +338,15 @@ class CouponController extends Controller
                 'zone_id_ml' => $order->zone_id_ml,
             ]);
             
-            $topUpResult = $this->vipResellerService->placeOrder(
-                $packageCode,
-                $order->user_id_ml,
-                $order->zone_id_ml
-            );
+            if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                $topUpResult = app(\App\Services\DigiflazzService::class)->placeOrder($diamondPack, $order);
+            } else {
+                $topUpResult = $this->vipResellerService->placeOrder(
+                    $packageCode,
+                    $order->user_id_ml,
+                    $order->zone_id_ml
+                );
+            }
             
             Log::info('Free order: VIP Reseller API response', [
                 'result' => $topUpResult['result'],
@@ -400,6 +404,7 @@ class CouponController extends Controller
                 // VIP Reseller is processing - keep status as 'sending'
                 // The VIP Reseller webhook will update to 'completed' later
                 $order->update(['status' => 'sending']);
+                // No realtime broadcasting; webhook updates DB and clients should read DB state when needed
                 
                 DB::commit();
                 

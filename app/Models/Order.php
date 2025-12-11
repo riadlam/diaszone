@@ -162,6 +162,11 @@ class Order extends Model
         return $this->hasMany(VipResellerStatus::class);
     }
 
+    public function digiflazzStatuses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DigiflazzStatus::class);
+    }
+
     /**
      * Generate a unique order number
      */

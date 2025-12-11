@@ -122,6 +122,7 @@
                         <div>
                             <h2 class="text-xl font-bold">@yield('header', __('seller.dashboard'))</h2>
                         </div>
+                        <!-- No real-time or polling scripts — order status is authoritative on the server and is changed only by webhooks. Clients should refresh to see updates. -->
                                 <p class="text-blue-300 text-xs">{{ __('seller.seller_panel') }}</p>
                             </div>
                         </div>

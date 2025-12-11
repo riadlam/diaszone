@@ -517,8 +517,9 @@ class SellerController extends Controller
                 ]);
             }
 
-            // Place order with VIP Reseller (only call VIP when seller has sufficient funds)
-            $result = $this->placeVipResellerOrder($pack, $validated);
+            // Place order with VIP Reseller (or Digiflazz if configured)
+            // Pass the created $order so Digiflazz can use order/player identifiers
+            $result = $this->placeVipResellerOrder($pack, $order);
 
             if ($result['success']) {
                 // Deduct from wallet now that VIP accepted order
@@ -637,44 +638,72 @@ class SellerController extends Controller
     /**
      * Place order with VIP Reseller
      */
-    protected function placeVipResellerOrder(DiamondPack $pack, array $data): array
+    protected function placeVipResellerOrder(DiamondPack $pack, $context): array
     {
         try {
+            // If Digiflazz is configured, forward the top-up to Digiflazz service
+            if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                $digiflazz = app(\App\Services\DigiflazzService::class);
+
+                // Expecting an Order model to be passed as context; if an array is passed, attempt to synthesize minimal order-like object
+                $order = $context;
+                if (is_array($context)) {
+                    // create a temporary object with expected properties
+                    $tmp = new \stdClass();
+                    $tmp->id = $context['order_id'] ?? ($context['order'] ?? null) ?? 0;
+                    $tmp->user_id_ml = $context['user_id_ml'] ?? null;
+                    $tmp->zone_id_ml = $context['zone_id'] ?? $context['zone_id_ml'] ?? null;
+                    $tmp->player_id_ff = $context['player_id'] ?? null;
+                    $tmp->player_id_pubg = $context['player_id'] ?? null;
+                    $tmp->player_id_hok = $context['player_id'] ?? null;
+                    $tmp->user_id_bs = $context['player_id'] ?? null;
+                    $order = $tmp;
+                }
+
+                $response = $digiflazz->placeOrder($pack, $order);
+
+                if (isset($response['result']) && $response['result'] === true) {
+                    return ['success' => true, 'data' => $response];
+                }
+
+                return ['success' => false, 'error' => $response['message'] ?? 'Unknown error from Digiflazz'];
+            }
+
             switch ($pack->game_type) {
                 case 'mobilelegends':
                     $response = $this->vipResellerService->placeOrder(
                         $pack->code,
-                        $data['player_id'],
-                        $data['zone_id'] ?? ''
+                        $context['player_id'] ?? null,
+                        $context['zone_id'] ?? ''
                     );
                     break;
 
                 case 'freefire':
                     $response = $this->vipResellerService->placeFreefireOrder(
                         $pack->code,
-                        $data['player_id']
+                        $context['player_id'] ?? null
                     );
                     break;
 
                 case 'pubgmobile':
                     $response = $this->vipResellerService->placePubgOrder(
                         $pack->code,
-                        $data['player_id']
+                        $context['player_id'] ?? null
                     );
                     break;
 
                 case 'honorofkings':
                     $response = $this->vipResellerService->placeHokOrder(
                         $pack->code,
-                        $data['player_id']
+                        $context['player_id'] ?? null
                     );
                     break;
 
                 case 'bloodstrike':
                     $response = $this->vipResellerService->placeBloodstrikeOrder(
                         $pack->code,
-                        $data['player_id'],
-                        $data['zone_id'] ?? 'Global'
+                        $context['player_id'] ?? null,
+                        $context['zone_id'] ?? 'Global'
                     );
                     break;
 
@@ -739,6 +768,26 @@ class SellerController extends Controller
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Return order status for seller (authenticated via seller guard)
+     */
+    public function getOrderStatusForSeller(Order $order)
+    {
+        $seller = $this->seller();
+        if (!$seller || $order->seller_id !== $seller->id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $digiflazz = $order->digiflazzStatuses()->latest()->first();
+
+        return response()->json([
+            'order_id' => $order->id,
+            'status' => $order->status,
+            'notes' => $order->notes,
+            'digiflazz' => $digiflazz ? $digiflazz->toArray() : null,
+        ], 200);
     }
 
     /**
@@ -1259,7 +1308,8 @@ class SellerController extends Controller
             $walletBefore = (float) $seller->wallet_balance;
 
             // Place order with VIP Reseller first (do not deduct wallet yet)
-            $result = $this->placeVipResellerOrder($pack, $data);
+            // Prefer Digiflazz when configured
+            $result = $this->placeVipResellerOrder($pack, $order);
 
             if (!$result['success']) {
                 // Mark order failed on top-up failure and leave wallet unchanged

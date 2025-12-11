@@ -586,6 +586,9 @@ class AdminController extends Controller
         // Reload order to get fresh data including flexy_id
         $order->refresh();
 
+        // Broadcast status update so clients can react in realtime
+        // No realtime broadcasting; webhook updates DB and clients should check DB when appropriate
+
         // Log critical admin action
         Log::info('Admin updated order status', [
             'admin_id' => Auth::id(),

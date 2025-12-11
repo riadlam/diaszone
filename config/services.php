@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'digiflazz' => [
+        'username' => env('DIGIFLAZZ_USERNAME'),
+        'sign' => env('DIGIFLAZZ_SIGN'),
+        'base_url' => env('DIGIFLAZZ_BASE_URL', 'https://api.digiflazz.com/v1'),
+    ],
+
 ];

@@ -87,6 +87,19 @@ Route::post('/webhook/baridimob', [CheckoutController::class, 'baridimobWebhook'
     ->name('baridimob.webhook');
 Route::post('/webhook/vipreseller', [AdminController::class, 'vipResellerWebhook'])
     ->name('vipreseller.webhook');
+Route::post('/webhook/digiflazz', [\App\Http\Controllers\Webhook\DigiflazzWebhookController::class, 'handle'])
+    ->middleware([\App\Http\Middleware\VerifyDigiflazzSignature::class, 'throttle:60,1'])
+    ->name('digiflazz.webhook');
+
+// Order status API for customers
+Route::get('/api/orders/{order}/status', [\App\Http\Controllers\CheckoutController::class, 'getOrderStatus'])
+    ->middleware('auth')
+    ->name('api.orders.status');
+
+// Order status API for sellers (seller guard)
+Route::get('/seller/api/orders/{order}/status', [\App\Http\Controllers\Seller\SellerController::class, 'getOrderStatusForSeller'])
+    ->middleware('seller')
+    ->name('seller.api.orders.status');
 Route::post('/webhook/telegram', [AdminController::class, 'telegramWebhook'])
     ->name('telegram.webhook');
 Route::get('/crypto/{encrypted_order_id}', [CheckoutController::class, 'cryptoPayment'])->name('crypto-payment');

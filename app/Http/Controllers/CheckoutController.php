@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+    
+    
 use App\Models\DiamondPack;
 use App\Models\Order;
 use App\Models\Flexy;
@@ -76,6 +78,26 @@ class CheckoutController extends Controller
             ->keyBy('id');
         
         return response()->json(['packs' => $packs]);
+    }
+
+    /**
+     * Return order status for authenticated customer
+     */
+    public function getOrderStatus(Order $order)
+    {
+        $user = auth()->user();
+        if (!$user || (! $user->isAdmin() && $order->user_id !== $user->id)) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $digiflazz = $order->digiflazzStatuses()->latest()->first();
+
+        return response()->json([
+            'order_id' => $order->id,
+            'status' => $order->status,
+            'notes' => $order->notes,
+            'digiflazz' => $digiflazz ? $digiflazz->toArray() : null,
+        ], 200);
     }
     
     public function cart()
@@ -1372,11 +1394,15 @@ class CheckoutController extends Controller
                     'seller_cost' => $order->seller_cost,
                 ]);
 
-                $result = $vipReseller->placeOrder(
-                    $packageCode,
-                    $order->user_id_ml,
-                    $order->zone_id_ml
-                );
+                if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($package, $order);
+                } else {
+                    $result = $vipReseller->placeOrder(
+                        $packageCode,
+                        $order->user_id_ml,
+                        $order->zone_id_ml
+                    );
+                }
 
                 Log::info('Chargily: VIP Reseller API response', [
                     'order_id' => $order->id,
@@ -1453,10 +1479,14 @@ class CheckoutController extends Controller
                     'seller_cost' => $order->seller_cost,
                 ]);
 
-                $result = $vipReseller->placeFreefireOrder(
-                    $packageCode,
-                    $order->player_id_ff
-                );
+                if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($package, $order);
+                } else {
+                    $result = $vipReseller->placeFreefireOrder(
+                        $packageCode,
+                        $order->player_id_ff
+                    );
+                }
 
                 Log::info('Chargily: VIP Reseller API response (Free Fire)', [
                     'order_id' => $order->id,
