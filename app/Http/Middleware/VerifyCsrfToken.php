@@ -13,10 +13,12 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        '/webhook/digiflazz',
-        '/webhook/nowpayments',
-        '/webhook/mixpay',
-        '/webhook/baridimob',
-        '/webhook/vipreseller',
+        // No leading slash here — Laravel matches request URIs without a leading slash
+        'webhook/digiflazz',
+        'webhook/*', // allow other webhook endpoints if needed
+        'webhook/nowpayments',
+        'webhook/mixpay',
+        'webhook/baridimob',
+        'webhook/vipreseller',
     ];
 }
