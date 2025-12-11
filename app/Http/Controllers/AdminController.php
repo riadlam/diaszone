@@ -773,22 +773,49 @@ class AdminController extends Controller
             }
 
             // STEP 2: Call VIP Reseller API to recharge (nickname already validated)
-            $result = $vipReseller->placeOrder(
-                $packageCode,
-                $order->user_id_ml,
-                $order->zone_id_ml
-            );
+            if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                $digService = app(\App\Services\DigiflazzService::class);
+                $result = $digService->placeOrder($order->diamondPack, $order);
+                // Normalize result to expected shape used below
+                // DigiflazzService returns ['result'=>bool, 'data'=>..., 'message'=>...]
+                $apiData = $result['data'] ?? [];
+                $apiStatus = $apiData['status'] ?? ($apiData['rc'] ?? ($result['message'] ?? null));
+            } else {
+                $result = $vipReseller->placeOrder(
+                    $packageCode,
+                    $order->user_id_ml,
+                    $order->zone_id_ml
+                );
+                $apiData = $result['data'] ?? [];
+                $apiStatus = $apiData['status'] ?? 'error';
+            }
 
-            // STEP 3: Save response to vipreseller_status table
+            // STEP 3: Normalize response and map status to our enum
             $apiData = $result['data'] ?? [];
-            $apiStatus = $apiData['status'] ?? 'error';
-            
-            // Map API status to our enum (waiting, success, error)
-            $status = match(strtolower($apiStatus)) {
-                'waiting' => 'waiting',
-                'success', 'completed', 'paid' => 'success',
-                default => 'error',
-            };
+            $apiStatus = $apiData['status'] ?? ($apiData['rc'] ?? ($result['message'] ?? null));
+
+            // Determine which service we used
+            $serviceUsed = (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) ? 'digiflazz' : 'vipreseller';
+
+            // Map API status to our enum (waiting, success, error), supporting Digiflazz codes
+            if ($serviceUsed === 'digiflazz') {
+                $rc = isset($apiData['rc']) ? (string)$apiData['rc'] : null;
+                $status = 'error';
+                $lowerStatus = strtolower((string)($apiData['status'] ?? $apiStatus));
+                if ($lowerStatus === 'sukses' || $rc === '00') {
+                    $status = 'success';
+                } elseif ($lowerStatus === 'pending' || in_array($rc, ['03', '99'])) {
+                    $status = 'waiting';
+                } else {
+                    $status = 'error';
+                }
+            } else {
+                $status = match(strtolower((string)$apiStatus)) {
+                    'waiting' => 'waiting',
+                    'success', 'completed', 'paid' => 'success',
+                    default => 'error',
+                };
+            }
             
             // If result is false, set status to error
             if ($result['result'] !== true) {
@@ -804,13 +831,13 @@ class AdminController extends Controller
                 'order_number' => $order->order_number,
             ];
 
-            // Save to vipreseller_status table
+            // Save to vipreseller_status table (record either VIP or Digiflazz for admin view)
             $vipResellerStatus = VipResellerStatus::create([
                 'order_id' => $order->id,
                 'trxid' => $apiData['trxid'] ?? null,
                 'data' => $apiData['data'] ?? $order->user_id_ml,
                 'zone' => $apiData['zone'] ?? $order->zone_id_ml,
-                'service' => $apiData['service'] ?? $packageCode,
+                'service' => $apiData['service'] ?? $packageCode ?? $serviceUsed,
                 'status' => $status,
                 'note' => $apiData['note'] ?? ($result['message'] ?? null),
                 'price' => $apiData['price'] ?? null,
@@ -866,34 +893,36 @@ class AdminController extends Controller
                     }
                 }
             } elseif ($status === 'success') {
-                // Fetch balance from VIP Reseller API when status becomes success
-                try {
-                    $vipReseller = app(VipResellerService::class);
-                    $profileResult = $vipReseller->getProfile();
-                    
-                    if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
-                        $balance = (string) $profileResult['data']['balance'];
-                        $vipResellerStatus->balance = $balance;
-                        $vipResellerStatus->save();
+                // Fetch balance from VIP Reseller API when status becomes success - only for VIP Reseller service
+                if ($serviceUsed === 'vipreseller') {
+                    try {
+                        $vipReseller = app(VipResellerService::class);
+                        $profileResult = $vipReseller->getProfile();
                         
-                        Log::info('Balance fetched and saved for successful order', [
+                        if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                            $balance = (string) $profileResult['data']['balance'];
+                            $vipResellerStatus->balance = $balance;
+                            $vipResellerStatus->save();
+                            
+                            Log::info('Balance fetched and saved for successful order', [
+                                'vipreseller_status_id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'balance' => $balance,
+                            ]);
+                        } else {
+                            Log::warning('Failed to fetch balance from VIP Reseller API', [
+                                'vipreseller_status_id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'message' => $profileResult['message'] ?? 'Unknown error',
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Error fetching balance from VIP Reseller API', [
                             'vipreseller_status_id' => $vipResellerStatus->id,
                             'order_id' => $order->id,
-                            'balance' => $balance,
-                        ]);
-                    } else {
-                        Log::warning('Failed to fetch balance from VIP Reseller API', [
-                            'vipreseller_status_id' => $vipResellerStatus->id,
-                            'order_id' => $order->id,
-                            'message' => $profileResult['message'] ?? 'Unknown error',
+                            'error' => $e->getMessage(),
                         ]);
                     }
-                } catch (\Exception $e) {
-                    Log::error('Error fetching balance from VIP Reseller API', [
-                        'vipreseller_status_id' => $vipResellerStatus->id,
-                        'order_id' => $order->id,
-                        'error' => $e->getMessage(),
-                    ]);
                 }
                 
                 // VIP Reseller success - set order to completed
