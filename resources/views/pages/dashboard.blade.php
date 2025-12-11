@@ -22,28 +22,28 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                             </svg>
-                            <span class="font-medium">My Orders</span>
+                            <span class="font-medium">{{ __('seller.my_orders') }}</span>
                         </a>
                         <a href="{{ route('dashboard.invoices') }}" 
                            class="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all {{ $activeSection === 'invoices' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-700 hover:bg-purple-50 hover:text-purple-600' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
-                            <span class="font-medium">Invoices</span>
+                            <span class="font-medium">{{ __('seller.invoices') }}</span>
                         </a>
                         <a href="{{ route('dashboard.notifications') }}" 
                            class="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all {{ $activeSection === 'notifications' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-700 hover:bg-purple-50 hover:text-purple-600' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
-                            <span class="font-medium">Notifications</span>
+                            <span class="font-medium">{{ __('seller.notifications') }}</span>
                         </a>
                         <a href="{{ route('dashboard.myaccount') }}" 
                            class="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all {{ $activeSection === 'account' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-700 hover:bg-purple-50 hover:text-purple-600' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
-                            <span class="font-medium">My Account</span>
+                            <span class="font-medium">{{ __('seller.my_account') }}</span>
                         </a>
                     </nav>
                 </div>
@@ -58,7 +58,7 @@
                     @if($activeSection === 'orders')
                         <!-- Orders Section -->
                         <div id="orders-section">
-                            <h2 class="text-3xl font-bold text-gray-900 mb-6">My Orders</h2>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-6">{{ __('seller.my_orders') }}</h2>
                             <div id="orders-loading" class="space-y-4">
                                 <!-- Skeleton Loading Cards -->
                                 <div class="border-2 border-gray-200 rounded-xl p-6 animate-pulse">
@@ -120,14 +120,14 @@
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                                 </svg>
-                                <p class="mt-4 text-gray-600 text-lg">No orders found.</p>
-                                <p class="text-sm text-gray-500 mt-2">Start shopping to see your orders here.</p>
+                                <p class="mt-4 text-gray-600 text-lg">{{ __('seller.no_orders_yet') }}</p>
+                                <p class="text-sm text-gray-500 mt-2">{{ __('seller.orders_empty_info') }}</p>
                             </div>
                         </div>
                     @elseif($activeSection === 'invoices')
                         <!-- Invoices Section -->
                         <div id="invoices-section">
-                            <h2 class="text-3xl font-bold text-gray-900 mb-6">Invoices</h2>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-6">{{ __('seller.invoices') }}</h2>
                             <div class="space-y-4">
                                 @forelse($invoices as $invoice)
                                     <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
@@ -137,7 +137,7 @@
                                                 <p class="text-sm text-gray-600 mt-1">Order: {{ $invoice['order_id'] }}</p>
                                                 <p class="text-sm text-gray-600">Issue Date: {{ $invoice['issue_date'] }}</p>
                                                 <p class="text-sm text-gray-600">Due Date: {{ $invoice['due_date'] }}</p>
-                                                <p class="text-sm text-gray-600">Payment Method: {{ $invoice['payment_method'] }}</p>
+                                                <p class="text-sm text-gray-600">{{ __('checkout.payment_method') }}: {{ $invoice['payment_method'] }}</p>
                                             </div>
                                             <div class="text-right">
                                                 <p class="text-2xl font-bold text-purple-600 mb-2">US$ {{ number_format($invoice['amount'], 2) }}</p>
@@ -154,7 +154,7 @@
                                         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>
-                                        <p class="mt-4 text-gray-600 text-lg">No invoices found.</p>
+                                        <p class="mt-4 text-gray-600 text-lg">{{ __('seller.no_invoices_yet') }}</p>
                                     </div>
                                 @endforelse
                             </div>
@@ -162,19 +162,19 @@
                     @elseif($activeSection === 'notifications')
                         <!-- Notifications Section -->
                         <div id="notifications-section">
-                            <h2 class="text-3xl font-bold text-gray-900 mb-6">Notifications</h2>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-6">{{ __('seller.notifications') }}</h2>
                             <div class="text-center py-12">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                                 </svg>
-                                <p class="mt-4 text-gray-600 text-lg">No notifications found.</p>
+                                <p class="mt-4 text-gray-600 text-lg">{{ __('seller.no_notifications_yet') }}</p>
                             </div>
                         </div>
                     @elseif($activeSection === 'account')
                         <!-- My Account Section -->
                         @auth
                         <div id="account-section">
-                            <h2 class="text-3xl font-bold text-gray-900 mb-6">My Account</h2>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-6">{{ __('seller.my_account') }}</h2>
                             <div class="space-y-6 max-w-2xl">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
@@ -198,7 +198,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
                             <h2 class="text-2xl font-bold text-gray-900 mb-4">My Account</h2>
-                            <p class="text-gray-600 mb-8">Please log in to view your account information.</p>
+                            <p class="text-gray-600 mb-8">{{ __('auth.login_required_message') ?? 'Please log in to view your account information.' }}</p>
                             <div class="flex gap-4 justify-center">
                                 <a href="{{ route('dashboard.myaccount') }}" class="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg">
                                     Login
@@ -410,13 +410,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 paymentUrl = `/select/crypto/${encodeURIComponent(encryptedOrderId)}`;
             }
             
-            if (paymentUrl) {
-                continuePaymentBtn = `
-                    <a href="${paymentUrl}" 
-                       class="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg">
-                        Continue Payment
-                    </a>
-                `;
+                const tContinueToPayment = {!! json_encode(__('checkout.continue')) !!};
+                if (paymentUrl) {
+                    continuePaymentBtn = `
+                        <a href="${paymentUrl}" 
+                           class="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg">
+                            ${tContinueToPayment}
+                        </a>
+                    `;
             }
             
             // Calculate price display based on order status and payment method

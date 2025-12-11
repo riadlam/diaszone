@@ -616,14 +616,14 @@
         const newStatus = statusSelect.value;
         
         if (!newStatus) {
-            alert('Please select a status');
+            alert({!! json_encode(__('seller.please_select_status')) !!});
             return;
         }
         
         // Disable button during update
         const updateBtn = event.target;
         updateBtn.disabled = true;
-        updateBtn.textContent = 'Updating...';
+        updateBtn.textContent = {!! json_encode(__('seller.updating_text')) !!};
         
         fetch(`{{ url('/adm/orders') }}/${orderNumber}/status`, {
             method: 'PATCH',
@@ -655,21 +655,21 @@
                 document.getElementById('statusSelect').value = newStatus;
                 
                 // Show success message
-                alert(data.message);
+                alert(data.message || {!! json_encode(__('seller.success')) !!});
                 
                 // Reload main orders table
                 $('#ordersTable').DataTable().ajax.reload(null, false);
             } else {
-                alert('Error updating status: ' + (data.message || 'Unknown error'));
+                alert({!! json_encode(__('seller.error_updating_order_status')) !!} + ': ' + (data.message || {!! json_encode(__('seller.unknown_error')) !!}));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error updating order status. Please try again.');
+            alert({!! json_encode(__('seller.error_updating_order_status')) !!});
         })
         .finally(() => {
             updateBtn.disabled = false;
-            updateBtn.textContent = 'Update';
+            updateBtn.textContent = {!! json_encode(__('seller.update')) !!};
         });
     }
     

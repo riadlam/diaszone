@@ -36,7 +36,7 @@
                         </p>
                         <ul class="list-disc list-inside space-y-2 text-sm text-gray-700 ml-4">
                             <li><strong>Fast and Hassle-Free:</strong> Get your Blood Strike Golds on DiasZone in quick and easy.</li>
-                            <li><strong>Flexible Payment Options:</strong> Pay using the most popular payment methods worldwide.</li>
+                            <li><strong>{{ __('recharge.payment_options_title') }}:</strong> {{ __('recharge.secure_payment_methods') }}.</li>
                             <li><strong>Instant and Secure Delivery:</strong> Receive your purchase securely and instantly.</li>
                             <li><strong>Exciting Offers and Promotions:</strong> Take advantage of incredible deals, giveaways, and exclusive offers only on DiasZone.</li>
                         </ul>
@@ -61,7 +61,7 @@
                         <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700 ml-4">
                             <li>Select the Golds denomination.</li>
                             <li>Enter your User ID.</li>
-                            <li>Check out and select your payment method.</li>
+                            <li>{{ __('recharge.checkout_select_method') }}.</li>
                             <li>Once payment made, Blood Strike Golds will credited to your account shortly.</li>
                         </ol>
                         <h4 class="text-lg font-semibold text-gray-800 mt-4 mb-2">How to find Blood Strike User ID?</h4>
@@ -310,7 +310,7 @@
                             </li>
                             <li class="flex items-start gap-2">
                                 <span class="text-purple-600 font-bold">✓</span>
-                                <span>Secure payment methods</span>
+                                <span>{{ __('recharge.secure_payment_methods') }}</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <span class="text-purple-600 font-bold">✓</span>

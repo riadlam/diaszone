@@ -17,8 +17,8 @@
             <div class="w-16 h-16 mx-auto mb-4">
                 <img src="{{ storage_public_url('images_homepage/diaszonelogo.jpeg') }}" alt="DiasZone logo" class="w-16 h-16 object-contain rounded-xl mx-auto" />
             </div>
-            <h1 class="text-white text-2xl font-bold">Become a Seller</h1>
-            <p class="text-gray-400">Create your seller account</p>
+            <h1 class="text-white text-2xl font-bold">{{ __('seller.become_seller') }}</h1>
+            <p class="text-gray-400">{{ __('seller.create_your_seller_account') ?? 'Create your seller account' }}</p>
         </div>
         
         @if($errors->any())
@@ -34,7 +34,7 @@
                 @csrf
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Full Name</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.full_name') }}</label>
                     <input type="text" name="name" value="{{ old('name') }}" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
@@ -51,19 +51,19 @@
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Email Address</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.email_address') }}</label>
                     <input type="email" name="email" value="{{ old('email') }}" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Phone</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.phone') }}</label>
                     <input type="text" name="phone" value="{{ old('phone') }}" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Store Name</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.store_name') }}</label>
                     <input type="text" name="store_name" value="{{ old('store_name') }}" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
@@ -71,7 +71,7 @@
                 <div>
                     <label class="block text-gray-300 text-sm mb-2">Where do most of your customers come from?</label>
                     <select id="main-platform-select" name="main_platform" required class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
-                        <option value="">Select platform</option>
+                        <option value="">{{ __('seller.select_platform') }}</option>
                         <option value="facebook" {{ old('main_platform')=='facebook' ? 'selected' : '' }}>Facebook</option>
                         <option value="instagram" {{ old('main_platform')=='instagram' ? 'selected' : '' }}>Instagram</option>
                         <option value="tiktok" {{ old('main_platform')=='tiktok' ? 'selected' : '' }}>TikTok</option>
@@ -80,20 +80,20 @@
                 </div>
 
                 <div id="platform-url-row" class="hidden">
-                    <label class="block text-gray-300 text-sm mb-2">Platform Page URL</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.platform_page_url') }}</label>
                     <input id="platform-url-input" type="url" name="platform_url" value="{{ old('platform_url') }}" placeholder="https://facebook.com/yourpage"
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
-                    <p class="text-gray-500 text-xs mt-1">Enter a public URL to your page/profile on the chosen platform.</p>
+                    <p class="text-gray-500 text-xs mt-1">{{ __('seller.platform_url_help') }}</p>
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Password</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.password') }}</label>
                     <input type="password" name="password" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Confirm Password</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.confirm_password') }}</label>
                     <input type="password" name="password_confirmation" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
@@ -111,7 +111,7 @@
             
             <div class="mt-6 text-center">
                 <p class="text-gray-400">Already have an account?</p>
-                <a href="{{ route('seller.login') }}" class="text-blue-400 hover:text-blue-300 font-medium">Login</a>
+                <a href="{{ route('seller.login') }}" class="text-blue-400 hover:text-blue-300 font-medium">{{ __('seller.login') }}</a>
             </div>
         </div>
         

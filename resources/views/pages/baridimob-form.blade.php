@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Pay with Baridimob - DiasZone')
+@section('title', __('checkout.pay_with') . ' ' . __('payment.baridimob') . ' - DiasZone')
 
 @section('content')
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-pink-50/20 min-h-screen pt-6 pb-12">
     <div class="container mx-auto px-4 max-w-3xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-1">Pay with Baridimob</h1>
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('checkout.pay_with') }} {{ __('payment.baridimob') }}</h1>
             <p class="text-sm text-gray-600">Review your order and proceed to payment</p>
         </div>
 
@@ -134,7 +134,7 @@
                 @endif
                 <div class="border-t-2 border-purple-200 pt-3 mt-3">
                     <div class="flex justify-between items-center">
-                        <span class="text-lg font-bold text-gray-900">Total Amount</span>
+                        <span class="text-lg font-bold text-gray-900">{{ __('checkout.total') }}</span>
                         <span class="text-lg font-bold text-purple-600" 
                               id="baridimob-total-price"
                               data-price-usd="{{ $finalUsdPrice }}"
@@ -158,7 +158,7 @@
                 <!-- Change Payment Method Button -->
                 <button id="change-payment-btn" 
                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg transition-colors duration-200">
-                    Change Payment Method
+                    {{ __('payment.change_gateway') }}
                 </button>
             </div>
         </div>
@@ -169,6 +169,12 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Localized JS strings
+    const tClose = {!! json_encode(__('common.close')) !!};
+    const tTryAgain = {!! json_encode(__('common.try_again')) !!};
+    const tErrorCodeLabel = {!! json_encode(__('seller.error_code_label')) !!};
+    const tConnectionErrorShort = {!! json_encode(__('seller.connection_error_short')) !!};
+    const tConnectionError = {!! json_encode(__('seller.connection_error')) !!};
     // Order Summary toggle functionality
     const toggleButton = document.getElementById('toggle-order-summary');
     const content = document.getElementById('order-summary-content');
@@ -188,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const encryptedOrderId = '{{ $encrypted_order_id }}';
             
             if (!encryptedOrderId) {
-                alert('Invalid order ID');
+                alert({!! json_encode(__('seller.invalid_order_id')) !!});
                 return;
             }
             
@@ -235,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Friendly messages only - no technical error details
                     const friendlyMessage = isArabic 
                         ? 'عذراً، خدمة الدفع غير متوفرة حالياً. يرجى إعادة المحاولة خلال 10 دقائق. شكراً لصبرك.'
-                        : 'Sorry, the payment service is temporarily unavailable. Please try again in 10 minutes. Thank you for your patience.';
+                        : {!! json_encode(__('seller.payment_service_unavailable')) !!};
                     
                     const shortMessage = isArabic 
                         ? 'خدمة الدفع غير متوفرة مؤقتاً'
@@ -258,18 +264,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             <!-- Simple Error Code Box -->
                             <div class="bg-gray-50 rounded-lg py-2 px-4 mb-6 inline-block">
-                                <span class="text-xs text-gray-500 uppercase">${isArabic ? 'رمز الخطأ' : 'Error Code'}:</span>
+                                <span class="text-xs text-gray-500 uppercase">${tErrorCodeLabel}:</span>
                                 <span class="text-sm font-mono font-bold text-gray-700 ml-2">${errorCode}</span>
                             </div>
                             
                             <div class="flex gap-3">
                                 <button onclick="document.getElementById('error-modal-payment').remove();" 
                                         class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors">
-                                    ${isArabic ? 'إغلاق' : 'Close'}
+                                    ${tClose}
                                 </button>
                                 <button onclick="location.reload();" 
                                         class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                                    ${isArabic ? 'إعادة المحاولة' : 'Try Again'}
+                                    ${tTryAgain}
                                 </button>
                             </div>
                         </div>
@@ -288,13 +294,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 errorModal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50';
                 errorModal.id = 'error-modal-network';
                 
-                const friendlyMessage = isArabic 
-                    ? 'عذراً، حدث خطأ في الاتصال. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.'
-                    : 'Sorry, a connection error occurred. Please check your internet connection and try again.';
-                
-                const shortMessage = isArabic 
-                    ? 'خطأ في الاتصال'
-                    : 'Connection Error';
+                const friendlyMessage = tConnectionError;
+                const shortMessage = tConnectionErrorShort;
                 
                 errorModal.innerHTML = `
                     <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
@@ -310,18 +311,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         <!-- Simple Error Code Box -->
                         <div class="bg-gray-50 rounded-lg py-2 px-4 mb-6 inline-block">
-                            <span class="text-xs text-gray-500 uppercase">${isArabic ? 'رمز الخطأ' : 'Error Code'}:</span>
+                            <span class="text-xs text-gray-500 uppercase">${tErrorCodeLabel}:</span>
                             <span class="text-sm font-mono font-bold text-gray-700 ml-2">ERR-NET</span>
                         </div>
                         
                         <div class="flex gap-3">
                             <button onclick="document.getElementById('error-modal-network').remove();" 
                                     class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-6 rounded-lg transition-colors">
-                                ${isArabic ? 'إغلاق' : 'Close'}
+                                ${tClose}
                             </button>
                             <button onclick="location.reload();" 
                                     class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                                ${isArabic ? 'إعادة المحاولة' : 'Try Again'}
+                                ${tTryAgain}
                             </button>
                         </div>
                     </div>

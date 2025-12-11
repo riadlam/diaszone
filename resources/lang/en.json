@@ -6,7 +6,9 @@
     "cart": "Cart",
     "my_orders": "My Orders",
     "search_placeholder": "Search products...",
-    "menu": "Menu"
+    "menu": "Menu",
+    "open_navigation": "Open navigation menu",
+    "close_navigation": "Close navigation menu"
   },
   "currency": {
     "title": "Select Currency",
@@ -28,6 +30,9 @@
     "login": "Login",
     "signup": "Sign Up"
   },
+    "auth": {
+      "login_required_message": "Please log in to view your account information."
+    },
   "cart_dropdown": {
     "title": "Shopping Cart",
     "empty": "Your cart is empty",
@@ -42,6 +47,17 @@
     "popular_games": "Popular Games",
     "view_all": "View All"
   },
+  "recharge": {
+    "payment_options_title": "Flexible Payment Options",
+    "checkout_select_method": "Check out and select your payment method",
+    "secure_payment_methods": "Secure payment methods"
+  },
+  "uploader": {
+    "click_to_upload_or_drag": "Click to upload or drag and drop",
+    "click_to_upload": "Click to upload",
+    "click_number_to_copy_or_call": "Click the number to copy or call directly",
+    "call_directly": "call directly"
+  },
   "product": {
     "buy_now": "Buy Now",
     "add_to_cart": "Add to Cart",
@@ -54,6 +70,8 @@
     "24_7_support": "24/7 Support"
   },
   "checkout": {
+    "choose_payment": "Choose a payment method",
+    "subtitle": "Choose a secure payment method to complete your order, including Baridimob and Flexy.",
     "title": "Checkout",
     "user_info": "User Information",
     "user_id": "User ID",
@@ -72,6 +90,12 @@
     "confirm_order": "Confirm Order",
     "order_created": "Order Created Successfully",
     "order_number": "Order Number"
+    ,
+    "total_before_discounts": "Total Before Discounts",
+    "pay_with": "Pay with",
+    "pay_now": "Pay Now",
+    "player_id": "Player ID",
+    "server": "Server"
   },
   "payment": {
     "flexy": "Flexy (Algeria)",
@@ -79,10 +103,34 @@
     "baridimob": "BaridiMob (Algeria)",
     "credit_card": "Credit Card",
     "select_method": "Please select your preferred payment method",
+    "payment": "Payment",
+    "payment_address": "Payment Address",
+    "pay_with_nowpayments": "Pay with NOWPayments",
+    "payment_unavailable": "Payment Unavailable",
+    "click_to_open_payment_page": "Click to open payment page",
+    "waiting_for_payment": "Waiting for payment...",
     "processing": "Processing Payment...",
     "success": "Payment Successful",
     "failed": "Payment Failed",
-    "pending": "Payment Pending"
+    "pending": "Payment Pending",
+    "amount_to_pay": "Amount to Pay",
+    "scan_qr_code_to_pay": "Scan QR code to pay",
+    "network": "Network",
+    "payment_id": "Payment ID",
+    "opens_nowpayments_info": "Opens NOWPayments payment page which will open your wallet app"
+    ,
+    "instructions": "Payment instructions",
+    "change_gateway": "Change Payment Gateway",
+    "url_not_available": "Payment URL not available"
+    ,
+    "check_status": "Check Payment Status",
+    "open_in_wallet": "Open in Wallet"
+    ,
+    "proceed_with_baridimob": "Proceed with Baridimob"
+    ,
+    "confirmed_redirect": "Payment confirmed! Redirecting...",
+    "not_detected": "Payment not detected yet. Please try again in a few moments.",
+    "error_checking": "Error checking payment status. Please try again."
   },
   "order": {
     "status": {
@@ -96,6 +144,10 @@
     "history": "Order History",
     "track": "Track Order",
     "cancel": "Cancel Order"
+    ,
+    "diamonds_sent_successfully": "Your diamonds are being delivered...",
+    "view_my_orders": "View My Orders",
+    "redirecting_to_orders_in_seconds": "Redirecting to your orders in :seconds seconds..."
   },
   "about": {
     "title": "About Us",
@@ -154,6 +206,9 @@
     "all_rights_reserved": "All rights reserved",
     "follow_us": "Follow Us"
   },
+  "settings": {
+    "settings_panel_coming_soon": "Settings Panel Coming Soon"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Error",
@@ -179,6 +234,8 @@
     "select": "Select",
     "optional": "Optional",
     "required": "Required"
+    ,
+    "try_again": "Try Again"
   },
   "errors": {
     "404_title": "Page Not Found",
@@ -194,5 +251,9 @@
     "pubg_mobile": "PUBG Mobile",
     "honor_of_kings": "Honor of Kings",
     "blood_strike": "Blood Strike"
+  }
+  ,
+  "misc": {
+    "coming_soon": "Coming Soon"
   }
 }

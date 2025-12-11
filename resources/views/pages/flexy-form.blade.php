@@ -7,7 +7,7 @@
     <div class="container mx-auto px-4 max-w-3xl">
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-900 mb-1">Upload Flexy Receipt</h1>
-            <p class="text-sm text-gray-600">Please upload your payment receipt to complete your order</p>
+            <p class="text-sm text-gray-600">{{ __('seller.please_upload_receipt') }}</p>
         </div>
 
         <!-- Order Summary Card -->
@@ -19,8 +19,8 @@
                 </svg>
             </button>
             <div id="order-summary-content" class="space-y-3 hidden">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Order Number</span>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">{{ __('checkout.order_number') }}</span>
                     <span class="text-sm font-semibold text-gray-900">{{ $order->order_number }}</span>
                 </div>
                 
@@ -134,7 +134,7 @@
                 </div>
                 <div class="border-t-2 border-purple-200 pt-3 mt-3">
                     <div class="flex justify-between items-center">
-                        <span class="text-lg font-bold text-gray-900">Total Amount</span>
+                        <span class="text-lg font-bold text-gray-900">{{ __('checkout.total') }}</span>
                         <span class="text-lg font-bold text-purple-600" 
                               id="flexy-total-price"
                               data-price-usd="{{ $finalUsdPrice }}"
@@ -168,7 +168,7 @@
                         </p>
                     </button>
                     <p id="copy-feedback" class="text-purple-200 text-xs md:text-sm font-medium mt-1">
-                        Click the number to copy or <a href="tel:0673771763" class="underline hover:text-yellow-300">call directly</a>
+                        {{ __('uploader.click_number_to_copy_or_call') }}
                     </p>
                 </div>
                 <div class="flex-shrink-0">
@@ -197,7 +197,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                                 </svg>
                                 <p class="mb-2 text-sm text-gray-500">
-                                    <span class="font-semibold">Click to upload</span> or drag and drop
+                                    <span class="font-semibold">{{ __('uploader.click_to_upload') }}</span> or {{ __('uploader.click_to_upload_or_drag') }}
                                 </p>
                                 <p class="text-xs text-gray-500">PNG, JPG, GIF or WEBP (MAX. 5MB)</p>
                             </div>
@@ -252,7 +252,7 @@
             <div class="border-t-2 border-purple-200 pt-4 text-center">
                 <button id="change-payment-btn" 
                         class="text-sm text-purple-600 hover:text-purple-700 font-semibold underline bg-transparent border-none cursor-pointer">
-                    Change Payment Gateway
+                {{ __('payment.change_gateway') }}
                 </button>
             </div>
         </div>
@@ -313,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const recaptchaResponse = grecaptcha.getResponse();
             if (!recaptchaResponse) {
                 e.preventDefault();
-                alert('Please complete the reCAPTCHA verification before submitting.');
+                alert({!! json_encode(__('seller.recaptcha_required')) !!});
                 return false;
             }
             
@@ -551,7 +551,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (feedback) {
                     feedback.innerHTML = '<span class="text-yellow-300 font-bold">✓ Copied to clipboard!</span>';
                     setTimeout(function() {
-                        feedback.innerHTML = 'Click the number to copy or <a href="tel:0673771763" class="underline hover:text-yellow-300">call directly</a>';
+                        feedback.innerHTML = {!! json_encode(__('uploader.click_number_to_copy_or_call')) !!} + ' <a href="tel:0673771763" class="underline hover:text-yellow-300">' + {!! json_encode(__('uploader.call_directly')) !!} + '</a>';
                     }, 2000);
                 }
             } catch (err) {

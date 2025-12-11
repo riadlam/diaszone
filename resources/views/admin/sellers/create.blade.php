@@ -82,7 +82,7 @@
                 </div>
                 
                 <div>
-                    <label class="block text-gray-700 text-sm font-medium mb-2">Initial Wallet Balance</label>
+                    <label class="block text-gray-700 text-sm font-medium mb-2">{{ __('seller.initial_wallet_balance') }}</label>
                     <input type="number" name="wallet_balance" value="{{ old('wallet_balance', 0) }}" step="0.01" min="0"
                         class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:border-purple-500 outline-none">
                 </div>

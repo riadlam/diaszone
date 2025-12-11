@@ -1,7 +1,7 @@
 @extends('layouts.seller')
 
-@section('title', 'Packs & Pricing - Seller Panel')
-@section('header', 'Packs & Pricing')
+@section('title', __('seller.packs_pricing_title'))
+@section('header', __('seller.packs_pricing'))
 
 @section('content')
 <!-- Game Selector -->
@@ -18,10 +18,7 @@
 
 <!-- Info Box -->
 <div class="mb-6 p-4 bg-blue-600/20 border border-blue-500/30 rounded-lg">
-    <p class="text-blue-300">
-        <strong>💡 Tip:</strong> Set your custom prices for each pack. Your price must be at least the base price. 
-        The difference between your price and the base price is your profit.
-    </p>
+    <p class="text-blue-300">{{ __('seller.packs_tip') }}</p>
 </div>
 
 <!-- Packs Form -->
@@ -29,17 +26,18 @@
     @csrf
     
     <div class="bg-slate-800 rounded-xl overflow-hidden">
-        <div class="overflow-x-auto">
+        <!-- Desktop Table -->
+        <div class="overflow-x-auto hidden md:block">
             <table class="w-full">
                 <thead>
                     <tr class="bg-slate-700">
-                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Pack</th>
-                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">Diamonds</th>
-                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">Base Price (DZD)</th>
-                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">Your Price (DZD)</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">{{ __('seller.pack') }}</th>
+                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">{{ __('seller.diamonds') }}</th>
+                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">{{ __('seller.base_price') }} ({{ __('seller.currency') }})</th>
+                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">{{ __('seller.your_price') }} ({{ __('seller.currency') }})</th>
                             <!-- Base Price (USD) removed per request -->
-                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">Flexy Price (DZD)</th>
-                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">Active</th>
+                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">{{ __('seller.flexy_price') }} ({{ __('seller.currency') }})</th>
+                        <th class="px-4 py-3 text-center text-sm font-medium text-gray-300">{{ __('seller.active') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-700">
@@ -53,7 +51,7 @@
                             $minFlexyDzd = $baseDzd;
                             $isActive = $sellerPrice ? $sellerPrice->is_active : true;
                         @endphp
-                        <tr class="hover:bg-slate-700/50">
+                        <tr class="hover:bg-slate-700/50 seller-pack-row" data-base-dzd="{{ $baseDzd }}" data-pack-name="{{ $pack->name }}">
                             <td class="px-4 py-4">
                                 <input type="hidden" name="prices[{{ $loop->index }}][pack_id]" value="{{ $pack->id }}">
                                 <div>
@@ -71,16 +69,16 @@
                                 {{ number_format($pack->base_price_dzd ?? $pack->price_dzd, 2) }}
                             </td>
                             <td class="px-4 py-4 text-center">
-                                    <input type="number" step="0.01" min="{{ $baseDzd }}" 
+                                                <input type="number" step="0.01" min="{{ $baseDzd }}" 
                                        name="prices[{{ $loop->index }}][price_dzd]" 
                                        value="{{ $customDzd }}"
-                                       class="w-28 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-center focus:border-blue-500 outline-none">
+                                                    class="w-28 md:w-28 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-center focus:border-blue-500 outline-none">
                             </td>
                             <td class="px-4 py-4 text-center">
-                                    <input type="number" step="0.01" min="{{ $minFlexyDzd }}" 
+                                                <input type="number" step="0.01" min="{{ $minFlexyDzd }}" 
                                        name="prices[{{ $loop->index }}][flexy_price]" 
                                        value="{{ $flexyPrice }}"
-                                       class="w-28 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-center focus:border-blue-500 outline-none">
+                                                    class="w-28 md:w-28 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-center focus:border-blue-500 outline-none">
                             </td>
                             <!-- Profit column removed per request -->
                             <td class="px-4 py-4 text-center">
@@ -98,39 +96,86 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Mobile Cards -->
+        <div class="md:hidden p-4 space-y-3">
+            @foreach($packs as $pack)
+                @php
+                    $sellerPrice = $sellerPrices->get($pack->id);
+                    $customDzd = $sellerPrice ? $sellerPrice->custom_price_dzd : $pack->price_dzd;
+                    $flexyPrice = $sellerPrice ? $sellerPrice->flexy_price ?? '' : '';
+                    $baseDzd = $pack->base_price_dzd ?? $pack->price_dzd;
+                    $minFlexyDzd = $baseDzd;
+                    $isActive = $sellerPrice ? $sellerPrice->is_active : true;
+                @endphp
+                <div class="bg-slate-700 rounded-lg p-4 seller-pack-row" data-base-dzd="{{ $baseDzd }}" data-pack-name="{{ $pack->name }}">
+                    <input type="hidden" name="prices[{{ $loop->index }}][pack_id]" value="{{ $pack->id }}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <p class="font-medium text-white">{{ $pack->name }}</p>
+                            <p class="text-xs text-gray-400">{{ $pack->diamonds }} {{ __('seller.diamonds') }} @if($pack->bonus_diamonds > 0) <span class="text-green-400">+{{ $pack->bonus_diamonds }}</span> @endif</p>
+                        </div>
+                        <div class="text-right text-gray-400">
+                            <p class="text-sm">{{ __('seller.base_short') }} {{ number_format($baseDzd, 2) }} {{ __('seller.currency') }}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <div>
+                            <label class="text-xs text-gray-300">{{ __('seller.your_price') }} ({{ __('seller.currency') }})</label>
+                            <input type="number" step="0.01" min="{{ $baseDzd }}" name="prices[{{ $loop->index }}][price_dzd]" value="{{ $customDzd }}" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-300">{{ __('seller.flexy_price') }} ({{ __('seller.currency') }})</label>
+                            <input type="number" step="0.01" min="{{ $minFlexyDzd }}" name="prices[{{ $loop->index }}][flexy_price]" value="{{ $flexyPrice }}" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-blue-500 outline-none">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-gray-300">{{ __('seller.active') }}</label>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="hidden" name="prices[{{ $loop->index }}][is_active]" value="0">
+                                <input type="checkbox" name="prices[{{ $loop->index }}][is_active]" value="1" {{ $isActive ? 'checked' : '' }} class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
     </div>
     
     <div id="seller-pack-errors" class="mb-4 hidden bg-red-800/20 border border-red-600/30 text-red-200 p-3 rounded-lg"></div>
 
-    <div class="mt-6 flex justify-end">
+        <div class="mt-6 flex justify-end">
         <button type="submit" class="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-lg hover:from-blue-700 hover:to-cyan-700 transition">
-            Save All Prices
+            {{ __('seller.save_all_prices') }}
         </button>
     </div>
 </form>
 @endsection
 
 @push('scripts')
-<script>
+    <script>
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.querySelector('form[action="{{ route('seller.packs.update-prices') }}"]');
     if (!form) return;
 
+    const tPriceMin = {!! json_encode(__('seller.error_price_min')) !!};
+    const tFlexyMin = {!! json_encode(__('seller.error_flexy_price_min')) !!};
+
     form.addEventListener('submit', function (e) {
                 // Flexy price is DZD, compare values directly to base DZD
-        const rows = form.querySelectorAll('table tbody tr');
+        const rows = form.querySelectorAll('.seller-pack-row');
         const errors = [];
 
         rows.forEach(function (row, index) {
-            const basePriceCell = row.querySelector('td:nth-child(3)');
-            const baseDzd = basePriceCell ? parseFloat(basePriceCell.textContent.replace(/[^0-9.-]+/g, '')) : 0;
+            const baseDzd = row.dataset.baseDzd ? parseFloat(row.dataset.baseDzd) : 0;
 
             const priceDzdInput = row.querySelector('input[name*="[price_dzd]"]');
             if (priceDzdInput && priceDzdInput.value !== '') {
                 const val = parseFloat(priceDzdInput.value);
                 if (isNaN(val) || val < baseDzd) {
-                    const packName = row.querySelector('td:first-child p')?.textContent?.trim() || `row ${index+1}`;
-                    errors.push(`${packName}: DZD price must be at least ${baseDzd} DZD`);
+                    const packName = row.dataset.packName || row.querySelector('td:first-child p')?.textContent?.trim() || `row ${index+1}`;
+                    const err = tPriceMin.replace(':pack', packName).replace(':min', baseDzd);
+                    errors.push(err);
                 }
             }
 
@@ -138,8 +183,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (flexyInput && flexyInput.value !== '') {
                 const fVal = parseFloat(flexyInput.value);
                 if (isNaN(fVal) || fVal < baseDzd) {
-                    const packName = row.querySelector('td:first-child p')?.textContent?.trim() || `row ${index+1}`;
-                    errors.push(`${packName}: Flexy price must be at least ${baseDzd} DZD`);
+                    const packName = row.dataset.packName || row.querySelector('td:first-child p')?.textContent?.trim() || `row ${index+1}`;
+                    const ferr = tFlexyMin.replace(':pack', packName).replace(':min', baseDzd);
+                    errors.push(ferr);
                 }
             }
         });

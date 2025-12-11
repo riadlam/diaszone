@@ -155,7 +155,7 @@
                     </p>
                     <ul class="list-disc list-inside space-y-2 text-gray-700 mb-4">
                         <li><strong>Flexy:</strong> Mobile payment method where you upload a receipt to complete your recharge</li>
-                        <li><strong>Baridimob:</strong> Mobile payment solution (coming soon)</li>
+                        <li><strong>Baridimob:</strong> Mobile payment solution ({{ __('misc.coming_soon') }})</li>
                         <li><strong>Cryptocurrency:</strong> Payment via Binance Pay using cryptocurrency</li>
                     </ul>
                     <p class="text-gray-700 leading-relaxed">

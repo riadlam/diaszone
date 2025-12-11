@@ -1,7 +1,7 @@
 @extends('layouts.seller')
 
-@section('title', 'Dashboard - Seller Panel')
-@section('header', 'Dashboard')
+@section('title', __('seller.dashboard_title'))
+@section('header', __('seller.dashboard'))
 
 @section('content')
 <!-- Stats Cards -->
@@ -9,7 +9,7 @@
     <div class="stat-card rounded-xl p-6 transition-all duration-300">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-400 text-sm">Today's Orders</p>
+                <p class="text-gray-400 text-sm">{{ __('seller.todays_orders') }}</p>
                 <p class="text-3xl font-bold text-white">{{ $todayOrders }}</p>
             </div>
             <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
@@ -23,8 +23,8 @@
     <div class="stat-card rounded-xl p-6 transition-all duration-300">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-400 text-sm">Total Orders</p>
-                <p class="text-3xl font-bold text-white">{{ $totalOrders }}</p>
+                <p class="text-gray-400 text-sm">{{ __('seller.total_orders') }}</p>
+                        <p class="text-3xl font-bold text-white">{{ $totalOrders }}</p>
             </div>
             <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
                 <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,10 +32,10 @@
                 </svg>
             </div>
         </div>
-        <div class="mt-2 flex items-center text-sm">
-            <span class="text-green-400">{{ $completedOrders }} completed</span>
+            <div class="mt-2 flex items-center text-sm">
+            <span class="text-green-400">{{ $completedOrders }} {{ __('seller.completed') }}</span>
             <span class="mx-2 text-gray-600">•</span>
-            <span class="text-yellow-400">{{ $pendingOrders }} pending</span>
+            <span class="text-yellow-400">{{ $pendingOrders }} {{ __('seller.pending') }}</span>
         </div>
     </div>
     
@@ -44,8 +44,8 @@
     <div class="stat-card rounded-xl p-6 transition-all duration-300">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-400 text-sm">This Month</p>
-                <p class="text-3xl font-bold text-white">{{ number_format($monthRevenue, 2) }} <span class="text-lg">DZD</span></p>
+                <p class="text-gray-400 text-sm">{{ __('seller.this_month') }}</p>
+                <p class="text-3xl font-bold text-white">{{ number_format($monthRevenue, 2) }} <span class="text-lg">{{ __('seller.currency') }}</span></p>
             </div>
             <div class="w-12 h-12 bg-cyan-500/20 rounded-lg flex items-center justify-center">
                 <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,28 +62,28 @@
     <!-- Recent Orders -->
     <div class="bg-slate-800 rounded-xl p-6">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold">Recent Orders</h3>
-            <a href="{{ route('seller.orders') }}" class="text-blue-400 hover:text-blue-300 text-sm">View All →</a>
+            <h3 class="text-lg font-bold">{{ __('seller.recent_orders') }}</h3>
+            <a href="{{ route('seller.orders') }}" class="text-blue-400 hover:text-blue-300 text-sm">{{ __('seller.view_all') }}</a>
         </div>
         <div class="space-y-3">
             @forelse($recentOrders as $order)
                 <div class="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
                     <div>
                         <p class="font-medium text-sm">{{ $order->order_number }}</p>
-                        <p class="text-gray-400 text-xs">{{ $order->diamondPack->name ?? 'N/A' }}</p>
+                        <p class="text-gray-400 text-xs">{{ $order->diamondPack->name ?? __('seller.na') }}</p>
                     </div>
                     <div class="text-right">
-                        <p class="font-bold text-sm">+{{ number_format($order->seller_profit ?? 0, 2) }} DZD</p>
+                        <p class="font-bold text-sm">+{{ number_format($order->seller_profit ?? 0, 2) }} {{ __('seller.currency') }}</p>
                         <span class="inline-block px-2 py-0.5 text-xs rounded-full 
                             {{ $order->status === 'completed' ? 'bg-green-500/20 text-green-400' : 
                                ($order->status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400') }}">
-                            {{ ucfirst($order->status) }}
+                            {{ __('seller.' . $order->status) }}
                         </span>
                     </div>
                 </div>
             @empty
                 <div class="text-center text-gray-400 py-8">
-                    <p>No orders yet</p>
+                    <p>{{ __('seller.no_orders_yet') }}</p>
                 </div>
             @endforelse
         </div>
@@ -92,8 +92,8 @@
     <!-- Recent Transactions -->
     <div class="bg-slate-800 rounded-xl p-6">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold">Recent Transactions</h3>
-            <a href="{{ route('seller.wallet') }}" class="text-blue-400 hover:text-blue-300 text-sm">View All →</a>
+            <h3 class="text-lg font-bold">{{ __('seller.recent_transactions') }}</h3>
+            <a href="{{ route('seller.wallet') }}" class="text-blue-400 hover:text-blue-300 text-sm">{{ __('seller.view_all') }}</a>
         </div>
         <div class="space-y-3">
             @forelse($recentTransactions as $transaction)
@@ -104,14 +104,14 @@
                     </div>
                     <div class="text-right">
                         <p class="font-bold text-sm {{ $transaction->type === 'credit' ? 'text-green-400' : 'text-red-400' }}">
-                            {{ $transaction->type === 'credit' ? '+' : '-' }}{{ number_format($transaction->amount, 2) }} DZD
+                            {{ $transaction->type === 'credit' ? '+' : '-' }}{{ number_format($transaction->amount, 2) }} {{ __('seller.currency') }}
                         </p>
-                        <p class="text-gray-400 text-xs">Balance: {{ number_format($transaction->balance_after, 2) }}</p>
+                        <p class="text-gray-400 text-xs">{{ __('seller.balance') }} {{ number_format($transaction->balance_after, 2) }} {{ __('seller.currency') }}</p>
                     </div>
                 </div>
             @empty
                 <div class="text-center text-gray-400 py-8">
-                    <p>No transactions yet</p>
+                    <p>{{ __('seller.no_transactions_yet') }}</p>
                 </div>
             @endforelse
         </div>
@@ -120,7 +120,7 @@
 
 <!-- Chart -->
 <div class="mt-6 bg-slate-800 rounded-xl p-6">
-    <h3 class="text-lg font-bold mb-4">Last 7 Days Performance</h3>
+    <h3 class="text-lg font-bold mb-4">{{ __('seller.last_7_days_performance') }}</h3>
     <div class="h-64" id="chart-container">
         <canvas id="performanceChart"></canvas>
     </div>
@@ -138,7 +138,7 @@
         data: {
             labels: chartData.map(d => d.date),
             datasets: [{
-                label: 'Orders',
+                label: '{{ __('seller.orders') }}',
                 data: chartData.map(d => d.orders),
                 borderColor: '#3b82f6',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -146,7 +146,7 @@
                 fill: true,
                 yAxisID: 'y'
             }, {
-                label: 'Revenue (DZD)',
+                label: '{{ __('seller.revenue') }}',
                 data: chartData.map(d => d.revenue),
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',

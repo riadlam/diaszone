@@ -62,6 +62,7 @@
     @stack('styles')
 </head>
 <body class="bg-gray-100">
+    @php $isRtlAdmin = app()->getLocale() == 'ar'; @endphp
     <div class="flex min-h-screen">
         <!-- Sidebar -->
         <aside class="admin-sidebar w-64 flex-shrink-0 hidden lg:block sticky top-0 h-screen">
@@ -172,7 +173,7 @@
             </header>
             
             <!-- Mobile Sidebar -->
-            <aside id="mobile-sidebar" class="admin-sidebar fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full transition-transform duration-300 lg:hidden">
+            <aside id="mobile-sidebar" class="admin-sidebar fixed inset-y-0 z-50 w-64 transform transition-transform duration-300 lg:hidden {{ $isRtlAdmin ? 'translate-x-full right-0' : '-translate-x-full left-0' }}">
                 <div class="flex flex-col h-full">
                     <div class="p-4 border-b border-purple-800/30 flex items-center justify-between">
                         <h1 class="text-white font-bold text-xl">DiasZone</h1>
@@ -264,13 +265,17 @@
             const mobileOverlay = document.getElementById('mobile-overlay');
             
             function openMobileMenu() {
-                mobileSidebar.classList.remove('-translate-x-full');
+                const isRtl = document.documentElement.dir === 'rtl';
+                const hideClass = isRtl ? 'translate-x-full' : '-translate-x-full';
+                mobileSidebar.classList.remove(hideClass);
                 mobileOverlay.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
             }
             
             function closeMobileMenu() {
-                mobileSidebar.classList.add('-translate-x-full');
+                const isRtl = document.documentElement.dir === 'rtl';
+                const hideClass = isRtl ? 'translate-x-full' : '-translate-x-full';
+                mobileSidebar.classList.add(hideClass);
                 mobileOverlay.classList.add('hidden');
                 document.body.style.overflow = '';
             }

@@ -15,22 +15,22 @@
         </div>
         
         <!-- Success Message -->
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h1>
-        <p class="text-gray-600 mb-6">Your payment has been processed successfully.</p>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ __('seller.payment_successful') }}</h1>
+        <p class="text-gray-600 mb-6">{{ __('payment.success') }}</p>
         
         <!-- Order Details -->
         <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
             <div class="flex justify-between items-center mb-2">
-                <span class="text-sm text-gray-500">Order Number</span>
+                <span class="text-sm text-gray-500">{{ __('checkout.order_number') }}</span>
                 <span class="text-sm font-semibold text-gray-900">{{ $order->order_number }}</span>
             </div>
             @if($order->diamondPack)
             <div class="flex justify-between items-center mb-2">
-                <span class="text-sm text-gray-500">Product</span>
+                <span class="text-sm text-gray-500">{{ __('checkout.product') }}</span>
                 <span class="text-sm font-semibold text-gray-900">{{ $order->diamondPack->name ?? $order->diamondPack->diamonds . ' Diamonds' }}</span>
             </div>
             <div class="flex justify-between items-center">
-                <span class="text-sm text-gray-500">Amount</span>
+                <span class="text-sm text-gray-500">{{ __('checkout.price') }}</span>
                 <span class="text-sm font-semibold text-green-600">{{ number_format($order->diamondPack->price_dzd ?? 0, 0) }} DZD</span>
             </div>
             @endif
@@ -42,18 +42,18 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>Your diamonds are being delivered...</span>
+            <span>{{ __('order.diamonds_sent_successfully') }}</span>
         </div>
         
         <!-- Redirect Notice -->
         <p class="text-sm text-gray-500 mb-4">
-            Redirecting to your orders in <span id="countdown" class="font-bold text-purple-600">5</span> seconds...
+            {{ __('order.redirecting_to_orders_in_seconds', ['seconds' => 5]) }}
         </p>
         
         <!-- Manual Button -->
         <a href="{{ route('dashboard.orders') }}" 
            class="inline-block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-            View My Orders
+            {{ __('order.view_my_orders') }}
         </a>
     </div>
 </div>

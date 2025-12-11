@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Cryptocurrency Payment - DiasZone')
+@section('title', __('payment.crypto') . ' ' . __('payment.payment') . ' - DiasZone')
 
 @section('content')
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-blue-50/20 min-h-screen pt-6 pb-12">
     <div class="container mx-auto px-4 max-w-4xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-1">Cryptocurrency Payment</h1>
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('payment.crypto') }} {{ __('payment.payment') }}</h1>
             <p class="text-sm text-gray-600">Complete your payment using cryptocurrency</p>
         </div>
 
@@ -56,7 +56,7 @@
                     <span class="text-sm font-mono text-gray-900">{{ $order->zone_id_ml }}</span>
                 </div>
                 <div class="flex justify-between items-center pt-3 border-t border-gray-200">
-                    <span class="text-base font-semibold text-gray-900">Total Amount</span>
+                    <span class="text-base font-semibold text-gray-900">{{ __('checkout.total') }}</span>
                     <span class="text-lg font-bold text-purple-600">US$ {{ number_format($total_amount, 2) }}</span>
                 </div>
             </div>
@@ -70,7 +70,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
-                <h2 class="text-xl font-bold text-gray-900">Pay with Cryptocurrency</h2>
+                <h2 class="text-xl font-bold text-gray-900">{{ __('checkout.pay_with') }} {{ __('payment.crypto') }}</h2>
             </div>
             
             <div class="space-y-4">
@@ -78,11 +78,11 @@
                     <!-- Payment Address (if available) -->
                     @if(isset($pay_address) && $pay_address)
                     <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
-                        <p class="text-sm font-semibold text-gray-700 mb-2">Payment Address</p>
+                        <p class="text-sm font-semibold text-gray-700 mb-2">{{ __('payment.payment_address') }}</p>
                         <div class="flex items-center gap-2 bg-white border border-gray-300 rounded p-2">
                             <code class="text-xs font-mono text-gray-800 flex-1 break-all">{{ $pay_address }}</code>
                             <button onclick="copyAddress('{{ $pay_address }}')" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-semibold transition-colors">
-                                Copy
+                                {{ __('common.copy') }}
                             </button>
                         </div>
                         <p class="text-xs text-gray-500 mt-2">Send the exact amount to this address</p>
@@ -97,9 +97,9 @@
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            Pay with Cryptocurrency
+                            {{ __('checkout.pay_with') }} {{ __('payment.crypto') }}
                         </a>
-                        <p class="text-xs text-gray-500 mt-2">Click to open payment page</p>
+                        <p class="text-xs text-gray-500 mt-2">{{ __('payment.click_to_open_payment_page') }}</p>
                     </div>
                 @else
                     <!-- Localhost/Testing Mode or No Payment URL -->
@@ -109,16 +109,16 @@
                         </svg>
                         <p class="text-sm font-semibold text-gray-700 mb-1">
                             @if(isset($is_localhost) && $is_localhost)
-                                Cryptocurrency Payment (Test Mode)
-                            @else
-                                Payment Unavailable
+                                {{ __('payment.crypto') }} (Test Mode)
+                                @else
+                                {{ __('payment.payment_unavailable') }}
                             @endif
                         </p>
                         <p class="text-xs text-gray-500">
                             @if(isset($is_localhost) && $is_localhost)
                                 In production, this button will open the cryptocurrency payment page.
                             @else
-                                Failed to initialize payment. Please try again or contact support.
+                                {{ __('seller.failed_to_load_payment_data') }}
                             @endif
                         </p>
                     </div>
@@ -127,7 +127,7 @@
                 <!-- Payment Instructions -->
                 <div class="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
                     <p class="text-sm text-gray-700 mb-2">
-                        <strong class="text-gray-900">Step 1:</strong> Click "Pay with Cryptocurrency" button
+                        <strong class="text-gray-900">Step 1:</strong> {{ __('checkout.pay_with') }} {{ __('payment.crypto') }}
                     </p>
                     <p class="text-sm text-gray-700 mb-2">
                         <strong class="text-gray-900">Step 2:</strong> Complete the payment using your preferred cryptocurrency
@@ -144,7 +144,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                         <div>
-                            <p class="text-sm font-semibold text-blue-900 mb-1">Payment Status: <span id="payment-status" class="text-blue-600">Waiting for payment...</span></p>
+                            <p class="text-sm font-semibold text-blue-900 mb-1">{{ __('payment.payment') }} Status: <span id="payment-status" class="text-blue-600">{{ __('payment.waiting_for_payment') }}</span></p>
                             <p class="text-xs text-blue-700">We will automatically detect your payment and process your order.</p>
                         </div>
                     </div>
@@ -156,7 +156,7 @@
         <div class="flex flex-col sm:flex-row gap-4">
             <a href="{{ route('home') }}" 
                class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg text-center transition-colors">
-                Cancel Order
+                {{ __('order.cancel') }}
             </a>
             <button type="button" 
                     onclick="checkPaymentStatus()"
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Copy address to clipboard
     window.copyAddress = function(address) {
         navigator.clipboard.writeText(address).then(function() {
-            alert('Address copied to clipboard!');
+            alert({!! json_encode(__('seller.copied')) !!});
         }, function(err) {
             console.error('Failed to copy address:', err);
         });
@@ -203,19 +203,19 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.paid) {
-                    statusElement.textContent = 'Payment confirmed! Redirecting...';
+                    statusElement.textContent = {!! json_encode(__('payment.confirmed_redirect')) !!};
                     statusElement.classList.remove('text-blue-600');
                     statusElement.classList.add('text-green-600');
                     setTimeout(() => {
                         window.location.href = '{{ route("dashboard.orders") }}';
                     }, 2000);
                 } else {
-                    statusElement.textContent = 'Payment not detected yet. Please try again in a few moments.';
+                    statusElement.textContent = {!! json_encode(__('payment.not_detected')) !!};
                 }
             })
             .catch(error => {
                 console.error('Error checking payment:', error);
-                statusElement.textContent = 'Error checking payment status. Please try again.';
+                statusElement.textContent = {!! json_encode(__('payment.error_checking')) !!};
             });
         }
     };

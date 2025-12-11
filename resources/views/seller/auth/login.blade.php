@@ -17,8 +17,8 @@
             <div class="w-16 h-16 mx-auto mb-4">
                 <img src="{{ storage_public_url('images_homepage/diaszonelogo.jpeg') }}" alt="DiasZone logo" class="w-16 h-16 object-contain rounded-xl mx-auto" />
             </div>
-            <h1 class="text-white text-2xl font-bold">Seller Login</h1>
-            <p class="text-gray-400">Welcome back to DiasZone</p>
+            <h1 class="text-white text-2xl font-bold">{{ __('seller.seller_login') }}</h1>
+            <p class="text-gray-400">{{ __('seller.welcome_back', ['app' => config('app.name', 'DiasZone')]) }}</p>
         </div>
         
         @if(session('success'))
@@ -40,13 +40,13 @@
                 @csrf
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Email Address</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.email_address') }}</label>
                     <input type="email" name="email" value="{{ old('email') }}" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
                 
                 <div>
-                    <label class="block text-gray-300 text-sm mb-2">Password</label>
+                    <label class="block text-gray-300 text-sm mb-2">{{ __('seller.password') }}</label>
                     <input type="password" name="password" required
                         class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
                 </div>
@@ -54,7 +54,7 @@
                 <div class="flex items-center justify-between">
                     <label class="flex items-center">
                         <input type="checkbox" name="remember" class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500">
-                        <span class="ml-2 text-gray-400 text-sm">Remember me</span>
+                        <span class="ml-2 text-gray-400 text-sm">{{ __('seller.remember_me') }}</span>
                     </label>
                 </div>
                 
@@ -65,7 +65,7 @@
             
             <div class="mt-6 text-center">
                 <p class="text-gray-400">Don't have an account?</p>
-                <a href="{{ route('seller.register') }}" class="text-blue-400 hover:text-blue-300 font-medium">Register as Seller</a>
+                <a href="{{ route('seller.register') }}" class="text-blue-400 hover:text-blue-300 font-medium">{{ __('seller.register_as_seller') }}</a>
             </div>
         </div>
         

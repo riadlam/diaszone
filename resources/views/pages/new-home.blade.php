@@ -86,7 +86,7 @@
                     <img src="{{ asset('storage/images_homepage/honorofkings.webp') }}" 
                          alt="Honor of Kings" 
                          class="w-full h-full object-cover">
-                    <div class="coming-soon-overlay">Coming Soon</div>
+                    <div class="coming-soon-overlay">{{ __('misc.coming_soon') }}</div>
                     <div class="absolute bottom-0 left-0 right-0 p-4">
                         <h3 class="text-white font-bold text-lg">Honor of Kings</h3>
                     </div>
@@ -99,7 +99,7 @@
                     <img src="{{ url('storage/images_homepage/bloodrivels.webp') }}" 
                          alt="Blood Strike" 
                          class="w-full h-full object-cover">
-                    <div class="coming-soon-overlay">Coming Soon</div>
+                    <div class="coming-soon-overlay">{{ __('misc.coming_soon') }}</div>
                     <div class="absolute bottom-0 left-0 right-0 p-4">
                         <h3 class="text-white font-bold text-lg">Blood Strike</h3>
                     </div>
@@ -112,7 +112,7 @@
                     <img src="{{ asset('storage/images_homepage/pubgmobile.webp') }}" 
                          alt="PUBG Mobile" 
                          class="w-full h-full object-cover">
-                    <div class="coming-soon-overlay">Coming Soon</div>
+                    <div class="coming-soon-overlay">{{ __('misc.coming_soon') }}</div>
                     <div class="absolute bottom-0 left-0 right-0 p-4">
                         <h3 class="text-white font-bold text-lg">PUBG Mobile</h3>
                     </div>

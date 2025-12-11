@@ -79,6 +79,10 @@ function waitForCartManager(callback, maxAttempts = 50) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Localized strings used in JS templates
+    const tTotalBeforeDiscounts = {!! json_encode(__('checkout.total_before_discounts')) !!};
+    const tDiscountLabel = {!! json_encode(__('coupons.discount')) !!};
+    const tTotalLabel = {!! json_encode(__('checkout.total')) !!};
     // Enforce single-item cart limit - cleanup if multiple items exist
     (function enforceSingleItemCart() {
         const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
@@ -145,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         },
                         body: JSON.stringify({ ids: packIds })
                     });
-                    if (!response.ok) throw new Error('Failed to fetch packs');
+                    if (!response.ok) throw new Error({!! json_encode(__('seller.failed_to_fetch_packs')) !!});
                     const data = await response.json();
                     return Object.values(data.packs);
                 } catch (error) {
@@ -504,14 +508,14 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="space-y-3 mb-5" id="payment-details-content">
                 <!-- Total Before Discounts -->
                 <div class="flex justify-between items-center">
-                    <span class="text-xs text-gray-600">Total Before Discounts</span>
+                    <span class="text-xs text-gray-600">${tTotalBeforeDiscounts}</span>
                     <span class="text-xs font-medium text-gray-700 cart-total-before" data-value="${totalBeforeDiscount}">${formatPrice(totalBeforeDiscount)}</span>
                 </div>
                 
                 <!-- Discount -->
                 ${totalDiscount > 0 ? `
                     <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-600">Discount</span>
+                        <span class="text-xs text-gray-600">${tDiscountLabel}</span>
                         <span class="text-xs font-medium text-red-500 cart-discount" data-value="${totalDiscount}">- ${formatPrice(totalDiscount)}</span>
                     </div>
                 ` : ''}
@@ -522,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="flex items-center justify-between gap-3">
                         <div class="flex flex-col">
                             <div class="flex items-center gap-2">
-                                <span class="text-sm font-medium text-purple-600">Total</span>
+                                <span class="text-sm font-medium text-purple-600">${tTotalLabel}</span>
                                 <span class="text-base font-semibold text-purple-600 cart-total" data-value="${totalAmount}">${formatPrice(totalAmount)}</span>
                             </div>
                             <!-- DiasZone Credit - Under Total, as part of the same cell -->
@@ -649,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cart = CartManager.getCart();
                 if (cart.length === 0) {
                     e.preventDefault();
-                    alert('Your cart is empty. Please add items to your cart first.');
+                    alert({!! json_encode(__('seller.cart_empty')) !!} + '. ' + {!! json_encode(__('seller.cart_empty_info')) !!});
                     window.location.href = '{{ route("home") }}';
                     return;
                 }
@@ -665,14 +669,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const item of cart) {
                     if (!item.pack_id) {
                         e.preventDefault();
-                        alert('Some cart items are missing pack information. Please check your cart.');
+                        alert({!! json_encode(__('seller.cart_items_missing_pack_info')) !!});
                         return;
                     }
                     
                     const pack = packsMap[item.pack_id];
                     if (!pack) {
                         e.preventDefault();
-                        alert('Some cart items have invalid pack information. Please check your cart.');
+                        alert({!! json_encode(__('seller.cart_items_invalid_pack_info')) !!});
                         return;
                     }
                     
@@ -682,21 +686,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (gameType === 'bloodstrike') {
                         if (!item.user_id_bs || !item.server_bs) {
                             e.preventDefault();
-                            alert('Some cart items are missing required information (User ID or Server). Please check your cart.');
+                            alert({!! json_encode(__('seller.cart_items_missing_userid_server')) !!});
                             return;
                         }
                     } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
                         const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok;
                         if (!playerId) {
                             e.preventDefault();
-                            alert('Some cart items are missing required information (Player ID). Please check your cart.');
+                            alert({!! json_encode(__('seller.cart_items_missing_player_id')) !!});
                             return;
                         }
                     } else {
                         // Mobile Legends
                         if (!item.user_id || !item.zone_id) {
                             e.preventDefault();
-                            alert('Some cart items are missing required information (User ID or Zone ID). Please check your cart.');
+                            alert({!! json_encode(__('seller.cart_items_missing_userid_zone_id')) !!});
                             return;
                         }
                     }

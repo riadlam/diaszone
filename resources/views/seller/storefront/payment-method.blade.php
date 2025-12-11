@@ -1,10 +1,11 @@
+const tProcessing = {!! json_encode(__('seller.processing_text')) !!};
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Select Payment Method - {{ $seller->store_name ?? $seller->name }}</title>
+    <title>{{ __('checkout.select_payment') }} - {{ $seller->store_name ?? $seller->name }}</title>
     <link rel="icon" type="image/png" href="{{ asset('storage/images_homepage/favicon.png') }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -150,7 +151,7 @@
                     </div>
                     <div>
                         <h1 class="text-white font-bold" style="text-shadow: 0 6px 18px rgba(0,0,0,0.7);">{{ $seller->store_name ?? $seller->name }}</h1>
-                        <p class="text-gray-400 text-sm" style="text-shadow: 0 4px 12px rgba(0,0,0,0.55);">Payment Method</p>
+                        <p class="text-gray-400 text-sm" style="text-shadow: 0 4px 12px rgba(0,0,0,0.55);">{{ __('checkout.payment_method') }}</p>
                     </div>
                 </div>
             </div>
@@ -161,30 +162,30 @@
     <main class="max-w-3xl mx-auto px-4 py-8">
         <!-- Order Summary -->
         <div class="mb-8 bg-slate-800 rounded-xl p-6 border border-slate-700">
-            <h2 class="text-lg font-bold text-white mb-4">Order Summary</h2>
+            <h2 class="text-lg font-bold text-white mb-4">{{ __('seller.order_summary') }}</h2>
             
             <div class="space-y-3">
                 <div class="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span class="text-gray-400">Game</span>
+                    <span class="text-gray-400">{{ __('seller.game') }}</span>
                     <span class="text-white font-medium">{{ $gameName }}</span>
                 </div>
                 <div class="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span class="text-gray-400">Pack</span>
+                    <span class="text-gray-400">{{ __('seller.pack') }}</span>
                     <span class="text-cyan-400 font-bold">{{ number_format($pack['diamonds']) }} {{ $currencyLabel }}</span>
                 </div>
                 @if($pack['bonus_diamonds'] > 0)
                     <div class="flex justify-between items-center pb-3 border-b border-slate-700">
-                        <span class="text-gray-400">Bonus</span>
+                        <span class="text-gray-400">{{ __('seller.bonus') }}</span>
                         <span class="text-green-400 font-bold">+{{ $pack['bonus_diamonds'] }}</span>
                     </div>
                 @endif
                 <div class="flex justify-between items-center pb-3 border-b border-slate-700">
-                    <span class="text-gray-400">Player ID</span>
+                    <span class="text-gray-400">{{ __('seller.player_id') }}</span>
                     <span class="text-white font-medium">{{ $playerData['player_id'] }}</span>
                 </div>
                 @if($playerData['zone_id'])
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-400">Zone ID</span>
+                        <span class="text-gray-400">{{ __('seller.zone_id') }}</span>
                         <span class="text-white font-medium">{{ $playerData['zone_id'] }}</span>
                     </div>
                 @endif
@@ -193,7 +194,7 @@
         
         <!-- Payment Methods -->
         <div class="mb-8">
-            <h2 class="text-lg font-bold text-white mb-4">Select Payment Method</h2>
+            <h2 class="text-lg font-bold text-white mb-4">{{ __('checkout.select_payment') }}</h2>
             
             <form action="{{ route('seller.store.payment', ['username' => $seller->username]) }}" method="POST" id="payment-form" enctype="multipart/form-data">
                 @csrf
@@ -219,7 +220,7 @@
                                 </div>
                                 <div class="flex-1">
                                     <h3 class="text-white font-bold">Algérie Poste</h3>
-                                    <p class="text-gray-400 text-sm">Pay via CIB/Edahabia</p>
+                                    <p class="text-gray-400 text-sm">{{ __('seller.baridimob_desc') }}</p>
                                 </div>
                                 <div class="w-6 h-6 rounded-full border-2 border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">
                                     <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100" fill="currentColor" viewBox="0 0 20 20">
@@ -239,10 +240,10 @@
                                         <span class="text-2xl">🪙</span>
                                     </div>
                                     <div class="flex-1">
-                                        <h3 class="text-white font-bold">Cryptocurrency</h3>
-                                        <p class="text-gray-400 text-sm">Coming Soon</p>
+                                        <h3 class="text-white font-bold">{{ __('seller.cryptocurrency') }}</h3>
+                                        <p class="text-gray-400 text-sm">{{ __('misc.coming_soon') }}</p>
                                     </div>
-                                    <span class="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full">Soon</span>
+                                    <span class="bg-yellow-500/20 text-yellow-400 text-xs font-semibold px-3 py-1 rounded-full">{{ __('seller.soon') }}</span>
                                 </div>
                             </div>
                         </div>
@@ -262,9 +263,9 @@
                                          alt="Flexy" 
                                          class="w-full h-full object-contain p-1">
                                 </div>
-                                <div class="flex-1">
-                                    <h3 class="text-white font-bold">Flexy</h3>
-                                    <p class="text-gray-400 text-sm">Transfer to Flexy account</p>
+                                    <div class="flex-1">
+                                    <h3 class="text-white font-bold">{{ __('seller.flexy_payment_title') }}</h3>
+                                    <p class="text-gray-400 text-sm">{{ __('seller.transfer_to_flexy') }}</p>
                                 </div>
                                 <div class="w-6 h-6 rounded-full border-2 border-slate-600 peer-checked:border-orange-500 peer-checked:bg-orange-500 flex items-center justify-center transition-all">
                                     <svg class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100" fill="currentColor" viewBox="0 0 20 20">
@@ -283,10 +284,10 @@
                                         <img src="{{ asset('storage/images_homepage/flexy.webp') }}" alt="Flexy" class="w-full h-full object-contain p-1 grayscale">
                                     </div>
                                     <div class="flex-1">
-                                        <h3 class="text-white font-bold">Flexy</h3>
-                                        <p class="text-gray-400 text-sm">Disabled by seller</p>
+                                        <h3 class="text-white font-bold">{{ __('seller.flexy') }}</h3>
+                                        <p class="text-gray-400 text-sm">{{ __('seller.disabled_by_seller') }}</p>
                                     </div>
-                                    <span class="bg-gray-600/40 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full">Disabled</span>
+                                    <span class="bg-gray-600/40 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full">{{ __('seller.disabled') }}</span>
                                 </div>
                             </div>
                         </div>
@@ -297,7 +298,7 @@
                 <!-- Total Price -->
                 <div class="mt-8 p-4 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-xl">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-300 font-medium">Total Amount</span>
+                        <span class="text-gray-300 font-medium">{{ __('checkout.total') }}</span>
                         <span id="total-amount" class="text-2xl font-bold text-white">{{ (int)$pack['price_dzd'] }} DZD</span>
                     </div>
                 </div>
@@ -307,7 +308,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
                     </svg>
-                    Proceed to Payment
+                    {{ __('checkout.continue') }}
                 </button>
             <!-- Form continues to include the Flexy modal inputs -->
 
@@ -327,8 +328,8 @@
                                 <img src="{{ asset('storage/images_homepage/flexy.webp') }}" alt="Flexy" class="w-8 h-8 object-contain">
                             </div>
                             <div>
-                                <h3 class="text-lg font-bold text-white">Flexy Payment</h3>
-                                <p class="text-orange-100 text-xs">Transfer & upload receipt</p>
+                                <h3 class="text-lg font-bold text-white">{{ __('seller.flexy_payment_title') }}</h3>
+                                <p class="text-orange-100 text-xs">{{ __('seller.transfer_and_upload_receipt') }}</p>
                             </div>
                         </div>
                         <button type="button" onclick="closeFlexyModal()" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition">
@@ -346,13 +347,13 @@
                         <div class="bg-gradient-to-r from-orange-500/20 to-orange-600/20 border border-orange-500/50 rounded-xl p-4">
                             <div class="flex items-center justify-between mb-2">
                                 <p class="text-orange-300 text-sm font-medium flex items-center gap-2">
-                                    <span>💳</span> Transfer To Flexy:
+                                    <span>💳</span> {{ __('seller.transfer_to_flexy') }}
                                 </p>
                                 <button type="button" onclick="copyToClipboard('{{ $seller->flexy_number ?? 'N/A' }}', this)" class="text-orange-400 hover:text-orange-300 text-xs font-medium px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg transition flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                     </svg>
-                                    <span>Copy</span>
+                                    <span>{{ __('seller.copy') }}</span>
                                 </button>
                             </div>
                             <p class="text-white font-bold text-2xl tracking-wider font-mono">{{ $seller->flexy_number ?? 'N/A' }}</p>
@@ -360,7 +361,7 @@
                             {{-- Instruction directly under the phone/number block --}}
                             @if(!empty($seller->flexy_instruction))
                                 <div class="mt-3 text-sm text-slate-300 bg-slate-800/30 rounded-md p-3 border border-slate-700">
-                                    <p class="font-medium text-slate-200">Payment instructions</p>
+                                    <p class="font-medium text-slate-200">{{ __('payment.instructions') }}</p>
                                     <p class="text-xs text-slate-300 mt-1">{{ $seller->flexy_instruction }}</p>
                                 </div>
                             @endif
@@ -369,7 +370,7 @@
                         <!-- Amount -->
                         <div class="bg-cyan-500/20 border border-cyan-500/50 rounded-xl p-4">
                             <p class="text-cyan-300 text-sm font-medium mb-1 flex items-center gap-2">
-                                <span>💰</span> Amount to Send:
+                                <span>💰</span> {{ __('seller.amount_to_send') }}
                             </p>
                             <p class="text-white font-bold text-3xl"><span id="flexy-amount">{{ (int)$pack['price_dzd'] }}</span> <span class="text-xl text-cyan-300">DZD</span></p>
                         </div>
@@ -377,9 +378,9 @@
                         <!-- Upload Receipt -->
                         <div>
                             <label class="block text-gray-200 font-semibold mb-2 flex items-center gap-2">
-                                <span>📸</span> Upload Receipt <span class="text-red-400">*</span>
+                                <span>📸</span> {{ __('seller.upload_receipt') }} <span class="text-red-400">*</span>
                             </label>
-                            <p class="text-gray-400 text-xs mb-3">{{ $seller->flexy_instruction ?? 'Send a screenshot of your Flexy transfer confirmation' }}</p>
+                            <p class="text-gray-400 text-xs mb-3">{{ $seller->flexy_instruction ?? __('seller.flexy_instruction_default') }}</p>
                             
                             <!-- Upload Area -->
                             <div id="upload-area" class="upload-area border-2 border-dashed border-slate-500 rounded-xl p-6 text-center cursor-pointer transition" onclick="document.getElementById('receipt-input').click()">
@@ -389,8 +390,8 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                         </svg>
                                     </div>
-                                    <p class="text-gray-300 text-sm font-medium">Click to upload or drag and drop</p>
-                                    <p class="text-gray-500 text-xs mt-1">PNG, JPG, PDF up to 10MB</p>
+                                        <p class="text-gray-300 text-sm font-medium">{{ __('uploader.click_to_upload_or_drag') }}</p>
+                                            <p class="text-gray-500 text-xs mt-1">{{ __('seller.allowed_receipt_files') }}</p>
                                 </div>
                                 
                                 <!-- Image Preview (hidden by default) -->
@@ -410,7 +411,7 @@
                             <label for="description" class="block text-gray-200 font-semibold mb-2 flex items-center gap-2">
                                 <span>📝</span> Notes <span class="text-gray-500 text-sm font-normal">(Optional)</span>
                             </label>
-                            <p class="text-gray-400 text-xs mb-2">Add any reference or notes about this transfer</p>
+                            <p class="text-gray-400 text-xs mb-2">{{ __('seller.add_reference_notes') }}</p>
                             <textarea id="description" name="description" rows="2" placeholder="e.g., Transaction ID, time of transfer..." class="w-full bg-slate-700/50 text-white rounded-xl border border-slate-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none px-4 py-3 resize-none transition text-sm"></textarea>
                         </div>
                     </div>
@@ -419,13 +420,13 @@
                 <!-- Modal Footer -->
                 <div class="p-4 bg-slate-800/50 border-t border-slate-700 flex gap-3">
                     <button type="button" onclick="closeFlexyModal()" class="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition">
-                        Cancel
+                        {{ __('seller.cancel') }}
                     </button>
                     <button type="button" id="confirm-flexy-btn" onclick="confirmFlexyAndSubmit()" class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-bold transition flex items-center justify-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
-                        <span>Submit Order</span>
+                        <span>{{ __('seller.submit_order') }}</span>
                     </button>
                 </div>
             </div>
@@ -440,13 +441,22 @@
         <div class="max-w-6xl mx-auto px-4 py-6 text-center">
             <p class="text-gray-400 text-sm">
                 © {{ date('Y') }} {{ $seller->store_name ?? $seller->name }}. 
-                Powered by <a href="{{ route('home') }}" class="text-blue-400 hover:text-blue-300">DiasZone</a>
+                {{ __('seller.powered_by', ['app' => config('app.name', 'DiasZone')]) }} <a href="{{ route('home') }}" class="text-blue-400 hover:text-blue-300">{{ config('app.name', 'DiasZone') }}</a>
             </p>
         </div>
     </footer>
 
     <script>
         // Save order info to cookies for future reuse
+        const tPleaseUploadReceipt = {!! json_encode(__('seller.please_upload_receipt')) !!};
+        const tNoReceiptSelected = {!! json_encode(__('seller.no_receipt_selected')) !!};
+        const tReceiptTooLarge = {!! json_encode(__('seller.receipt_file_too_large')) !!};
+        const tUnsupportedReceiptType = {!! json_encode(__('seller.unsupported_receipt_file_type')) !!};
+        const tSubmissionFailed = {!! json_encode(__('seller.submission_failed')) !!};
+        const tUnexpectedResponse = {!! json_encode(__('seller.unexpected_response')) !!};
+        const tNetworkError = {!! json_encode(__('seller.network_error')) !!};
+        const tCopied = {!! json_encode(__('seller.copied')) !!};
+        const tSubmitOrder = {!! json_encode(__('seller.submit_order')) !!};
         function saveToCookies() {
             const packId = '{{ $pack['id'] }}';
             const playerId = '{{ $playerData['player_id'] }}';
@@ -514,7 +524,7 @@
 
                         if (!res.ok) {
                             // Friendly message for customers — intentionally generic so it doesn't expose internal seller status.
-                            const customerMsg = 'This seller is temporarily unable to accept purchases. Please try again later or pick another seller.';
+                            const customerMsg = {!! json_encode(__('seller.seller_temporarily_unavailable')) !!};
 
                             // If server returned JSON with a message, log it for debugging (seller/internal visibility)
                             try {
@@ -536,7 +546,7 @@
                         window.location.reload();
                     }).catch((err) => {
                         console.error('Payment submit failed', err);
-                        showToast('Something went wrong while processing your payment. Please try again.', 'error');
+                        showToast({!! json_encode(__('seller.something_went_wrong_processing_payment')) !!}, 'error');
                     });
                 }
         }
@@ -568,7 +578,7 @@
 
             // Check file size
             if (file.size > 10 * 1024 * 1024) {
-                alert('File size must be less than 10MB');
+                alert({!! json_encode(__('seller.receipt_file_too_large')) !!});
                 input.value = '';
                 return;
             }
@@ -649,25 +659,25 @@
             if (_isSubmittingFlexy) return false;
 
             if (!receiptInput || receiptInput.files.length === 0) {
-                alert('Please upload a receipt file');
+                alert(tPleaseUploadReceipt);
                 return false;
             }
 
             // Additional client-side validation: file size & mime check (mirror server rules)
             const file = receiptInput.files[0];
             if (!file) {
-                alert('No file selected. Please upload a receipt file');
+                alert(tNoReceiptSelected);
                 return false;
             }
             const maxSize = 10 * 1024 * 1024; // 10MB
             if (file.size > maxSize) {
-                alert('Receipt file too large. Maximum 10MB allowed.');
+                alert(tReceiptTooLarge);
                 return false;
             }
             const allowedTypes = ['image/png', 'image/jpeg', 'application/pdf'];
             if (file.type && !allowedTypes.includes(file.type)) {
                 // type may be empty for some files; allow server to recheck but warn user
-                alert('Unsupported receipt file type. Allowed: PNG, JPG, JPEG, PDF.');
+                alert(tUnsupportedReceiptType);
                 return false;
             }
 
@@ -679,7 +689,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Processing...</span>
+                <span>${tProcessing}</span>
             `;
 
             // Save to cookies before submitting
@@ -713,9 +723,9 @@
                         // If server returned HTML/redirect or an error, try to show helpful message
                         const txt = await res.text();
                         console.error('Flexy submit failed:', res.status, txt);
-                        alert('Submission failed. Please try again.');
+                        alert(tSubmissionFailed);
                         confirmBtn.disabled = false;
-                        confirmBtn.innerHTML = '<span>Submit Order</span>';
+                        confirmBtn.innerHTML = `<span>${tSubmitOrder}</span>`;
                         return;
                     }
 
@@ -727,18 +737,18 @@
 
                     // If the backend returned a non-success JSON or message, show it
                     if (data.message) {
-                        alert(data.message);
+                        alert(data.message || {!! json_encode(__('seller.unknown_error')) !!});
                     } else {
-                        alert('Unexpected response from server');
+                        alert(tUnexpectedResponse);
                     }
                 } catch (err) {
                     console.error(err);
-                    alert('Network error while submitting. Please try again.');
+                    alert(tNetworkError);
                     } finally {
                     if (confirmBtn) {
                         // re-enable only on failure; if server redirected we won't reach here
                         confirmBtn.disabled = false;
-                        confirmBtn.innerHTML = '<span>Submit Order</span>';
+                        confirmBtn.innerHTML = `<span>${tSubmitOrder}</span>`;
                     }
                     _isSubmittingFlexy = false;
                 }
@@ -752,7 +762,7 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
-                    <span>Copied!</span>
+                    <span>${tCopied}</span>
                 `;
                 btn.classList.add('bg-green-500/30', 'text-green-300');
                 btn.classList.remove('text-orange-400', 'bg-orange-500/20');
@@ -789,7 +799,7 @@
                     if (proceedBtn) {
                         proceedBtn.disabled = true;
                         proceedBtn.dataset.savedHtml = proceedBtn.innerHTML;
-                        proceedBtn.innerHTML = `<svg class="w-4 h-4 spinner mr-2" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span>Checking price...</span>`;
+                        proceedBtn.innerHTML = `<svg class="w-4 h-4 spinner mr-2" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span>${{!! json_encode(__('seller.checking_price')) !!}}</span>`;
                     }
                     const res = await fetch(flexyPriceUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
                     if (!res.ok) {

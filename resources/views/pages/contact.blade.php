@@ -252,13 +252,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     // Show error message
                     formMessage.className = 'p-4 rounded-lg bg-red-50 border border-red-200 text-red-800';
-                    formMessage.textContent = data.message || 'Sorry, there was an error sending your message. Please try again.';
+                    formMessage.textContent = data.message || {!! json_encode(__('contact.error')) !!};
                     formMessage.classList.remove('hidden');
                 }
             } catch (error) {
                 // Show error message
                 formMessage.className = 'p-4 rounded-lg bg-red-50 border border-red-200 text-red-800';
-                formMessage.textContent = 'Sorry, there was an error sending your message. Please try again.';
+                formMessage.textContent = {!! json_encode(__('contact.error')) !!};
                 formMessage.classList.remove('hidden');
             } finally {
                 // Re-enable submit button

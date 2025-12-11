@@ -1,7 +1,7 @@
 @extends('layouts.seller')
 
-@section('title', 'Wallet - Seller Panel')
-@section('header', 'Wallet')
+@section('title', __('seller.wallet_title'))
+@section('header', __('seller.wallet'))
 
 @section('content')
 <!-- Page container -->
@@ -11,22 +11,22 @@
         <div class="md:col-span-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl p-6 w-full">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="text-blue-100 text-sm">Current Balance</p>
+                    <p class="text-blue-100 text-sm">{{ __('seller.current_balance') }}</p>
                     <p class="text-4xl font-extrabold text-white tracking-tight">{{ number_format($seller->wallet_balance, 0, '.', '') }}<span class="text-base font-medium text-blue-100"> DZD</span></p>
                     @if(isset($pendingTopupsSum) && $pendingTopupsSum > 0)
-                        <p class="text-xs text-slate-200 mt-1">Pending top-up requests: {{ number_format($pendingTopupsSum, 0, '.', '') }} DZD</p>
+                        <p class="text-xs text-slate-200 mt-1">{{ __('seller.pending_topup_requests_info', ['amount' => number_format($pendingTopupsSum, 0, '.', '')]) }}</p>
                     @endif
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <button id="request-topup-btn" class="request-topup-toggle inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow">Request Top-up</button>
+                    <button id="request-topup-btn" aria-controls="topup-section" aria-expanded="false" class="request-topup-toggle inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow">{{ __('seller.request_topup') }}</button>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white/5 border border-white/5 p-4 rounded-lg text-sm text-blue-100">
-            <strong class="block mb-1">ℹ️ How it works</strong>
-            <p class="text-xs text-blue-200">Contact the admin to top-up your wallet. When customers purchase from your store, the base price is deducted from your wallet.</p>
+            <div class="bg-white/5 border border-white/5 p-4 rounded-lg text-sm text-blue-100">
+            <strong class="block mb-1">ℹ️ {{ __('seller.how_it_works') }}</strong>
+            <p class="text-xs text-blue-200">{{ __('seller.contact_admin_topup_notice') }}</p>
         </div>
     </div>
 
@@ -44,8 +44,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h4 class="font-bold text-white">Pending Top-up Requests</h4>
-                            <p class="text-xs text-amber-200/70">{{ $pendingTopups->count() }} request(s) awaiting approval</p>
+                            <h4 class="font-bold text-white">{{ __('seller.pending_topup_requests') }}</h4>
+                            <p class="text-xs text-amber-200/70">{{ __('seller.requests_awaiting_approval', ['count' => $pendingTopups->count()]) }}</p>
                         </div>
                     </div>
                     <span class="px-3 py-1 bg-amber-500/20 text-amber-300 text-sm font-semibold rounded-full">
@@ -54,17 +54,17 @@
                 </div>
             </div>
             
-            <!-- Requests Table -->
+            <!-- Requests Table - hidden on small screens -->
             <div class="overflow-x-auto">
-                <table class="w-full">
+                <table class="w-full hidden md:table">
                     <thead class="bg-slate-700/30">
                         <tr class="text-left text-xs text-gray-400 uppercase tracking-wider">
-                            <th class="px-5 py-3 font-semibold">Request</th>
-                            <th class="px-5 py-3 font-semibold">Amount</th>
-                            <th class="px-5 py-3 font-semibold">Method</th>
-                            <th class="px-5 py-3 font-semibold">Date</th>
-                            <th class="px-5 py-3 font-semibold">Status</th>
-                            <th class="px-5 py-3 font-semibold text-right">Actions</th>
+                            <th class="px-5 py-3 font-semibold">{{ __('seller.table_request') }}</th>
+                            <th class="px-5 py-3 font-semibold">{{ __('seller.table_amount') }}</th>
+                            <th class="px-5 py-3 font-semibold">{{ __('seller.table_method') }}</th>
+                            <th class="px-5 py-3 font-semibold">{{ __('seller.table_date') }}</th>
+                            <th class="px-5 py-3 font-semibold">{{ __('seller.table_status') }}</th>
+                            <th class="px-5 py-3 font-semibold text-right">{{ __('seller.table_actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-700/50">
@@ -105,7 +105,7 @@
                                     </span>
                                 </td>
                                 <td class="px-5 py-4 text-right">
-                                    <button type="button" 
+                                    <button type="button" aria-label="{{ __('seller.view_request', ['id' => $tr->id]) }}" 
                                         onclick="showRequestDetails({{ json_encode([
                                             'id' => $tr->id,
                                             'amount' => number_format($tr->amount, 0, '.', ''),
@@ -121,13 +121,51 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
-                                        View
+                                        {{ __('seller.view') }}
                                     </button>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Mobile Card View for Pending Topups -->
+            <div class="md:hidden space-y-3 px-3 py-2">
+                @foreach($pendingTopups as $tr)
+                    <div class="bg-slate-700/20 rounded-lg p-3 flex items-start justify-between" data-topup-id="{{ $tr->id }}">
+                        <div>
+                            <p class="text-white font-medium">#{{ $tr->id }}</p>
+                            <p class="text-sm text-gray-300">{{ $tr->created_at->format('M d, Y - H:i') }}</p>
+                            @if($tr->payment_type)
+                                <span class="inline-block mt-2 px-2 py-0.5 text-xs rounded bg-slate-600 text-gray-300">{{ strtoupper($tr->payment_type) }}</span>
+                            @endif
+                        </div>
+                        <div class="text-right flex flex-col items-end justify-between">
+                            <div>
+                                <p class="text-lg font-bold text-white">{{ number_format($tr->amount, 0, '.', '') }} <span class="text-gray-400 text-xs">{{ $tr->currency }}</span></p>
+                            </div>
+                            <div class="mt-2 flex items-center gap-3">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold rounded-full">
+                                    <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span>
+                                    {{ ucfirst($tr->status) }}
+                                </span>
+                                <div class="flex items-center gap-2">
+                                <button type="button" aria-label="{{ __('seller.view_request', ['id' => $tr->id]) }}" onclick="showRequestDetails({{ json_encode([
+                                    'id' => $tr->id,
+                                    'amount' => number_format($tr->amount, 0, '.', ''),
+                                    'currency' => $tr->currency,
+                                    'payment_type' => $tr->payment_type,
+                                    'status' => $tr->status,
+                                    'seller_note' => $tr->seller_note,
+                                    'receipt' => $tr->receipt,
+                                    'created_at' => $tr->created_at->format('M d, Y \a\t H:i'),
+                                ]) }})" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-medium rounded-lg transition">{{ __('seller.view') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
             </div>
         </div>
     </div>
@@ -140,10 +178,10 @@
                 <!-- Modal Header -->
                 <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-4">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-bold text-white">Request Details</h3>
+                        <h3 class="text-lg font-bold text-white">{{ __('seller.request_details') }}</h3>
                         <button type="button" onclick="closeRequestDetails()" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
+                                </button>
                     </div>
                 </div>
                 
@@ -151,7 +189,7 @@
                 <div class="p-6 space-y-4 overflow-y-auto flex-1">
                     <!-- Request ID & Status -->
                     <div class="flex items-center justify-between">
-                        <span class="text-gray-400 text-sm">Request <span id="detail-id" class="text-white font-semibold">#1</span></span>
+                        <span class="text-gray-400 text-sm">{{ __('seller.request') }} <span id="detail-id" class="text-white font-semibold">#1</span></span>
                         <span id="detail-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold rounded-full">
                             <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
                             Pending
@@ -160,25 +198,25 @@
                     
                     <!-- Amount -->
                     <div class="bg-slate-700/30 rounded-xl p-4 text-center">
-                        <p class="text-gray-400 text-sm mb-1">Amount</p>
+                                <p class="text-gray-400 text-sm mb-1">{{ __('seller.table_amount') }}</p>
                         <p class="text-3xl font-bold text-white"><span id="detail-amount">500</span> <span id="detail-currency" class="text-lg text-gray-400">DZD</span></p>
                     </div>
                     
                     <!-- Info Grid -->
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-slate-700/20 rounded-lg p-3">
-                            <p class="text-gray-500 text-xs mb-1">Payment Method</p>
-                            <p id="detail-method" class="text-white font-medium">CCP</p>
+                            <p class="text-gray-500 text-xs mb-1">{{ __('checkout.payment_method') }}</p>
+                            <p id="detail-method" class="text-white font-medium">{{ __('seller.ccp') }}</p>
                         </div>
                         <div class="bg-slate-700/20 rounded-lg p-3">
-                            <p class="text-gray-500 text-xs mb-1">Submitted</p>
+                            <p class="text-gray-500 text-xs mb-1">{{ __('seller.submitted') }}</p>
                             <p id="detail-date" class="text-white font-medium text-sm">Dec 08, 2024</p>
                         </div>
                     </div>
                     
                     <!-- Note -->
                     <div id="detail-note-section" class="hidden">
-                        <p class="text-gray-500 text-xs mb-2">Your Note</p>
+                            <p class="text-gray-500 text-xs mb-2">{{ __('seller.your_note') }}</p>
                         <div class="bg-slate-700/20 rounded-lg p-3">
                             <p id="detail-note" class="text-gray-300 text-sm"></p>
                         </div>
@@ -186,7 +224,7 @@
                     
                     <!-- Receipt -->
                     <div id="detail-receipt-section" class="hidden">
-                        <p class="text-gray-500 text-xs mb-2">Receipt</p>
+                        <p class="text-gray-500 text-xs mb-2">{{ __('seller.receipt') }}</p>
                         <a id="detail-receipt-link" href="#" target="_blank" class="block">
                             <div id="detail-receipt-image" class="rounded-lg overflow-hidden bg-slate-700 max-h-48 flex items-center justify-center">
                                 <!-- Image will be inserted here -->
@@ -196,7 +234,7 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                             </svg>
-                            Open in new tab
+                            {{ __('seller.open_in_new_tab') }}
                         </a>
                     </div>
                 </div>
@@ -204,7 +242,7 @@
                 <!-- Modal Footer -->
                 <div class="px-6 py-4 bg-slate-800/50 border-t border-slate-700">
                     <button type="button" onclick="closeRequestDetails()" class="w-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition">
-                        Close
+                        {{ __('common.close') }}
                     </button>
                 </div>
             </div>
@@ -218,16 +256,16 @@
 <div class="bg-slate-800 rounded-xl shadow-inner overflow-hidden">
     <div class="p-6 border-b border-slate-700 flex items-center justify-between">
         <div>
-            <h3 class="text-lg font-bold">Transaction History</h3>
-            <p class="text-sm text-gray-400 mt-1">Recent wallet activity and balance changes</p>
+                            <h3 class="text-lg font-bold">{{ __('seller.transaction_history') }}</h3>
+            <p class="text-sm text-gray-400 mt-1">{{ __('seller.recent_wallet_activity') }}</p>
         </div>
         <div>
-            <button class="request-topup-toggle inline-flex items-center gap-2 px-3 py-1 rounded bg-amber-500 text-sm text-white hover:bg-amber-600">Request Top-up</button>
+            <button class="request-topup-toggle inline-flex items-center gap-2 px-3 py-1 rounded bg-amber-500 text-sm text-white hover:bg-amber-600">{{ __('seller.request_topup') }}</button>
         </div>
     </div>
 
     <!-- Request Top-up Section (Inline Collapsible) -->
-    <div id="topup-section" class="hidden mb-6 animate-slideDown">
+            <div id="topup-section" aria-hidden="true" class="hidden mb-6 animate-slideDown">
         <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
             <!-- Header -->
             <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
@@ -239,8 +277,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-white">Request Top-up</h3>
-                            <p class="text-amber-100 text-xs">Add funds to your wallet</p>
+                            <h3 class="text-lg font-bold text-white">{{ __('seller.request_topup') }}</h3>
+                            <p class="text-amber-100 text-xs">{{ __('seller.add_funds_to_wallet') }}</p>
                         </div>
                     </div>
                     <button type="button" id="topup-close" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition">
@@ -260,7 +298,7 @@
                             <!-- Payment Type Selection -->
                             <div>
                                 <label class="block text-gray-300 font-semibold mb-3 flex items-center gap-2">
-                                    <span>💳</span> Payment Method
+                                    <span>💳</span> {{ __('checkout.payment_method') }}
                                 </label>
                                 <div class="grid grid-cols-3 gap-3">
                                     <!-- CCP Option -->
@@ -272,7 +310,7 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                                                 </svg>
                                             </div>
-                                            <span class="text-xs font-medium text-gray-300">CCP</span>
+                                            <span class="text-xs font-medium text-gray-300">{{ __('seller.ccp') }}</span>
                                         </div>
                                     </label>
                                     
@@ -283,7 +321,7 @@
                                             <div class="w-9 h-9 mx-auto mb-1.5 bg-slate-600 rounded-lg flex items-center justify-center group-hover:bg-slate-500 transition">
                                                 <span class="text-base">₮</span>
                                             </div>
-                                            <span class="text-xs font-medium text-gray-300">USDT</span>
+                                            <span class="text-xs font-medium text-gray-300">{{ __('seller.usdt') }}</span>
                                         </div>
                                     </label>
                                     
@@ -296,7 +334,7 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                                 </svg>
                                             </div>
-                                            <span class="text-xs font-medium text-gray-300">Baridimob</span>
+                                            <span class="text-xs font-medium text-gray-300">{{ __('seller.baridimob') }}</span>
                                         </div>
                                     </label>
                                 </div>
@@ -314,10 +352,10 @@
                                         </div>
                                         <button type="button" onclick="copyToClipboard('023709454', this)" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs rounded-lg transition flex items-center gap-1">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                            Copy
+                                            {{ __('seller.copy') }}
                                         </button>
                                     </div>
-                                    <p class="text-gray-300 text-sm">Name: <span class="font-semibold">Riad Mohamed Laamari</span></p>
+                                    <p class="text-gray-300 text-sm">{{ __('seller.name_label') }}: <span class="font-semibold">Riad Mohamed Laamari</span></p>
                                 </div>
                                 
                                 <!-- Baridimob (RIP) Info -->
@@ -329,7 +367,7 @@
                                         <p class="text-white font-bold text-lg font-mono tracking-wider">00799999002370945404</p>
                                         <button type="button" onclick="copyToClipboard('00799999002370945404', this)" class="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs rounded-lg transition flex items-center gap-1">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                            Copy
+                                            {{ __('seller.copy') }}
                                         </button>
                                     </div>
                                 </div>
@@ -343,7 +381,7 @@
                                         <p class="text-white font-bold text-xl font-mono tracking-wider">455432403</p>
                                         <button type="button" onclick="copyToClipboard('455432403', this)" class="px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 text-green-300 text-xs rounded-lg transition flex items-center gap-1">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                            Copy
+                                            {{ __('seller.copy') }}
                                         </button>
                                     </div>
                                     <p class="text-gray-400 text-xs mt-2">Network: TRC20 or BEP20</p>
@@ -353,12 +391,12 @@
                             <!-- Amount -->
                             <div>
                                 <label class="block text-gray-300 font-semibold mb-2 flex items-center gap-2">
-                                    <span>💰</span> Amount (<span id="amount-currency">DZD</span>)
+                                    <span>💰</span> {{ __('seller.amount_label') }} (<span id="amount-currency">{{ __('seller.currency_dzd') }}</span>)
                                 </label>
-                                <input id="topup-amount" name="amount" type="number" min="1" step="1" required placeholder="Enter amount" class="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white text-lg font-semibold placeholder-gray-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition">
+                                <input id="topup-amount" name="amount" type="number" min="1" step="1" required placeholder="{{ __('seller.enter_amount') }}" class="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white text-lg font-semibold placeholder-gray-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition">
                                 <p id="topup-amount-hint" class="text-xs text-gray-500 mt-2 flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    Current balance: <span id="balance-amount" class="font-semibold text-gray-300">{{ number_format($seller->wallet_balance, 0, '.', '') }}</span> <span id="balance-currency">DZD</span>
+                                    {{ __('seller.current_balance_label') }} <span id="balance-amount" class="font-semibold text-gray-300">{{ number_format($seller->wallet_balance, 0, '.', '') }}</span> <span id="balance-currency">DZD</span>
                                 </p>
                             </div>
                         </div>
@@ -376,7 +414,7 @@
                             <!-- Receipt Upload -->
                             <div>
                                 <label class="block text-gray-300 font-semibold mb-2 flex items-center gap-2">
-                                    <span>📸</span> Receipt <span class="text-gray-500 text-sm font-normal">(optional)</span>
+                                    <span>📸</span> {{ __('seller.receipt') }} <span class="text-gray-500 text-sm font-normal">({{ __('common.optional') }})</span>
                                 </label>
                                 <div id="receipt-dropzone" class="border-2 border-dashed border-slate-600 rounded-xl p-4 bg-slate-700/30 cursor-pointer hover:border-amber-500/50 hover:bg-slate-700/50 transition-all group">
                                     <input id="receipt-input" name="receipt" type="file" accept="image/*,application/pdf" class="hidden" />
@@ -388,7 +426,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                             </svg>
                                         </div>
-                                        <p class="text-gray-300 text-sm font-medium">Click to upload or drag & drop</p>
+                                        <p class="text-gray-300 text-sm font-medium">{{ __('uploader.click_to_upload_or_drag') }}</p>
                                         <p class="text-gray-500 text-xs mt-1">JPG, PNG, PDF — max 10MB</p>
                                     </div>
                                     
@@ -399,8 +437,8 @@
                                             <div class="flex-1 min-w-0">
                                                 <p id="receipt-filename" class="text-sm text-gray-200 font-medium truncate"></p>
                                                 <div class="flex items-center gap-3 mt-1">
-                                                    <button type="button" id="receipt-remove" class="text-xs text-red-400 hover:text-red-300 transition">Remove</button>
-                                                    <a id="receipt-view-link" href="#" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 transition">Open</a>
+                                                    <button type="button" id="receipt-remove" class="text-xs text-red-400 hover:text-red-300 transition">{{ __('seller.remove') }}</button>
+                                                    <a id="receipt-view-link" href="#" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 transition">{{ __('seller.open') }}</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -416,13 +454,13 @@
                     <!-- Submit Buttons -->
                     <div class="mt-6 flex justify-end gap-3">
                         <button type="button" id="topup-cancel" class="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition">
-                            Cancel
+                            {{ __('seller.cancel') }}
                         </button>
                         <button id="topup-submit" type="submit" class="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-bold transition flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                             </svg>
-                            Submit Request
+                            {{ __('seller.submit_request') }}
                         </button>
                     </div>
                 </form>
@@ -432,8 +470,8 @@
     
     <div class="divide-y divide-slate-700">
         @forelse($transactions as $transaction)
-            <div class="p-4 flex items-center justify-between hover:bg-slate-700/50">
-                <div class="flex items-center space-x-4">
+            <div class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between hover:bg-slate-700/50">
+                <div class="flex items-start md:items-center space-x-4">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center {{ $transaction->type === 'credit' ? 'bg-green-500/20' : 'bg-red-500/20' }}">
                         @if($transaction->type === 'credit')
                             <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -455,7 +493,7 @@
                         @endif
                     </div>
                 </div>
-                <div class="text-right">
+                <div class="text-right mt-3 md:mt-0">
                     <p class="font-bold {{ $transaction->type === 'credit' ? 'text-green-400' : 'text-red-400' }}">
                         {{ $transaction->type === 'credit' ? '+' : '-' }}{{ number_format($transaction->amount, 2, '.', '') }} DZD
                     </p>
@@ -467,8 +505,8 @@
                 <svg class="w-20 h-20 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
                 </svg>
-                <p class="text-lg font-semibold text-gray-300">No transactions yet</p>
-                <p class="text-sm text-gray-400 mt-2">When you receive credit or make purchases, you'll see transactions here.</p>
+                <p class="text-lg font-semibold text-gray-300">{{ __('seller.no_transactions_yet') }}</p>
+                <p class="text-sm text-gray-400 mt-2">{{ __('seller.transactions_empty_info') }}</p>
             </div>
         @endforelse
     </div>
@@ -484,6 +522,7 @@
 
 @push('scripts')
 <script>
+const tCopied = {!! json_encode(__('seller.copied')) !!};
     // Inline section toggle
     const topupSection = document.getElementById('topup-section');
     const requestTopupBtns = document.querySelectorAll('.request-topup-toggle');
@@ -493,19 +532,23 @@
     function openTopupSection() {
         if (!topupSection) return;
         topupSection.classList.remove('hidden');
+        topupSection.setAttribute('aria-hidden', 'false');
         // Scroll to the section smoothly
         setTimeout(() => {
             topupSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             document.getElementById('topup-amount')?.focus();
         }, 100);
+        requestTopupBtns?.forEach(btn => btn.setAttribute('aria-expanded', 'true'));
     }
 
     function closeTopupSection() {
         if (!topupSection) return;
         topupSection.classList.add('hidden');
+        topupSection.setAttribute('aria-hidden', 'true');
         // Reset preview and errors
         resetReceipt();
         topupErrorEl?.classList.add('hidden');
+        requestTopupBtns?.forEach(btn => btn.setAttribute('aria-expanded', 'false'));
     }
 
     requestTopupBtns?.forEach(btn => btn.addEventListener('click', openTopupSection));
@@ -571,7 +614,7 @@
                         <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        <p class="text-gray-400 text-sm">PDF Document</p>
+                        <p class="text-gray-400 text-sm">{{ __('seller.pdf_document') }}</p>
                     </div>
                 `;
             }
@@ -604,7 +647,7 @@
         const val = parseInt(topupAmountEl.value || '0', 10) || 0;
         if (val <= 0) {
             topupErrorEl.classList.remove('hidden');
-            topupErrorEl.textContent = 'Please enter a valid top-up amount.';
+            topupErrorEl.textContent = {!! json_encode(__('seller.please_enter_valid_topup_amount')) !!};
             topupSubmitBtn.disabled = true;
             return false;
         }
@@ -660,7 +703,7 @@
             thumb.innerHTML = '';
             thumb.appendChild(img);
         } else {
-            thumb.innerHTML = '<div class="text-xs text-gray-400">Unsupported</div>';
+            thumb.innerHTML = `<div class="text-xs text-gray-400">${{!! json_encode(__('seller.unsupported')) !!}}</div>`;
         }
 
         viewLink.href = URL.createObjectURL(file);
@@ -699,13 +742,13 @@
         // validate
         if (!allowedTypes.includes(file.type)) {
             topupErrorEl.classList.remove('hidden');
-            topupErrorEl.textContent = 'Invalid file type. Allowed: JPG, PNG, PDF.';
+            topupErrorEl.textContent = {!! json_encode(__('seller.unsupported_receipt_file_type')) !!};
             if (fileInput) fileInput.value = '';
             return;
         }
         if (file.size > MAX_SIZE) {
             topupErrorEl.classList.remove('hidden');
-            topupErrorEl.textContent = 'File too large. Max 10MB.';
+            topupErrorEl.textContent = {!! json_encode(__('seller.receipt_file_too_large')) !!};
             if (fileInput) fileInput.value = '';
             return;
         }
@@ -787,7 +830,7 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                Copied!
+                ${tCopied}
             `;
             btn.classList.add('bg-green-500/30');
             

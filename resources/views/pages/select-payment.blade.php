@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Select Payment Method')
+@section('title', __('checkout.select_payment'))
 
 @section('content')
 <div id="payment-page-content" class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-pink-50/20 min-h-screen pt-6 pb-0">
@@ -51,7 +51,7 @@
                                     <!-- Coming Soon Overlay -->
                                     @if($isComingSoon)
                                     <div class="absolute inset-0 flex items-center justify-center bg-gray-300 bg-opacity-30 rounded-xl">
-                                        <span class="bg-gray-600 text-white px-3 py-1 rounded-lg text-xs font-bold">Coming Soon</span>
+                                        <span class="bg-gray-600 text-white px-3 py-1 rounded-lg text-xs font-bold">{{ __('misc.coming_soon') }}</span>
                                     </div>
                                     @endif
                                 </div>
@@ -193,7 +193,7 @@
                         <div class="border-t-2 border-purple-200 pt-3">
                             <!-- Total Before Discounts -->
                             <div class="flex justify-between items-center mb-2" id="total-before-discount-row" style="display: none;">
-                                <span class="text-xs font-semibold text-gray-600">Total Before Discounts</span>
+                                <span class="text-xs font-semibold text-gray-600">{{ __('checkout.total_before_discounts') }}</span>
                                 <span class="text-xs font-medium text-gray-700" id="total-before-discount">USD 0.00</span>
                             </div>
                             
@@ -211,7 +211,7 @@
                             
                             <!-- Total -->
                             <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs font-semibold text-gray-700">Total</span>
+                                <span class="text-xs font-semibold text-gray-700">{{ __('checkout.total') }}</span>
                                 <span class="text-sm font-bold text-gray-900" id="total-amount">USD 0.00</span>
                             </div>
                             
@@ -222,7 +222,7 @@
                             
                             <!-- Pay with (dynamic based on selection) -->
                             <div class="mb-3 bg-purple-50 rounded-lg p-2 border border-purple-100">
-                                <label class="block text-xs font-semibold text-purple-700 mb-1">Pay with</label>
+                                <label class="block text-xs font-semibold text-purple-700 mb-1">{{ __('checkout.pay_with') }}</label>
                                 <div class="text-xs font-bold text-purple-600" id="pay-with-text">Cryptocurrency (USD)</div>
                             </div>
                             
@@ -230,14 +230,14 @@
                             <div class="flex items-center justify-between gap-3 pt-3 border-t-2 border-purple-200">
                                 <div class="flex flex-col">
                                     <div class="flex items-center gap-2">
-                                        <span class="text-sm font-medium text-purple-600">Pay Now</span>
+                                        <span class="text-sm font-medium text-purple-600">{{ __('checkout.pay_now') }}</span>
                                         <span class="text-base font-semibold text-purple-600" id="pay-now-amount">USD 0.00</span>
                                     </div>
                                 </div>
                                 <button type="button" 
                                         id="pay-submit-btn"
                                         class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg text-sm whitespace-nowrap">
-                                    Envoyer
+                                    {{ __('checkout.pay_now') }}
                                 </button>
                             </div>
                         </div>
@@ -355,6 +355,13 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
+    // Localized labels used by JS
+    const tUserId = {!! json_encode(__('checkout.user_id')) !!};
+    const tPlayerId = {!! json_encode(__('checkout.player_id')) !!};
+    const tZoneId = {!! json_encode(__('checkout.zone_id')) !!};
+    const tServer = {!! json_encode(__('checkout.server')) !!};
+    const tBonus = {!! json_encode(__('seller.bonus')) !!};
+
     // Initialize page if cart exists
     async function initializePage() {
         // Fetch cart data and calculate totals
@@ -381,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (!response.ok) {
-                throw new Error('Failed to fetch pack data');
+                throw new Error({!! json_encode(__('seller.failed_to_fetch_pack_data')) !!});
             }
             
             const data = await response.json();
@@ -434,7 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Bonus display
                     const bonus = pack.bonus || pack.bonus_diamonds || 0;
-                    const bonusText = bonus > 0 ? ` + ${bonus} Bonus` : '';
+                    const bonusText = bonus > 0 ? ` + ${bonus} ${tBonus}` : '';
                     const packDisplayText = packDisplayName + bonusText;
                     
                     // Determine order information fields based on game type
@@ -443,21 +450,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         const userIdBs = item.user_id_bs || '';
                         const serverBs = item.server_bs || 'Global';
                         orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">User ID:</span> ${userIdBs}</p>
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">Server:</span> ${serverBs}</p>
+                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userIdBs}</p>
+                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tServer}:</span> ${serverBs}</p>
                         `;
                     } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
                         const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || '';
                         orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">Player ID:</span> ${playerId}</p>
+                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tPlayerId}:</span> ${playerId}</p>
                         `;
                     } else {
                         // Mobile Legends
                         const userId = item.user_id || '';
                         const zoneId = item.zone_id || '';
                         orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">User ID:</span> ${userId}</p>
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">Zone ID:</span> ${zoneId}</p>
+                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userId}</p>
+                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tZoneId}:</span> ${zoneId}</p>
                         `;
                     }
                     
@@ -796,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Reset button
             const submitBtn = document.getElementById('pay-submit-btn');
             if (submitBtn) {
-                submitBtn.textContent = 'Envoyer';
+                submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
                 submitBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
                 submitBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
             }
@@ -901,7 +908,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Get cart data
                 const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
                 if (cart.length === 0) {
-                    alert('Your cart is empty');
+                    alert({!! json_encode(__('seller.cart_empty')) !!});
                     return;
                 }
                 
@@ -945,7 +952,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const orderData = await orderResponse.json();
                         
                         if (!orderData.success || !orderData.orders || orderData.orders.length === 0) {
-                            throw new Error('Failed to create order');
+                            throw new Error({!! json_encode(__('seller.order_creation_failed')) !!});
                         }
                         
                         const order = orderData.orders[0];
@@ -973,12 +980,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Redirect to success page
                             window.location.href = freeOrderData.redirect_url || '/dashboard/orders';
                         } else {
-                            throw new Error(freeOrderData.message || 'Failed to process free order');
+                            throw new Error(freeOrderData.message || {!! json_encode(__('seller.free_order_failed')) !!});
                         }
                         
                     } catch (error) {
                         console.error('Free order error:', error);
-                        showStyledAlert('Error', error.message || 'Failed to process free order', 'error');
+                        showStyledAlert({!! json_encode(__('seller.error')) !!}, error.message || {!! json_encode(__('seller.free_order_failed')) !!}, 'error');
                         isProcessing = false;
                         submitBtn.disabled = false;
                         submitBtn.textContent = '{{ __("coupons.complete_free_order") }}';
@@ -992,7 +999,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (paymentMethod === 'flexy') {
                     isProcessing = true;
                     submitBtn.disabled = true;
-                    submitBtn.textContent = 'Processing...';
+                    submitBtn.textContent = {!! json_encode(__('seller.processing_text')) !!};
                     
                     try {
                     // Prepare cart items for API - include all game-specific fields
@@ -1031,9 +1038,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Check for rate limiting (429)
                         if (response.status === 429) {
                             const errorData = await response.json().catch(() => ({}));
-                            throw new Error('RATE_LIMIT: Too many requests. Please wait a moment before trying again.');
+                            throw new Error({!! json_encode(__('seller.too_many_requests')) !!});
                         }
-                        throw new Error('Failed to create order');
+                        throw new Error({!! json_encode(__('seller.order_creation_failed')) !!});
                     }
                     
                     const data = await response.json();
@@ -1090,25 +1097,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Show styled alert based on error type
                     try {
                         if (error.message && error.message.includes('RATE_LIMIT')) {
-                            showStyledAlert('Too Many Requests', 'You are making requests too quickly. Please wait a moment before trying again.', 'warning');
+                            showStyledAlert({!! json_encode(__('seller.warning')) !!}, {!! json_encode(__('seller.too_many_requests')) !!}, 'warning');
                         } else {
-                            showStyledAlert('Order Creation Failed', 'Failed to create order. Please try again.', 'error');
+                            showStyledAlert({!! json_encode(__('seller.error')) !!}, {!! json_encode(__('seller.order_creation_failed')) !!}, 'error');
                         }
                     } catch (alertError) {
                         // Fallback if showStyledAlert fails
                         console.error('Error showing alert:', alertError);
-                        alert('Failed to create order. Please try again.');
+                        alert({!! json_encode(__('seller.order_creation_failed')) !!});
                     }
                     
                     isProcessing = false;
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Envoyer';
+                    submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
                 }
                 } else if (paymentMethod === 'cryptocurrency') {
                     // Cryptocurrency is coming soon - prevent selection
-                    alert('Cryptocurrency payment is coming soon. Please select another payment method.');
+                    alert({!! json_encode(__('seller.crypto_payment_coming_soon')) !!});
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Envoyer';
+                    submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
                     return;
                 } else if (paymentMethod === 'baridimob') {
                     // If Baridimob is selected, create order and navigate to baridimob payment page
@@ -1152,9 +1159,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Check for rate limiting (429)
                         if (response.status === 429) {
                             const errorData = await response.json().catch(() => ({}));
-                            throw new Error('RATE_LIMIT: Too many requests. Please wait a moment before trying again.');
+                            throw new Error({!! json_encode(__('seller.too_many_requests')) !!});
                         }
-                        throw new Error('Failed to create order');
+                        throw new Error({!! json_encode(__('seller.order_creation_failed')) !!});
                     }
                     
                     const data = await response.json();
@@ -1211,14 +1218,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Show styled alert based on error type
                     try {
                         if (error.message && error.message.includes('RATE_LIMIT')) {
-                            showStyledAlert('Too Many Requests', 'You are making requests too quickly. Please wait a moment before trying again.', 'warning');
+                            showStyledAlert({!! json_encode(__('seller.warning')) !!}, {!! json_encode(__('seller.too_many_requests')) !!}, 'warning');
                         } else {
-                            showStyledAlert('Order Creation Failed', 'Failed to create order. Please try again.', 'error');
+                            showStyledAlert({!! json_encode(__('seller.error')) !!}, {!! json_encode(__('seller.order_creation_failed')) !!}, 'error');
                         }
                     } catch (alertError) {
                         // Fallback if showStyledAlert fails
                         console.error('Error showing alert:', alertError);
-                        alert('Failed to create order. Please try again.');
+                        alert({!! json_encode(__('seller.order_creation_failed')) !!});
                     }
                     
                     isProcessing = false;

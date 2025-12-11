@@ -76,7 +76,7 @@
         </div>
         {{-- Description moved to store header under store name (redundant here) --}}
         
-        <h2 class="text-2xl font-bold text-white mb-6">Choose a Game</h2>
+        <h2 class="text-2xl font-bold text-white mb-6">{{ __('seller.choose_game') }}</h2>
         
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             @foreach($games as $game)
@@ -97,7 +97,7 @@
                     </div>
                     <div class="p-4 text-center flex-shrink-0">
                         <h3 class="text-white font-bold">{{ $game['name'] }}</h3>
-                        <p class="text-gray-400 text-sm">Top Up Now</p>
+                        <p class="text-gray-400 text-sm">{{ __('seller.top_up_now') }}</p>
                     </div>
                 </a>
             @endforeach

@@ -129,7 +129,7 @@
     <div class="space-y-6">
         <!-- Wallet -->
         <div class="bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl p-6 text-white">
-            <p class="text-purple-200">Wallet Balance</p>
+            <p class="text-purple-200">{{ __('seller.wallet_balance') }}</p>
             <p class="text-3xl font-bold">{{ number_format($seller->wallet_balance, 0, '.', '') }} DZD</p>
         </div>
         

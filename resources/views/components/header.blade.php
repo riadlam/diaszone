@@ -1,4 +1,5 @@
-<header class="bg-white shadow-sm sticky top-0 z-50">
+@php $isRtl = app()->getLocale() == 'ar'; @endphp
+<header class="bg-white shadow-sm lg:sticky lg:top-0 z-50">
     <div class="container mx-auto px-4">
         <nav class="flex items-center justify-between h-16">
             <!-- Left: Mobile Menu Button (mobile only) -->
@@ -30,10 +31,10 @@
             <!-- Search Bar (desktop only) -->
             <div class="hidden lg:flex flex-1 max-w-md mx-8">
                 <div class="relative w-full">
-                    <input type="text" 
+                          <input type="text" 
                            placeholder="{{ __('nav.search_placeholder') }}" 
-                           class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm search-input">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none header-left-icon">
                         <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
@@ -243,7 +244,7 @@
 </header>
 
 <!-- Mobile Side Drawer -->
-<div id="mobile-drawer" class="fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-xl transform -translate-x-full transition-transform duration-300 ease-in-out lg:hidden" style="transform: translateX(-100%);">
+<div id="mobile-drawer" class="fixed inset-y-0 z-50 w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:hidden {{ $isRtl ? 'translate-x-full right-0' : '-translate-x-full left-0' }}" style="{{ $isRtl ? 'transform: translateX(100%);' : 'transform: translateX(-100%);' }}">
     <div class="flex flex-col h-full">
         <!-- Drawer Header -->
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
@@ -262,7 +263,7 @@
                 <input type="text" 
                        placeholder="{{ __('nav.search_placeholder') }}" 
                        class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none header-left-icon">
                     <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
@@ -314,7 +315,7 @@
                 <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
-                <span>My Orders</span>
+                <span>{{ __('seller.my_orders') }}</span>
             </a>
         </div>
     </div>
@@ -329,12 +330,14 @@
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const closeDrawerBtn = document.getElementById('close-drawer-btn');
         const mobileDrawer = document.getElementById('mobile-drawer');
+        const isRtl = document.documentElement.dir === 'rtl';
+        const hideDrawerClass = isRtl ? 'translate-x-full' : '-translate-x-full';
         const drawerOverlay = document.getElementById('drawer-overlay');
         
         // Ensure drawer starts closed (force with inline style)
         if (mobileDrawer) {
-            mobileDrawer.style.transform = 'translateX(-100%)';
-            mobileDrawer.classList.add('-translate-x-full');
+            mobileDrawer.style.transform = isRtl ? 'translateX(100%)' : 'translateX(-100%)';
+            mobileDrawer.classList.add(hideDrawerClass);
         }
         if (drawerOverlay) {
             drawerOverlay.style.display = 'none';
@@ -344,7 +347,7 @@
         function openDrawer() {
             if (mobileDrawer) {
                 mobileDrawer.style.transform = 'translateX(0)';
-                mobileDrawer.classList.remove('-translate-x-full');
+                mobileDrawer.classList.remove(hideDrawerClass);
             }
             if (drawerOverlay) {
                 drawerOverlay.style.display = 'block';
@@ -362,8 +365,8 @@
         
         function closeDrawer() {
             if (mobileDrawer) {
-                mobileDrawer.style.transform = 'translateX(-100%)';
-                mobileDrawer.classList.add('-translate-x-full');
+                mobileDrawer.style.transform = isRtl ? 'translateX(100%)' : 'translateX(-100%)';
+                mobileDrawer.classList.add(hideDrawerClass);
             }
             if (drawerOverlay) {
                 drawerOverlay.style.display = 'none';

@@ -1,23 +1,23 @@
 @extends('layouts.seller')
 
-@section('title', 'Settings - Seller Panel')
-@section('header', 'Settings')
+@section('title', __('seller.settings_title'))
+@section('header', __('seller.settings'))
 
 @section('content')
 <form action="{{ route('seller.settings.update') }}" method="POST" enctype="multipart/form-data">
     @csrf
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="col-span-2">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2 col-span-1">
             <div class="bg-slate-800 rounded-xl p-6 border border-slate-700/50">
-                <h3 class="text-lg font-bold mb-4">Website Controls</h3>
+                <h3 class="text-lg font-bold mb-4">{{ __('seller.website_controls') }}</h3>
 
                 <div class="space-y-4">
                     <!-- Store images: logo and banner -->
                     <div class="p-4 bg-slate-700/20 rounded-lg flex flex-col gap-4">
                         <div>
-                            <label class="text-xs text-gray-400 mb-2 block">Store Logo (circle)</label>
-                            <div class="flex items-center gap-3">
-                                <div class="relative w-16 h-16 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-700">
+                            <label class="text-xs text-gray-400 mb-2 block">{{ __('seller.store_logo_label') }}</label>
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                                <div class="relative w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-slate-900 flex items-center justify-center border border-slate-700">
                                     @if($seller->store_logo_thumb ?? $seller->store_logo)
                                         <img id="store-logo-preview" src="{{ storage_public_url($seller->store_logo_thumb ?? $seller->store_logo) }}" class="w-full h-full object-cover" alt="logo">
                                     @else
@@ -27,49 +27,49 @@
                                         <button id="remove-logo-btn" type="button" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
                                     @endif
                                 </div>
-                                <div class="flex-1">
+                                <div class="flex-1 w-full">
                                     <!-- hidden real input; custom controls below to avoid 'No file chosen' text -->
                                     <input id="store-logo-input" type="file" name="store_logo" accept="image/*" class="hidden">
-                                    <div class="flex items-center gap-2">
-                                        <button id="choose-logo-btn" type="button" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs">Change Logo</button>
-                                        <span id="store-logo-filename" class="text-xs text-gray-300">{{ $seller->store_logo ? basename($seller->store_logo) : 'No file chosen' }}</span>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <button id="choose-logo-btn" type="button" class="w-full sm:w-auto px-3 py-1 rounded-lg bg-blue-600 text-white text-xs">{{ __('seller.change_logo') }}</button>
+                                        <span id="store-logo-filename" class="text-xs text-gray-300">{{ $seller->store_logo ? basename($seller->store_logo) : __('seller.no_file_chosen') }}</span>
                                     </div>
-                                    <p class="text-xs text-gray-400 mt-2">Recommended: square image, 400×400. Max 5 MB.</p>
+                                    <p class="text-xs text-gray-400 mt-2">{{ __('seller.logo_recommendation') }}</p>
                                 </div>
                             </div>
                         </div>
 
                         <div>
-                            <label class="text-xs text-gray-400 mb-2 block">Cover banner (mobile only)</label>
+                            <label class="text-xs text-gray-400 mb-2 block">{{ __('seller.cover_banner_label') }}</label>
                             <div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
                                 @if($seller->store_banner_resized ?? $seller->store_banner)
-                                        <div class="relative w-full h-36 overflow-hidden">
+                                        <div class="relative w-full h-28 sm:h-36 overflow-hidden">
                                             <img id="store-banner-preview" src="{{ storage_public_url($seller->store_banner_resized ?? $seller->store_banner) }}" class="w-full h-full object-cover" alt="banner">
                                             @if($seller->store_banner)
-                                                <button id="remove-banner-btn" type="button" class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded">Remove</button>
+                                                <button id="remove-banner-btn" type="button" class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 text-xs rounded">{{ __('seller.remove') }}</button>
                                             @endif
                                         </div>
                                 @else
-                                    <div id="store-banner-placeholder" class="w-full h-36 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-700 flex items-center justify-center sm:hidden">
-                                        <span class="text-gray-400 text-sm">No banner — mobile-only header will show a placeholder</span>
+                                    <div id="store-banner-placeholder" class="w-full h-28 sm:h-36 bg-gradient-to-r from-slate-700 via-slate-800 to-slate-700 flex items-center justify-center sm:hidden">
+                                        <span class="text-gray-400 text-sm">{{ __('seller.no_banner_placeholder') }}</span>
                                     </div>
                                 @endif
                             </div>
                             <!-- hidden real file input and custom controls to show filename + preview -->
                             <input id="store-banner-input" type="file" name="store_banner" accept="image/*" class="hidden">
                             <div class="flex items-center gap-2 mt-2">
-                                <button id="choose-banner-btn" type="button" class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs">Change banner</button>
-                                <span id="store-banner-filename" class="text-xs text-gray-300">{{ $seller->store_banner ? basename($seller->store_banner) : 'No file chosen' }}</span>
+                                <button id="choose-banner-btn" type="button" class="w-full sm:w-auto px-3 py-1 rounded-lg bg-blue-600 text-white text-xs">{{ __('seller.change_banner') }}</button>
+                                <span id="store-banner-filename" class="text-xs text-gray-300">{{ $seller->store_banner ? basename($seller->store_banner) : __('seller.no_file_chosen') }}</span>
                             </div>
-                            <p class="text-xs text-gray-400 mt-1">Recommended: wide image, 800×300. Max 8 MB.</p>
+                            <p class="text-xs text-gray-400 mt-1">{{ __('seller.banner_recommendation') }}</p>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-slate-700/30 rounded-lg">
                         <div>
-                            <p class="text-sm text-gray-300 font-medium">Enable dynamic website</p>
-                            <p class="text-xs text-gray-400">Show or hide your public storefront. When enabled your store will be reachable at the URL below.</p>
+                            <p class="text-sm text-gray-300 font-medium">{{ __('seller.enable_dynamic_website') }}</p>
+                            <p class="text-xs text-gray-400">{{ __('seller.website_toggle_description') }}</p>
                         </div>
-                        <div class="flex flex-col items-end">
+                        <div class="flex flex-col sm:items-end items-start sm:items-end">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="hidden" name="website_enabled" value="0">
                                 <input type="checkbox" name="website_enabled" value="1" {{ $seller->website_enabled ? 'checked' : '' }} class="sr-only peer" id="website-enabled-toggle">
@@ -79,24 +79,24 @@
                     </div>
 
                     <div id="store-url-row" class="p-4 bg-slate-700/20 rounded-lg {{ $seller->website_enabled ? '' : 'hidden' }}">
-                        <label class="text-xs text-gray-400 mb-2 block">Store slug (optional — only the last segment)</label>
+                        <label class="text-xs text-gray-400 mb-2 block">{{ __('seller.store_slug_optional') }}</label>
 
                         <!-- UX: show non-editable base prefix + editable slug (common multivendor pattern) -->
-                        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-                            <span id="store-prefix" class="px-3 py-2 text-slate-400 text-xs select-none bg-slate-900/30 border-r border-slate-700">https://diaszone.com/store/</span>
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+                            <span id="store-prefix" class="px-3 py-2 text-slate-400 text-xs select-none bg-slate-900/30 sm:border-r border-slate-700">https://diaszone.com/store/</span>
                             <input id="store-slug-input" type="text" name="website_url" value="{{ old('website_url', $seller->website_url ?? $seller->username) }}" placeholder="sellerriad" class="flex-1 px-3 py-2 bg-transparent text-white outline-none" aria-describedby="store-prefix" data-original="{{ $seller->website_url ?? $seller->username }}">
                         
-                        <div class="flex items-center justify-between gap-3">
-                            <p id="store-slug-error" class="text-xs text-red-400 mt-1 hidden">Store slug is required when website is enabled.</p>
-                            <div id="store-slug-status" class="text-xs mt-1 ml-auto flex items-center gap-2 text-gray-400 hidden">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <p id="store-slug-error" class="text-xs text-red-400 mt-1 hidden">{{ __('seller.store_slug_required') }}</p>
+                            <div id="store-slug-status" class="text-xs mt-1 sm:ml-auto w-full sm:w-auto flex items-center gap-2 text-gray-400 hidden">
                                 <svg id="store-slug-spinner" class="w-4 h-4 animate-spin text-gray-400 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
                                 <span id="store-slug-status-text" class="hidden"></span>
                             </div>
                         </div>
                         </div>
 
-                        <p id="store-preview" class="text-xs text-gray-500 mt-2">Preview: <a href="{{ $seller->getStoreUrl() }}" target="_blank" class="text-blue-400 underline">{{ $seller->getStoreUrl() }}</a></p>
-                        <p id="store-slug-hint" class="text-xs text-gray-400 mt-1">Allowed characters: letters, numbers, hyphen (-) and underscore (_).</p>
+                        <p id="store-preview" class="text-xs text-gray-500 mt-2">{{ __('seller.preview') }}: <a href="{{ $seller->getStoreUrl() }}" target="_blank" class="text-blue-400 underline break-words">{{ $seller->getStoreUrl() }}</a></p>
+                        <p id="store-slug-hint" class="text-xs text-gray-400 mt-1">{{ __('seller.store_slug_hint') }}</p>
                     </div>
 
                     <!-- Flexy details moved below the flexy_enabled toggle so they appear after the toggle button -->
@@ -105,9 +105,9 @@
 
                     <!-- Choose Games section is part of store controls and should be visible only when website_enabled is on -->
                     <div id="store-games" class="p-4 bg-slate-700/30 rounded-lg {{ $seller->website_enabled ? '' : 'hidden' }}">
-                        <p class="text-sm text-gray-300 font-medium mb-2">Choose Games to show on your storefront</p>
-                        <p class="text-xs text-gray-400 mb-3">Uncheck games you don't want visible on your store. Leave all unchecked to show all.</p>
-                        <div class="grid grid-cols-2 gap-3">
+                        <p class="text-sm text-gray-300 font-medium mb-2">{{ __('seller.choose_games') }}</p>
+                        <p class="text-xs text-gray-400 mb-3">{{ __('seller.choose_games_help') }}</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             @foreach($availableGames as $g)
                                 @php
                                     $allowed = empty($seller->allowed_games) || in_array($g, $seller->allowed_games);
@@ -120,34 +120,36 @@
                         </div>
                     </div>
 
-                    <div class="p-4 bg-slate-700/30 rounded-lg flex items-center justify-between">
+                    <div class="p-4 bg-slate-700/30 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div>
-                            <p class="text-sm text-gray-300 font-medium">Enable Flexy payment</p>
-                            <p class="text-xs text-gray-400">Allow customers to pay via Flexy on your store.</p>
+                            <p class="text-sm text-gray-300 font-medium">{{ __('seller.enable_flexy_payment') }}</p>
+                            <p class="text-xs text-gray-400">{{ __('seller.flexy_payment_description') }}</p>
                         </div>
-                        <div>
+                        <div class="sm:ml-0">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="hidden" name="flexy_enabled" value="0">
                                 <input type="checkbox" name="flexy_enabled" value="1" {{ $seller->flexy_enabled ? 'checked' : '' }} class="sr-only peer" id="flexy-enabled-toggle">
                                 <div class="w-11 h-6 bg-slate-600 peer-focus:ring-2 peer-focus:ring-orange-500 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                             </label>
                         </div>
-                        <p id="flexy-toggle-help" class="text-xs text-gray-300 mt-2 hidden">Once enabled, enter your Flexy number and instructions below and ensure that Flexy prices are configured for your packs on the <a href="{{ route('seller.packs') }}" class="text-blue-400 underline">Packs</a> page. <strong class="text-white">Remember to Save changes</strong> for these settings to take effect.</p>
+                        <p id="flexy-toggle-help" class="text-xs text-gray-300 mt-2 hidden">{!! __('seller.flexy_toggle_help', ['packs_route' => route('seller.packs')]) !!}</p>
                         <p id="flexy-enabled-error" class="field-error hidden"></p>
 
                     <div id="flexy-details" class="p-4 bg-slate-700/30 rounded-lg {{ $seller->flexy_enabled ? '' : 'hidden' }}">
-                        <p class="text-sm text-gray-300 font-medium mb-2">Flexy details (optional)</p>
-                        <p class="text-xs text-gray-400 mb-2">Number and instructions that will be displayed to customers when they choose Flexy.</p>
+                        <p class="text-sm text-gray-300 font-medium mb-2">{{ __('seller.flexy_details_label') }}</p>
+                        <p class="text-xs text-gray-400 mb-2">{{ __('seller.flexy_details_help') }}</p>
                         <input id="flexy-number-input" type="text" name="flexy_number" value="{{ old('flexy_number', $seller->flexy_number ?? '') }}" placeholder="e.g., 0673771763" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none mb-2">
-                        <p id="flexy-number-error" class="text-xs text-red-400 mt-1 hidden">Flexy number is required when Flexy is enabled.</p>
+                        <p id="flexy-number-error" class="text-xs text-red-400 mt-1 hidden">{{ __('seller.flexy_number_required') }}</p>
                         <textarea id="flexy-instruction-input" name="flexy_instruction" rows="3" placeholder="Short transfer instructions or account details" class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white outline-none">{{ old('flexy_instruction', $seller->flexy_instruction ?? '') }}</textarea>
-                        <p id="flexy-instruction-error" class="field-error hidden">Flexy instructions are required.</p>
+                        <p id="flexy-instruction-error" class="field-error hidden">{{ __('seller.flexy_instruction_required') }}</p>
                     </div>
 
                 </div>
 
-                <div class="mt-6 text-right">
-                    <button type="submit" class="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-semibold">Save settings</button>
+                <div class="mt-6">
+                    <div class="flex justify-end">
+                        <button type="submit" class="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg font-semibold">{{ __('seller.save_settings') }}</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -173,6 +175,12 @@
     // Simple toast utility used by many seller pages — tiny copy from orders view
     // Modern toast system
     const toastContainer = document.createElement('div');
+    // Localized static strings used by JS
+    const SLUG_AVAILABLE = {!! json_encode(__('seller.slug_available')) !!};
+    const SLUG_TAKEN = {!! json_encode(__('seller.slug_taken')) !!};
+    const STORE_HINT_ALLOWED = {!! json_encode(__('seller.store_slug_hint')) !!};
+    const STORE_HINT_INVALID = {!! json_encode(__('seller.store_slug_invalid')) !!};
+    const PREVIEW_LABEL = {!! json_encode(__('seller.preview')) !!};
     toastContainer.className = 'toast-container';
     document.body.appendChild(toastContainer);
     function showToast(message, type = 'success', options = {}) {
@@ -337,11 +345,11 @@
             spinner.classList.add('hidden');
             statusText.classList.remove('hidden');
             if (json.available) {
-                statusText.textContent = 'Available';
+                statusText.textContent = SLUG_AVAILABLE;
                 statusText.classList.remove('text-red-400');
                 statusText.classList.add('text-green-400');
             } else {
-                statusText.textContent = json.message || 'Taken';
+                statusText.textContent = json.message || SLUG_TAKEN;
                 statusText.classList.remove('text-green-400');
                 statusText.classList.add('text-red-400');
             }
@@ -359,18 +367,19 @@
     const slugInput = document.getElementById('store-slug-input');
     const prefix = document.getElementById('store-prefix');
     const preview = document.getElementById('store-preview');
+    const statusEl = document.getElementById('store-slug-status');
 
     function updatePreview() {
         if (!slugInput || !prefix || !preview) return;
         const slug = slugInput.value.trim();
         const full = prefix.textContent + slug;
-        preview.innerHTML = `Preview: <a href="${full}" target="_blank" class="text-blue-400 underline">${full}</a>`;
+        preview.innerHTML = `${PREVIEW_LABEL}: <a href="${full}" target="_blank" class="text-blue-400 underline">${full}</a>`;
         // simple client-side feedback: if slug contains invalid chars, add warning
         const invalid = /[^a-zA-Z0-9_-]/.test(slug);
         const hint = document.getElementById('store-slug-hint');
         if (hint) {
             hint.classList.toggle('text-red-400', invalid);
-            hint.textContent = invalid ? 'Invalid characters detected — only letters, numbers, hyphen and underscore are allowed.' : 'Allowed characters: letters, numbers, hyphen (-) and underscore (_).';
+            hint.textContent = invalid ? STORE_HINT_INVALID : STORE_HINT_ALLOWED;
         }
 
         // run debounced availability check for allowed slug (lowercase, cleaned)
@@ -435,7 +444,7 @@
 
     // Remove image handlers
     document.getElementById('remove-logo-btn')?.addEventListener('click', async function () {
-        if (!confirm('Remove store logo?')) return;
+        if (!confirm({!! json_encode(__('seller.remove_logo_confirm')) !!})) return;
         const res = await fetch('{{ route('seller.settings.remove-image') }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
@@ -450,7 +459,7 @@
     });
 
     document.getElementById('remove-banner-btn')?.addEventListener('click', async function () {
-        if (!confirm('Remove store banner?')) return;
+        if (!confirm({!! json_encode(__('seller.remove_banner_confirm')) !!})) return;
         const res = await fetch('{{ route('seller.settings.remove-image') }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },

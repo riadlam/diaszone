@@ -84,7 +84,7 @@
             <svg class="w-16 h-16 text-purple-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Settings Panel Coming Soon</h3>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">{{ __('settings.settings_panel_coming_soon') }}</h3>
             <p class="text-gray-600">We're working on building a comprehensive settings panel for managing all aspects of your DiasZone platform.</p>
         </div>
     </div>

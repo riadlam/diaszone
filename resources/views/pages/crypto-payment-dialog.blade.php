@@ -30,8 +30,8 @@
                             </svg>
                         </button>
                         <div>
-                            <h1 class="text-lg font-bold text-white">Pay with Crypto</h1>
-                            <p class="text-white/70 text-xs">Scan QR code to pay</p>
+                            <h1 class="text-lg font-bold text-white">{{ __('checkout.pay_with') }} {{ __('payment.crypto') }}</h1>
+                            <p class="text-white/70 text-xs">{{ __('payment.scan_qr_code_to_pay') }}</p>
                         </div>
                     </div>
                 </div>
@@ -71,9 +71,9 @@
                 <div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 mb-4 shadow-2xl">
                     <div class="text-center">
                         <button id="pay-now-button" onclick="openPaymentPage()" class="w-full bg-white hover:bg-gray-100 text-purple-600 font-bold py-4 px-6 rounded-xl transition-all shadow-lg text-lg">
-                            Pay with NOWPayments
+                            {{ __('payment.pay_with_nowpayments') }}
                         </button>
-                        <p class="text-white/80 text-xs mt-3">Opens NOWPayments payment page<br/>which will open your wallet app</p>
+                        <p class="text-white/80 text-xs mt-3">{{ __('payment.opens_nowpayments_info') }}</p>
                         <div class="mt-3 bg-white/10 rounded-lg p-2">
                             <p class="text-white/60 text-[10px] mb-1 font-medium">Payment URL:</p>
                             <code id="payment-url-display" class="text-white text-[10px] font-mono break-all block text-left"></code>
@@ -87,19 +87,19 @@
                         <p class="text-white/60 text-xs mb-1 font-medium">Payment Address</p>
                         <div class="flex items-center gap-2">
                             <code class="text-xs font-mono text-white flex-1 break-all" id="pay-address"></code>
-                            <button onclick="copyToClipboard('pay-address')" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex-shrink-0 shadow-lg">
-                                Copy
+                                <button onclick="copyToClipboard('pay-address')" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex-shrink-0 shadow-lg">
+                                    {{ __('common.copy') }}
                             </button>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2">
                         <div class="bg-white/10 backdrop-blur-lg rounded-xl p-3 border border-white/20">
-                            <p class="text-white/60 text-xs mb-1 font-medium">Network</p>
+                            <p class="text-white/60 text-xs mb-1 font-medium">{{ __('payment.network') }}</p>
                             <p class="text-white text-sm font-semibold" id="network">TRC20</p>
                         </div>
                         <div class="bg-white/10 backdrop-blur-lg rounded-xl p-3 border border-white/20">
-                            <p class="text-white/60 text-xs mb-1 font-medium">Payment ID</p>
+                            <p class="text-white/60 text-xs mb-1 font-medium">{{ __('payment.payment_id') }}</p>
                             <button onclick="copyToClipboard('payment-id')" class="text-white/80 text-xs font-mono break-all w-full text-left" id="payment-id"></button>
                         </div>
                     </div>
@@ -111,7 +111,7 @@
                         <div class="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                         <div class="flex-1">
                             <p class="text-white text-xs font-semibold">
-                                Status: <span id="payment-status-text">Waiting for payment...</span>
+                                Status: <span id="payment-status-text">{{ __('payment.waiting_for_payment') }}</span>
                             </p>
                             <p class="text-white/60 text-xs mt-0.5">Status updates automatically via webhook</p>
                         </div>
@@ -121,10 +121,10 @@
                 <!-- Action Buttons -->
                 <div class="space-y-2">
                     <button onclick="checkPaymentStatus()" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-xl">
-                        Check Payment Status
+                        {{ __('payment.check_status') }}
                     </button>
                     <button onclick="openInWallet()" class="w-full bg-white/10 hover:bg-white/20 backdrop-blur-lg text-white font-semibold py-3 px-6 rounded-xl transition-all border border-white/20">
-                        Open in Wallet
+                        {{ __('payment.open_in_wallet') }}
                     </button>
                 </div>
             </div>
@@ -150,12 +150,12 @@
                 if (data.success) {
                     loadPaymentData(data);
                 } else {
-                    alert('Failed to create payment: ' + (data.error || 'Unknown error'));
+                    alert({!! json_encode(__('seller.failed_to_create_payment_prefix')) !!} + (data.error || {!! json_encode(__('seller.unknown_error')) !!}));
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to load payment data');
+                alert({!! json_encode(__('seller.failed_to_load_payment_data')) !!});
             });
         });
 
@@ -210,7 +210,7 @@
             } else {
                 payButton.disabled = true;
                 payButton.classList.add('opacity-50', 'cursor-not-allowed');
-                payButton.textContent = 'Payment URL not available';
+                payButton.textContent = {!! json_encode(__('payment.url_not_available')) !!};
             }
             
             // Start status checking
@@ -219,7 +219,7 @@
 
         function openPaymentPage() {
             if (!paymentUrl || paymentUrl === '#' || paymentUrl === null) {
-                alert('Payment URL is not available. Please try again later.');
+                alert({!! json_encode(__('seller.payment_url_not_available')) !!});
                 return;
             }
             
@@ -258,7 +258,7 @@
                 }, 2000);
             }).catch(err => {
                 console.error('Failed to copy:', err);
-                alert('Failed to copy to clipboard');
+                alert({!! json_encode(__('seller.clipboard_copy_failed')) !!});
             });
         }
 
@@ -287,7 +287,7 @@
                             statusText.classList.add('text-green-300');
                             
                             setTimeout(() => {
-                                alert('Payment confirmed! Redirecting...');
+                                alert({!! json_encode(__('seller.payment_confirmed_redirecting')) !!});
                                 window.location.href = '/dashboard/orders';
                             }, 2000);
                         }
@@ -323,7 +323,7 @@
             if (paymentUrl && paymentUrl !== '#' && paymentUrl !== null) {
                 window.open(paymentUrl, '_blank');
             } else {
-                alert('Payment URL is not available. Please try again later.');
+                alert({!! json_encode(__('seller.payment_url_not_available')) !!});
             }
         }
     </script>
