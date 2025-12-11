@@ -207,7 +207,7 @@ return [
     'error_loading_order' => 'Error loading order details',
     'an_error_occurred' => 'An error occurred',
     'processing_text' => 'Processing...',
-    'topup_requested_with_vip' => 'Top-up requested — processing with VIP reseller...',
+    'topup_requested_with_vip' => 'Top-up requested — processing with provider...',
     'please_top_up_before_confirming' => 'Please top up your wallet before confirming this order',
     'please_upload_receipt' => 'Please upload a receipt file',
     'no_receipt_selected' => 'No file selected. Please upload a receipt file',

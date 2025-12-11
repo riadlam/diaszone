@@ -28,7 +28,7 @@ class FreeFireDiamondPackSeeder extends Seeder
         // First, delete all existing freefire packs
         DiamondPack::where('game_type', 'freefire')->delete();
         
-        // New Free Fire Global packs from VIP Reseller API
+        // New Free Fire Global packs from provider API
         // Using the lowest price tier (3rd column) as price_idr
         $packs = [
             ['code' => 'FFGLOBAL110-S14', 'name' => '100 + 10 Diamonds', 'diamonds' => 100, 'bonus_diamonds' => 10, 'price_idr' => 15436],

@@ -73,7 +73,7 @@ class ChargilyWebhookSellerStorefrontTest extends TestCase
             ],
         ];
 
-        // Configure API secret and mock VIP Reseller service to avoid external calls
+        // Configure API secret and mock provider service to avoid external calls
         config(['services.chargily_pay_v2.secret' => 'testsecret']);
 
         $mockVip = \Mockery::mock(\App\Services\VipResellerService::class);

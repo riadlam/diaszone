@@ -517,12 +517,12 @@ class SellerController extends Controller
                 ]);
             }
 
-            // Place order with VIP Reseller (or Digiflazz if configured)
+            // Place order with provider (or Digiflazz if configured)
             // Pass the created $order so Digiflazz can use order/player identifiers
             $result = $this->placeVipResellerOrder($pack, $order);
 
             if ($result['success']) {
-                // Deduct from wallet now that VIP accepted order
+                // Deduct from wallet now that provider accepted order
                 $tx = $seller->deductWallet($baseCost, "Direct top-up order #{$order->order_number}", $order->id);
 
                 // Persist vipreseller_status and update order
@@ -561,7 +561,7 @@ class SellerController extends Controller
                     Log::warning('DirectTopup: Failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
                 }
 
-                // Update Telegram message with final status / VIP result if available
+                // Update Telegram message with final status / provider result if available
                 try {
                     if ($order->tlg_message_id) {
                         $order->refresh();
@@ -593,7 +593,7 @@ class SellerController extends Controller
                     ? response()->json(['success' => true, 'order_number' => $order->order_number, 'status' => 'completed'])
                     : back()->with('success', 'Top-up completed successfully! Order #' . $order->order_number);
             } else {
-                // VIP Reseller call failed — mark order failed and do NOT deduct wallet
+                // Provider call failed — mark order failed and do NOT deduct wallet
                 $order->update(['status' => 'failed', 'notes' => $result['error']]);
 
                 DB::commit();
@@ -636,7 +636,7 @@ class SellerController extends Controller
     }
 
     /**
-     * Place order with VIP Reseller
+    * Place order with provider
      */
     protected function placeVipResellerOrder(DiamondPack $pack, $context): array
     {
@@ -1307,17 +1307,17 @@ class SellerController extends Controller
             // Snapshot wallet before external top-up and any deductions
             $walletBefore = (float) $seller->wallet_balance;
 
-            // Place order with VIP Reseller first (do not deduct wallet yet)
+            // Place order with provider first (do not deduct wallet yet)
             // Prefer Digiflazz when configured
             $result = $this->placeVipResellerOrder($pack, $order);
 
             if (!$result['success']) {
                 // Mark order failed on top-up failure and leave wallet unchanged
-                $order->update(['status' => 'failed', 'notes' => $result['error'] ?? 'VIP Reseller error']);
-                Log::warning('Flexy top-up failed at VIP reseller step', ['order_id' => $order->id, 'error' => $result['error'] ?? null]);
+                $order->update(['status' => 'failed', 'notes' => $result['error'] ?? 'provider error']);
+                Log::warning('Flexy top-up failed at provider step', ['order_id' => $order->id, 'error' => $result['error'] ?? null]);
                 // Notify via Telegram about the failed top-up
                 try {
-                    $this->sendFlexyFailureNotification($seller, $order, $pack, $result['error'] ?? 'VIP Reseller error', $walletBefore);
+                    $this->sendFlexyFailureNotification($seller, $order, $pack, $result['error'] ?? 'provider error', $walletBefore);
                 } catch (\Throwable $ex) {
                     Log::warning('Failed to send telegram failure notification', ['order_id'=>$order->id, 'error'=>$ex->getMessage()]);
                 }
@@ -1327,15 +1327,15 @@ class SellerController extends Controller
                 ], 400);
             }
 
-            // VIP Reseller succeeded — now deduct seller wallet and update order atomically
+            // Provider succeeded — now deduct seller wallet and update order atomically
             DB::beginTransaction();
 
             // Ensure wallet still has funds (avoid TOCTOU problems)
             $seller->refresh();
             if ($seller->wallet_balance < $baseCost) {
-                // No funds to charge — mark failed and return error (VIP already executed)
+                // No funds to charge — mark failed and return error (provider already executed)
                 $order->update(['status' => 'failed', 'notes' => 'Insufficient wallet after top-up confirmation']);
-                Log::error('Seller missing funds after successful VIP top-up', ['seller_id' => $seller->id, 'order_id' => $order->id, 'required' => $baseCost]);
+                Log::error('Seller missing funds after successful provider top-up', ['seller_id' => $seller->id, 'order_id' => $order->id, 'required' => $baseCost]);
                 // Inform via Telegram that VIP top-up happened but seller lacked funds
                 try {
                     $this->sendFlexyFailureNotification($seller, $order, $pack, 'Insufficient wallet after successful VIP top-up', (float)$seller->wallet_balance);

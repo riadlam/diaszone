@@ -20,7 +20,7 @@ class VipResellerService
         $this->baseUrl = env('VIP_RESELLER_BASE_URL', 'https://vip-reseller.co.id/api');
         
         // Log credentials check (without exposing full values)
-        Log::info('VIP Reseller Service initialized', [
+        Log::info('Provider service initialized', [
             'api_id_set' => !empty($this->apiId),
             'api_key_set' => !empty($this->apiKey),
             'api_key_length' => strlen($this->apiKey ?? ''),
@@ -42,7 +42,7 @@ class VipResellerService
         try {
             // Validate credentials are set
             if (empty($this->apiKey) || empty($this->sign)) {
-                Log::error('VIP Reseller credentials missing', [
+                Log::error('Provider credentials missing', [
                     'api_key_empty' => empty($this->apiKey),
                     'sign_empty' => empty($this->sign),
                 ]);
@@ -64,7 +64,7 @@ class VipResellerService
             ];
             
             // Log request data (without exposing full credentials)
-            Log::info('VIP Reseller nickname check request', [
+            Log::info('Provider nickname check request', [
                 'url' => $this->baseUrl . '/game-feature',
                 'type' => $formData['type'],
                 'code' => $formData['code'],
@@ -86,7 +86,7 @@ class VipResellerService
             $data = $response->json();
 
             // Log response for debugging
-            Log::info('VIP Reseller nickname check response', [
+            Log::info('Provider nickname check response', [
                 'status' => $response->status(),
                 'headers' => $response->headers(),
                 'body' => $response->body(),
@@ -112,7 +112,7 @@ class VipResellerService
                 'message' => $data['message'] ?? 'Failed to validate nickname. Please check your User ID and Zone ID.',
             ];
         } catch (\Exception $e) {
-            Log::error('VIP Reseller nickname check error: ' . $e->getMessage(), [
+            Log::error('Provider nickname check error: ' . $e->getMessage(), [
                 'user_id' => $userId,
                 'zone_id' => $zoneId,
                 'trace' => $e->getTraceAsString(),
@@ -138,7 +138,7 @@ class VipResellerService
         try {
             // Validate credentials are set
             if (empty($this->apiKey) || empty($this->sign)) {
-                Log::error('VIP Reseller credentials missing for order placement', [
+                Log::error('Provider credentials missing for order placement', [
                     'api_key_empty' => empty($this->apiKey),
                     'sign_empty' => empty($this->sign),
                 ]);
@@ -151,7 +151,7 @@ class VipResellerService
             
             // Validate required parameters
             if (empty($code) || empty($userId) || empty($zoneId)) {
-                Log::error('VIP Reseller order placement missing parameters', [
+                Log::error('Provider order placement missing parameters', [
                     'code' => $code,
                     'user_id' => $userId,
                     'zone_id' => $zoneId,
@@ -175,7 +175,7 @@ class VipResellerService
             ];
             
             // Log request data (without exposing full credentials)
-            Log::info('VIP Reseller order placement request', [
+            Log::info('Provider order placement request', [
                 'url' => $this->baseUrl . '/game-feature',
                 'type' => $formData['type'],
                 'code' => $formData['code'],
@@ -196,7 +196,7 @@ class VipResellerService
             $data = $response->json();
 
             // Log response for debugging
-            Log::info('VIP Reseller order placement response', [
+            Log::info('Provider order placement response', [
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'data' => $data,
@@ -218,7 +218,7 @@ class VipResellerService
                 'message' => $data['message'] ?? 'Failed to place order. Please try again.',
             ];
         } catch (\Exception $e) {
-            Log::error('VIP Reseller order placement error: ' . $e->getMessage(), [
+            Log::error('Provider order placement error: ' . $e->getMessage(), [
                 'code' => $code,
                 'user_id' => $userId,
                 'zone_id' => $zoneId,
@@ -245,7 +245,7 @@ class VipResellerService
         try {
             // Validate credentials are set
             if (empty($this->apiKey) || empty($this->sign)) {
-                Log::error('VIP Reseller credentials missing for Free Fire order placement', [
+                Log::error('Provider credentials missing for Free Fire order placement', [
                     'api_key_empty' => empty($this->apiKey),
                     'sign_empty' => empty($this->sign),
                 ]);
@@ -258,7 +258,7 @@ class VipResellerService
             
             // Validate required parameters
             if (empty($code) || empty($playerId)) {
-                Log::error('VIP Reseller Free Fire order placement missing parameters', [
+                Log::error('Provider Free Fire order placement missing parameters', [
                     'code' => $code,
                     'player_id' => $playerId,
                 ]);
@@ -280,7 +280,7 @@ class VipResellerService
             ];
             
             // Log request data (without exposing full credentials)
-            Log::info('VIP Reseller Free Fire order placement request', [
+            Log::info('Provider Free Fire order placement request', [
                 'url' => $this->baseUrl . '/game-feature',
                 'type' => $formData['type'],
                 'service' => $formData['service'],
@@ -299,7 +299,7 @@ class VipResellerService
             $data = $response->json();
 
             // Log response for debugging
-            Log::info('VIP Reseller Free Fire order placement response', [
+            Log::info('Provider Free Fire order placement response', [
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'data' => $data,
@@ -321,7 +321,7 @@ class VipResellerService
                 'message' => $data['message'] ?? 'Failed to place Free Fire order. Please try again.',
             ];
         } catch (\Exception $e) {
-            Log::error('VIP Reseller Free Fire order placement error: ' . $e->getMessage(), [
+            Log::error('Provider Free Fire order placement error: ' . $e->getMessage(), [
                 'code' => $code,
                 'player_id' => $playerId,
                 'trace' => $e->getTraceAsString(),
@@ -336,7 +336,7 @@ class VipResellerService
     }
 
     /**
-     * Get profile/balance from VIP Reseller API
+    * Get profile/balance from provider API
      * 
      * @return array
      */
@@ -345,7 +345,7 @@ class VipResellerService
         try {
             // Validate credentials are set
             if (empty($this->apiKey) || empty($this->sign)) {
-                Log::error('VIP Reseller credentials missing for profile', [
+                Log::error('Provider credentials missing for profile', [
                     'api_key_empty' => empty($this->apiKey),
                     'sign_empty' => empty($this->sign),
                 ]);
@@ -355,20 +355,20 @@ class VipResellerService
                     'message' => 'API credentials not configured. Please contact support.',
                 ];
             }
-            
+
             // Prepare form data
             $formData = [
                 'key' => $this->apiKey,
                 'sign' => $this->sign,
             ];
-            
+
             // Log request data (without exposing full credentials)
-            Log::info('VIP Reseller profile request', [
+            Log::info('Provider profile request', [
                 'url' => $this->baseUrl . '/profile',
                 'key_set' => !empty($formData['key']),
                 'sign_set' => !empty($formData['sign']),
             ]);
-            
+
             // Use asForm() which sends as application/x-www-form-urlencoded
             $response = Http::asForm()
                 ->withHeaders([
@@ -379,7 +379,7 @@ class VipResellerService
             $data = $response->json();
 
             // Log response for debugging
-            Log::info('VIP Reseller profile response', [
+            Log::info('Provider profile response', [
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'data' => $data,
@@ -401,7 +401,7 @@ class VipResellerService
                 'message' => $data['message'] ?? 'Failed to get profile. Please try again.',
             ];
         } catch (\Exception $e) {
-            Log::error('VIP Reseller profile error: ' . $e->getMessage(), [
+            Log::error('Provider profile error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 

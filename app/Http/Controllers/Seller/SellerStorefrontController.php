@@ -283,7 +283,7 @@ class SellerStorefrontController extends Controller
                 // Use the verified nickname (override if not provided by client)
                 $playerData['nickname'] = $check['data'];
             } catch (\Exception $e) {
-                \Log::error('VIP reseller service failure during showPaymentMethod: ' . $e->getMessage(), ['player_id' => $validated['player_id'], 'zone_id' => $validated['zone_id']]);
+                \Log::error('Provider service failure during showPaymentMethod: ' . $e->getMessage(), ['player_id' => $validated['player_id'], 'zone_id' => $validated['zone_id']]);
                 return back()->withErrors(['player_id' => 'Unable to verify nickname at this time. Please try again later.'])->withInput();
             }
         }
@@ -387,7 +387,7 @@ class SellerStorefrontController extends Controller
                     $validated['nickname'] = $check['data'];
                 }
             } catch (\Exception $e) {
-                Log::error('VIP reseller check failed during processPayment: ' . $e->getMessage(), ['player_id' => $validated['player_id'], 'zone_id' => $validated['zone_id']]);
+                Log::error('Provider check failed during processPayment: ' . $e->getMessage(), ['player_id' => $validated['player_id'], 'zone_id' => $validated['zone_id']]);
                 if ($request->expectsJson()) {
                     return response()->json(['success' => false, 'message' => 'Nickname validation service unavailable. Please try again later.'], 500);
                 }

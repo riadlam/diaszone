@@ -297,19 +297,19 @@ class TelegramService
             }
         }
         
-        // Add VIP Reseller balance if available
+        // Add provider balance if available
         if ($order->relationLoaded('vipResellerStatuses')) {
             $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
             if ($latestVipStatus && isset($latestVipStatus->additional_data['balance'])) {
                 $balance = $latestVipStatus->additional_data['balance'];
-                $message .= "\n💳 <b>VIP Reseller Balance:</b> " . number_format($balance, 0) . " IDR";
+                $message .= "\n💳 <b>Provider Balance:</b> " . number_format($balance, 0) . " IDR";
             }
         } else {
             // Try to load if not already loaded
             $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
             if ($latestVipStatus && isset($latestVipStatus->additional_data['balance'])) {
                 $balance = $latestVipStatus->additional_data['balance'];
-                $message .= "\n💳 <b>VIP Reseller Balance:</b> " . number_format($balance, 0) . " IDR";
+                $message .= "\n💳 <b>Provider Balance:</b> " . number_format($balance, 0) . " IDR";
             }
         }
         

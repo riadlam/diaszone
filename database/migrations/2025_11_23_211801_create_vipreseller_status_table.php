@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('vipreseller_status', function (Blueprint $table) {
             $table->id();
-            $table->string('trxid')->nullable()->index()->comment('Transaction ID from VIP Reseller');
+            $table->string('trxid')->nullable()->index()->comment('Transaction ID from provider');
             $table->string('data')->nullable()->comment('User ID (data_no)');
             $table->string('zone')->nullable()->comment('Zone ID (data_zone)');
             $table->string('service')->nullable()->comment('Service code');

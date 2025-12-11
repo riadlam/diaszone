@@ -393,7 +393,7 @@ class AdminController extends Controller
             ];
         }
         
-        // VIP Reseller Status Info (get latest)
+        // Provider Status Info (get latest)
         if ($order->vipResellerStatuses && $order->vipResellerStatuses->count() > 0) {
             $vipStatus = $order->vipResellerStatuses->first();
             $paymentInfo['vip_reseller'] = [
@@ -664,19 +664,19 @@ class AdminController extends Controller
     private function processRecharge(Order $order)
     {
         try {
-            // Check if VIP Reseller status already has success (prevent duplicate requests)
+            // Check if provider status already has success (prevent duplicate requests)
             $hasSuccessStatus = $order->vipResellerStatuses()
                 ->where('status', 'success')
                 ->exists();
             
             if ($hasSuccessStatus) {
-                Log::info('Recharge skipped: VIP Reseller status already success', [
+                Log::info('Recharge skipped: provider status already success', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                 ]);
                 return [
                     'success' => true,
-                    'message' => 'Recharge already processed (VIP Reseller success)',
+                    'message' => 'Recharge already processed (provider success)',
                 ];
             }
             
@@ -772,7 +772,7 @@ class AdminController extends Controller
                 ];
             }
 
-            // STEP 2: Call VIP Reseller API to recharge (nickname already validated)
+            // STEP 2: Call provider API to recharge (nickname already validated)
             if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
                 $digService = app(\App\Services\DigiflazzService::class);
                 $result = $digService->placeOrder($order->diamondPack, $order);
@@ -844,7 +844,7 @@ class AdminController extends Controller
                 'additional_data' => $additionalData,
             ]);
 
-            Log::info('VIP Reseller status saved', [
+            Log::info('provider status saved', [
                 'vipreseller_status_id' => $vipResellerStatus->id,
                 'trxid' => $vipResellerStatus->trxid,
                 'status' => $status,
@@ -853,19 +853,19 @@ class AdminController extends Controller
             ]);
 
             // Update order status based on VIP Reseller response
-            $oldOrderStatus = $order->status;
+                $oldOrderStatus = $order->status;
             
             if ($status === 'waiting') {
                 // VIP Reseller is processing - ensure order is "sending" (payment done, waiting for topup)
-                if ($oldOrderStatus !== 'sending') {
+                    if ($oldOrderStatus !== 'sending') {
                     $order->status = 'sending';
                     $order->save();
                     Log::info('Order status updated to sending (VIP Reseller waiting)', [
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'old_status' => $oldOrderStatus,
-                        'new_status' => 'sending',
-                        'vip_status' => $status,
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'old_status' => $oldOrderStatus,
+                            'new_status' => 'sending',
+                            'provider status' => $status,
                     ]);
                     
                     // Credit seller profit if applicable
@@ -882,7 +882,7 @@ class AdminController extends Controller
                         try {
                             $order->load('diamondPack', 'user', 'vipResellerStatuses');
                             $updatedMessage = TelegramService::formatOrderMessage($order);
-                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for provider</b>', $updatedMessage);
                             TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
                         } catch (\Exception $e) {
                             Log::error('Failed to update Telegram message', [
@@ -905,36 +905,36 @@ class AdminController extends Controller
                             $vipResellerStatus->save();
                             
                             Log::info('Balance fetched and saved for successful order', [
-                                'vipreseller_status_id' => $vipResellerStatus->id,
-                                'order_id' => $order->id,
-                                'balance' => $balance,
+                                    'provider status id' => $vipResellerStatus->id,
+                                    'order_id' => $order->id,
+                                    'balance' => $balance,
                             ]);
                         } else {
                             Log::warning('Failed to fetch balance from VIP Reseller API', [
-                                'vipreseller_status_id' => $vipResellerStatus->id,
-                                'order_id' => $order->id,
-                                'message' => $profileResult['message'] ?? 'Unknown error',
+                                    'provider status id' => $vipResellerStatus->id,
+                                    'order_id' => $order->id,
+                                    'message' => $profileResult['message'] ?? 'Unknown error',
                             ]);
                         }
                     } catch (\Exception $e) {
-                        Log::error('Error fetching balance from VIP Reseller API', [
-                            'vipreseller_status_id' => $vipResellerStatus->id,
-                            'order_id' => $order->id,
-                            'error' => $e->getMessage(),
+                        Log::error('Error fetching balance from provider API', [
+                                'provider status id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'error' => $e->getMessage(),
                         ]);
                     }
                 }
                 
-                // VIP Reseller success - set order to completed
+                // Provider success - set order to completed
                 if ($oldOrderStatus !== 'completed') {
                     $order->status = 'completed';
                     $order->save();
-                    Log::info('Order status updated to completed (VIP Reseller success)', [
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'old_status' => $oldOrderStatus,
-                        'new_status' => 'completed',
-                        'vip_status' => $status,
+                    Log::info('Order status updated to completed (provider success)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'old_status' => $oldOrderStatus,
+                            'new_status' => 'completed',
+                            'provider status' => $status,
                     ]);
                     
                     // Update Telegram message if exists
@@ -946,23 +946,23 @@ class AdminController extends Controller
                             TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
                         } catch (\Exception $e) {
                             Log::error('Failed to update Telegram message', [
-                                'order_id' => $order->id,
-                                'error' => $e->getMessage(),
+                                    'order_id' => $order->id,
+                                    'error' => $e->getMessage(),
                             ]);
                         }
                     }
                 }
             } elseif ($status === 'error') {
-                // VIP Reseller error - ensure order is "sending" (needs attention)
+                // Provider error - ensure order is "sending" (needs attention)
                 if ($oldOrderStatus === 'completed') {
                     $order->status = 'sending';
                     $order->save();
-                    Log::warning('Order status updated to sending (VIP Reseller error - needs attention)', [
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'old_status' => $oldOrderStatus,
-                        'new_status' => 'sending',
-                        'vip_status' => $status,
+                    Log::warning('Order status updated to sending (provider error - needs attention)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'old_status' => $oldOrderStatus,
+                            'new_status' => 'sending',
+                            'provider status' => $status,
                     ]);
                 }
             }
@@ -1037,7 +1037,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Handle VIP Reseller webhook for order status updates
+     * Handle provider webhook for order status updates
      * 
      * Webhook receives status updates: waiting → processing → success/error
      * Signature verification: X-Client-Signature = md5(API_ID + API_KEY)
@@ -1047,12 +1047,12 @@ class AdminController extends Controller
         try {
             // STEP 0: IP Whitelist Check
             $allowedIPs = [
-                '178.248.73.218', // VIP Reseller webhook IP
+                '178.248.73.218', // provider webhook IP
             ];
             
             $clientIP = $request->ip();
             if (!in_array($clientIP, $allowedIPs)) {
-                Log::warning('VIP Reseller webhook: IP not whitelisted', [
+                Log::warning('provider webhook: IP not whitelisted', [
                     'ip' => $clientIP,
                     'allowed_ips' => $allowedIPs,
                 ]);
@@ -1063,7 +1063,7 @@ class AdminController extends Controller
             }
             
             // Log incoming webhook request
-            Log::info('VIP Reseller webhook received', [
+            Log::info('provider webhook received', [
                 'ip' => $request->ip(),
                 'headers' => $request->headers->all(),
                 'body' => $request->all(),
@@ -1077,7 +1077,7 @@ class AdminController extends Controller
             $expectedSignature = md5($apiId . $apiKey);
 
             if (empty($receivedSignature) || $receivedSignature !== $expectedSignature) {
-                Log::warning('VIP Reseller webhook signature verification failed', [
+                Log::warning('provider webhook signature verification failed', [
                     'received_signature' => $receivedSignature,
                     'expected_signature' => $expectedSignature,
                     'ip' => $request->ip(),
@@ -1089,13 +1089,13 @@ class AdminController extends Controller
                 ], 401);
             }
 
-            Log::info('VIP Reseller webhook signature verified successfully');
+            Log::info('provider webhook signature verified successfully');
 
             // Get webhook data
             $webhookData = $request->input('data', []);
             
             if (empty($webhookData)) {
-                Log::warning('VIP Reseller webhook: Empty data received', [
+                Log::warning('provider webhook: Empty data received', [
                     'request_data' => $request->all(),
                 ]);
                 
@@ -1114,7 +1114,7 @@ class AdminController extends Controller
             $price = $webhookData['price'] ?? null;
 
             if (empty($trxid)) {
-                Log::warning('VIP Reseller webhook: Missing trxid', [
+                Log::warning('provider webhook: Missing trxid', [
                     'webhook_data' => $webhookData,
                 ]);
                 
@@ -1132,7 +1132,7 @@ class AdminController extends Controller
                 default => 'waiting',
             };
 
-            Log::info('VIP Reseller webhook processing', [
+            Log::info('provider webhook processing', [
                 'trxid' => $trxid,
                 'api_status' => $status,
                 'mapped_status' => $mappedStatus,
@@ -1161,7 +1161,7 @@ class AdminController extends Controller
                     ),
                 ]);
 
-                Log::info('VIP Reseller status updated', [
+                Log::info('provider status updated', [
                     'vipreseller_status_id' => $vipResellerStatus->id,
                     'trxid' => $trxid,
                     'old_status' => $oldStatus,
@@ -1185,14 +1185,14 @@ class AdminController extends Controller
                                 'balance' => $balance,
                             ]);
                         } else {
-                            Log::warning('Failed to fetch balance from VIP Reseller API (webhook)', [
+                            Log::warning('Failed to fetch balance from provider API (webhook)', [
                                 'vipreseller_status_id' => $vipResellerStatus->id,
                                 'trxid' => $trxid,
                                 'message' => $profileResult['message'] ?? 'Unknown error',
                             ]);
                         }
                     } catch (\Exception $e) {
-                        Log::error('Error fetching balance from VIP Reseller API (webhook)', [
+                        Log::error('Error fetching balance from provider API (webhook)', [
                             'vipreseller_status_id' => $vipResellerStatus->id,
                             'trxid' => $trxid,
                             'error' => $e->getMessage(),
@@ -1249,7 +1249,7 @@ class AdminController extends Controller
                     ],
                 ]);
 
-                Log::info('VIP Reseller status created from webhook', [
+                Log::info('provider status created from webhook', [
                     'vipreseller_status_id' => $vipResellerStatus->id,
                     'trxid' => $trxid,
                     'status' => $mappedStatus,
@@ -1267,7 +1267,7 @@ class AdminController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            Log::error('VIP Reseller webhook exception: ' . $e->getMessage(), [
+            Log::error('provider webhook exception: ' . $e->getMessage(), [
                 'request_data' => $request->all(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -1280,7 +1280,7 @@ class AdminController extends Controller
     }
 
     /**
-     * Update order status from VIP Reseller webhook based on status
+     * Update order status from provider webhook based on status
      * Handles: waiting, success, error
      */
     private function updateOrderFromWebhook(VipResellerStatus $vipResellerStatus, array $webhookData)
@@ -1316,30 +1316,30 @@ class AdminController extends Controller
                 $oldOrderStatus = $order->status;
                 $vipStatus = $vipResellerStatus->status;
                 
-                Log::info('Order found for VIP Reseller webhook update', [
+                Log::info('Order found for provider webhook update', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'trxid' => $vipResellerStatus->trxid,
-                    'vip_status' => $vipStatus,
+                    'provider_status' => $vipStatus,
                     'current_order_status' => $oldOrderStatus,
                 ]);
 
-                // Update order status based on VIP Reseller webhook status
-                // Flow: Chargily/Flexy paid → "sending" → VIP Reseller webhook updates → final status
+                // Update order status based on provider webhook status
+                // Flow: Chargily/Flexy paid → "sending" → provider webhook updates → final status
                 
                 if ($vipStatus === 'waiting') {
-                    // VIP Reseller is processing the topup
+                    // Provider is processing the topup
                     // Set order status to "sending" (payment done, waiting for diamonds topup)
                     if ($oldOrderStatus !== 'sending') {
                         $order->status = 'sending';
                         $order->save();
                         
-                        Log::info('Order status updated to sending (VIP Reseller waiting - payment done, waiting for topup)', [
+                        Log::info('Order status updated to sending (provider waiting - payment done, waiting for topup)', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'old_status' => $oldOrderStatus,
                             'new_status' => 'sending',
-                            'vip_status' => $vipStatus,
+                            'provider_status' => $vipStatus,
                         ]);
                         
                         // Update Telegram message if exists
@@ -1347,7 +1347,7 @@ class AdminController extends Controller
                             try {
                                 $order->load('diamondPack', 'user');
                                 $updatedMessage = TelegramService::formatOrderMessage($order);
-                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for provider</b>', $updatedMessage);
                                 TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
                             } catch (\Exception $e) {
                                 Log::error('Failed to update Telegram message', [
@@ -1357,27 +1357,27 @@ class AdminController extends Controller
                             }
                         }
                     } else {
-                        Log::info('Order status already sending (VIP Reseller waiting)', [
+                        Log::info('Order status already sending (provider waiting)', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'order_status' => $oldOrderStatus,
-                            'vip_status' => $vipStatus,
+                            'provider_status' => $vipStatus,
                         ]);
                     }
                 }
                 elseif ($vipStatus === 'success') {
-                    // VIP Reseller successfully delivered the topup
+                    // Provider successfully delivered the topup
                     // Change order status to "completed" (everything done)
                     if ($oldOrderStatus !== 'completed') {
                         $order->status = 'completed';
                         $order->save();
                         
-                        Log::info('Order status updated to completed (VIP Reseller success - topup delivered)', [
+                        Log::info('Order status updated to completed (provider success - topup delivered)', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'old_status' => $oldOrderStatus,
                             'new_status' => 'completed',
-                            'vip_status' => $vipStatus,
+                            'provider_status' => $vipStatus,
                         ]);
                         
                         // Update Telegram message if exists
@@ -1395,16 +1395,16 @@ class AdminController extends Controller
                             }
                         }
                     } else {
-                        Log::info('Order status already completed (VIP Reseller success)', [
+                        Log::info('Order status already completed (provider success)', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'order_status' => $oldOrderStatus,
-                            'vip_status' => $vipStatus,
+                            'provider_status' => $vipStatus,
                         ]);
                     }
                 }
                 elseif ($vipStatus === 'error') {
-                    // VIP Reseller failed to deliver the topup
+                    // Provider failed to deliver the topup
                     // Keep order as "sending" to indicate it needs attention (payment done, but topup failed)
                     if ($oldOrderStatus === 'completed') {
                         // Change from completed to sending (needs attention)
@@ -1412,7 +1412,7 @@ class AdminController extends Controller
                         $order->save();
                         
                         // Add error note to order
-                        $errorNote = 'VIP Reseller topup error: ' . ($vipResellerStatus->note ?? 'Unknown error');
+                        $errorNote = 'Provider topup error: ' . ($vipResellerStatus->note ?? 'Unknown error');
                         if (!empty($order->notes)) {
                             $order->notes = $order->notes . "\n" . $errorNote;
                         } else {
@@ -1420,26 +1420,26 @@ class AdminController extends Controller
                         }
                         $order->save();
                         
-                        Log::warning('Order status updated to sending (VIP Reseller error - payment done but topup failed, needs attention)', [
+                        Log::warning('Order status updated to sending (provider error - payment done but topup failed, needs attention)', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'old_status' => $oldOrderStatus,
                             'new_status' => 'sending',
-                            'vip_status' => $vipStatus,
-                            'vip_note' => $vipResellerStatus->note,
+                            'provider_status' => $vipStatus,
+                            'provider_note' => $vipResellerStatus->note,
                         ]);
                     } else {
-                        Log::warning('VIP Reseller topup error (order already in sending status)', [
+                        Log::warning('Provider topup error (order already in sending status)', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'order_status' => $oldOrderStatus,
-                            'vip_status' => $vipStatus,
-                            'vip_note' => $vipResellerStatus->note,
+                            'provider_status' => $vipStatus,
+                            'provider_note' => $vipResellerStatus->note,
                         ]);
                     }
                 }
             } else {
-                Log::info('No matching order found for VIP Reseller webhook', [
+                Log::info('No matching order found for provider webhook', [
                     'vipreseller_status_id' => $vipResellerStatus->id,
                     'data' => $vipResellerStatus->data,
                     'zone' => $vipResellerStatus->zone,
@@ -1447,7 +1447,7 @@ class AdminController extends Controller
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Error updating order from VIP Reseller webhook: ' . $e->getMessage(), [
+            Log::error('Error updating order from provider webhook: ' . $e->getMessage(), [
                 'vipreseller_status_id' => $vipResellerStatus->id,
                 'trxid' => $vipResellerStatus->trxid,
                 'trace' => $e->getTraceAsString(),
@@ -1544,24 +1544,37 @@ class AdminController extends Controller
                         '⏳ Processing order confirmation...',
                         false
                     );
-                    
-                    // Update order status to completed
-                    $order->status = 'completed';
+
+                    // Process recharge (same logic as admin dashboard)
+                    $rechargeResult = $this->processRecharge($order);
+
+                    // Decide order status based on recharge result
+                    // If provider returned final success -> completed
+                    // If provider returned waiting/pending -> sending (await webhook)
+                    // If provider returned error -> sending (requires attention)
+                    $newStatus = $order->status; // default keep existing if unchanged
+                    if (isset($rechargeResult['status'])) {
+                        if ($rechargeResult['status'] === 'success') {
+                            $newStatus = 'completed';
+                        } elseif ($rechargeResult['status'] === 'waiting') {
+                            $newStatus = 'sending';
+                        } else {
+                            // error or unknown
+                            $newStatus = 'sending';
+                        }
+                    }
+
+                    $order->status = $newStatus;
                     $order->save();
-                    
+
                     Log::info('Telegram: Processing order confirmation', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'old_status' => $oldStatus,
-                        'new_status' => 'completed',
+                        'new_status' => $newStatus,
                         'tlg_message_id' => $messageId,
+                        'recharge_result' => $rechargeResult,
                     ]);
-                    
-                    // Process recharge (same logic as admin dashboard)
-                    $rechargeResult = $this->processRecharge($order);
-                    
-                    // Reload order to get updated status from processRecharge
-                    $order->refresh();
                     // If order completed after processing, credit seller profit
                     try {
                         if ($order->status === 'completed' && $order->seller_id && !$order->seller_profit_paid) {

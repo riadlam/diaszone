@@ -296,7 +296,7 @@ class CouponController extends Controller
                 'new_count' => $coupon->used_count,
             ]);
 
-            // Process the top-up via VIP Reseller (same flow as processChargilyRecharge)
+            // Process the top-up via provider (same flow as processChargilyRecharge)
             // Step 1: Get package code from diamond pack
             $packageCode = $diamondPack->code ?? null;
             
@@ -331,8 +331,8 @@ class CouponController extends Controller
                 'nickname' => $nickname,
             ]);
             
-            // Step 3: Call VIP Reseller API to place order
-            Log::info('Free order: Calling VIP Reseller placeOrder', [
+            // Step 3: Call provider API to place order
+            Log::info('Free order: Calling provider placeOrder', [
                 'package_code' => $packageCode,
                 'user_id_ml' => $order->user_id_ml,
                 'zone_id_ml' => $order->zone_id_ml,
@@ -348,7 +348,7 @@ class CouponController extends Controller
                 );
             }
             
-            Log::info('Free order: VIP Reseller API response', [
+            Log::info('Free order: provider API response', [
                 'result' => $topUpResult['result'],
                 'data' => $topUpResult['data'] ?? null,
                 'message' => $topUpResult['message'] ?? null,
@@ -393,22 +393,22 @@ class CouponController extends Controller
                 'additional_data' => $additionalData,
             ]);
             
-            Log::info('Free order: VIP Reseller status saved', [
+            Log::info('Free order: provider status saved', [
                 'vipreseller_status_id' => $vipResellerStatus->id,
                 'trxid' => $vipResellerStatus->trxid,
                 'status' => $vipStatus,
             ]);
 
-            // Step 5: Update order status based on VIP Reseller response
+            // Step 5: Update order status based on provider response
             if ($vipStatus === 'waiting') {
-                // VIP Reseller is processing - keep status as 'sending'
-                // The VIP Reseller webhook will update to 'completed' later
+                // Provider is processing - keep status as 'sending'
+                // The provider webhook will update to 'completed' later
                 $order->update(['status' => 'sending']);
                 // No realtime broadcasting; webhook updates DB and clients should read DB state when needed
                 
                 DB::commit();
                 
-                Log::info('=== FREE ORDER SUBMITTED - WAITING FOR VIP RESELLER ===', [
+                Log::info('=== FREE ORDER SUBMITTED - WAITING FOR provider ===', [
                     'order_id' => $order->id,
                     'user_id' => $user->id,
                     'coupon_code' => $coupon->code,
@@ -426,7 +426,7 @@ class CouponController extends Controller
                 ]);
                 
             } elseif ($vipStatus === 'success') {
-                // VIP Reseller completed immediately
+                // Provider completed immediately
                 $order->update(['status' => 'completed']);
                 // Credit seller profit if applicable
                 try { if ($order->seller_id && !$order->seller_profit_paid) { $order->creditSellerProfit(); } } catch (\Throwable $ex) { Log::warning('CouponController: Failed to credit seller profit', ['order_id'=>$order->id,'error'=>$ex->getMessage()]); }
@@ -461,11 +461,11 @@ class CouponController extends Controller
                 ]);
                 
             } else {
-                // VIP Reseller returned error
+                // Provider returned error
                 $order->update(['status' => 'cancelled']);
                 DB::commit();
 
-                Log::error('=== FREE ORDER FAILED - VIP RESELLER ERROR ===', [
+                Log::error('=== FREE ORDER FAILED - PROVIDER ERROR ===', [
                     'order_id' => $order->id,
                     'user_id' => $user->id,
                     'vip_status' => $vipStatus,

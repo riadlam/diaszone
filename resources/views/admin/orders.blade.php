@@ -469,10 +469,10 @@
                     tableData.push(['Updated At', chargily.updated_at]);
                 }
                 
-                // VIP Reseller Status Info
+                // Provider Status Info
                 if (order.payment_info.vip_reseller) {
                     const vip = order.payment_info.vip_reseller;
-                    tableData.push(['', '<strong class="text-blue-600">--- VIP Reseller Status ---</strong>']);
+                    tableData.push(['', '<strong class="text-blue-600">--- Provider Status ---</strong>']);
                     tableData.push(['Transaction ID', `<span class="font-mono">${vip.trxid || 'N/A'}</span>`]);
                     tableData.push(['Status', `<span class="px-2 py-1 rounded text-xs font-semibold ${vip.status === 'success' ? 'bg-green-100 text-green-800' : vip.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">${vip.status}</span>`]);
                     tableData.push(['Data', vip.data || 'N/A']);

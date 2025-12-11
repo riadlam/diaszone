@@ -1382,8 +1382,8 @@ class CheckoutController extends Controller
                     }
                 }
 
-                // STEP 2: Call VIP Reseller API to recharge (Mobile Legends)
-                Log::info('Chargily: Calling VIP Reseller API for Mobile Legends', [
+                // STEP 2: Call provider API to recharge (Mobile Legends)
+                Log::info('Chargily: Calling provider API for Mobile Legends', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'package_code' => $packageCode,
@@ -1404,7 +1404,7 @@ class CheckoutController extends Controller
                     );
                 }
 
-                Log::info('Chargily: VIP Reseller API response', [
+                Log::info('Chargily: provider API response', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -1468,8 +1468,8 @@ class CheckoutController extends Controller
                     }
                 }
 
-                // STEP 2: Call VIP Reseller API to recharge (Free Fire)
-                Log::info('Chargily: Calling VIP Reseller API for Free Fire', [
+                // STEP 2: Call provider API to recharge (Free Fire)
+                Log::info('Chargily: Calling provider API for Free Fire', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'package_code' => $packageCode,
@@ -1488,7 +1488,7 @@ class CheckoutController extends Controller
                     );
                 }
 
-                Log::info('Chargily: VIP Reseller API response (Free Fire)', [
+                Log::info('Chargily: provider API response (Free Fire)', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -1498,7 +1498,7 @@ class CheckoutController extends Controller
                 $zoneId = null; // Free Fire doesn't use zone_id
             }
 
-            // STEP 3: Save response to vipreseller_status table
+            // STEP 3: Save response to provider status table
             $apiData = $result['data'] ?? [];
             $apiStatus = $apiData['status'] ?? 'error';
             
@@ -1536,7 +1536,7 @@ class CheckoutController extends Controller
                 'additional_data' => $additionalData,
             ]);
 
-            Log::info('Chargily: VIP Reseller status saved', [
+            Log::info('Chargily: provider status saved', [
                 'vipreseller_status_id' => $vipResellerStatus->id,
                 'trxid' => $vipResellerStatus->trxid,
                 'status' => $status,
@@ -1544,20 +1544,20 @@ class CheckoutController extends Controller
                 'order_number' => $order->order_number,
             ]);
 
-            // Update order status based on VIP Reseller response
+            // Update order status based on provider response
             $oldOrderStatus = $order->status;
             
             if ($status === 'waiting') {
-                // VIP Reseller is processing - ensure order is "sending" (payment done, waiting for topup)
+                // Provider is processing - ensure order is "sending" (payment done, waiting for topup)
                 if ($oldOrderStatus !== 'sending') {
                     $order->status = 'sending';
                     $order->save();
-                    Log::info('Chargily: Order status updated to sending (VIP Reseller waiting)', [
+                    Log::info('Chargily: Order status updated to sending (provider waiting)', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'old_status' => $oldOrderStatus,
                         'new_status' => 'sending',
-                        'vip_status' => $status,
+                        'provider_status' => $status,
                     ]);
                 }
                 
@@ -1566,7 +1566,7 @@ class CheckoutController extends Controller
                     try {
                         $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                         $updatedMessage = TelegramService::formatOrderMessage($order);
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for provider</b>', $updatedMessage);
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
                     } catch (\Exception $e) {
                         Log::error('Failed to update Telegram message', [
@@ -1576,7 +1576,7 @@ class CheckoutController extends Controller
                     }
                 }
             } elseif ($status === 'success') {
-                // Fetch balance from VIP Reseller API when status becomes success
+                // Fetch balance from provider API when status becomes success
                 try {
                     $vipReseller = app(VipResellerService::class);
                     $profileResult = $vipReseller->getProfile();
@@ -1587,35 +1587,35 @@ class CheckoutController extends Controller
                         $vipResellerStatus->save();
                         
                         Log::info('Chargily: Balance fetched and saved for successful order', [
-                            'vipreseller_status_id' => $vipResellerStatus->id,
+                            'provider_status_id' => $vipResellerStatus->id,
                             'order_id' => $order->id,
                             'balance' => $balance,
                         ]);
                     } else {
-                        Log::warning('Chargily: Failed to fetch balance from VIP Reseller API', [
-                            'vipreseller_status_id' => $vipResellerStatus->id,
+                        Log::warning('Chargily: Failed to fetch balance from provider API', [
+                            'provider_status_id' => $vipResellerStatus->id,
                             'order_id' => $order->id,
                             'message' => $profileResult['message'] ?? 'Unknown error',
                         ]);
                     }
                 } catch (\Exception $e) {
-                    Log::error('Chargily: Error fetching balance from VIP Reseller API', [
+                    Log::error('Chargily: Error fetching balance from provider API', [
                         'vipreseller_status_id' => $vipResellerStatus->id,
                         'order_id' => $order->id,
                         'error' => $e->getMessage(),
                     ]);
                 }
                 
-                // VIP Reseller success - set order to completed
+                // Provider success - set order to completed
                 if ($oldOrderStatus !== 'completed') {
                     $order->status = 'completed';
                     $order->save();
-                    Log::info('Chargily: Order status updated to completed (VIP Reseller success)', [
+                    Log::info('Chargily: Order status updated to completed (provider success)', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'old_status' => $oldOrderStatus,
                         'new_status' => 'completed',
-                        'vip_status' => $status,
+                        'provider_status' => $status,
                     ]);
                     // Credit seller profit if applicable and not already paid
                     try {
@@ -1642,11 +1642,11 @@ class CheckoutController extends Controller
                     }
                 }
             } elseif ($status === 'error') {
-                // VIP Reseller error - ensure order is "sending" (needs attention)
+                // Provider error - ensure order is "sending" (needs attention)
                 if ($oldOrderStatus === 'completed') {
                     $order->status = 'sending';
                     $order->save();
-                    Log::warning('Chargily: Order status updated to sending (VIP Reseller error - needs attention)', [
+                    Log::warning('Chargily: Order status updated to sending (provider error - needs attention)', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'old_status' => $oldOrderStatus,
@@ -1660,7 +1660,7 @@ class CheckoutController extends Controller
                     try {
                         $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                         $updatedMessage = TelegramService::formatOrderMessage($order);
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '❌ <b>Order Error - VIP Reseller Failed</b>', $updatedMessage);
+                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '❌ <b>Order Error - provider Failed</b>', $updatedMessage);
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
                     } catch (\Exception $e) {
                         Log::error('Failed to update Telegram message', [

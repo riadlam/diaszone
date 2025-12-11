@@ -28,7 +28,7 @@ class VipResellerStatus extends Model
     ];
 
     /**
-     * Get the order that owns this VIP Reseller status
+     * Get the order that owns this provider status
      */
     public function order(): BelongsTo
     {

@@ -214,9 +214,9 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Mock VipResellerService to simulate successful top-up
+        // Mock provider service to simulate successful top-up
         $mock = \Mockery::mock(VipResellerService::class);
-        // Simulate successful VIP reseller top-up
+        // Simulate successful provider top-up
         $mock->shouldReceive('placeOrder')->andReturn(['result' => true, 'data' => ['ok' => true]])->once();
         $this->app->instance(VipResellerService::class, $mock);
 

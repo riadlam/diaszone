@@ -1,4 +1,4 @@
-# DiasZone Payment System & VIP Reseller API Integration - Deep Analysis
+# DiasZone Payment System & Provider API Integration - Deep Analysis
 
 ## 🎮 Project Overview
 
@@ -6,7 +6,7 @@
 **Framework**: Laravel 12.39.0 (PHP)  
 **Games Supported**: 5 games (Mobile Legends, Free Fire, PUBG Mobile, Honor of Kings, Blood Strike)  
 **Payment Gateways**: Flexy, Baridimob (Chargily Pay v2), Cryptocurrency (NOWPayments, MixPay)  
-**Game Top-Up Provider**: VIP Reseller API (https://vip-reseller.co.id/api)
+**Game Top-Up Provider**: provider API (configure via environment)
 
 ---
 
@@ -154,7 +154,7 @@ $order->save();
 
 **Admin Actions** (via Telegram button or Dashboard):
 - Review receipt image
-- Confirm payment → Call VIP Reseller API
+    - Confirm payment → Call provider API
 - Reject payment → Send notification to user
 
 ---
@@ -282,15 +282,15 @@ if (!hash_equals($expectedSignature, $signature)) {
 3. Find order by checkout_id
 4. Update ChargilyStatus
 5. Update order status
-6. If `checkout.paid` → Call VIP Reseller API immediately
+6. If `checkout.paid` → Call provider API immediately
 
 ---
 
-## 🎮 VIP RESELLER API INTEGRATION (Mobile Legends)
+## 🎮 Provider API INTEGRATION (Mobile Legends)
 
 ### Overview
 
-**Provider**: VIP Reseller (https://vip-reseller.co.id)  
+**Provider**: provider (configure via environment)  
 **Service Class**: `App\Services\VipResellerService`  
 **Authentication**: API Key + Sign (HMAC-based)  
 **Payment Method**: `application/x-www-form-urlencoded`  
@@ -298,7 +298,7 @@ if (!hash_equals($expectedSignature, $signature)) {
 
 ---
 
-### VIP Reseller Methods
+### Provider Methods
 
 #### 1. Check Nickname (Validate Player)
 
@@ -377,7 +377,7 @@ $formData = [
 
 **Database: `diamond_packs` table**
 ```
-- code: 'mlbb-500', 'mlbb-1000', etc.  // VIP Reseller package code
+    - code: 'mlbb-500', 'mlbb-1000', etc.  // provider package code
 - game_type: 'mobilelegends'
 - name: '500 Diamonds + 100 Bonus'
 - diamonds: 500
@@ -417,7 +417,7 @@ $formData = [
 **Database: `vipreseller_status` table**
 ```
 - order_id: foreign key to orders
-- trxid: VIP Reseller transaction ID (from webhook or response)
+    - trxid: provider transaction ID (from webhook or response)
 - data: User ID
 - zone: Zone ID
 - service: Package code
@@ -459,11 +459,11 @@ $formData = [
 
 ---
 
-### VIP Reseller Webhook
+### Provider Webhook
 
 **Endpoint**: `POST /webhook/vipreseller`
 
-**When Triggered**: After VIP Reseller processes the topup (typically minutes after order placement)
+**When Triggered**: After the provider processes the topup (typically minutes after order placement)
 
 **Webhook Payload**:
 ```json
@@ -507,26 +507,26 @@ if (!$vipResellerStatus) {
     ]);
 }
 
-// 3. Update order based on VIP Reseller status
+    // 3. Update order based on provider status
 if ($status === 'waiting') {
-    // Payment done, waiting for VIP Reseller to process
+    // Payment done, waiting for provider to process
     $order->status = 'sending';
-    // Update Telegram: "⏳ Order Confirmed - Waiting for VIP Reseller"
+    // Update Telegram: "⏳ Order Confirmed - Waiting for provider"
 } elseif ($status === 'success') {
-    // VIP Reseller delivered the topup
+    // Provider delivered the topup
     $order->status = 'completed';
     // Update Telegram: "✅ Order Confirmed & Completed"
 } elseif ($status === 'error') {
-    // VIP Reseller failed
+    // Provider failed
     $order->status = 'sending';  // Needs attention
-    $order->notes = "VIP Reseller topup error: {$note}";
+    $order->notes = "Provider topup error: {$note}";
     // Notify admin via Telegram
 }
 
 $order->save();
 ```
 
-**Order Status Flow** (with VIP Reseller):
+**Order Status Flow** (with provider):
 ```
 pending_bmccp (payment not started)
     ↓
@@ -534,11 +534,11 @@ pending_bmccp (Chargily payment form shown)
     ↓
 pending_bmccp (user completes payment on Chargily)
     ↓
-sending (webhook from Chargily → call VIP Reseller)
+sending (webhook from Chargily → call provider)
     ↓
-waiting (VIP Reseller received order, processing)
+waiting (provider received order, processing)
     ↓
-completed (VIP Reseller webhook → topup delivered)
+completed (provider webhook → topup delivered)
 ```
 
 ---
@@ -552,7 +552,7 @@ Schema::create('diamond_packs', function (Blueprint $table) {
     $table->id();
     $table->string('game_type')->default('mobilelegends')->index();
     $table->string('name')->nullable();  // e.g., "500 Diamonds + 100 Bonus"
-    $table->string('code')->unique();     // VIP Reseller code
+    $table->string('code')->unique();     // provider code
     $table->integer('diamonds');
     $table->integer('bonus_diamonds')->default(0);
     $table->decimal('price', 8, 2);      // Base price in USD
@@ -707,14 +707,14 @@ Schema::table('orders', function (Blueprint $table) {
 
 ---
 
-### Step 8: Update VIP Reseller API (if using same provider)
+### Step 8: Update provider API (if using same provider)
 
 **File**: `app/Services/VipResellerService.php`
 
-If VIP Reseller supports the new game with its own code (e.g., `newgame-500`):
+If the provider supports the new game with its own code (e.g., `newgame-500`):
 - The code is already dynamic in `placeOrder()` method
-- Just ensure VIP Reseller has the game package codes configured
-- Contact VIP Reseller to add your new game packages
+- Just ensure the provider has the game package codes configured
+- Contact the provider to add your new game packages
 
 **Updated Game Code Mapping**:
 ```php
@@ -777,12 +777,12 @@ TIME    EVENT                              DATABASE CHANGE              TELEGRAM
         Webhook from Chargily             status = sending
                                           vipreseller.status = waiting
 
-01:00   VIP Reseller webhook               vipreseller.status = waiting  (internal update)
+01:00   Provider webhook               vipreseller.status = waiting  (internal update)
         (topup in progress)                Order status = sending
 
-02:00   VIP Reseller completes             vipreseller.status = success
+02:00   Provider completes             vipreseller.status = success
         Admin confirms (if Flexy)          status = completed           ✅ Update message
-        VIP Reseller webhook               
+        provider webhook               
         (topup delivered)
 
 RESULT: User receives diamonds in game
@@ -806,13 +806,13 @@ RESULT: User receives diamonds in game
 
 ## 🚀 Deployment Checklist
 
-- [ ] VIP Reseller API credentials in `.env`
+- [ ] provider API credentials in `.env`
 - [ ] Chargily Pay v2 credentials in `.env`
 - [ ] Telegram bot token and chat ID configured
 - [ ] Payment webhook endpoints configured in Chargily dashboard
-- [ ] VIP Reseller webhook endpoint configured
+- [ ] provider webhook endpoint configured
 - [ ] Flexy phone number updated in templates
-- [ ] Diamond pack codes match VIP Reseller backend
+- [ ] Diamond pack codes match provider backend
 - [ ] Cron jobs for payment status checking (if needed)
 - [ ] SSL certificate installed (required for payment processing)
 
@@ -822,11 +822,11 @@ RESULT: User receives diamonds in game
 
 | File | Purpose |
 |------|---------|
-| `app/Services/VipResellerService.php` | VIP Reseller API integration |
+| `app/Services/VipResellerService.php` | Provider API integration |
 | `app/Http/Controllers/CheckoutController.php` | Order & payment flow |
 | `app/Http/Controllers/AdminController.php` | Webhook handlers |
 | `app/Models/Order.php` | Order model |
-| `app/Models/VipResellerStatus.php` | VIP Reseller transaction tracking |
+| `app/Models/VipResellerStatus.php` | Provider transaction tracking |
 | `app/Models/DiamondPack.php` | Game package definitions |
 | `resources/views/pages/game-topup.blade.php` | Game order page |
 | `resources/views/pages/flexy-form.blade.php` | Flexy payment form |
@@ -839,17 +839,17 @@ RESULT: User receives diamonds in game
 
 ### 1. **Mobile Legends** (MLBB)
 - **Fields**: User ID, Zone ID
-- **Provider**: VIP Reseller
+-- **Provider**: provider
 - **Status**: Fully implemented with all payment methods
 
 ### 2. **Free Fire**
 - **Fields**: Player ID
-- **Provider**: VIP Reseller
+-- **Provider**: provider
 - **Status**: Fully implemented
 
 ### 3. **PUBG Mobile**
 - **Fields**: Player ID
-- **Provider**: VIP Reseller
+-- **Provider**: provider
 - **Status**: Fully implemented
 
 ### 4. **Honor of Kings** (HOK)

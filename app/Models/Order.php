@@ -155,7 +155,7 @@ class Order extends Model
     }
 
     /**
-     * Get the VIP Reseller statuses for this order.
+     * Get the provider statuses for this order.
      */
     public function vipResellerStatuses(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
