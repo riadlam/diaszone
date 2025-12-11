@@ -53,7 +53,9 @@ class DigiflazzService
         if ($pack->game_type === 'freefire' && $order->player_id_ff) {
             $customerNo = $order->player_id_ff;
         } elseif (!empty($order->user_id_ml) && !empty($order->zone_id_ml)) {
-            $customerNo = $order->user_id_ml . '.' . $order->zone_id_ml;
+            // Digiflazz expects a single customer_no numeric string for ML: concatenate user id + zone
+            // e.g., user_id=205762973 and zone=4048 => customer_no=2057629734048
+            $customerNo = (string)$order->user_id_ml . (string)$order->zone_id_ml;
         } elseif ($playerId) {
             $customerNo = $playerId;
         }

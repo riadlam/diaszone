@@ -106,6 +106,12 @@ class DigiflazzWebhookController extends Controller
             if ($order) return $order;
         }
 
+        // Try Mobile Legends concatenated pattern user+zone (e.g., 2057629734048)
+        if (preg_match('/^\d+$/', $customerNo)) {
+            $order = Order::whereRaw("CONCAT(user_id_ml, zone_id_ml) = ?", [$customerNo])->latest()->first();
+            if ($order) return $order;
+        }
+
         // Try matching common player id fields
         $order = Order::where('player_id_ff', $customerNo)
             ->orWhere('player_id_pubg', $customerNo)
