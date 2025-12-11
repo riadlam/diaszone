@@ -13,8 +13,8 @@ class DigiflazzService
 
     public function __construct()
     {
-        $this->username = config('services.digiflazz.username') ?? env('DIGIFLAZZ_USERNAME');
-        $this->sign = config('services.digiflazz.sign') ?? env('DIGIFLAZZ_SIGN');
+        $this->username = trim((string)(config('services.digiflazz.username') ?? env('DIGIFLAZZ_USERNAME') ?? ''));
+        $this->sign = trim((string)(config('services.digiflazz.sign') ?? env('DIGIFLAZZ_SIGN') ?? ''));
         $this->baseUrl = config('services.digiflazz.base_url', 'https://api.digiflazz.com/v1');
     }
 
@@ -68,7 +68,7 @@ class DigiflazzService
             'customer_no' => (string) $customerNo,
             'ref_id' => $refId,
             // sign is md5(username + apiKey + ref_id)
-            'sign' => md5($this->username . $this->sign . $refId),
+            'sign' => $this->computeSign($refId),
         ];
 
         try {
@@ -76,6 +76,16 @@ class DigiflazzService
                 ->post($this->baseUrl . '/transaction', $payload);
 
             $json = $resp->json();
+
+            // Diagnostic logging: if Digiflazz returns a signature error, log masked sign and payload for debugging
+            if (isset($json['data']['message']) && stripos($json['data']['message'], 'Signature') !== false) {
+                \Log::warning('Digiflazz reported signature error', [
+                    'order_id' => $order->id ?? null,
+                    'ref_id' => $refId,
+                    'customer_no' => (string) $customerNo,
+                    'computed_sign_mask' => substr($this->computeSign($refId), 0, 6) . '...'
+                ]);
+            }
 
             // Normalize response to expected shape
             $result = [
@@ -113,6 +123,14 @@ class DigiflazzService
         } catch (\Throwable $e) {
             return ['result' => false, 'message' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Compute digiflazz sign for a ref_id (md5 of username + sign + ref_id)
+     */
+    public function computeSign(string $refId): string
+    {
+        return md5($this->username . $this->sign . $refId);
     }
 
     /**
