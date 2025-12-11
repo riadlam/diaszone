@@ -12,6 +12,10 @@ class DigiflazzWebhookController extends Controller
 {
     public function handle(Request $request)
     {
+        // Log receipt of webhook for debugging (ping and raw body)
+        $eventHeader = $request->header('X-Digiflazz-Event');
+        Log::info('Digiflazz webhook received', ['event' => $eventHeader, 'ip' => $request->ip(), 'body_trim' => substr($request->getContent(), 0, 2048)]);
+
         $payload = $request->json('data') ?? $request->json()->all();
 
         // Signature validation if secret configured

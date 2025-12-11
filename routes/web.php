@@ -88,6 +88,8 @@ Route::post('/webhook/baridimob', [CheckoutController::class, 'baridimobWebhook'
 Route::post('/webhook/vipreseller', [AdminController::class, 'vipResellerWebhook'])
     ->name('vipreseller.webhook');
 Route::post('/webhook/digiflazz', [\App\Http\Controllers\Webhook\DigiflazzWebhookController::class, 'handle'])
+    // Ensure CSRF is bypassed even if middleware patterns don't match for some server
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class])
     ->middleware([\App\Http\Middleware\VerifyDigiflazzSignature::class, 'throttle:60,1'])
     ->name('digiflazz.webhook');
 
