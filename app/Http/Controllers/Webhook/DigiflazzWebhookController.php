@@ -91,47 +91,65 @@ class DigiflazzWebhookController extends Controller
                 $order = $this->findOrderByCustomerNo($customerNo);
                 if ($order) {
                     $statusRecord->order_id = $order->id;
-                    $statusRecord->save();
-
-                    // Update order status based on Digiflazz status/rc
-                    $this->applyStatusToOrder($order, $statusRecord);
-                    // Ensure any mirrored VipResellerStatus gets linked to this order
-                    try {
-                        if (!empty($statusRecord->trxid)) {
-                            \App\Models\VipResellerStatus::where('trxid', $statusRecord->trxid)->whereNull('order_id')->update(['order_id' => $order->id]);
+                    // Persist statusRecord and attach/link to an order atomically to prevent races
+                    DB::transaction(function () use ($statusRecord, $data, $customerNo, $status, $rc) {
+                        if ($statusRecord) {
+                            $statusRecord->update($data);
+                        } else {
+                            $statusRecord = DigiflazzStatus::create($data);
                         }
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to update VipResellerStatus order_id after attaching DigiflazzStatus', ['error' => $e->getMessage(), 'trxid' => $statusRecord->trxid]);
+
+                        // Helper to link any existing VipResellerStatus mirrors by trxid
+                        $linkMirrors = function ($orderId) use ($statusRecord) {
+                            try {
+                                if (!empty($statusRecord->trxid)) {
+                                    \App\Models\VipResellerStatus::where('trxid', $statusRecord->trxid)
+                                        ->whereNull('order_id')
+                                        ->update(['order_id' => $orderId]);
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning('Failed to update VipResellerStatus order_id after attaching DigiflazzStatus', ['error' => $e->getMessage(), 'trxid' => $statusRecord->trxid]);
+                            }
+                        };
+
+                        if (!$statusRecord->order_id && $customerNo) {
+                            $order = $this->findOrderByCustomerNo($customerNo);
+                            if ($order) {
+                                // Lock the order row to prevent concurrent attachment
+                                $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                                if ($orderLocked) {
+                                    $statusRecord->order_id = $orderLocked->id;
+                                    $statusRecord->save();
+
+                                    // Link mirrors and save
+                                    $linkMirrors($orderLocked->id);
+
+                                    // Update order status based on Digiflazz status/rc
+                                    $this->applyStatusToOrder($orderLocked, $statusRecord);
+                                }
+                            }
+                        } elseif ($statusRecord->order_id) {
+                            $order = Order::where('id', $statusRecord->order_id)->lockForUpdate()->first();
+                            if ($order) {
+                                $linkMirrors($order->id);
+                                $this->applyStatusToOrder($order, $statusRecord);
+                            }
+                        }
+                    });
+
                     }
                 }
-            } elseif ($statusRecord->order_id) {
-                $order = Order::find($statusRecord->order_id);
-                if ($order) {
-                    // Ensure any mirrored VipResellerStatus gets linked to this order
-                    try {
-                        if (!empty($statusRecord->trxid)) {
-                            \App\Models\VipResellerStatus::where('trxid', $statusRecord->trxid)->whereNull('order_id')->update(['order_id' => $order->id]);
-                        }
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to update VipResellerStatus order_id for existing DigiflazzStatus', ['error' => $e->getMessage(), 'trxid' => $statusRecord->trxid]);
-                    }
-                    $this->applyStatusToOrder($order, $statusRecord);
-                        // No realtime broadcasting — webhook updates DB; client should read order status from server when appropriate
-                }
-            }
 
-            Log::info('Digiflazz webhook processed', ['ref_id' => $refId, 'order_id' => $statusRecord->order_id ?? null, 'status' => $status]);
             return response()->json(['ok' => true], 200);
-
         } catch (\Throwable $e) {
-            Log::error('Digiflazz webhook exception: ' . $e->getMessage(), ['payload' => $payload]);
-            return response()->json(['error' => 'Server error'], 500);
+            Log::error('Digiflazz webhook handler failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return response()->json(['error' => 'Internal server error'], 500);
         }
     }
 
-    protected function findOrderByCustomerNo(string $customerNo)
+    protected function findOrderByCustomerNo($customerNo)
     {
-        // Try matching numeric order id
+        // Try matching numeric order id directly
         if (preg_match('/^\d+$/', $customerNo)) {
             $order = Order::find((int)$customerNo);
             if ($order) return $order;
@@ -151,12 +169,24 @@ class DigiflazzWebhookController extends Controller
             } catch (\Throwable $e) {
                 $driver = null;
             }
+            // Prefer orders that are actively being processed (sending/waiting) to avoid linking to older completed orders
+            $statusPriority = ['sending', 'pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay'];
 
             if ($driver === 'sqlite') {
-                // SQLite uses || for string concatenation
+                $candidates = Order::whereRaw("user_id_ml || zone_id_ml = ?", [$customerNo])
+                    ->whereIn('status', $statusPriority)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                if ($candidates->count()) return $candidates->first();
+
                 $order = Order::whereRaw("user_id_ml || zone_id_ml = ?", [$customerNo])->latest()->first();
             } else {
-                // MySQL / others: CONCAT
+                $candidates = Order::whereRaw("CONCAT(user_id_ml, zone_id_ml) = ?", [$customerNo])
+                    ->whereIn('status', $statusPriority)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                if ($candidates->count()) return $candidates->first();
+
                 $order = Order::whereRaw("CONCAT(user_id_ml, zone_id_ml) = ?", [$customerNo])->latest()->first();
             }
 

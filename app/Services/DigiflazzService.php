@@ -99,23 +99,27 @@ class DigiflazzService
             // If the caller provided an Order in the response flow, persist an initial DigiflazzStatus here
             try {
                 if (isset($order) && method_exists($order, 'id')) {
-                    \App\Models\DigiflazzStatus::create([
-                        'order_id' => $order->id ?? null,
-                        'ref_id' => $refId,
-                        'trxid' => $json['data']['trxid'] ?? null,
-                        'buyer_sku_code' => $json['data']['buyer_sku_code'] ?? ($pack->code ?? null),
-                        'customer_no' => $json['data']['customer_no'] ?? null,
-                        'rc' => $json['data']['rc'] ?? null,
-                        'status' => $json['data']['status'] ?? ($json['status'] ?? null),
-                        'message' => $json['data']['message'] ?? null,
-                        'price' => $json['data']['price'] ?? null,
-                        'sn' => $json['data']['sn'] ?? null,
-                        'additional_data' => $json,
-                        'event' => 'create'
-                    ]);
+                    // Use updateOrCreate to avoid duplicate ref_id records and make call idempotent
+                    \App\Models\DigiflazzStatus::updateOrCreate(
+                        ['ref_id' => $refId],
+                        [
+                            'order_id' => $order->id ?? null,
+                            'ref_id' => $refId,
+                            'trxid' => $json['data']['trxid'] ?? null,
+                            'buyer_sku_code' => $json['data']['buyer_sku_code'] ?? ($pack->code ?? null),
+                            'customer_no' => $json['data']['customer_no'] ?? null,
+                            'rc' => $json['data']['rc'] ?? null,
+                            'status' => $json['data']['status'] ?? ($json['status'] ?? null),
+                            'message' => $json['data']['message'] ?? null,
+                            'price' => $json['data']['price'] ?? null,
+                            'sn' => $json['data']['sn'] ?? null,
+                            'additional_data' => $json,
+                            'event' => 'create'
+                        ]
+                    );
                 }
             } catch (\Throwable $e) {
-                \Log::warning('Failed to persist initial DigiflazzStatus: ' . $e->getMessage(), ['ref_id' => $refId]);
+                \Log::warning('Failed to persist initial DigiflazzStatus (idempotent): ' . $e->getMessage(), ['ref_id' => $refId]);
             }
 
             return $result;

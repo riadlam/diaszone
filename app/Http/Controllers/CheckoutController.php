@@ -1405,6 +1405,28 @@ class CheckoutController extends Controller
                     );
                 }
 
+                // If Digiflazz is used, create a lightweight VipResellerStatus mirror so admin/telegram can show provider info immediately
+                if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                    try {
+                        $apiData = $result['data'] ?? [];
+                        $balance = $apiData['buyer_last_saldo'] ?? $apiData['balance'] ?? null;
+                        \App\Models\VipResellerStatus::create([
+                            'order_id' => $order->id,
+                            'trxid' => $apiData['trxid'] ?? null,
+                            'data' => $apiData['customer_no'] ?? $order->user_id_ml,
+                            'zone' => $apiData['zone'] ?? $order->zone_id_ml,
+                            'service' => 'digiflazz',
+                            'status' => strtolower(($apiData['status'] ?? $apiData['rc'] ?? 'waiting')) === 'sukses' || ($apiData['rc'] ?? null) === '00' ? 'success' : 'waiting',
+                            'note' => $apiData['message'] ?? null,
+                            'price' => $apiData['price'] ?? null,
+                            'balance' => $balance,
+                            'additional_data' => array_merge($apiData, ['balance' => $balance]),
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                    }
+                }
+
                 Log::info('Chargily: provider API response', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
@@ -1729,6 +1751,9 @@ class CheckoutController extends Controller
                 }
             }
 
+            // Resolve a trxid value regardless of provider (Digiflazz or legacy) so logging/returns don't assume $vipResellerStatus exists
+            $trxid = $apiData['trxid'] ?? $result['ref_id'] ?? null;
+
             if ($result['result'] === true) {
                 Log::info('Chargily: Recharge successful', [
                     'order_id' => $order->id,
@@ -1737,13 +1762,13 @@ class CheckoutController extends Controller
                     'package_code' => $packageCode,
                     'player_id' => $playerId,
                     'zone_id' => $zoneId,
-                    'trxid' => $vipResellerStatus->trxid,
+                    'trxid' => $trxid,
                 ]);
-                
+
                 return [
                     'success' => true,
                     'message' => 'Recharge processed successfully',
-                    'trxid' => $vipResellerStatus->trxid,
+                    'trxid' => $trxid,
                 ];
             } else {
                 Log::error('Chargily: Recharge failed', [
@@ -1753,14 +1778,14 @@ class CheckoutController extends Controller
                     'package_code' => $packageCode,
                     'player_id' => $playerId,
                     'zone_id' => $zoneId,
-                    'trxid' => $vipResellerStatus->trxid,
+                    'trxid' => $trxid,
                     'api_response' => $result,
                 ]);
-                
+
                 return [
                     'success' => false,
                     'message' => $result['message'] ?? 'Recharge failed',
-                    'trxid' => $vipResellerStatus->trxid,
+                    'trxid' => $trxid,
                 ];
             }
         } catch (\Exception $e) {
