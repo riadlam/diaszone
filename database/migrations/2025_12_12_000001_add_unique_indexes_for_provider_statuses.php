@@ -10,6 +10,21 @@ return new class extends Migration
      * Run the migrations.
      *
      * Adds uniqueness constraints to avoid duplicate provider records and improve matching.
+     *
+     * NOTE FOR PRODUCTION: this migration performs a best-effort deduplication of
+     * `vipreseller_status.trxid` values before adding a unique index. If you plan to
+     * run this on a live MySQL instance, consider running these checks first and
+     * taking a snapshot of the table:
+     *
+     *   -- find duplicate trxid values
+     *   SELECT trxid, COUNT(*) AS cnt FROM vipreseller_status WHERE trxid IS NOT NULL GROUP BY trxid HAVING cnt > 1;
+     *
+     *   -- export duplicates for review (MySQL example)
+     *   SELECT * FROM vipreseller_status WHERE trxid IN (SELECT trxid FROM (SELECT trxid FROM vipreseller_status WHERE trxid IS NOT NULL GROUP BY trxid HAVING COUNT(*) > 1) tmp);
+     *
+     * The migration will attempt to keep one row per duplicate trxid (preferring rows
+     * with an assigned order_id) and nullify trxid in other rows. Still, it is
+     * recommended to make a backup (dump) before running this migration in production.
      */
     public function up(): void
     {
@@ -36,9 +51,47 @@ return new class extends Migration
                 return;
             }
             try {
+                // Deduplicate existing duplicate trxid values so the unique index can be added.
+                // We will keep one row per trxid (prefer one that already has order_id), and
+                // nullify trxid on the other duplicates.
+                try {
+                    $duplicates = \DB::table('vipreseller_status')
+                        ->whereNotNull('trxid')
+                        ->select('trxid', \DB::raw('COUNT(*) as cnt'))
+                        ->groupBy('trxid')
+                        ->having('cnt', '>', 1)
+                        ->pluck('trxid');
+
+                    foreach ($duplicates as $dupTrx) {
+                        $rows = \DB::table('vipreseller_status')->where('trxid', $dupTrx)->orderBy('created_at', 'desc')->get();
+
+                        $keeper = null;
+                        foreach ($rows as $r) {
+                            if (!empty($r->order_id)) {
+                                $keeper = $r;
+                                break;
+                            }
+                        }
+
+                        if (!$keeper && count($rows)) {
+                            $keeper = $rows->first();
+                        }
+
+                        if ($keeper) {
+                            $idsToClear = array_map(fn($r) => $r->id, array_filter($rows->toArray(), fn($r) => $r->id !== $keeper->id));
+                            if (count($idsToClear)) {
+                                \DB::table('vipreseller_status')->whereIn('id', $idsToClear)->update(['trxid' => null]);
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Best-effort deduplication; log the issue but continue to attempt index creation.
+                    logger()->warning('vipreseller_status deduplication failed in migration', ['error' => $e->getMessage()]);
+                }
+
                 $table->unique('trxid', 'vipreseller_status_trxid_unique');
             } catch (\Throwable $e) {
-                // ignore
+                // ignore if index already exists or unsupported in this driver
             }
         });
     }
@@ -49,12 +102,24 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('digiflazz_statuses', function (Blueprint $table) {
-            $table->dropUnique('digiflazz_statuses_ref_id_unique');
-            $table->dropUnique('digiflazz_statuses_trxid_unique');
+            try {
+                $table->dropUnique('digiflazz_statuses_ref_id_unique');
+            } catch (\Throwable $_) {
+                // ignore
+            }
+            try {
+                $table->dropUnique('digiflazz_statuses_trxid_unique');
+            } catch (\Throwable $_) {
+                // ignore
+            }
         });
 
         Schema::table('vipreseller_status', function (Blueprint $table) {
-            $table->dropUnique('vipreseller_status_trxid_unique');
+            try {
+                $table->dropUnique('vipreseller_status_trxid_unique');
+            } catch (\Throwable $_) {
+                // ignore
+            }
         });
     }
 };
