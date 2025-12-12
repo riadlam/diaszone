@@ -65,9 +65,12 @@ class DigiflazzWebhookController extends Controller
                 $statusRecord = DigiflazzStatus::create($data);
             }
 
+            Log::info('Digiflazz webhook: status record persisted', ['id' => $statusRecord->id ?? null, 'ref_id' => $statusRecord->ref_id ?? $refId, 'trxid' => $statusRecord->trxid ?? null, 'status' => $statusRecord->status ?? null, 'order_id' => $statusRecord->order_id ?? null]);
+
             // Mirror important fields into VipResellerStatus (admin view) so Telegram and admin see provider balance & status
             try {
-                $buyerLastSaldo = $payload['buyer_last_saldo'] ?? $payload['buyer_last_saldo'] ?? ($payload['data']['buyer_last_saldo'] ?? null);
+                $buyerLastSaldo = $payload['buyer_last_saldo'] ?? ($payload['data']['buyer_last_saldo'] ?? null);
+                $additional = array_merge($payload, ['buyer_last_saldo' => $buyerLastSaldo ?? null, 'balance' => $buyerLastSaldo ?? null]);
                 $vip = \App\Models\VipResellerStatus::updateOrCreate([
                     'trxid' => $payload['trxid'] ?? null,
                 ], [
@@ -75,12 +78,13 @@ class DigiflazzWebhookController extends Controller
                     'trxid' => $payload['trxid'] ?? null,
                     'data' => $payload['customer_no'] ?? null,
                     'zone' => $payload['zone'] ?? null,
-                    'service' => 'digiflazz',
+                    // 'service' is legacy-only and does not exist on `digiflazz_statuses`.
+                    // Store it inside additional_data instead if needed.
                     'status' => strtolower($status) === 'sukses' || $rc === '00' ? 'success' : (strtolower($status) === 'pending' ? 'waiting' : 'error'),
                     'note' => $payload['message'] ?? null,
                     'price' => $payload['price'] ?? null,
                     'balance' => $buyerLastSaldo ?? null,
-                    'additional_data' => array_merge($payload, ['buyer_last_saldo' => $buyerLastSaldo ?? null]),
+                    'additional_data' => $additional,
                 ]);
             } catch (\Throwable $e) {
                 Log::warning('Failed to create/update VipResellerStatus mirror for Digiflazz webhook', ['error' => $e->getMessage()]);
@@ -89,6 +93,7 @@ class DigiflazzWebhookController extends Controller
             // Try to attach to an order if not attached already
             if (!$statusRecord->order_id && $customerNo) {
                 $order = $this->findOrderByCustomerNo($customerNo);
+                    Log::info('Digiflazz webhook: findOrderByCustomerNo result', ['customer_no' => $customerNo, 'found_order_id' => $order->id ?? null]);
                 if ($order) {
                     $statusRecord->order_id = $order->id;
                     // Persist statusRecord and attach/link to an order atomically to prevent races
@@ -121,6 +126,8 @@ class DigiflazzWebhookController extends Controller
                                     $statusRecord->order_id = $orderLocked->id;
                                     $statusRecord->save();
 
+                                        Log::info('Digiflazz webhook: attached DigiflazzStatus to order', ['digiflazz_status_id' => $statusRecord->id, 'order_id' => $orderLocked->id]);
+
                                     // Link mirrors and save
                                     $linkMirrors($orderLocked->id);
 
@@ -133,10 +140,41 @@ class DigiflazzWebhookController extends Controller
                             if ($order) {
                                 $linkMirrors($order->id);
                                 $this->applyStatusToOrder($order, $statusRecord);
+                                    Log::info('Digiflazz webhook: applied status to already-linked order', ['digiflazz_status_id' => $statusRecord->id, 'order_id' => $order->id]);
                             }
                         }
                     });
 
+                    }
+                }
+
+                // After primary attachment logic
+                Log::info('Digiflazz webhook: after primary attachment logic', ['digiflazz_status_id' => $statusRecord->id, 'order_id' => $statusRecord->order_id, 'ref_id' => $refId, 'customer_no' => $customerNo ?? null]);
+
+                // Fallback: if still not attached and ref_id contains an order id like 'order-123-...'
+                if (!$statusRecord->order_id && !empty($refId)) {
+                    Log::info('Digiflazz webhook: attempting fallback attach by ref_id', ['ref_id' => $refId]);
+                    if (preg_match('/order-(\d+)/', $refId, $m)) {
+                        $parsedOrderId = (int) $m[1];
+                        Log::info('Digiflazz webhook: parsed order id from ref_id', ['ref_id' => $refId, 'parsed' => $parsedOrderId]);
+                        try {
+                            $orderByRef = Order::where('id', $parsedOrderId)->lockForUpdate()->first();
+                            if ($orderByRef) {
+                                Log::info('Digiflazz webhook: fallback found order', ['order_id' => $orderByRef->id, 'order_status' => $orderByRef->status]);
+                                $statusRecord->order_id = $orderByRef->id;
+                                $statusRecord->save();
+                                // link mirrors and apply status
+                                try {
+                                    \App\Models\VipResellerStatus::where('trxid', $statusRecord->trxid)->whereNull('order_id')->update(['order_id' => $orderByRef->id]);
+                                } catch (\Throwable $_) {
+                                    // ignore
+                                }
+                                $this->applyStatusToOrder($orderByRef, $statusRecord);
+                                Log::info('Digiflazz webhook: attached by ref_id parsed order id', ['ref_id' => $refId, 'order_id' => $parsedOrderId, 'digiflazz_status_id' => $statusRecord->id]);
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('Digiflazz webhook: fallback attach by ref_id failed', ['error' => $e->getMessage(), 'ref_id' => $refId]);
+                        }
                     }
                 }
 
@@ -208,6 +246,8 @@ class DigiflazzWebhookController extends Controller
     {
         $status = strtolower($statusRecord->status ?? '');
         $rc = $statusRecord->rc ?? null;
+        $oldStatus = $order->status;
+        Log::info('Digiflazz webhook: applying status to order', ['order_id' => $order->id, 'old_status' => $oldStatus, 'digiflazz_status' => $statusRecord->status, 'rc' => $rc]);
 
         // Map Digiflazz responses to our order statuses
         if ($status === 'sukses' || $rc === '00') {
@@ -218,6 +258,8 @@ class DigiflazzWebhookController extends Controller
             // All other cases considered failed
             $order->update(['status' => 'failed']);
         }
+
+        Log::info('Digiflazz webhook: order status updated', ['order_id' => $order->id, 'old_status' => $oldStatus, 'new_status' => $order->status]);
 
         // Save a note on order (append)
         $note = $statusRecord->message ?? ($statusRecord->additional_data['message'] ?? null);

@@ -1360,18 +1360,19 @@ class CheckoutController extends Controller
                         ]);
 
                         // Save an error vipreseller status so admin can review
+                        // Include legacy service name inside additional_data for compatibility
                         $vipResellerStatus = VipResellerStatus::create([
                             'order_id' => $order->id,
                             'trxid' => null,
                             'data' => null,
                             'zone' => null,
-                            'service' => $packageCode,
                             'status' => 'error',
                             'note' => 'Insufficient seller wallet balance',
                             'price' => null,
                             'additional_data' => [
                                 'required' => $order->seller_cost,
                                 'wallet_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                                'service' => $packageCode,
                             ],
                         ]);
 
@@ -1410,18 +1411,24 @@ class CheckoutController extends Controller
                     try {
                         $apiData = $result['data'] ?? [];
                         $balance = $apiData['buyer_last_saldo'] ?? $apiData['balance'] ?? null;
-                        \App\Models\VipResellerStatus::create([
+                        $vipData = [
                             'order_id' => $order->id,
                             'trxid' => $apiData['trxid'] ?? null,
                             'data' => $apiData['customer_no'] ?? $order->user_id_ml,
                             'zone' => $apiData['zone'] ?? $order->zone_id_ml,
-                            'service' => 'digiflazz',
+                            // do not set `service` column on `digiflazz_statuses` (legacy field)
                             'status' => strtolower(($apiData['status'] ?? $apiData['rc'] ?? 'waiting')) === 'sukses' || ($apiData['rc'] ?? null) === '00' ? 'success' : 'waiting',
                             'note' => $apiData['message'] ?? null,
                             'price' => $apiData['price'] ?? null,
                             'balance' => $balance,
-                            'additional_data' => array_merge($apiData, ['balance' => $balance]),
-                        ]);
+                            'additional_data' => array_merge($apiData, ['balance' => $balance, 'service' => 'digiflazz']),
+                        ];
+
+                        if (!empty($vipData['trxid'])) {
+                            \App\Models\VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
+                        } else {
+                            \App\Models\VipResellerStatus::create($vipData);
+                        }
                     } catch (\Exception $e) {
                         Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder', ['order_id' => $order->id, 'error' => $e->getMessage()]);
                     }
@@ -1469,18 +1476,19 @@ class CheckoutController extends Controller
                             'required' => $order->seller_cost,
                         ]);
 
+                        // Include legacy service name in additional_data for compatibility
                         $vipResellerStatus = VipResellerStatus::create([
                             'order_id' => $order->id,
                             'trxid' => null,
                             'data' => null,
                             'zone' => null,
-                            'service' => $packageCode,
                             'status' => 'error',
                             'note' => 'Insufficient seller wallet balance',
                             'price' => null,
                             'additional_data' => [
                                 'required' => $order->seller_cost,
                                 'wallet_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                                'service' => $packageCode,
                             ],
                         ]);
 
@@ -1582,17 +1590,23 @@ class CheckoutController extends Controller
 
             } else {
                 // Save to vipreseller_status table (legacy provider behavior)
-                $vipResellerStatus = VipResellerStatus::create([
+                $vipData = [
                     'order_id' => $order->id,
                     'trxid' => $apiData['trxid'] ?? null,
                     'data' => $apiData['data'] ?? $playerId,
                     'zone' => $apiData['zone'] ?? $zoneId,
-                    'service' => $apiData['service'] ?? $packageCode,
+                    // store legacy service name in additional_data instead of a dedicated column
                     'status' => $status,
                     'note' => $apiData['note'] ?? ($result['message'] ?? null),
                     'price' => $apiData['price'] ?? null,
-                    'additional_data' => $additionalData,
-                ]);
+                    'additional_data' => array_merge($additionalData, ['service' => $apiData['service'] ?? $packageCode]),
+                ];
+
+                if (!empty($vipData['trxid'])) {
+                    $vipResellerStatus = VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
+                } else {
+                    $vipResellerStatus = VipResellerStatus::create($vipData);
+                }
 
                 Log::info('Chargily: provider status saved', [
                     'vipreseller_status_id' => $vipResellerStatus->id,

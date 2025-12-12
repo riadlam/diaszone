@@ -66,7 +66,11 @@ class DigiflazzWebhookOrderUpdateTest extends TestCase
             return strpos((string)$text, 'Provider Balance') !== false && strpos((string)$text, number_format(555000, 0)) !== false;
         });
 
-        // Also ensure we saved a vipreseller_status mirror containing the balance
-        $this->assertDatabaseHas('vipreseller_status', ['order_id' => $order->id, 'trxid' => 'trx-123', 'service' => 'digiflazz', 'balance' => '555000']);
+        // Also ensure we saved a digiflazz_statuses record containing the balance
+        $this->assertDatabaseHas('digiflazz_statuses', ['order_id' => $order->id, 'trxid' => 'trx-123']);
+        $row = \DB::table('digiflazz_statuses')->where('trxid', 'trx-123')->first();
+        $this->assertNotNull($row);
+        $add = json_decode($row->additional_data ?? '{}', true);
+        $this->assertEquals('555000', (string)($add['balance'] ?? ''));
     }
 }

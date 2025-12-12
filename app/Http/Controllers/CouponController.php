@@ -378,18 +378,26 @@ class CouponController extends Controller
                 'coupon_code' => $coupon->code,
             ];
             
-            // Save to vipreseller_status table
-            $vipResellerStatus = VipResellerStatus::create([
+            // Include legacy service name inside additional_data instead of a dedicated column
+            $additionalData = array_merge($additionalData, ['service' => $apiData['service'] ?? $packageCode]);
+
+            // Save to vipreseller_status table (compat layer writes into digiflazz_statuses)
+            $vipData = [
                 'order_id' => $order->id,
                 'trxid' => $apiData['trxid'] ?? null,
                 'data' => $apiData['data'] ?? $order->user_id_ml,
                 'zone' => $apiData['zone'] ?? $order->zone_id_ml,
-                'service' => $apiData['service'] ?? $packageCode,
                 'status' => $vipStatus,
                 'note' => $apiData['note'] ?? ($topUpResult['message'] ?? null),
                 'price' => $apiData['price'] ?? null,
                 'additional_data' => $additionalData,
-            ]);
+            ];
+
+            if (!empty($vipData['trxid'])) {
+                $vipResellerStatus = VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
+            } else {
+                $vipResellerStatus = VipResellerStatus::create($vipData);
+            }
             
             Log::info('Free order: provider status saved', [
                 'vipreseller_status_id' => $vipResellerStatus->id,

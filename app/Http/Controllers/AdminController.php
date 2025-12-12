@@ -809,17 +809,23 @@ class AdminController extends Controller
             ];
 
             // Save to vipreseller_status table (record either VIP or Digiflazz for admin view)
-            $vipResellerStatus = VipResellerStatus::create([
+            $vipData = [
                 'order_id' => $order->id,
                 'trxid' => $apiData['trxid'] ?? null,
                 'data' => $apiData['data'] ?? $order->user_id_ml,
                 'zone' => $apiData['zone'] ?? $order->zone_id_ml,
-                'service' => $apiData['service'] ?? $packageCode ?? $serviceUsed,
+                // legacy `service` saved inside additional_data for compatibility
                 'status' => $status,
                 'note' => $apiData['note'] ?? ($result['message'] ?? null),
                 'price' => $apiData['price'] ?? null,
-                'additional_data' => $additionalData,
-            ]);
+                'additional_data' => array_merge($additionalData, ['service' => $apiData['service'] ?? $packageCode ?? $serviceUsed]),
+            ];
+
+            if (!empty($vipData['trxid'])) {
+                $vipResellerStatus = VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
+            } else {
+                $vipResellerStatus = VipResellerStatus::create($vipData);
+            }
 
             Log::info('provider status saved', [
                 'vipreseller_status_id' => $vipResellerStatus->id,
@@ -1026,14 +1032,12 @@ class AdminController extends Controller
                     'trxid' => null,
                     'data' => $order->user_id_ml ?? null,
                     'zone' => $order->zone_id_ml ?? null,
-                    'service' => $order->diamondPack->code ?? null,
                     'status' => 'error',
                     'note' => 'Exception: ' . $e->getMessage(),
                     'price' => null,
                     'additional_data' => [
                         'exception' => $e->getMessage(),
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
+                        'service' => $order->diamondPack->code ?? null,
                     ],
                 ]);
             } catch (\Exception $saveException) {

@@ -76,7 +76,10 @@ class SellerDirectTopupTest extends TestCase
         $this->assertDatabaseHas('digiflazz_statuses', ['order_id' => $order->id]);
 
         // We should also have a provider status record with the Digiflazz balance
-        $this->assertDatabaseHas('vipreseller_status', ['order_id' => $order->id, 'service' => 'digiflazz', 'balance' => '987654']);
+        $this->assertDatabaseHas('digiflazz_statuses', ['order_id' => $order->id, 'trxid' => 't123']);
+        $row = \DB::table('digiflazz_statuses')->where('trxid', 't123')->first();
+        $this->assertNotNull($row);
+        $this->assertEquals('987654', (string)(json_decode($row->additional_data ?? '{}', true)['balance'] ?? ''));
 
         // Ensure we saved the Telegram message id when sending the initial admin notification
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'tlg_message_id' => 999]);

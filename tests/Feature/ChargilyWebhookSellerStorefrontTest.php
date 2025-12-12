@@ -102,6 +102,6 @@ class ChargilyWebhookSellerStorefrontTest extends TestCase
         // initial 2000 - seller_cost(500) + seller_profit(100) = 1600
         $this->assertEquals(1600.00, (float) $seller->wallet_balance);
 
-        $this->assertDatabaseHas('vipreseller_status', ['order_id' => $order->id, 'trxid' => 't1', 'status' => 'success']);
+        $this->assertDatabaseHas('digiflazz_statuses', ['order_id' => $order->id, 'trxid' => 't1', 'status' => 'success']);
     }
 }

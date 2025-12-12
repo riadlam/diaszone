@@ -39,7 +39,7 @@ class DigiflazzWebhookIdempotencyTest extends TestCase
              ->assertStatus(200)->assertJson(['ok' => true]);
 
         $this->assertDatabaseHas('digiflazz_statuses', ['ref_id' => 'ref-idemp-1', 'trxid' => 'trx-idemp-1']);
-        $this->assertDatabaseHas('vipreseller_status', ['trxid' => 'trx-idemp-1', 'order_id' => $order->id]);
+        $this->assertDatabaseHas('digiflazz_statuses', ['trxid' => 'trx-idemp-1', 'order_id' => $order->id]);
 
         // Second (duplicate) delivery should not create new records
         $this->withHeaders(['Content-Type' => 'application/json', 'X-Hub-Signature' => $sig, 'X-Digiflazz-Event' => 'create', 'User-Agent' => 'Digiflazz-Hookshot'])
@@ -70,8 +70,12 @@ class DigiflazzWebhookIdempotencyTest extends TestCase
              ->postJson(route('digiflazz.webhook'), $payload)
              ->assertStatus(200)->assertJson(['ok' => true]);
 
-        // The vipreseller_status/trxid should be linked to the recent sending order
-        $this->assertDatabaseHas('vipreseller_status', ['trxid' => 'trx-attach', 'order_id' => $recent->id]);
+        // The digiflazz_statuses/trxid should be linked to the recent sending order
+        $this->assertDatabaseHas('digiflazz_statuses', ['trxid' => 'trx-attach', 'order_id' => $recent->id]);
         $this->assertDatabaseHas('digiflazz_statuses', ['ref_id' => 'ref-test-attach', 'order_id' => $recent->id]);
+        
+        // And the recent order should have been marked completed for successful provider response
+        $recent->refresh();
+        $this->assertEquals('completed', $recent->status);
     }
 }

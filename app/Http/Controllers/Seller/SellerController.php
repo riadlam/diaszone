@@ -532,20 +532,34 @@ class SellerController extends Controller
                 if ($usingDigiflazz) {
                     // Digiflazz already persists a DigiflazzStatus inside the service; duplicate a lightweight record for admin view
                     $dig = $result['data'] ?? [];
-                    \App\Models\DigiflazzStatus::create([
+                    \Log::info('DirectTopup: Digiflazz placeOrder returned', ['dig' => $dig, 'order_id' => $order->id]);
+                    // Normalize provider payload shape (some providers nest actual payload inside ['data']['data'])
+                    $payload = $dig['data'] ?? $dig;
+                    if (isset($payload['data']) && is_array($payload['data']) && array_key_exists('trxid', $payload['data'])) {
+                        $payload = $payload['data'];
+                    }
+
+                    $statusData = [
                         'order_id' => $order->id,
                         'ref_id' => $dig['ref_id'] ?? null,
-                        'trxid' => $dig['data']['trxid'] ?? null,
-                        'buyer_sku_code' => $dig['data']['buyer_sku_code'] ?? $pack->code,
-                        'customer_no' => $dig['data']['customer_no'] ?? null,
-                        'rc' => $dig['data']['rc'] ?? null,
-                        'status' => $dig['data']['status'] ?? null,
-                        'message' => $dig['data']['message'] ?? null,
-                        'price' => $dig['data']['price'] ?? null,
-                        'sn' => $dig['data']['sn'] ?? null,
+                        'trxid' => $payload['trxid'] ?? null,
+                        'buyer_sku_code' => $payload['buyer_sku_code'] ?? $pack->code,
+                        'customer_no' => $payload['customer_no'] ?? null,
+                        'rc' => $payload['rc'] ?? null,
+                        'status' => $payload['status'] ?? null,
+                        'message' => $payload['message'] ?? null,
+                        'price' => $payload['price'] ?? null,
+                        'sn' => $payload['sn'] ?? null,
                         'additional_data' => $dig,
                         'event' => 'create',
-                    ]);
+                    ];
+
+                    // Insert or update by trxid when available to make operation idempotent
+                    if (!empty($statusData['trxid'])) {
+                        \App\Models\DigiflazzStatus::updateOrCreate(['trxid' => $statusData['trxid']], $statusData);
+                    } else {
+                        \App\Models\DigiflazzStatus::create($statusData);
+                    }
 
                     // Save a lightweight provider status record for admin/telegram views and include deposit if available
                     try {
@@ -556,18 +570,23 @@ class SellerController extends Controller
                         $balance = null;
                     }
 
-                    \App\Models\VipResellerStatus::create([
+                    $vipData = [
                         'order_id' => $order->id,
-                        'trxid' => $dig['data']['trxid'] ?? null,
-                        'data' => $dig['data']['customer_no'] ?? $order->user_id_ml,
-                        'zone' => $dig['data']['zone'] ?? $order->zone_id_ml,
-                        'service' => 'digiflazz',
+                        'trxid' => $payload['trxid'] ?? null,
+                        'data' => $payload['customer_no'] ?? $order->user_id_ml,
+                        'zone' => $payload['zone'] ?? $order->zone_id_ml,
                         'status' => 'waiting',
-                        'note' => $dig['data']['message'] ?? null,
-                        'price' => $dig['data']['price'] ?? null,
+                        'note' => $payload['message'] ?? null,
+                        'price' => $payload['price'] ?? null,
                         'balance' => $balance,
-                        'additional_data' => array_merge($dig, ['balance' => $balance]),
-                    ]);
+                        'additional_data' => array_merge($dig, ['balance' => $balance, 'service' => 'digiflazz']),
+                    ];
+
+                    if (!empty($vipData['trxid'])) {
+                        \App\Models\VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
+                    } else {
+                        \App\Models\VipResellerStatus::create($vipData);
+                    }
 
                     $order->update(['status' => 'sending', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);
                 } else {
@@ -576,11 +595,10 @@ class SellerController extends Controller
                         'trxid' => $apiData['trxid'] ?? null,
                         'data' => $apiData['data'] ?? $validated['player_id'],
                         'zone' => $apiData['zone'] ?? ($validated['zone_id'] ?? null),
-                        'service' => $apiData['service'] ?? $pack->code,
                         'status' => 'success',
                         'note' => $apiData['note'] ?? null,
                         'price' => $apiData['price'] ?? null,
-                        'additional_data' => $result,
+                        'additional_data' => array_merge($result, ['service' => $apiData['service'] ?? $pack->code]),
                     ]);
 
                     $order->update(['status' => 'completed', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);
