@@ -23,5 +23,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->useLangPath(base_path('lang'));
         // storage_public_url helper is declared in global namespace
+        // Register console commands (reconcile digiflazz statuses)
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \App\Console\Commands\ReconcileDigiflazzStatuses::class,
+            ]);
+        }
     }
 }

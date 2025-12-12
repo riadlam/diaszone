@@ -271,7 +271,8 @@ class DigiflazzWebhookController extends Controller
         return $order;
     }
 
-    protected function applyStatusToOrder(Order $order, DigiflazzStatus $statusRecord)
+    // Made public so it can be reused by reconciliation CLI and other maintenance tasks
+    public function applyStatusToOrder(Order $order, DigiflazzStatus $statusRecord)
     {
         $status = strtolower($statusRecord->status ?? '');
         $rc = $statusRecord->rc ?? null;
