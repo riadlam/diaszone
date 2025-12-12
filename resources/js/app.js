@@ -395,6 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             price = price - discountAmount;
                         }
                         
+                        // Multiply price by pack quantity (for special_quantity packs like weekly passes)
+                        const packQty = packInfo.special_quantity || 1;
+                        price = price * packQty;
+
                         // Format price
                         const formattedPrice = currency === 'DZD' 
                             ? Math.round(price).toLocaleString() + ' DZD'
@@ -404,7 +408,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         let packDisplayName = '';
                         if (packInfo.name) {
                             if (packInfo.name.includes('Weekly Diamond Pass') || packInfo.name.includes('Event Topup')) {
-                                packDisplayName = '1x Weekly Diamond Pass';
+                                const qty = packInfo.special_quantity || 1;
+                                packDisplayName = `${qty}x Weekly Diamond Pass`;
                             } else if (packInfo.name.includes('Twilight Pass')) {
                                 packDisplayName = 'Twilight Pass';
                             } else {

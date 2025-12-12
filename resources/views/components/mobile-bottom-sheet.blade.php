@@ -75,9 +75,11 @@
                     }
                 }
             @endphp
-            <button type="button"
+                @php $packQuantity = $pack->special_quantity ?? 1; @endphp
+                <button type="button"
                     class="mobile-pack-item w-full bg-white border border-gray-200 rounded-2xl p-4 active:scale-[0.98] transition-all text-left shadow-sm hover:shadow-md hover:border-purple-300 active:bg-purple-50/30"
                     data-pack-id="{{ $pack->id }}"
+                    data-pack-quantity="{{ $packQuantity }}"
                     data-pack-diamonds="{{ $pack->diamonds }}"
                     data-pack-bonus="{{ $pack->bonus_diamonds }}"
                     data-pack-price="{{ $pack->price }}"
@@ -160,9 +162,9 @@
                                         <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
                                         <span class="text-sm font-medium text-gray-600">Tokens</span>
                                     @endif
-                                @else
+                                    @else
                                     @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
-                                        <h3 class="text-base font-bold text-gray-900">1x Weekly Diamond Pass</h3>
+                                        <h3 class="text-base font-bold text-gray-900">{{ ($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false) ? $packQuantity . 'x Weekly Diamond Pass' : '1x Weekly Diamond Pass' }}</h3>
                                     @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                         <h3 class="text-base font-bold text-gray-900">Twilight Pass</h3>
                                     @else
@@ -198,7 +200,7 @@
                                     $discountPercentage = $pack->discount_percentage ?? 0;
                                     $priceAfterDiscountDzd = $priceDzd * (1 - $discountPercentage / 100);
                                 @endphp
-                                <span class="text-lg font-bold text-purple-600 mobile-pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discountPercentage }}">{{ number_format($priceAfterDiscountDzd, 0) }} DZD</span>
+                                <span class="text-lg font-bold text-purple-600 mobile-pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discountPercentage }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceAfterDiscountDzd * ($packQuantity), 0) }} DZD</span>
                             </div>
                         </div>
                     </div>

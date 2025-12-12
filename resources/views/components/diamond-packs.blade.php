@@ -133,7 +133,11 @@
                                         @endif
                                     @else
                                         @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
-                                            1x Weekly Diamond Pass
+                                            @if(($packQuantity ?? 1) > 1 && stripos($pack->name ?? '', 'weekly') !== false)
+                                                {{ $packQuantity }}x Weekly Diamond Pass
+                                            @else
+                                                1x Weekly Diamond Pass
+                                            @endif
                                         @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                             Twilight Pass
                                         @else
@@ -146,6 +150,7 @@
                                     $packQuantity = $pack->special_quantity ?? 1;
                                 @endphp
                                 @if($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false)
+                                    <span class="text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded">{{ $packQuantity }}× Weekly Pass</span>
                                 @endif
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% OFF</span>
@@ -237,7 +242,7 @@ window.updatePricesOnPage = function() {
             
             let packDisplayName = '';
             if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
-                packDisplayName = '1x Weekly Diamond Pass';
+                packDisplayName = `${packQuantity}x Weekly Diamond Pass`;
             } else if (packName && packName.includes('Twilight Pass')) {
                 packDisplayName = 'Twilight Pass';
             } else {
@@ -661,7 +666,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (selectedPackText) {
                     let packDisplayName = '';
                     if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
-                        packDisplayName = '1x Weekly Diamond Pass';
+                        packDisplayName = `${packQuantity}x Weekly Diamond Pass`;
                     } else if (packName && packName.includes('Twilight Pass')) {
                         packDisplayName = 'Twilight Pass';
                     } else {
