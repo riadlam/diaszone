@@ -625,6 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const packPriceDzd = this.dataset.packPriceDzd || (packPrice * 260);
                 const packName = this.dataset.packName || '';
                 const packDiscount = this.dataset.packDiscount || 0;
+                const packQuantity = parseInt(this.dataset.packQuantity || 1, 10);
                 
                 // Remove previous selection indicator
                 mobilePackItems.forEach(packItem => {
@@ -658,7 +659,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
                 let price = currency === 'DZD' ? parseFloat(packPriceDzd) : parseFloat(packPriceUsd);
                 const discountAmount = (price * parseFloat(packDiscount)) / 100;
-                const priceAfterDiscount = price - discountAmount;
+                let priceAfterDiscount = price - discountAmount;
+                // Multiply by quantity (e.g., 3x weekly pass)
+                priceAfterDiscount = priceAfterDiscount * packQuantity;
                 
                 if (selectedPackText) {
                     let packDisplayName = '';
