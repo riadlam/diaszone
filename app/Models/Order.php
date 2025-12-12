@@ -39,6 +39,7 @@ class Order extends Model
         'seller_profit_paid',
         'seller_profit_paid_at',
         'is_direct_topup',
+        'quantity',
         // Payment method and Flexy fields
         'payment_method',
         'flexy_receipt',
@@ -48,7 +49,17 @@ class Order extends Model
     protected $casts = [
         'seller_profit_paid' => 'boolean',
         'seller_profit_paid_at' => 'datetime',
+        'quantity' => 'integer',
     ];
+
+    public function successfulDigiflazzTopupsCount(): int
+    {
+        return $this->digiflazzStatuses()
+            ->where(function ($q) {
+                $q->whereRaw("LOWER(status) = 'sukses'")
+                  ->orWhere('rc', '00');
+            })->count();
+    }
 
     /**
      * Credit seller wallet with the order profit (idempotent)

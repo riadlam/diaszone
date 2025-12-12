@@ -316,10 +316,24 @@ class DigiflazzWebhookController extends Controller
         $rc = $statusRecord->rc ?? null;
         $oldStatus = $order->status;
         Log::info('Digiflazz webhook: applying status to order', ['order_id' => $order->id, 'old_status' => $oldStatus, 'digiflazz_status' => $statusRecord->status, 'rc' => $rc]);
-
         // Map Digiflazz responses to our order statuses
         if ($status === 'sukses' || $rc === '00') {
-            $order->update(['status' => 'completed']);
+            // For multi-topup orders (quantity), only mark completed when we've seen enough successful provider statuses
+            if (!empty($order->quantity) && (int)$order->quantity > 1) {
+                $succeeded = $order->successfulDigiflazzTopupsCount();
+                Log::info('Digiflazz webhook: order has quantity; succeeded count', ['order_id' => $order->id, 'quantity' => $order->quantity, 'succeeded' => $succeeded]);
+                if ($succeeded >= (int)$order->quantity) {
+                    $order->update(['status' => 'completed']);
+                } else {
+                    // keep in sending state until all topups done
+                    $order->update(['status' => 'sending']);
+                    // Append progress note
+                    $order->notes = trim(($order->notes ?? '') . "\nDigiflazz: {$succeeded}/{$order->quantity} top-ups completed");
+                    $order->save();
+                }
+            } else {
+                $order->update(['status' => 'completed']);
+            }
         } elseif ($status === 'pending' || in_array($rc, ['03', '99'])) {
             $order->update(['status' => 'sending']);
         } else {

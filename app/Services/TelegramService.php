@@ -261,6 +261,13 @@ class TelegramService
         $message .= "💎 <b>Pack:</b> {$escape($packName)}\n";
         $message .= "💰 <b>Amount:</b> " . number_format($amount, 0) . " DZD\n";
         $message .= "📊 <b>Status:</b> " . ucfirst(str_replace('_', ' ', $order->status)) . "\n";
+
+        // If order has quantity (multi-topup pass), show progress
+        if (!empty($order->quantity) && $order->quantity > 1) {
+            $succeeded = method_exists($order, 'successfulDigiflazzTopupsCount') ? $order->successfulDigiflazzTopupsCount() : 0;
+            $message .= "🔁 <b>Top-ups:</b> {$succeeded}/{$order->quantity} completed\n";
+            $message .= "🏷️ <b>Offer:</b> {$order->quantity}× Weekly Pass\n";
+        }
         $message .= "👤 <b>User:</b> {$userName}\n";
         // Include seller information when present (seller storefront orders)
         if (isset($order->seller) && $order->seller) {
