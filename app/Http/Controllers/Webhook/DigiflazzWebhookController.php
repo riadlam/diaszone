@@ -70,6 +70,20 @@ class DigiflazzWebhookController extends Controller
 
             Log::info('Digiflazz webhook: status record persisted', ['id' => $statusRecord->id ?? null, 'ref_id' => $statusRecord->ref_id ?? $refId, 'trxid' => $statusRecord->trxid ?? null, 'status' => $statusRecord->status ?? null, 'order_id' => $statusRecord->order_id ?? null]);
 
+            // Diagnostic: if both ref_id encodes an order id and customer_no resolves
+            // to a different order, warn so we can investigate collisions.
+            if (!empty($refId) && $customerNo && preg_match('/order-(\d+)/', $refId, $m)) {
+                $parsed = (int) $m[1];
+                try {
+                    $customerMatch = $this->findOrderByCustomerNo($customerNo);
+                } catch (\Throwable $_) {
+                    $customerMatch = null;
+                }
+                if ($customerMatch && $customerMatch->id !== $parsed) {
+                    Log::warning('Digiflazz webhook: identifier conflict - ref_id parsed order differs from customer_no match', ['ref_id' => $refId, 'parsed_order_id' => $parsed, 'customer_no' => $customerNo, 'customer_matched_order_id' => $customerMatch->id, 'digiflazz_status_id' => $statusRecord->id]);
+                }
+            }
+
             // Mirror important fields into VipResellerStatus (admin view) so Telegram and admin see provider balance & status
             try {
                 $buyerLastSaldo = $payload['buyer_last_saldo'] ?? ($payload['data']['buyer_last_saldo'] ?? null);
@@ -219,14 +233,20 @@ class DigiflazzWebhookController extends Controller
         // Try matching numeric order id directly
         if (preg_match('/^\d+$/', $customerNo)) {
             $order = Order::find((int)$customerNo);
-            if ($order) return $order;
+            if ($order) {
+                Log::info('Digiflazz webhook: findOrderByCustomerNo matched by numeric id', ['customer_no' => $customerNo, 'matched_by' => 'numeric_id', 'order_id' => $order->id]);
+                return $order;
+            }
         }
 
         // Try Mobile Legends pattern user.zone
         if (strpos($customerNo, '.') !== false) {
             [$userId, $zone] = explode('.', $customerNo, 2);
             $order = Order::where('user_id_ml', $userId)->where('zone_id_ml', $zone)->latest()->first();
-            if ($order) return $order;
+            if ($order) {
+                Log::info('Digiflazz webhook: findOrderByCustomerNo matched by dotted user.zone', ['customer_no' => $customerNo, 'matched_by' => 'user.zone', 'order_id' => $order->id]);
+                return $order;
+            }
         }
 
         // Try Mobile Legends concatenated pattern user+zone (e.g., 2057629734048)
@@ -244,7 +264,11 @@ class DigiflazzWebhookController extends Controller
                     ->whereIn('status', $statusPriority)
                     ->orderBy('created_at', 'desc')
                     ->get();
-                if ($candidates->count()) return $candidates->first();
+                if ($candidates->count()) {
+                    $found = $candidates->first();
+                    Log::info('Digiflazz webhook: findOrderByCustomerNo matched by concatenated user+zone (sqlite)', ['customer_no' => $customerNo, 'matched_by' => 'concat_user_zone', 'order_id' => $found->id]);
+                    return $found;
+                }
 
                 $order = Order::whereRaw("user_id_ml || zone_id_ml = ?", [$customerNo])->latest()->first();
             } else {
@@ -252,12 +276,19 @@ class DigiflazzWebhookController extends Controller
                     ->whereIn('status', $statusPriority)
                     ->orderBy('created_at', 'desc')
                     ->get();
-                if ($candidates->count()) return $candidates->first();
+                if ($candidates->count()) {
+                    $found = $candidates->first();
+                    Log::info('Digiflazz webhook: findOrderByCustomerNo matched by concatenated user+zone', ['customer_no' => $customerNo, 'matched_by' => 'concat_user_zone', 'order_id' => $found->id]);
+                    return $found;
+                }
 
                 $order = Order::whereRaw("CONCAT(user_id_ml, zone_id_ml) = ?", [$customerNo])->latest()->first();
             }
 
-            if ($order) return $order;
+            if ($order) {
+                Log::info('Digiflazz webhook: findOrderByCustomerNo matched by concatenated user+zone (fallback)', ['customer_no' => $customerNo, 'matched_by' => 'concat_user_zone', 'order_id' => $order->id]);
+                return $order;
+            }
         }
 
         // Try matching common player id fields
@@ -267,6 +298,13 @@ class DigiflazzWebhookController extends Controller
             ->orWhere('user_id_bs', $customerNo)
             ->latest()
             ->first();
+
+        if ($order) {
+            Log::info('Digiflazz webhook: findOrderByCustomerNo matched by player id field', ['customer_no' => $customerNo, 'matched_by' => 'player_id', 'order_id' => $order->id]);
+            return $order;
+        }
+
+        Log::info('Digiflazz webhook: findOrderByCustomerNo found no match', ['customer_no' => $customerNo]);
 
         return $order;
     }
