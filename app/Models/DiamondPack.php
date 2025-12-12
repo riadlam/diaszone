@@ -11,6 +11,7 @@ class DiamondPack extends Model
         'name',
         'code',
         'diamonds',
+        'special_quantity',
         'bonus_diamonds',
         'price',
         'price_dzd',
@@ -28,6 +29,7 @@ class DiamondPack extends Model
         'price_usd' => 'decimal:2',
         'discount_percentage' => 'decimal:2',
         'is_active' => 'boolean',
+        'special_quantity' => 'integer',
     ];
 
     public function getTotalDiamondsAttribute(): int

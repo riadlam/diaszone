@@ -334,8 +334,9 @@ class CheckoutController extends Controller
                     'order_number' => Order::generateOrderNumber(),
                     'user_id' => $userId,
                     'diamond_pack_id' => $item['pack_id'],
-                    // For special weekly pass (pack id 174), set quantity to 3
-                    'quantity' => ($pack->id == 174 ? 3 : ($item['quantity'] ?? 1)),
+                    // Use special_quantity on pack (allows multi-quantity offers,
+                    // e.g. 3× weekly pass) and fall back to provided quantity or 1
+                    'quantity' => ($pack->special_quantity ?? ($item['quantity'] ?? 1)),
                     'status' => $orderStatus, // Set status based on payment method
                     'user_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['user_id'] ?? null) : null,
                     'zone_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['zone_id'] ?? null) : null,

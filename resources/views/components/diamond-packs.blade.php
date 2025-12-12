@@ -12,7 +12,7 @@
                        class="hidden pack-radio"
                        {{ $index === 0 ? 'checked' : '' }}
                        data-pack-id="{{ $pack->id }}"
-                      data-pack-quantity="{{ $pack->id == 174 ? 3 : 1 }}"
+                       data-pack-quantity="{{ $pack->special_quantity ?? 1 }}"
                        data-pack-diamonds="{{ $pack->diamonds }}"
                        data-pack-bonus="{{ $pack->bonus_diamonds }}"
                        data-pack-price="{{ $pack->price }}"
@@ -142,8 +142,11 @@
                                     @endif
                                 </h3>
                                 </h3>
-                                @if($pack->id == 174)
-                                    <span class="ml-2 inline-block text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded">3× Weekly Pass</span>
+                                @php
+                                    $packQuantity = $pack->special_quantity ?? 1;
+                                @endphp
+                                @if($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false)
+                                    <span class="ml-2 inline-block text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded">{{ $packQuantity }}× Weekly Pass</span>
                                 @endif
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% OFF</span>
@@ -163,7 +166,7 @@
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}">{{ number_format($priceDzd, 0) }} DZD</span>
                                 @endif
-                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $pack->id == 174 ? 3 : 1 }}">{{ number_format($finalPriceDzd * ($pack->id == 174 ? 3 : 1), 0) }} DZD</span>
+                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($finalPriceDzd * ($packQuantity), 0) }} DZD</span>
                             </div>
                         </div>
                     </div>

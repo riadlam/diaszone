@@ -19,7 +19,7 @@ class DigiflazzWebhookQuantityTest extends TestCase
         config(['telegram.bot_token' => 'fake-token', 'telegram.chat_id' => '1234', 'telegram.api_url' => 'https://api.telegram.org/bot/']);
         Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 555]], 200)]);
 
-        $pack = DiamondPack::create(['game_type' => 'mobilelegends', 'name' => 'Weekly Pass 3x', 'code' => 'mlbb-pass-3', 'diamonds' => 55, 'price' => 1.00, 'price_dzd' => 55, 'is_active' => true]);
+        $pack = DiamondPack::create(['game_type' => 'mobilelegends', 'name' => 'Weekly Pass 3x', 'code' => 'mlbb-pass-3', 'diamonds' => 55, 'price' => 1.00, 'price_dzd' => 55, 'is_active' => true, 'special_quantity' => 3]);
         $order = Order::create(['order_number' => 'ORD-PASS-1', 'status' => 'sending', 'diamond_pack_id' => $pack->id, 'user_id_ml' => '205762973', 'zone_id_ml' => '4048', 'quantity' => 3]);
 
         // Post three webhook events (one by one). Each should create a DigiflazzStatus and only after 3 successes the order becomes completed

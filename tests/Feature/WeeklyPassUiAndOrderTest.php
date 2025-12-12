@@ -13,20 +13,17 @@ class WeeklyPassUiAndOrderTest extends TestCase
 
     public function test_weekly_pass_pack_shows_3x_badge_and_creates_order_with_quantity()
     {
-            // Create the special pack id 174 — use DB insert so we can set the id explicitly
-            \Illuminate\Support\Facades\DB::table('diamond_packs')->insert([
-                'id' => 174,
+            // Create the special pack with special_quantity = 3
+            $pack = DiamondPack::create([
                 'game_type' => 'mobilelegends',
-                'name' => 'Weekly Pass 3x',
+                'name' => '3 Weekly Pass',
                 'code' => 'mlbb-pass-3',
                 'diamonds' => 55,
                 'price' => 10.00,
                 'price_dzd' => 1000,
                 'is_active' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'special_quantity' => 3,
             ]);
-            $pack = DiamondPack::find(174);
 
             // Ensure the pack and its special badge are visible on the Mobile Legends page
             $getResponse = $this->get('/mobilelegends');
