@@ -240,11 +240,16 @@ class TelegramService
             $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
         }
         
-        // Calculate amount
-        $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
-        $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
-        $discountAmount = ($priceDzd * $discountPercentage) / 100;
-        $amount = $priceDzd - $discountAmount;
+        // Calculate amount - prefer order final_price if present (supports quantity multiplies)
+        if (!empty($order->final_price)) {
+            $amount = $order->final_price;
+        } else {
+            $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
+            $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
+            $discountAmount = ($priceDzd * $discountPercentage) / 100;
+            $quantity = $order->quantity ?? 1;
+            $amount = ($priceDzd - $discountAmount) * $quantity;
+        }
         
         // Escape input for HTML parse mode to avoid injection
         $escape = function ($s) {

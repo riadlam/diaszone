@@ -334,6 +334,8 @@ class CheckoutController extends Controller
                     'order_number' => Order::generateOrderNumber(),
                     'user_id' => $userId,
                     'diamond_pack_id' => $item['pack_id'],
+                    // For special weekly pass (pack id 174), set quantity to 3
+                    'quantity' => ($pack->id == 174 ? 3 : ($item['quantity'] ?? 1)),
                     'status' => $orderStatus, // Set status based on payment method
                     'user_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['user_id'] ?? null) : null,
                     'zone_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['zone_id'] ?? null) : null,
@@ -343,6 +345,21 @@ class CheckoutController extends Controller
                     'user_id_bs' => $userIdBs,
                     'server_bs' => $serverBs,
                 ]);
+
+                // Persist calculated prices on the order so payments and notifications reflect total price
+                try {
+                    $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                    $quantity = $order->quantity ?? 1;
+                    $discountPercentage = $pack->discount_percentage ?? 0;
+                    $totalBeforeDiscount = $unitPriceDzd * $quantity;
+                    $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                    $final = $totalBeforeDiscount - $discountAmount;
+                    $order->original_price = $totalBeforeDiscount;
+                    $order->final_price = $final;
+                    $order->save();
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to persist order prices', ['error' => $e->getMessage(), 'order_id' => $order->id ?? null]);
+                }
                 
                 // Send Telegram notification (skip pending_flexy status)
                 if ($order->status !== 'pending_flexy') {

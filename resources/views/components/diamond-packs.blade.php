@@ -6,12 +6,13 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         @foreach($packs as $index => $pack)
             <label class="diamond-pack-item cursor-pointer">
-                <input type="radio" 
+                  <input type="radio" 
                        name="diamond_pack" 
                        value="{{ $pack->id }}" 
                        class="hidden pack-radio"
                        {{ $index === 0 ? 'checked' : '' }}
                        data-pack-id="{{ $pack->id }}"
+                      data-pack-quantity="{{ $pack->id == 174 ? 3 : 1 }}"
                        data-pack-diamonds="{{ $pack->diamonds }}"
                        data-pack-bonus="{{ $pack->bonus_diamonds }}"
                        data-pack-price="{{ $pack->price }}"
@@ -140,6 +141,10 @@
                                         @endif
                                     @endif
                                 </h3>
+                                </h3>
+                                @if($pack->id == 174)
+                                    <span class="ml-2 inline-block text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded">3× Weekly Pass</span>
+                                @endif
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% OFF</span>
                                 @endif
@@ -158,7 +163,7 @@
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}">{{ number_format($priceDzd, 0) }} DZD</span>
                                 @endif
-                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}">{{ number_format($finalPriceDzd, 0) }} DZD</span>
+                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $pack->id == 174 ? 3 : 1 }}">{{ number_format($finalPriceDzd * ($pack->id == 174 ? 3 : 1), 0) }} DZD</span>
                             </div>
                         </div>
                     </div>
@@ -214,6 +219,7 @@ window.updatePricesOnPage = function() {
         if (packCard) {
             const packPriceUsd = parseFloat(packCard.getAttribute('data-pack-price-usd')) || 0;
             const packPriceDzd = parseFloat(packCard.getAttribute('data-pack-price-dzd')) || 0;
+            const packQuantity = parseInt(packCard.getAttribute('data-pack-quantity') || 1, 10);
             const packDiscount = parseFloat(packCard.getAttribute('data-pack-discount')) || 0;
             const packDiamonds = packCard.getAttribute('data-pack-diamonds');
             const packBonus = packCard.getAttribute('data-pack-bonus');
@@ -224,6 +230,8 @@ window.updatePricesOnPage = function() {
                 const discountAmount = (price * packDiscount) / 100;
                 price = price - discountAmount;
             }
+            // Multiply by quantity (e.g., 3x weekly pass)
+            price = price * packQuantity;
             
             let packDisplayName = '';
             if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
@@ -267,7 +275,10 @@ window.updatePricesOnPage = function() {
         const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
         const discount = parseFloat(element.getAttribute('data-discount')) || 0;
         
-        let price = currency === 'DZD' ? priceDzd : priceUsd;
+            let price = currency === 'DZD' ? priceDzd : priceUsd;
+            // Multiply displayed price by pack quantity if available
+            const quantity = parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
+            price = price * quantity;
         if (discount > 0) {
             const discountAmount = (price * discount) / 100;
             price = price - discountAmount;
