@@ -37,17 +37,20 @@ class DigiflazzWebhookController extends Controller
         }
 
         $refId = $payload['ref_id'] ?? null;
+        // Digiflazz sometimes uses 'trx_id' key instead of 'trxid' - normalize
+        $trxId = $payload['trxid'] ?? $payload['trx_id'] ?? null;
         $customerNo = $payload['customer_no'] ?? null;
         $buyerSku = $payload['buyer_sku_code'] ?? null;
         $rc = $payload['rc'] ?? null;
         $status = $payload['status'] ?? null;
 
         try {
-            $statusRecord = DigiflazzStatus::where('ref_id', $refId)->orWhere('trxid', $payload['trxid'] ?? null)->first();
+            // Use normalized trxId when looking up existing records
+            $statusRecord = DigiflazzStatus::where('ref_id', $refId)->orWhere('trxid', $trxId)->first();
 
             $data = [
                 'ref_id' => $refId,
-                'trxid' => $payload['trxid'] ?? null,
+                'trxid' => $trxId,
                 'buyer_sku_code' => $buyerSku,
                 'customer_no' => $customerNo,
                 'rc' => $rc,
@@ -71,8 +74,8 @@ class DigiflazzWebhookController extends Controller
             try {
                 $buyerLastSaldo = $payload['buyer_last_saldo'] ?? ($payload['data']['buyer_last_saldo'] ?? null);
                 $additional = array_merge($payload, ['buyer_last_saldo' => $buyerLastSaldo ?? null, 'balance' => $buyerLastSaldo ?? null]);
-                $vip = \App\Models\VipResellerStatus::updateOrCreate([
-                    'trxid' => $payload['trxid'] ?? null,
+                    $vip = \App\Models\VipResellerStatus::updateOrCreate([
+                    'trxid' => $trxId,
                 ], [
                     'order_id' => $statusRecord->order_id ?? null,
                     'trxid' => $payload['trxid'] ?? null,
@@ -91,6 +94,32 @@ class DigiflazzWebhookController extends Controller
             }
 
             // Try to attach to an order if not attached already
+            // Prefer an explicit order id embedded in ref_id (e.g., order-123-...) before
+            // attempting customer_no-based matching, to avoid attaching to the wrong
+            // order when customer_no can match multiple in-flight orders.
+            if (!$statusRecord->order_id && !empty($refId) && preg_match('/order-(\d+)/', $refId, $m)) {
+                $parsedOrderId = (int) $m[1];
+                try {
+                    DB::transaction(function () use ($statusRecord, $parsedOrderId, $refId) {
+                        $orderByRef = Order::where('id', $parsedOrderId)->lockForUpdate()->first();
+                        if ($orderByRef) {
+                            $statusRecord->order_id = $orderByRef->id;
+                            $statusRecord->save();
+                            try {
+                                \App\Models\VipResellerStatus::where('trxid', $statusRecord->trxid)->whereNull('order_id')->update(['order_id' => $orderByRef->id]);
+                            } catch (\Throwable $_) {
+                                // ignore
+                            }
+                            $this->applyStatusToOrder($orderByRef, $statusRecord);
+                            Log::info('Digiflazz webhook: attached by ref_id parsed order id (early)', ['ref_id' => $refId, 'order_id' => $parsedOrderId, 'digiflazz_status_id' => $statusRecord->id]);
+                        }
+                    });
+                } catch (\Throwable $e) {
+                    Log::warning('Digiflazz webhook: early fallback attach by ref_id failed', ['error' => $e->getMessage(), 'ref_id' => $refId]);
+                }
+            }
+
+            // If still not attached, try matching by customer_no (legacy behavior)
             if (!$statusRecord->order_id && $customerNo) {
                 $order = $this->findOrderByCustomerNo($customerNo);
                     Log::info('Digiflazz webhook: findOrderByCustomerNo result', ['customer_no' => $customerNo, 'found_order_id' => $order->id ?? null]);
