@@ -238,17 +238,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     const isArabic = document.documentElement.dir === 'rtl';
                     
-                    // Friendly messages only - no technical error details
-                    const friendlyMessage = isArabic 
+                    // Check for specific known server-side errors to show friendlier guidance
+                    let friendlyMessage = isArabic 
                         ? 'عذراً، خدمة الدفع غير متوفرة حالياً. يرجى إعادة المحاولة خلال 10 دقائق. شكراً لصبرك.'
                         : {!! json_encode(__('seller.payment_service_unavailable')) !!};
-                    
-                    const shortMessage = isArabic 
+
+                    let shortMessage = isArabic 
                         ? 'خدمة الدفع غير متوفرة مؤقتاً'
                         : 'Payment Service Unavailable';
-                    
-                    // Simple error code for documentation
-                    const errorCode = data.error_code || 'ERR-' + response.status;
+
+                    // If the backend returned a 400/404 about invalid or expired order, show a clearer message
+                    const serverMsg = (data && data.message) ? data.message : '';
+                    let errorCode = data.error_code || 'ERR-' + response.status;
+                    if (response.status === 400 || response.status === 404) {
+                        if (serverMsg.includes('Invalid order ID') || serverMsg.includes('Order not found')) {
+                            friendlyMessage = {!! json_encode(__('seller.invalid_order_id')) !!};
+                            shortMessage = {!! json_encode(__('seller.invalid_order_id')) !!};
+                            errorCode = 'ERR-INVALID-ORDER';
+                        }
+                    }
                     
                     errorModal.innerHTML = `
                         <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center" dir="${isArabic ? 'rtl' : 'ltr'}">
