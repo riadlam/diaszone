@@ -34,15 +34,56 @@ return new class extends Migration
                 return;
             }
             try {
-                $table->unique('ref_id', 'digiflazz_statuses_ref_id_unique');
-            } catch (\Throwable $e) {
-                // ignore if index already exists or unsupported in this driver
-            }
+                // MySQL may already have the index present. For MySQL check information_schema
+                $driver = null;
+                try {
+                    $driver = \DB::getPdo()->getAttribute(\PDO::ATTR_DRIVER_NAME);
+                } catch (\Throwable $_) {
+                    $driver = null;
+                }
 
-            try {
-                $table->unique('trxid', 'digiflazz_statuses_trxid_unique');
+                $shouldAddRef = true;
+                $shouldAddTrx = true;
+                if ($driver === 'mysql') {
+                    try {
+                        $dbName = \DB::getDatabaseName();
+                        $refExists = (bool) \DB::table('information_schema.statistics')
+                            ->where('table_schema', $dbName)
+                            ->where('table_name', 'digiflazz_statuses')
+                            ->where('index_name', 'digiflazz_statuses_ref_id_unique')
+                            ->exists();
+                        $trxExists = (bool) \DB::table('information_schema.statistics')
+                            ->where('table_schema', $dbName)
+                            ->where('table_name', 'digiflazz_statuses')
+                            ->where('index_name', 'digiflazz_statuses_trxid_unique')
+                            ->exists();
+
+                        $shouldAddRef = !$refExists;
+                        $shouldAddTrx = !$trxExists;
+                    } catch (\Throwable $_) {
+                        // If querying information_schema fails, fall back to try/catch below
+                        $shouldAddRef = true;
+                        $shouldAddTrx = true;
+                    }
+                }
+
+                if ($shouldAddRef) {
+                    try {
+                        $table->unique('ref_id', 'digiflazz_statuses_ref_id_unique');
+                    } catch (\Throwable $_) {
+                        // ignore
+                    }
+                }
+
+                if ($shouldAddTrx) {
+                    try {
+                        $table->unique('trxid', 'digiflazz_statuses_trxid_unique');
+                    } catch (\Throwable $_) {
+                        // ignore
+                    }
+                }
             } catch (\Throwable $e) {
-                // ignore
+                // ignore if index creation check fails or unsupported in this driver
             }
         });
 
