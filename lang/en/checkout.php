@@ -21,4 +21,30 @@ return [
     'algerie_poste_timeout_short' => 'Algerie Poste temporarily unavailable',
     'retry' => 'Retry',
     'close' => 'Close',
+    
+    // Flexy Form Page
+    'upload_flexy_receipt' => 'Upload Flexy Receipt',
+    'order_summary' => 'Order Summary',
+    'game' => 'Game',
+    'price_breakdown' => 'Price Breakdown',
+    'discount' => 'Discount',
+    'flexy_processing_fee' => 'Flexy Processing Fee',
+    'send_flexy_payment_to' => 'Send Flexy Payment To This Number:',
+    'receipt_image' => 'Receipt Image',
+    'additional_notes' => 'Additional Notes (Optional)',
+    'additional_notes_placeholder' => 'Add any additional information about your payment...',
+    'send_receipt' => 'Send Receipt',
+    'uploading' => 'Uploading...',
+    'remove_image' => 'Remove image',
+    'receipt_preview' => 'Receipt preview',
+    'product' => 'Product',
+    
+    // Flexy Success Page
+    'receipt_submitted_successfully' => 'Receipt Submitted Successfully!',
+    'thank_you_for_payment' => 'Thank you for your payment.',
+    'review_receipt_message' => 'We will review your receipt and get back to you shortly. Please stay tuned and watch for updates from the dashboard.',
+    'redirected_to_orders' => 'You will be redirected to <strong>My Orders</strong> in :seconds seconds...',
+    'go_to_my_orders' => 'Go to My Orders',
+    'back_to_home' => 'Back to Home',
+    'copied_to_clipboard' => '✓ Copied to clipboard!',
 ];

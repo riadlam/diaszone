@@ -21,14 +21,23 @@ Route::get('/test/translation', function() {
     $langPath = app('path.lang');
     $locale = app()->getLocale();
     
+    // Force reload translations
+    app('translator')->setLoaded([]);
+    
     return response()->json([
         'locale' => $locale,
         'lang_path' => $langPath,
+        'lang_path_resolved' => base_path('lang'),
         'nav_file_exists' => file_exists($langPath . '/en/nav.php'),
-        'nav_file_content' => file_exists($langPath . '/en/nav.php') ? require($langPath . '/en/nav.php') : null,
-        'loader_result' => $loader->load($locale, 'nav'),
+        'home_file_exists' => file_exists($langPath . '/' . $locale . '/home.php'),
+        'home_file_path' => $langPath . '/' . $locale . '/home.php',
+        'home_file_content' => file_exists($langPath . '/' . $locale . '/home.php') ? require($langPath . '/' . $locale . '/home.php') : null,
+        'loader_result' => $loader->load($locale, 'home', '*'),
+        'loader_class' => get_class($loader),
         'translation_test' => __('nav.home'),
-        'trans_test' => trans('nav.home'),
+        'lightning_fast_test' => __('home.lightning_fast'),
+        'lightning_fast_raw' => trans('home.lightning_fast', [], $locale),
+        'translator_loaded' => app('translator')->getLoader(),
     ]);
 });
 

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $gameTitle . ' - DiasZone')
+@section('title', __('home.game_' . $gameType) . ' - DiasZone')
 
 @section('content')
 <!-- Game Header -->

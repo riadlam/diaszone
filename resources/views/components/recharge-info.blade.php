@@ -456,7 +456,7 @@
             @else
             <!-- Right Column: Why Choose DiasZone (Only on Home Page) -->
             <div>
-                <h3 class="text-2xl font-bold text-gray-900 mb-6">Why Choose DiasZone?</h3>
+                <h3 class="text-2xl font-bold text-gray-900 mb-6">{{ __('home.why_choose_title') }}</h3>
                 
                 <div class="space-y-6">
                     <!-- Feature 1: Fast Delivery -->
@@ -468,9 +468,9 @@
                                 </svg>
                             </div>
                             <div>
-                                <h4 class="text-lg font-bold text-gray-900 mb-2">Lightning Fast Delivery</h4>
+                                <h4 class="text-lg font-bold text-gray-900 mb-2">{{ __('home.lightning_fast') }}</h4>
                                 <p class="text-sm text-gray-700 leading-relaxed">
-                                    Get your in-game currency instantly after payment confirmation. No waiting, no delays - just pure gaming fun!
+                                    {{ __('home.lightning_fast_desc') }}
                                 </p>
                             </div>
                         </div>
@@ -485,9 +485,9 @@
                                 </svg>
                             </div>
                             <div>
-                                <h4 class="text-lg font-bold text-gray-900 mb-2">100% Secure Transactions</h4>
+                                <h4 class="text-lg font-bold text-gray-900 mb-2">{{ __('home.secure_transactions') }}</h4>
                                 <p class="text-sm text-gray-700 leading-relaxed">
-                                    Your payment information is protected with industry-standard encryption. Shop with complete peace of mind.
+                                    {{ __('home.secure_transactions_desc') }}
                                 </p>
                             </div>
                         </div>

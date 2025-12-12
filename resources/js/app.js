@@ -158,12 +158,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Get quantity (for multi-quantity packs like 3x Weekly Pass)
-        const quantity = selectedPack.quantity || 1;
+        // Ensure quantity is a valid positive integer
+        let quantity = parseInt(selectedPack.quantity, 10);
+        if (isNaN(quantity) || quantity <= 0) {
+            quantity = 1;
+        }
         
         // Calculate price after discount (multiply by quantity)
         const totalBasePrice = basePrice * quantity;
         const discountAmount = (totalBasePrice * parseFloat(selectedPack.discount || 0)) / 100;
         const priceAfterDiscount = totalBasePrice - discountAmount;
+        
+        // Debug log (remove in production if needed)
+        // console.log('Price calculation:', { basePrice, quantity, totalBasePrice, discountAmount, priceAfterDiscount });
         
         // Calculate DiasZone Credits (1 USD = ~416 credits, use USD price for credits, multiply by quantity)
         const creditsMultiplier = 416;
@@ -196,7 +203,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Update DiasZone credit
         if (diaszoneCredit) {
-            diaszoneCredit.textContent = `diaszone credit ${calculatedCredits.toLocaleString()}`;
+            const translations = window.GameTranslations || {};
+            const creditText = translations.diaszoneCredit || 'diaszone credit';
+            diaszoneCredit.textContent = `${creditText} ${calculatedCredits.toLocaleString()}`;
         }
         
         // Update selected pack info
@@ -204,18 +213,21 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get game type from order form wrapper
             const orderFormWrapper = document.getElementById('order-form-wrapper');
             const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
-            const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
+            const translations = window.GameTranslations || {};
+            const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
+            const bonusText = translations.bonus || 'Bonus';
             
             // Handle special pack names (Weekly Diamond Pass, Twilight Pass, etc.)
             const packQuantity = selectedPack.quantity || 1;
             if (selectedPack.name && (selectedPack.name.includes('Weekly Diamond Pass') || selectedPack.name.includes('Event Topup'))) {
-                packName.textContent = packQuantity > 1 ? `${packQuantity}x Weekly Diamond Pass` : 'Weekly Diamond Pass';
+                const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
+                packName.textContent = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
             } else if (selectedPack.name && selectedPack.name.includes('Twilight Pass')) {
-                packName.textContent = 'Twilight Pass';
+                packName.textContent = translations.twilightPass || 'Twilight Pass';
             } else {
                 // Regular pack display
                 if (selectedPack.bonus > 0) {
-                    packName.textContent = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} Bonus`;
+                    packName.textContent = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} ${bonusText}`;
                 } else {
                     packName.textContent = `${selectedPack.diamonds} ${currencyText}`;
                 }
@@ -223,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (packPrice) {
+            // priceAfterDiscount already includes quantity multiplication (totalBasePrice * quantity - discount)
             packPrice.textContent = formatPrice(priceAfterDiscount);
         }
         
@@ -423,17 +436,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Determine pack display name
                         let packDisplayName = '';
                         if (packInfo.name) {
+                            const translations = window.GameTranslations || {};
                             if (packInfo.name.includes('Weekly Diamond Pass') || packInfo.name.includes('Event Topup')) {
                                 const qty = packInfo.special_quantity || 1;
-                                packDisplayName = qty > 1 ? `${qty}x Weekly Diamond Pass` : 'Weekly Diamond Pass';
+                                const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
+                                packDisplayName = qty > 1 ? `${qty}x ${weeklyPassText}` : weeklyPassText;
                             } else if (packInfo.name.includes('Twilight Pass')) {
-                                packDisplayName = 'Twilight Pass';
+                                packDisplayName = translations.twilightPass || 'Twilight Pass';
                             } else {
                                 packDisplayName = packInfo.name;
                             }
                         } else {
                             const gameType = packInfo.game_type || 'mobilelegends';
-                            const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
+                            const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
                             packDisplayName = `${packInfo.diamonds} ${currencyText}`;
                         }
                         
@@ -532,13 +547,26 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const orderFormWrapper = document.getElementById('order-form-wrapper');
             const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
-            const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
+            const translations = window.GameTranslations || {};
+            const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
+            const bonusText = translations.bonus || 'Bonus';
             
             let packDisplayName = '';
-            if (selectedPack.bonus > 0) {
-                packDisplayName = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} Bonus`;
+            
+            // Handle special pack names first
+            if (selectedPack.name && (selectedPack.name.includes('Weekly Diamond Pass') || selectedPack.name.includes('Event Topup'))) {
+                const packQuantity = selectedPack.quantity || 1;
+                const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
+                packDisplayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
+            } else if (selectedPack.name && selectedPack.name.includes('Twilight Pass')) {
+                packDisplayName = translations.twilightPass || 'Twilight Pass';
             } else {
-                packDisplayName = `${selectedPack.diamonds} ${currencyText}`;
+                // Regular pack display
+                if (selectedPack.bonus > 0) {
+                    packDisplayName = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} ${bonusText}`;
+                } else {
+                    packDisplayName = `${selectedPack.diamonds} ${currencyText}`;
+                }
             }
             
             const priceText = currency === 'DZD' 

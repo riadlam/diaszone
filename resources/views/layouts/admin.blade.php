@@ -131,6 +131,11 @@
                     </a>
                 </nav>
                 
+                <!-- Language Switcher -->
+                <div class="p-4 border-b border-purple-800/30">
+                    @include('components.language-dropdown')
+                </div>
+                
                 <!-- User Info & Logout -->
                 <div class="p-4 border-t border-purple-800/30">
                     <div class="flex items-center space-x-3 mb-3">
@@ -161,14 +166,52 @@
         <div class="flex-1 flex flex-col">
             <!-- Top Bar (Mobile) -->
             <header class="bg-white shadow-sm border-b border-gray-200 lg:hidden">
-                <div class="flex items-center justify-between p-4">
-                    <button id="mobile-menu-toggle" class="p-2 text-gray-600 hover:text-purple-600">
+                <div class="flex items-center justify-between p-3 px-4">
+                    <button id="mobile-menu-toggle" class="flex-shrink-0 p-2 text-gray-600 hover:text-purple-600 rounded-lg hover:bg-gray-100 transition-colors">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
                     </button>
-                    <h1 class="text-xl font-bold text-purple-600">DiasZone Admin</h1>
-                    <div class="w-10"></div>
+                    <h1 class="text-lg font-bold text-purple-600 flex-1 text-center px-2 truncate">DiasZone Admin</h1>
+                    <div class="flex-shrink-0 relative language-dropdown">
+                        <button type="button" aria-haspopup="listbox" aria-expanded="false" class="language-dropdown-toggle flex items-center justify-center p-2 text-gray-600 hover:text-purple-600 transition-colors rounded-lg hover:bg-gray-100">
+                            @php
+                                $currentLocale = app()->getLocale();
+                                $localeFlags = ['en' => '🇬🇧', 'ar' => '🇩🇿', 'fr' => '🇫🇷'];
+                                $currentFlag = $localeFlags[$currentLocale] ?? '🇬🇧';
+                            @endphp
+                            <span class="text-xl leading-none" style="font-size: 1.25rem;">{{ $currentFlag }}</span>
+                        </button>
+                        <div class="language-dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-[9999] overflow-hidden">
+                            <div class="px-3 py-2 border-b border-gray-100">
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('language.title') }}</span>
+                            </div>
+                            <a href="{{ route('language.switch', 'en') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'en' ? 'bg-purple-50' : '' }}">
+                                <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center;">🇬🇧</span>
+                                <div class="flex-1">
+                                    <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">English</div>
+                                    <div class="text-xs text-gray-500">{{ __('language.en') }}</div>
+                                </div>
+                                <span class="text-xs font-medium {{ app()->getLocale() == 'en' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">EN</span>
+                            </a>
+                            <a href="{{ route('language.switch', 'ar') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'ar' ? 'bg-purple-50' : '' }}">
+                                <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center; display: inline-block;">🇩🇿</span>
+                                <div class="flex-1">
+                                    <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">العربية</div>
+                                    <div class="text-xs text-gray-500">{{ __('language.ar') }}</div>
+                                </div>
+                                <span class="text-xs font-medium {{ app()->getLocale() == 'ar' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">AR</span>
+                            </a>
+                            <a href="{{ route('language.switch', 'fr') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'fr' ? 'bg-purple-50' : '' }}">
+                                <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center;">🇫🇷</span>
+                                <div class="flex-1">
+                                    <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Français</div>
+                                    <div class="text-xs text-gray-500">{{ __('language.fr') }}</div>
+                                </div>
+                                <span class="text-xs font-medium {{ app()->getLocale() == 'fr' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">FR</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </header>
             
@@ -221,6 +264,11 @@
                             <span class="font-semibold">Settings</span>
                         </a>
                     </nav>
+                    <!-- Language Switcher (Mobile) -->
+                    <div class="p-4 border-b border-purple-800/30">
+                        @include('components.language-dropdown')
+                    </div>
+                    
                     <div class="p-4 border-t border-purple-800/30">
                         <div class="flex items-center space-x-3 mb-3">
                             <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
@@ -291,6 +339,52 @@
             if (mobileOverlay) {
                 mobileOverlay.addEventListener('click', closeMobileMenu);
             }
+            
+            // Language Dropdown
+            const languageDropdowns = document.querySelectorAll('.language-dropdown');
+            languageDropdowns.forEach(ld => {
+                const toggle = ld.querySelector('.language-dropdown-toggle');
+                const menu = ld.querySelector('.language-dropdown-menu');
+                if (!toggle || !menu) return;
+
+                function openLangMenu() {
+                    // Ensure menu is properly displayed
+                    menu.style.display = '';
+                    menu.style.visibility = '';
+                    menu.classList.remove('opacity-0', 'invisible');
+                    menu.classList.add('opacity-100', 'visible');
+                    toggle.classList.add('dropdown-open');
+                    toggle.setAttribute('aria-expanded', 'true');
+                    document.addEventListener('click', outsideHandler);
+                    document.addEventListener('keydown', escHandler);
+                }
+                
+                function closeLangMenu() {
+                    menu.classList.add('opacity-0', 'invisible');
+                    menu.classList.remove('opacity-100', 'visible');
+                    toggle.classList.remove('dropdown-open');
+                    toggle.setAttribute('aria-expanded', 'false');
+                    document.removeEventListener('click', outsideHandler);
+                    document.removeEventListener('keydown', escHandler);
+                }
+                
+                function outsideHandler(e) {
+                    if (!ld.contains(e.target)) closeLangMenu();
+                }
+                
+                function escHandler(e) {
+                    if (e.key === 'Escape' || e.key === 'Esc') closeLangMenu();
+                }
+
+                toggle.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (menu.classList.contains('visible')) {
+                        closeLangMenu();
+                    } else {
+                        openLangMenu();
+                    }
+                });
+            });
         });
     </script>
     

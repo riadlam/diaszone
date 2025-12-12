@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Upload Flexy Receipt - DiasZone')
+@section('title', __('checkout.upload_flexy_receipt') . ' - DiasZone')
 
 @section('content')
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-pink-50/20 min-h-screen pt-6 pb-12">
     <div class="container mx-auto px-4 max-w-3xl">
         <div class="mb-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-1">Upload Flexy Receipt</h1>
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('checkout.upload_flexy_receipt') }}</h1>
             <p class="text-sm text-gray-600">{{ __('seller.please_upload_receipt') }}</p>
         </div>
 
@@ -26,21 +26,21 @@
                 
                 @php
                     $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
-                    $currencyText = 'Diamonds';
-                    $gameName = 'Mobile Legends';
+                    $currencyText = __('game.diamonds');
+                    $gameName = __('home.game_mobile_legends');
                     
                     if ($gameType === 'freefire') {
-                        $currencyText = 'Diamonds';
-                        $gameName = 'Free Fire';
+                        $currencyText = __('game.diamonds');
+                        $gameName = __('home.game_free_fire');
                     } elseif ($gameType === 'pubgmobile') {
-                        $currencyText = 'UC';
-                        $gameName = 'PUBG Mobile';
+                        $currencyText = __('game.uc');
+                        $gameName = __('home.game_pubg_mobile');
                     } elseif ($gameType === 'honorofkings') {
-                        $currencyText = 'Tokens';
-                        $gameName = 'Honor of Kings';
+                        $currencyText = __('game.tokens');
+                        $gameName = __('home.game_honor_of_kings');
                     } elseif ($gameType === 'bloodstrike') {
-                        $currencyText = 'Golds';
-                        $gameName = 'Blood Strike';
+                        $currencyText = __('game.golds');
+                        $gameName = __('home.game_blood_strike');
                     }
                     
                     // Determine pack display name
@@ -53,12 +53,12 @@
                     
                     // Bonus display
                     $bonus = $order->diamondPack->bonus_diamonds ?? 0;
-                    $bonusText = $bonus > 0 ? ' + ' . $bonus . ' Bonus' : '';
+                    $bonusText = $bonus > 0 ? ' + ' . $bonus . ' ' . __('game.bonus') : '';
                     $packDisplayText = $packDisplayName . $bonusText;
                 @endphp
                 
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Game</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.game') }}</span>
                     <span class="text-sm font-semibold text-gray-900">{{ $gameName }}</span>
                 </div>
                 
@@ -75,8 +75,8 @@
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_bs ?? 'N/A' }}</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Server</span>
-                        <span class="text-sm font-mono text-gray-900">{{ $order->server_bs ?? 'Global' }}</span>
+                        <span class="text-sm text-gray-600">{{ __('game.server') }}</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->server_bs ?? __('game.global') }}</span>
                     </div>
                 @elseif($gameType === 'freefire')
                     <div class="flex justify-between items-center">
@@ -100,7 +100,7 @@
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_ml ?? 'N/A' }}</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Zone ID</span>
+                        <span class="text-sm text-gray-600">{{ __('game.zone_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->zone_id_ml ?? 'N/A' }}</span>
                     </div>
                 @endif
@@ -109,7 +109,7 @@
 
         <!-- Price Breakdown Card -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('checkout.price_breakdown') }}</h2>
             <div class="space-y-3">
                 @php
                     $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
@@ -124,12 +124,12 @@
                 @endphp
                 @if($discountPercentage > 0)
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Discount</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.discount') }}</span>
                     <span class="text-sm font-semibold text-green-600">-{{ $discountPercentage }}%</span>
                 </div>
                 @endif
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Flexy Processing Fee</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.flexy_processing_fee') }}</span>
                     <span class="text-sm font-semibold text-gray-700">{{ number_format($flexyFee, 0) }} DZD</span>
                 </div>
                 <div class="border-t-2 border-purple-200 pt-3 mt-3">
@@ -157,7 +157,7 @@
                 </div>
                 <div class="text-center flex-1">
                     <p class="text-white text-sm md:text-base font-semibold mb-2 uppercase tracking-wide">
-                        Send Flexy Payment To This Number:
+                        {{ __('checkout.send_flexy_payment_to') }}
                     </p>
                     <button type="button" 
                             id="copy-phone-btn"
@@ -188,7 +188,7 @@
                 <!-- Receipt Image Upload -->
                 <div class="mb-6">
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        Receipt Image <span class="text-red-500">*</span>
+                        {{ __('checkout.receipt_image') }} <span class="text-red-500">*</span>
                     </label>
                     <div class="mt-2">
                         <label for="receipt_image" class="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors group">
@@ -204,9 +204,9 @@
                             <input id="receipt_image" name="receipt_image" type="file" class="hidden" accept="image/*" required>
                         </label>
                         <div id="image-preview" class="mt-4 hidden">
-                            <img id="preview-img" src="" alt="Receipt preview" class="max-w-full h-48 object-contain rounded-lg border-2 border-purple-200">
+                            <img id="preview-img" src="" alt="{{ __('checkout.receipt_preview') }}" class="max-w-full h-48 object-contain rounded-lg border-2 border-purple-200">
                             <button type="button" id="remove-image" class="mt-2 text-sm text-red-600 hover:text-red-700 font-medium">
-                                Remove image
+                                {{ __('checkout.remove_image') }}
                             </button>
                         </div>
                         @error('receipt_image')
@@ -218,13 +218,13 @@
                 <!-- Notes Field -->
                 <div class="mb-6">
                     <label for="notes" class="block text-sm font-semibold text-gray-700 mb-2">
-                        Additional Notes (Optional)
+                        {{ __('checkout.additional_notes') }}
                     </label>
                     <textarea id="notes" 
                               name="notes" 
                               rows="4" 
                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none"
-                              placeholder="Add any additional information about your payment..."></textarea>
+                              placeholder="{{ __('checkout.additional_notes_placeholder') }}"></textarea>
                     @error('notes')
                         <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -243,7 +243,7 @@
                     <button type="submit" 
                             id="submit-btn"
                             class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
-                        Send Receipt
+                        {{ __('checkout.send_receipt') }}
                     </button>
                 </div>
             </form>
@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitBtn = document.getElementById('submit-btn');
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Uploading...';
+                submitBtn.textContent = {!! json_encode(__('checkout.uploading')) !!};
             }
             
             // Clear cart after successful submission
@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show success feedback
             if (feedback) {
                 const originalText = feedback.innerHTML;
-                feedback.innerHTML = '<span class="text-yellow-300 font-bold">✓ Copied to clipboard!</span>';
+                feedback.innerHTML = '<span class="text-yellow-300 font-bold">{{ __('checkout.copied_to_clipboard') }}</span>';
                 feedback.classList.remove('text-purple-200');
                 feedback.classList.add('text-yellow-300');
                 
@@ -549,7 +549,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 document.execCommand('copy');
                 if (feedback) {
-                    feedback.innerHTML = '<span class="text-yellow-300 font-bold">✓ Copied to clipboard!</span>';
+                    feedback.innerHTML = '<span class="text-yellow-300 font-bold">{{ __('checkout.copied_to_clipboard') }}</span>';
                     setTimeout(function() {
                         feedback.innerHTML = {!! json_encode(__('uploader.click_number_to_copy_or_call')) !!} + ' <a href="tel:0673771763" class="underline hover:text-yellow-300">' + {!! json_encode(__('uploader.call_directly')) !!} + '</a>';
                     }, 2000);

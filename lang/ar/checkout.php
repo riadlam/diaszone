@@ -21,4 +21,30 @@ return [
     'algerie_poste_timeout_short' => 'خدمة البريد الجزائري مغلقة مؤقتاً',
     'retry' => 'إعادة محاولة',
     'close' => 'إغلاق',
+    
+    // صفحة نموذج فليكسي
+    'upload_flexy_receipt' => 'رفع إيصال فليكسي',
+    'order_summary' => 'ملخص الطلب',
+    'game' => 'اللعبة',
+    'price_breakdown' => 'تفاصيل السعر',
+    'discount' => 'خصم',
+    'flexy_processing_fee' => 'رسوم معالجة فليكسي',
+    'send_flexy_payment_to' => 'أرسل دفعة فليكسي إلى هذا الرقم:',
+    'receipt_image' => 'صورة الإيصال',
+    'additional_notes' => 'ملاحظات إضافية (اختياري)',
+    'additional_notes_placeholder' => 'أضف أي معلومات إضافية حول دفعتك...',
+    'send_receipt' => 'إرسال الإيصال',
+    'uploading' => 'جاري الرفع...',
+    'remove_image' => 'إزالة الصورة',
+    'receipt_preview' => 'معاينة الإيصال',
+    'product' => 'المنتج',
+    
+    // صفحة نجاح فليكسي
+    'receipt_submitted_successfully' => 'تم إرسال الإيصال بنجاح!',
+    'thank_you_for_payment' => 'شكراً لك على الدفعة.',
+    'review_receipt_message' => 'سنراجع إيصالك وسنعود إليك قريباً. يرجى متابعة التحديثات من لوحة التحكم.',
+    'redirected_to_orders' => 'سيتم توجيهك إلى <strong>طلباتي</strong> خلال :seconds ثانية...',
+    'go_to_my_orders' => 'انتقل إلى طلباتي',
+    'back_to_home' => 'العودة إلى الصفحة الرئيسية',
+    'copied_to_clipboard' => '✓ تم النسخ إلى الحافظة!',
 ];

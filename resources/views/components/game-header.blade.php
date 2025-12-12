@@ -5,34 +5,34 @@
     // Game-specific data
     $gameData = [
         'mobilelegends' => [
-            'title' => 'Mobile Legends Diamonds',
+            'title' => __('game.title_mobilelegends'),
             'image' => 'mobilelegends.webp',
-            'region' => 'Global',
-            'note' => 'Important Note: This Top Up service is available for all regions.',
+            'region' => __('game.global'),
+            'note' => __('game.note_mobilelegends'),
         ],
         'freefire' => [
-            'title' => 'Free Fire Diamonds',
+            'title' => __('game.title_freefire'),
             'image' => 'freefire.webp',
-            'region' => 'Global',
-            'note' => 'Important Note: This Top Up service not applicable to Indonesia, Vietnam, and India users.',
+            'region' => __('game.global'),
+            'note' => __('game.note_freefire'),
         ],
         'pubgmobile' => [
-            'title' => 'PUBG Mobile UC',
+            'title' => __('game.title_pubgmobile'),
             'image' => 'pubgmobile.webp',
-            'region' => 'Global',
-            'note' => 'Important Note: This Top Up service is available for all regions.',
+            'region' => __('game.global'),
+            'note' => __('game.note_pubgmobile'),
         ],
         'honorofkings' => [
-            'title' => 'Honor of Kings Tokens',
+            'title' => __('game.title_honorofkings'),
             'image' => 'honorofkings.webp',
-            'region' => 'Global',
-            'note' => 'Important Note: This Top Up service is available for all regions.',
+            'region' => __('game.global'),
+            'note' => __('game.note_honorofkings'),
         ],
         'bloodstrike' => [
-            'title' => 'Blood Strike Golds',
+            'title' => __('game.title_bloodstrike'),
             'image' => 'bloodrivels.webp',
-            'region' => 'Global',
-            'note' => 'Important Note: This Top Up service is available for all regions.',
+            'region' => __('game.global'),
+            'note' => __('game.note_bloodstrike'),
         ],
     ];
     
@@ -47,7 +47,8 @@
                 <div class="w-48 h-48 lg:w-56 lg:h-56 bg-white rounded-xl p-4 flex items-center justify-center border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
                     <img src="{{ asset('storage/images_homepage/' . $currentGame['image']) }}" 
                          alt="{{ $currentGame['title'] }}" 
-                         class="w-full h-full object-contain rounded-xl">
+                         class="w-full h-full object-contain rounded-xl"
+                         title="{{ $currentGame['title'] }}">
                 </div>
             </div>
             
@@ -66,7 +67,7 @@
                 <!-- Important Note -->
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
                     <p class="text-sm text-gray-800 leading-relaxed">
-                        <strong class="font-semibold text-amber-900">Important Note:</strong> {{ str_replace('Important Note: ', '', $currentGame['note']) }}
+                        <strong class="font-semibold text-amber-900">{{ __('game.important_note') }}</strong> {{ $currentGame['note'] }}
                     </p>
                 </div>
                 
@@ -76,7 +77,7 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                     </svg>
-                    <span>Add to favorite</span>
+                    <span>{{ __('game.add_to_favorite') }}</span>
                 </button>
             </div>
         </div>
@@ -87,6 +88,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     const favoriteBtn = document.getElementById('add-to-favorite-btn');
     if (favoriteBtn) {
+        const addText = '{{ __('game.add_to_favorite') }}';
+        const removeText = '{{ __('game.remove_from_favorite') }}';
+        
         favoriteBtn.addEventListener('click', function() {
             // Toggle favorite state
             const isFavorite = this.classList.contains('favorited');
@@ -95,12 +99,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.remove('favorited', 'bg-red-50', 'border-red-300', 'text-red-700', 'hover:bg-red-100');
                 this.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
                 this.querySelector('svg path').setAttribute('fill', 'none');
-                this.querySelector('span').textContent = 'Add to favorite';
+                this.querySelector('span').textContent = addText;
             } else {
                 this.classList.add('favorited', 'bg-red-50', 'border-red-300', 'text-red-700', 'hover:bg-red-100');
                 this.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
                 this.querySelector('svg path').setAttribute('fill', 'currentColor');
-                this.querySelector('span').textContent = 'Remove from favorite';
+                this.querySelector('span').textContent = removeText;
             }
             
             // Here you can add logic to save to localStorage or send to server
@@ -128,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
             favoriteBtn.classList.add('favorited', 'bg-red-50', 'border-red-300', 'text-red-700', 'hover:bg-red-100');
             favoriteBtn.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
             favoriteBtn.querySelector('svg path').setAttribute('fill', 'currentColor');
-            favoriteBtn.querySelector('span').textContent = 'Remove from favorite';
+            favoriteBtn.querySelector('span').textContent = removeText;
         }
     }
 });

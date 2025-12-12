@@ -1,6 +1,9 @@
 <?php
 
 return [
+    // Page Title
+    'page_title' => 'الرئيسية - DiasZone',
+    
     // Hero Section
     'hero_title' => 'احصل على ماساتك ورصيد ألعابك فوراً!',
     'hero_subtitle' => 'خدمة شحن سريعة وآمنة وموثوقة لـ Mobile Legends و Free Fire و PUBG Mobile والمزيد!',
@@ -23,8 +26,16 @@ return [
     'trusted_platform' => 'منصة موثوقة',
     
     // Game Selection
+    'game_top_up' => 'شحن الألعاب',
     'choose_game' => 'اختر لعبتك المفضلة واشحن فوراً',
     'coming_soon' => 'قريباً',
+    
+    // Game Names
+    'game_mobile_legends' => 'موبايل ليجيندز',
+    'game_free_fire' => 'فري فاير',
+    'game_honor_of_kings' => 'شرف الملوك',
+    'game_blood_strike' => 'بلاد سترايك',
+    'game_pubg_mobile' => 'PUBG موبايل',
     
     // Why Choose Section
     'why_choose_title' => 'لماذا تختار DiasZone؟',

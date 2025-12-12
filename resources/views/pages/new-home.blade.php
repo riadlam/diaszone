@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Home - DiasZone')
+@section('title', __('home.page_title'))
 
 @section('content')
 <!-- Hero Slider -->
@@ -10,8 +10,8 @@
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-pink-50/20 min-h-screen py-12">
     <div class="container mx-auto px-4 lg:px-8">
         <div class="text-center mb-10">
-            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Game Top Up</h2>
-            <p class="text-gray-600 text-lg">Choose your favorite game and top up instantly</p>
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-3">{{ __('home.game_top_up') }}</h2>
+            <p class="text-gray-600 text-lg">{{ __('home.choose_game') }}</p>
         </div>
         
         <!-- Games Grid -->
@@ -58,11 +58,11 @@
             <a href="{{ route('mobilelegends') }}" class="group game-card bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-transparent hover:border-purple-500">
                 <div class="aspect-square relative overflow-hidden">
                     <img src="{{ asset('storage/images_homepage/mobilelegends.webp') }}" 
-                         alt="Mobile Legends" 
+                         alt="{{ __('home.game_mobile_legends') }}" 
                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                        <h3 class="text-white font-bold text-lg">Mobile Legends</h3>
+                        <h3 class="text-white font-bold text-lg">{{ __('home.game_mobile_legends') }}</h3>
                     </div>
                 </div>
             </a>
@@ -71,11 +71,11 @@
             <a href="{{ route('freefire') }}" class="group game-card bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-transparent hover:border-purple-500">
                 <div class="aspect-square relative overflow-hidden">
                     <img src="{{ asset('storage/images_homepage/freefire.webp') }}" 
-                         alt="Free Fire" 
+                         alt="{{ __('home.game_free_fire') }}" 
                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="absolute bottom-0 left-0 right-0 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                        <h3 class="text-white font-bold text-lg">Free Fire</h3>
+                        <h3 class="text-white font-bold text-lg">{{ __('home.game_free_fire') }}</h3>
                     </div>
                 </div>
             </a>
@@ -84,11 +84,11 @@
             <div class="game-card game-card-coming-soon bg-white rounded-xl shadow-md overflow-hidden border-2 border-gray-300">
                 <div class="aspect-square relative overflow-hidden">
                     <img src="{{ asset('storage/images_homepage/honorofkings.webp') }}" 
-                         alt="Honor of Kings" 
+                         alt="{{ __('home.game_honor_of_kings') }}" 
                          class="w-full h-full object-cover">
-                    <div class="coming-soon-overlay">{{ __('misc.coming_soon') }}</div>
+                    <div class="coming-soon-overlay">{{ __('common.coming_soon') }}</div>
                     <div class="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 class="text-white font-bold text-lg">Honor of Kings</h3>
+                        <h3 class="text-white font-bold text-lg">{{ __('home.game_honor_of_kings') }}</h3>
                     </div>
                 </div>
             </div>
@@ -97,11 +97,11 @@
             <div class="game-card game-card-coming-soon bg-white rounded-xl shadow-md overflow-hidden border-2 border-gray-300">
                 <div class="aspect-square relative overflow-hidden">
                     <img src="{{ url('storage/images_homepage/bloodrivels.webp') }}" 
-                         alt="Blood Strike" 
+                         alt="{{ __('home.game_blood_strike') }}" 
                          class="w-full h-full object-cover">
-                    <div class="coming-soon-overlay">{{ __('misc.coming_soon') }}</div>
+                    <div class="coming-soon-overlay">{{ __('common.coming_soon') }}</div>
                     <div class="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 class="text-white font-bold text-lg">Blood Strike</h3>
+                        <h3 class="text-white font-bold text-lg">{{ __('home.game_blood_strike') }}</h3>
                     </div>
                 </div>
             </div>
@@ -110,11 +110,11 @@
             <div class="game-card game-card-coming-soon bg-white rounded-xl shadow-md overflow-hidden border-2 border-gray-300">
                 <div class="aspect-square relative overflow-hidden">
                     <img src="{{ asset('storage/images_homepage/pubgmobile.webp') }}" 
-                         alt="PUBG Mobile" 
+                         alt="{{ __('home.game_pubg_mobile') }}" 
                          class="w-full h-full object-cover">
-                    <div class="coming-soon-overlay">{{ __('misc.coming_soon') }}</div>
+                    <div class="coming-soon-overlay">{{ __('common.coming_soon') }}</div>
                     <div class="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 class="text-white font-bold text-lg">PUBG Mobile</h3>
+                        <h3 class="text-white font-bold text-lg">{{ __('home.game_pubg_mobile') }}</h3>
                     </div>
                 </div>
             </div>

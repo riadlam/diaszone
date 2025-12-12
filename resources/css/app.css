@@ -522,3 +522,76 @@ img[loading="lazy"].loaded {
 #cart-items::-webkit-scrollbar-thumb:hover {
     background: #9333ea;
 }
+
+/* RTL fixes to prevent horizontal scroll */
+html[dir="rtl"],
+body[dir="rtl"] {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+html[dir="rtl"] body,
+body[dir="rtl"] {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* RTL dropdown positioning fixes */
+[dir="rtl"] .language-dropdown-menu.fixed,
+[dir="rtl"] .cart-dropdown-menu,
+[dir="rtl"] .currency-dropdown-menu,
+[dir="rtl"] .profile-dropdown-menu,
+[dir="rtl"] .language-dropdown-menu {
+    right: auto !important;
+    left: 1rem !important;
+}
+
+[dir="rtl"] .language-dropdown-menu.fixed {
+    left: 1rem !important;
+    right: auto !important;
+}
+
+/* RTL container fixes */
+[dir="rtl"] .container {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+[dir="rtl"] header .container {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* RTL cart badge positioning */
+[dir="rtl"] #cart-count {
+    right: auto !important;
+    left: -0.125rem !important;
+}
+
+/* RTL search input icon positioning */
+[dir="rtl"] .header-left-icon {
+    left: auto !important;
+    right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0.75rem !important;
+}
+
+[dir="rtl"] .search-input {
+    padding-left: 1rem !important;
+    padding-right: 2.5rem !important;
+    text-align: right !important;
+}
+
+/* RTL language option border fix */
+[dir="rtl"] .language-option,
+[dir="rtl"] .currency-option {
+    border-left: none;
+    border-right: 3px solid transparent;
+}
+
+[dir="rtl"] .language-option:hover,
+[dir="rtl"] .currency-option:hover {
+    border-left-color: transparent;
+    border-right-color: rgb(147, 51, 234);
+    transform: translateX(-2px);
+}

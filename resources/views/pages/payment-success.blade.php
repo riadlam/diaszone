@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Payment Successful - DiasZone')
+@section('title', __('seller.payment_successful') . ' - DiasZone')
 
 @section('content')
 <div class="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center px-4 py-12">
@@ -27,7 +27,7 @@
             @if($order->diamondPack)
             <div class="flex justify-between items-center mb-2">
                 <span class="text-sm text-gray-500">{{ __('checkout.product') }}</span>
-                <span class="text-sm font-semibold text-gray-900">{{ $order->diamondPack->name ?? $order->diamondPack->diamonds . ' Diamonds' }}</span>
+                <span class="text-sm font-semibold text-gray-900">{{ $order->diamondPack->name ?? $order->diamondPack->diamonds . ' ' . __('game.diamonds') }}</span>
             </div>
             <div class="flex justify-between items-center">
                 <span class="text-sm text-gray-500">{{ __('checkout.price') }}</span>

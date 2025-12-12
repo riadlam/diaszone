@@ -1,6 +1,9 @@
 <?php
 
 return [
+    // Page Title
+    'page_title' => 'Accueil - DiasZone',
+    
     // Hero Section
     'hero_title' => 'Obtenez vos diamants et crédits de jeu instantanément!',
     'hero_subtitle' => 'Service de recharge rapide, sécurisé et fiable pour Mobile Legends, Free Fire, PUBG Mobile et plus encore!',
@@ -23,8 +26,16 @@ return [
     'trusted_platform' => 'Plateforme de confiance',
     
     // Game Selection
+    'game_top_up' => 'Recharge de Jeux',
     'choose_game' => 'Choisissez votre jeu préféré et rechargez instantanément',
     'coming_soon' => 'Bientôt disponible',
+    
+    // Game Names
+    'game_mobile_legends' => 'Mobile Legends',
+    'game_free_fire' => 'Free Fire',
+    'game_honor_of_kings' => 'Honor of Kings',
+    'game_blood_strike' => 'Blood Strike',
+    'game_pubg_mobile' => 'PUBG Mobile',
     
     // Why Choose Section
     'why_choose_title' => 'Pourquoi choisir DiasZone?',

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() == 'ar' ? 'rtl' : 'ltr' }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() == 'ar' ? 'rtl' : 'ltr' }}" class="{{ app()->getLocale() == 'ar' ? 'overflow-x-hidden' : '' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,8 +20,8 @@
     
     @stack('styles')
 </head>
-<body class="font-sans antialiased {{ request()->routeIs('dashboard*') ? 'dashboard-page' : '' }}">
-    <div id="app" style="overflow: visible !important; position: relative !important;">
+<body class="font-sans antialiased {{ request()->routeIs('dashboard*') ? 'dashboard-page' : '' }} {{ app()->getLocale() == 'ar' ? 'overflow-x-hidden' : '' }}">
+    <div id="app" class="{{ app()->getLocale() == 'ar' ? 'overflow-x-hidden' : '' }}" style="position: relative !important;">
         <!-- Header -->
         @include('components.header')
         

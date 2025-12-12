@@ -8,8 +8,8 @@
     <!-- Bottom Sheet Header -->
     <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0 bg-white" style="background-color: #ffffff !important; z-index: 1;">
         <div>
-            <h3 class="text-xl font-bold text-gray-900" style="color: #111827 !important;">Select Top-Up Amount</h3>
-            <p class="text-xs text-gray-500 mt-0.5" style="color: #6b7280 !important;">Choose your {{ strtolower($gameTitle ?? 'diamond') }} pack</p>
+            <h3 class="text-xl font-bold text-gray-900" style="color: #111827 !important;">{{ __('game.select_topup_amount') }}</h3>
+            <p class="text-xs text-gray-500 mt-0.5" style="color: #6b7280 !important;">{{ str_replace(':game', strtolower($gameTitle ?? __('game.diamonds')), __('game.choose_pack')) }}</p>
         </div>
         <button id="close-bottom-sheet-btn" class="p-2 -mr-2 text-gray-400 hover:text-gray-600 active:bg-gray-100 rounded-full transition-colors" style="z-index: 2;">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,7 +22,7 @@
     <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3" style="overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background-color: #ffffff !important; min-height: 200px;">
         @if(empty($packs) || count($packs) === 0)
             <div class="text-center py-8">
-                <p class="text-gray-500">No packs available</p>
+                <p class="text-gray-500">{{ __('game.no_packs_available') }}</p>
             </div>
         @else
         @foreach($packs as $index => $pack)
@@ -131,7 +131,7 @@
                         <!-- Other Games: Diamond Image -->
                         <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
                             <img src="{{ url('storage/images_homepage/' . $imageName) }}" 
-                                 alt="{{ $pack->diamonds }} Diamonds" 
+                                 alt="{{ $pack->diamonds }} {{ __('game.diamonds') }}" 
                                  class="w-12 h-12 object-contain"
                                  style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
                         </div>
@@ -144,37 +144,47 @@
                                 @if(($gameType ?? 'mobilelegends') === 'honorofkings')
                                     @if($pack->diamonds == 0)
                                         @if($pack->price == 0.32 && $pack->sort_order == 130)
-                                            <h3 class="text-base font-bold text-gray-900">Double Token Lucky Bag</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ __('game.double_token_lucky_bag') }}</h3>
                                         @elseif($pack->price == 0.32 && $pack->sort_order == 140)
-                                            <h3 class="text-base font-bold text-gray-900">Standard Purchase Rebate Pack</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ __('game.standard_purchase_rebate_pack') }}</h3>
                                         @elseif($pack->price == 0.32 && $pack->sort_order == 160)
-                                            <h3 class="text-base font-bold text-gray-900">Honor Point Value Pack</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ __('game.honor_point_value_pack') }}</h3>
                                         @elseif($pack->price == 1.18)
-                                            <h3 class="text-base font-bold text-gray-900">Premium Purchase Rebate Pack</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ __('game.premium_purchase_rebate_pack') }}</h3>
                                         @else
-                                            <h3 class="text-base font-bold text-gray-900">Special Pack</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ __('game.special_pack') }}</h3>
                                         @endif
                                     @elseif($pack->diamonds == 1 && $pack->price == 0.96)
-                                        <h3 class="text-base font-bold text-gray-900">Weekly Card</h3>
+                                        <h3 class="text-base font-bold text-gray-900">{{ __('game.weekly_card') }}</h3>
                                     @elseif($pack->diamonds == 2 && $pack->price == 2.99)
-                                        <h3 class="text-base font-bold text-gray-900">Weekly Card Plus</h3>
+                                        <h3 class="text-base font-bold text-gray-900">{{ __('game.weekly_card_plus') }}</h3>
                                     @else
                                         <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                        <span class="text-sm font-medium text-gray-600">Tokens</span>
+                                        <span class="text-sm font-medium text-gray-600">{{ __('game.tokens') }}</span>
                                     @endif
                                 @else
                                     @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
-                                        <h3 class="text-base font-bold text-gray-900">{{ ($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false) ? $packQuantity . 'x Weekly Diamond Pass' : 'Weekly Diamond Pass' }}</h3>
+                                        <h3 class="text-base font-bold text-gray-900">{{ ($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false) ? $packQuantity . 'x ' . __('game.weekly_diamond_pass') : __('game.weekly_diamond_pass') }}</h3>
                                     @elseif(stripos($pack->name, 'Twilight Pass') !== false)
-                                        <h3 class="text-base font-bold text-gray-900">Twilight Pass</h3>
+                                        <h3 class="text-base font-bold text-gray-900">{{ __('game.twilight_pass') }}</h3>
                                     @else
                                         <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                        <span class="text-sm font-medium text-gray-600">{{ ($gameType ?? 'mobilelegends') === 'pubgmobile' ? 'UC' : (($gameType ?? 'mobilelegends') === 'honorofkings' ? 'Tokens' : (($gameType ?? 'mobilelegends') === 'bloodstrike' ? 'Golds' : 'Diamonds')) }}</span>
+                                        <span class="text-sm font-medium text-gray-600">
+                                            @if(($gameType ?? 'mobilelegends') === 'pubgmobile')
+                                                {{ __('game.uc') }}
+                                            @elseif(($gameType ?? 'mobilelegends') === 'honorofkings')
+                                                {{ __('game.tokens') }}
+                                            @elseif(($gameType ?? 'mobilelegends') === 'bloodstrike')
+                                                {{ __('game.golds') }}
+                                            @else
+                                                {{ __('game.diamonds') }}
+                                            @endif
+                                        </span>
                                     @endif
                                 @endif
                             </div>
                             @if($pack->discount_percentage > 0)
-                                <span class="text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 px-2.5 py-1 rounded-full shadow-sm">{{ $pack->discount_percentage }}% OFF</span>
+                                <span class="text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 px-2.5 py-1 rounded-full shadow-sm">{{ $pack->discount_percentage }}% {{ __('game.off') }}</span>
                             @endif
                         </div>
                         @if($pack->bonus_diamonds > 0)
@@ -182,7 +192,7 @@
                                 <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
                                 </svg>
-                                <p class="text-sm text-gray-600 font-medium">+ {{ number_format($pack->bonus_diamonds) }} Bonus</p>
+                                <p class="text-sm text-gray-600 font-medium">+ {{ number_format($pack->bonus_diamonds) }} {{ __('game.bonus') }}</p>
                             </div>
                         @endif
                         <div class="flex items-center justify-between">
@@ -192,7 +202,7 @@
                                 @endphp
                                 <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * ($packQuantity), 0) }} DZD</span>
                                 @else
-                                <span class="text-xs text-gray-500">Best Value</span>
+                                <span class="text-xs text-gray-500">{{ __('game.best_value') }}</span>
                                 @endif
                             <div class="flex items-baseline gap-1">
                                 @php

@@ -224,34 +224,73 @@
         <!-- On mobile: scroll main (header included) so header is not sticky. On lg+: make content scrollable while keeping header visible. -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-slate-800 shadow-lg p-4 relative lg:sticky lg:top-0 lg:flex-shrink-0 z-50">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="lg:hidden mr-3">
+            <header class="bg-slate-800 shadow-lg p-3 lg:p-4 relative lg:sticky lg:top-0 lg:flex-shrink-0 z-50">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center min-w-0 flex-1">
+                        <div class="lg:hidden mr-2 flex-shrink-0">
                             <button id="mobile-menu-btn" aria-controls="mobile-menu" aria-expanded="false" aria-label="{{ __('nav.open_navigation') }}" class="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg ring-1 ring-slate-700/50 hover:ring-2 hover:ring-blue-500 transition">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                                 </svg>
                             </button>
                         </div>
                     
-                        <h2 class="text-xl font-bold">@yield('header', __('seller.dashboard'))</h2>
+                        <h2 class="text-base lg:text-xl font-bold truncate">@yield('header', __('seller.dashboard'))</h2>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <div class="flex items-center gap-3">
-                            <span class="text-sm text-gray-400 mr-2">{{ Auth::guard('seller')->user()->store_name ?? Auth::guard('seller')->user()->name }}</span>
-                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center overflow-hidden">
+                    <div class="flex items-center gap-2 lg:gap-4 flex-shrink-0">
+                        <!-- Language Dropdown: visible on both mobile and desktop -->
+                        <div class="lg:hidden relative language-dropdown">
+                            <button type="button" aria-haspopup="listbox" aria-expanded="false" class="language-dropdown-toggle flex items-center justify-center p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg ring-1 ring-slate-700/50 hover:ring-2 hover:ring-blue-500 transition">
+                                @php
+                                    $currentLocale = app()->getLocale();
+                                    $localeFlags = ['en' => '🇬🇧', 'ar' => '🇩🇿', 'fr' => '🇫🇷'];
+                                    $currentFlag = $localeFlags[$currentLocale] ?? '🇬🇧';
+                                @endphp
+                                <span class="text-lg leading-none">{{ $currentFlag }}</span>
+                            </button>
+                            <div class="language-dropdown-menu absolute right-0 mt-2 w-56 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden pointer-events-auto" role="listbox" tabindex="-1" style="min-width: 14rem;">
+                                <div class="px-3 py-2 border-b border-slate-700">
+                                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{{ __('language.title') }}</span>
+                                </div>
+                                <a href="{{ route('language.switch', 'en') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-slate-700 transition-all duration-200 group {{ app()->getLocale() == 'en' ? 'bg-slate-700' : '' }}">
+                                    <span class="text-2xl leading-none">🇬🇧</span>
+                                    <div class="flex-1">
+                                        <div class="text-sm font-semibold text-white">English</div>
+                                        <div class="text-xs text-gray-400">{{ __('language.en') }}</div>
+                                    </div>
+                                    <span class="text-xs font-medium {{ app()->getLocale() == 'en' ? 'text-cyan-400 bg-cyan-900/10' : 'text-gray-400 bg-gray-800/20' }} px-2 py-1 rounded">EN</span>
+                                </a>
+                                <a href="{{ route('language.switch', 'ar') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-slate-700 transition-all duration-200 group {{ app()->getLocale() == 'ar' ? 'bg-slate-700' : '' }}">
+                                    <span class="text-2xl leading-none">🇩🇿</span>
+                                    <div class="flex-1">
+                                        <div class="text-sm font-semibold text-white">العربية</div>
+                                        <div class="text-xs text-gray-400">{{ __('language.ar') }}</div>
+                                    </div>
+                                    <span class="text-xs font-medium {{ app()->getLocale() == 'ar' ? 'text-cyan-400 bg-cyan-900/10' : 'text-gray-400 bg-gray-800/20' }} px-2 py-1 rounded">AR</span>
+                                </a>
+                                <a href="{{ route('language.switch', 'fr') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-slate-700 transition-all duration-200 group {{ app()->getLocale() == 'fr' ? 'bg-slate-700' : '' }}">
+                                    <span class="text-2xl leading-none">🇫🇷</span>
+                                    <div class="flex-1">
+                                        <div class="text-sm font-semibold text-white">Français</div>
+                                        <div class="text-xs text-gray-400">{{ __('language.fr') }}</div>
+                                    </div>
+                                    <span class="text-xs font-medium {{ app()->getLocale() == 'fr' ? 'text-cyan-400 bg-cyan-900/10' : 'text-gray-400 bg-gray-800/20' }} px-2 py-1 rounded">FR</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="hidden lg:block">
+                            @include('components.language-dropdown')
+                        </div>
+                        <div class="flex items-center gap-2 lg:gap-3">
+                            <span class="hidden lg:inline text-sm text-gray-400">{{ Auth::guard('seller')->user()->store_name ?? Auth::guard('seller')->user()->name }}</span>
+                            <div class="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                                 @php $me2 = Auth::guard('seller')->user(); @endphp
                                 @if(!empty($me2->store_logo_thumb ?? $me2->store_logo))
                                     <img src="{{ storage_public_url($me2->store_logo_thumb ?? $me2->store_logo) }}" alt="{{ $me2->store_name ?? $me2->name }}" class="w-full h-full object-cover rounded-full" />
                                 @else
-                                    <span class="text-white font-bold">{{ substr($me2->name, 0, 1) }}</span>
+                                    <span class="text-white font-bold text-xs lg:text-sm">{{ substr($me2->name, 0, 1) }}</span>
                                 @endif
                             </div>
-                        </div>
-                        <!-- Mobile language dropdown: visible on mobile navbar (not in side menu) -->
-                        <div class="lg:hidden">
-                            @include('components.language-dropdown')
                         </div>
                     </div>
                     <!-- Global loading spinner overlay -->

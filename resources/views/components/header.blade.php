@@ -1,6 +1,6 @@
 @php $isRtl = app()->getLocale() == 'ar'; @endphp
 <header class="bg-white shadow-sm lg:sticky lg:top-0 z-50">
-    <div class="container mx-auto px-4">
+    <div class="container mx-auto px-4 max-w-full overflow-x-hidden">
         <nav class="flex items-center justify-between h-16">
             <!-- Left: Mobile Menu Button (mobile only) -->
             <button id="mobile-menu-btn" class="lg:hidden p-2 text-gray-700 hover:text-purple-600 transition-colors">
@@ -42,8 +42,49 @@
                 </div>
             </div>
             
-            <!-- Right Side: Cart (mobile) / Full menu (desktop) -->
+            <!-- Right Side: Language (mobile compact), Cart, Language/Profile (desktop) -->
             <div class="flex items-center space-x-2 lg:space-x-4">
+                <!-- Language Switcher (mobile compact) -->
+                <div class="lg:hidden relative language-dropdown">
+                    <button type="button" aria-haspopup="listbox" aria-expanded="false" class="language-dropdown-toggle flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors rounded-lg hover:bg-gray-100">
+                        @php
+                            $currentLocale = app()->getLocale();
+                            $localeFlags = ['en' => '🇬🇧', 'ar' => '🇩🇿', 'fr' => '🇫🇷'];
+                            $currentFlag = $localeFlags[$currentLocale] ?? '🇬🇧';
+                        @endphp
+                        <span class="text-xl leading-none" style="font-size: 1.25rem;">{{ $currentFlag }}</span>
+                    </button>
+                    <div class="language-dropdown-menu fixed right-4 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-[9999] overflow-hidden" style="top: auto;">
+                        <div class="px-3 py-2 border-b border-gray-100">
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('language.title') }}</span>
+                        </div>
+                        <a href="{{ route('language.switch', 'en') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'en' ? 'bg-purple-50' : '' }}">
+                            <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center;">🇬🇧</span>
+                            <div class="flex-1">
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">English</div>
+                                <div class="text-xs text-gray-500">{{ __('language.en') }}</div>
+                            </div>
+                            <span class="text-xs font-medium {{ app()->getLocale() == 'en' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">EN</span>
+                        </a>
+                        <a href="{{ route('language.switch', 'ar') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'ar' ? 'bg-purple-50' : '' }}">
+                            <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center; display: inline-block;">🇩🇿</span>
+                            <div class="flex-1">
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">العربية</div>
+                                <div class="text-xs text-gray-500">{{ __('language.ar') }}</div>
+                            </div>
+                            <span class="text-xs font-medium {{ app()->getLocale() == 'ar' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">AR</span>
+                        </a>
+                        <a href="{{ route('language.switch', 'fr') }}" class="language-option flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group {{ app()->getLocale() == 'fr' ? 'bg-purple-50' : '' }}">
+                            <span class="text-2xl leading-none" style="font-size: 1.5rem; width: 28px; text-align: center;">🇫🇷</span>
+                            <div class="flex-1">
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Français</div>
+                                <div class="text-xs text-gray-500">{{ __('language.fr') }}</div>
+                            </div>
+                            <span class="text-xs font-medium {{ app()->getLocale() == 'fr' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">FR</span>
+                        </a>
+                    </div>
+                </div>
+                
                 <!-- Cart Icon (visible on all screens) -->
                 @if(!request()->routeIs('select-payment'))
                 <div class="relative cart-dropdown group">
@@ -120,7 +161,7 @@
                 
                 <!-- Language Dropdown -->
                 <div class="relative language-dropdown">
-                    <button class="flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+                    <button type="button" aria-haspopup="listbox" aria-expanded="false" class="language-dropdown-toggle flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
                         @php
                             $currentLocale = app()->getLocale();
                             $localeData = [
@@ -136,7 +177,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
-                    <div class="language-dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
+                    <div class="language-dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-[9999] overflow-hidden">
                         <div class="px-3 py-2 border-b border-gray-100">
                             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('language.title') }}</span>
                         </div>
@@ -308,6 +349,46 @@
                 </div>
             </div>
             
+            <!-- Language Selector (mobile) -->
+            <div class="border-t border-gray-200 pt-4 mt-4">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">{{ __('language.title') }}</label>
+                <div class="space-y-2 px-4">
+                    @php
+                        $currentLocale = app()->getLocale();
+                    @endphp
+                    <a href="{{ route('language.switch', 'en') }}" class="mobile-language-option w-full flex items-center justify-between px-4 py-3 bg-white border-2 {{ $currentLocale == 'en' ? 'border-purple-500 bg-purple-50' : 'border-gray-200' }} rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">🇬🇧</span>
+                            <div>
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">English</div>
+                                <div class="text-xs text-gray-500">{{ __('language.en') }}</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium {{ $currentLocale == 'en' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">EN</span>
+                    </a>
+                    <a href="{{ route('language.switch', 'ar') }}" class="mobile-language-option w-full flex items-center justify-between px-4 py-3 bg-white border-2 {{ $currentLocale == 'ar' ? 'border-purple-500 bg-purple-50' : 'border-gray-200' }} rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">🇩🇿</span>
+                            <div>
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">العربية</div>
+                                <div class="text-xs text-gray-500">{{ __('language.ar') }}</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium {{ $currentLocale == 'ar' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">AR</span>
+                    </a>
+                    <a href="{{ route('language.switch', 'fr') }}" class="mobile-language-option w-full flex items-center justify-between px-4 py-3 bg-white border-2 {{ $currentLocale == 'fr' ? 'border-purple-500 bg-purple-50' : 'border-gray-200' }} rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 group">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">🇫🇷</span>
+                            <div>
+                                <div class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">Français</div>
+                                <div class="text-xs text-gray-500">{{ __('language.fr') }}</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium {{ $currentLocale == 'fr' ? 'text-purple-600 bg-purple-100' : 'text-gray-600 bg-gray-100' }} px-2 py-1 rounded">FR</span>
+                    </a>
+                </div>
+            </div>
+            
             <!-- My Orders Button (mobile) -->
             <a href="{{ route('dashboard.orders') }}" 
                id="mobile-my-orders-btn" 
@@ -444,10 +525,19 @@
         const currencyButton = document.getElementById('currency-dropdown-btn');
         const currencyMenu = document.querySelector('.currency-dropdown-menu');
         
-        // Get other dropdown elements
-        const languageDropdown = document.querySelector('.language-dropdown');
-        const languageButton = languageDropdown ? languageDropdown.querySelector('button') : null;
-        const languageMenu = languageDropdown ? languageDropdown.querySelector('.language-dropdown-menu') : null;
+        // Get other dropdown elements (handle all language dropdowns)
+        const languageDropdowns = document.querySelectorAll('.language-dropdown');
+        let languageButtons = [];
+        let languageMenus = [];
+        languageDropdowns.forEach(ld => {
+            // Try multiple selectors to find the button
+            const btn = ld.querySelector('.language-dropdown-toggle') || ld.querySelector('button[aria-haspopup="listbox"]') || ld.querySelector('button');
+            const menu = ld.querySelector('.language-dropdown-menu');
+            if (btn && menu) {
+                languageButtons.push(btn);
+                languageMenus.push({ btn, menu, container: ld });
+            }
+        });
         const profileDropdown = document.querySelector('.profile-dropdown');
         const profileMenu = profileDropdown ? profileDropdown.querySelector('.profile-dropdown-menu') : null;
         
@@ -461,14 +551,12 @@
                 e.stopPropagation();
                 const isOpen = currencyMenu.classList.contains('opacity-100');
                 
-                // Close other dropdowns
-                if (languageMenu) {
-                    languageMenu.classList.remove('opacity-100', 'visible');
-                    languageMenu.classList.add('opacity-0', 'invisible');
-                }
-                if (languageButton) {
-                    languageButton.classList.remove('dropdown-open');
-                }
+                // Close other dropdowns (all language dropdowns)
+                languageMenus.forEach(({ btn, menu }) => {
+                    menu.classList.remove('opacity-100', 'visible');
+                    menu.classList.add('opacity-0', 'invisible');
+                    btn.classList.remove('dropdown-open');
+                });
                 if (profileMenu) {
                     profileMenu.classList.remove('opacity-100', 'visible');
                     profileMenu.classList.add('opacity-0', 'invisible');
@@ -530,6 +618,123 @@
                     }
                 });
             }
+        }
+        
+        // Language dropdown toggle (handle all language dropdowns)
+        if (languageMenus.length > 0) {
+            languageMenus.forEach(({ btn, menu, container }) => {
+                if (!btn || !menu) return;
+                
+                function toggleLanguageMenu(e) {
+                    if (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                    }
+                    
+                    const isOpen = menu.classList.contains('opacity-100') || menu.classList.contains('visible');
+                    
+                    // Close all other dropdowns first
+                    if (currencyMenu) {
+                        currencyMenu.classList.remove('opacity-100', 'visible');
+                        currencyMenu.classList.add('opacity-0', 'invisible');
+                    }
+                    if (profileMenu) {
+                        profileMenu.classList.remove('opacity-100', 'visible');
+                        profileMenu.classList.add('opacity-0', 'invisible');
+                    }
+                    languageMenus.forEach(({ btn: otherBtn, menu: otherMenu }) => {
+                        if (otherMenu !== menu && otherMenu) {
+                            otherMenu.classList.remove('opacity-100', 'visible');
+                            otherMenu.classList.add('opacity-0', 'invisible');
+                            if (otherBtn) otherBtn.classList.remove('dropdown-open');
+                        }
+                    });
+                    
+                    // Toggle current language dropdown
+                    if (isOpen) {
+                        menu.classList.remove('opacity-100', 'visible');
+                        menu.classList.add('opacity-0', 'invisible');
+                        menu.style.pointerEvents = 'none';
+                        btn.classList.remove('dropdown-open');
+                        btn.setAttribute('aria-expanded', 'false');
+                    } else {
+                        // Position menu on mobile - calculate position relative to button
+                        const isMobile = window.innerWidth < 1024;
+                        const isRtl = document.documentElement.dir === 'rtl';
+                        if (isMobile) {
+                            const rect = btn.getBoundingClientRect();
+                            menu.style.position = 'fixed';
+                            menu.style.top = (rect.bottom + 8) + 'px';
+                            if (isRtl) {
+                                menu.style.left = '1rem';
+                                menu.style.right = 'auto';
+                            } else {
+                                menu.style.right = '1rem';
+                                menu.style.left = 'auto';
+                            }
+                            menu.style.width = '14rem';
+                            menu.style.maxWidth = 'calc(100vw - 2rem)';
+                        } else {
+                            menu.style.position = '';
+                            menu.style.top = '';
+                            menu.style.right = '';
+                            menu.style.left = '';
+                            menu.style.width = '';
+                            menu.style.maxWidth = '';
+                        }
+                        
+                        menu.style.display = 'block';
+                        menu.style.visibility = 'visible';
+                        menu.style.pointerEvents = 'auto';
+                        menu.style.opacity = '1';
+                        menu.classList.remove('opacity-0', 'invisible');
+                        menu.classList.add('opacity-100', 'visible');
+                        btn.classList.add('dropdown-open');
+                        btn.setAttribute('aria-expanded', 'true');
+                    }
+                }
+                
+                // Add both click and touchstart for mobile compatibility
+                btn.addEventListener('click', toggleLanguageMenu, { passive: false });
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    toggleLanguageMenu(e);
+                }, { passive: false });
+            });
+        }
+        
+        // Close language dropdowns when clicking outside (attach once, check all)
+        if (languageMenus.length > 0) {
+            document.addEventListener('click', function(e) {
+                // Small delay to allow toggle click to process first
+                setTimeout(() => {
+                    let clickedInsideLanguage = false;
+                    languageMenus.forEach(({ container, btn }) => {
+                        if (container && container.contains(e.target)) {
+                            clickedInsideLanguage = true;
+                        }
+                        // Also check if button is the target (shouldn't close if clicking the button itself)
+                        if (btn && (btn === e.target || btn.contains(e.target))) {
+                            clickedInsideLanguage = true;
+                        }
+                    });
+                    
+                    if (!clickedInsideLanguage) {
+                        languageMenus.forEach(({ btn, menu }) => {
+                            if (menu) {
+                                menu.classList.remove('opacity-100', 'visible');
+                                menu.classList.add('opacity-0', 'invisible');
+                                menu.style.pointerEvents = 'none';
+                            }
+                            if (btn) {
+                                btn.classList.remove('dropdown-open');
+                                btn.setAttribute('aria-expanded', 'false');
+                            }
+                        });
+                    }
+                }, 10);
+            });
         }
         
         // Close currency dropdown when clicking outside (if not already handled by app.js)

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Receipt Submitted Successfully - DiasZone')
+@section('title', __('checkout.receipt_submitted_successfully') . ' - DiasZone')
 
 @section('content')
 <div class="bg-gradient-to-br from-gray-50 via-purple-50/30 to-pink-50/20 min-h-screen pt-6 pb-12 flex items-center justify-center">
@@ -16,15 +16,17 @@
             </div>
             
             <!-- Success Message -->
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Receipt Submitted Successfully!</h1>
-            <p class="text-lg text-gray-600 mb-2">Thank you for your payment.</p>
-            <p class="text-base text-gray-600 mb-6">We will review your receipt and get back to you shortly. Please stay tuned and watch for updates from the dashboard.</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">{{ __('checkout.receipt_submitted_successfully') }}</h1>
+            <p class="text-lg text-gray-600 mb-2">{{ __('checkout.thank_you_for_payment') }}</p>
+            <p class="text-base text-gray-600 mb-6">{{ __('checkout.review_receipt_message') }}</p>
             
             <!-- Redirect Notice -->
             <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-                <p class="text-sm text-gray-700">
-                    You will be redirected to <strong>My Orders</strong> in <span id="countdown">5</span> seconds...
-                </p>
+                @php
+                    $redirectText = __('checkout.redirected_to_orders');
+                    $redirectText = str_replace(':seconds', '<span id="countdown">5</span>', $redirectText);
+                @endphp
+                <p class="text-sm text-gray-700">{!! $redirectText !!}</p>
             </div>
             
             <!-- Action Buttons -->
@@ -34,14 +36,14 @@
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                     </svg>
-                    Go to My Orders
+                    {{ __('checkout.go_to_my_orders') }}
                 </a>
                 <a href="{{ route('home') }}" 
                    class="inline-flex items-center justify-center px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition-colors shadow-md hover:shadow-lg">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                     </svg>
-                    Back to Home
+                    {{ __('checkout.back_to_home') }}
                 </a>
             </div>
         </div>

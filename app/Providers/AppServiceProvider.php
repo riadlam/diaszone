@@ -14,6 +14,9 @@ class AppServiceProvider extends ServiceProvider
         // Load application helpers (global functions)
         $helpers = __DIR__ . '/../helpers.php';
         if (file_exists($helpers)) require_once $helpers;
+        
+        // Set language path early in the registration phase
+        $this->app->useLangPath(base_path('lang'));
     }
 
     /**
@@ -21,7 +24,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->app->useLangPath(base_path('lang'));
+        // Ensure language path is set (fallback)
+        if ($this->app->make('path.lang') !== base_path('lang')) {
+            $this->app->useLangPath(base_path('lang'));
+        }
         // storage_public_url helper is declared in global namespace
         // Register console commands (reconcile digiflazz statuses)
         if ($this->app->runningInConsole()) {
