@@ -214,11 +214,11 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Mock provider service to simulate successful top-up
-        $mock = \Mockery::mock(VipResellerService::class);
-        // Simulate successful provider top-up
-        $mock->shouldReceive('placeOrder')->andReturn(['result' => true, 'data' => ['ok' => true]])->once();
-        $this->app->instance(VipResellerService::class, $mock);
+        // Configure Digiflazz and mock its service to simulate top-up; system now uses Digiflazz for top-ups
+        config(['services.digiflazz.username' => 'testuser', 'services.digiflazz.sign' => 'testsign']);
+        $this->mock(\App\Services\DigiflazzService::class, function ($mock) {
+            $mock->shouldReceive('placeOrder')->andReturn(['result' => true, 'data' => ['data' => ['trxid' => 'tflx1'], 'ref_id' => 'ref-flx'], 'message' => 'ok'])->once();
+        });
 
         // Mock TelegramService to assert notification sent
         $tMock = \Mockery::mock(\App\Services\TelegramService::class);
@@ -240,7 +240,8 @@ class SellerStorefrontFlexyPaymentTest extends TestCase
         $order->refresh();
         $seller->refresh();
 
-        $this->assertEquals('completed', $order->status);
+        // When using Digiflazz for top-ups, final state should be 'sending' until webhook confirms
+        $this->assertEquals('sending', $order->status);
         $this->assertTrue((bool)$order->wallet_deducted);
 
         // Wallet net change = -seller_cost + seller_profit

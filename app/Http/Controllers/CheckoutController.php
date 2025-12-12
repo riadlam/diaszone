@@ -1395,7 +1395,8 @@ class CheckoutController extends Controller
                 ]);
 
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
-                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($package, $order);
+                    // Pass the DiamondPack model instance to DigiflazzService
+                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
                 } else {
                     $result = $vipReseller->placeOrder(
                         $packageCode,
@@ -1480,7 +1481,8 @@ class CheckoutController extends Controller
                 ]);
 
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
-                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($package, $order);
+                    // Pass the DiamondPack model instance to DigiflazzService
+                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
                 } else {
                     $result = $vipReseller->placeFreefireOrder(
                         $packageCode,
@@ -1501,17 +1503,19 @@ class CheckoutController extends Controller
             // STEP 3: Save response to provider status table
             $apiData = $result['data'] ?? [];
             $apiStatus = $apiData['status'] ?? 'error';
-            
-            // Map API status to our enum
+
+            // Map API status to our enum (note: when using Digiflazz, final status must come from Digiflazz webhook)
             $status = match(strtolower($apiStatus)) {
                 'waiting' => 'waiting',
                 'success', 'completed', 'paid' => 'success',
                 default => 'error',
             };
-            
+
             if ($result['result'] !== true) {
                 $status = 'error';
             }
+
+            $usingDigiflazz = (bool)(config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME'));
 
             // Prepare additional data
             $additionalData = [
@@ -1523,26 +1527,59 @@ class CheckoutController extends Controller
                 'payment_method' => 'chargily',
             ];
 
-            // Save to vipreseller_status table
-            $vipResellerStatus = VipResellerStatus::create([
-                'order_id' => $order->id,
-                'trxid' => $apiData['trxid'] ?? null,
-                'data' => $apiData['data'] ?? $playerId,
-                'zone' => $apiData['zone'] ?? $zoneId,
-                'service' => $apiData['service'] ?? $packageCode,
-                'status' => $status,
-                'note' => $apiData['note'] ?? ($result['message'] ?? null),
-                'price' => $apiData['price'] ?? null,
-                'additional_data' => $additionalData,
-            ]);
+            if ($usingDigiflazz) {
+                // When using Digiflazz we rely on Digiflazz webhook to drive final order status.
+                // Ensure order is set to 'sending' and let Digiflazz webhook update to 'completed' when confirmed.
+                if ($order->status !== 'sending') {
+                    $order->status = 'sending';
+                    $order->save();
+                    Log::info('Chargily: Digiflazz used - order set to sending and awaiting Digiflazz webhook', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'provider_status' => $status,
+                    ]);
+                }
 
-            Log::info('Chargily: provider status saved', [
-                'vipreseller_status_id' => $vipResellerStatus->id,
-                'trxid' => $vipResellerStatus->trxid,
-                'status' => $status,
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-            ]);
+                // Update Telegram to indicate we are waiting for provider confirmation
+                if ($order->tlg_message_id) {
+                    try {
+                        $order->load('diamondPack', 'user', 'seller');
+                        $updatedMessage = TelegramService::formatOrderMessage($order);
+                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for provider</b>', $updatedMessage);
+                        TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to update Telegram message when setting sending (Digiflazz flow)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                    }
+                }
+
+                // DigiflazzService->placeOrder should have already created a DigiflazzStatus record; log if missing
+                $digStatus = $order->digiflazzStatuses()->latest()->first();
+                if (!$digStatus) {
+                    Log::warning('Chargily: Digiflazz used but no DigiflazzStatus found for order', ['order_id' => $order->id, 'order_number' => $order->order_number, 'api_result' => $result]);
+                }
+
+            } else {
+                // Save to vipreseller_status table (legacy provider behavior)
+                $vipResellerStatus = VipResellerStatus::create([
+                    'order_id' => $order->id,
+                    'trxid' => $apiData['trxid'] ?? null,
+                    'data' => $apiData['data'] ?? $playerId,
+                    'zone' => $apiData['zone'] ?? $zoneId,
+                    'service' => $apiData['service'] ?? $packageCode,
+                    'status' => $status,
+                    'note' => $apiData['note'] ?? ($result['message'] ?? null),
+                    'price' => $apiData['price'] ?? null,
+                    'additional_data' => $additionalData,
+                ]);
+
+                Log::info('Chargily: provider status saved', [
+                    'vipreseller_status_id' => $vipResellerStatus->id,
+                    'trxid' => $vipResellerStatus->trxid,
+                    'status' => $status,
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                ]);
+            }
 
             // Update order status based on provider response
             $oldOrderStatus = $order->status;
@@ -1576,69 +1613,90 @@ class CheckoutController extends Controller
                     }
                 }
             } elseif ($status === 'success') {
-                // Fetch balance from provider API when status becomes success
-                try {
-                    $vipReseller = app(VipResellerService::class);
-                    $profileResult = $vipReseller->getProfile();
-                    
-                    if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
-                        $balance = (string) $profileResult['data']['balance'];
-                        $vipResellerStatus->balance = $balance;
-                        $vipResellerStatus->save();
-                        
-                        Log::info('Chargily: Balance fetched and saved for successful order', [
-                            'provider_status_id' => $vipResellerStatus->id,
-                            'order_id' => $order->id,
-                            'balance' => $balance,
-                        ]);
-                    } else {
-                        Log::warning('Chargily: Failed to fetch balance from provider API', [
-                            'provider_status_id' => $vipResellerStatus->id,
-                            'order_id' => $order->id,
-                            'message' => $profileResult['message'] ?? 'Unknown error',
-                        ]);
-                    }
-                } catch (\Exception $e) {
-                    Log::error('Chargily: Error fetching balance from provider API', [
-                        'vipreseller_status_id' => $vipResellerStatus->id,
-                        'order_id' => $order->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-                
-                // Provider success - set order to completed
-                if ($oldOrderStatus !== 'completed') {
-                    $order->status = 'completed';
-                    $order->save();
-                    Log::info('Chargily: Order status updated to completed (provider success)', [
+                if ($usingDigiflazz) {
+                    // When using Digiflazz, do NOT mark completed here; wait for Digiflazz webhook
+                    Log::info('Chargily: Digiflazz reported success but final confirmation must come via webhook; leaving order in sending', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
-                        'old_status' => $oldOrderStatus,
-                        'new_status' => 'completed',
                         'provider_status' => $status,
                     ]);
-                    // Credit seller profit if applicable and not already paid
+
+                    // Update Telegram message to indicate awaiting final confirmation
+                    if ($order->tlg_message_id) {
+                        try {
+                            $order->load('diamondPack', 'user', 'seller');
+                            $updatedMessage = TelegramService::formatOrderMessage($order);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for provider</b>', $updatedMessage);
+                            TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                        } catch (\Exception $e) {
+                            Log::warning('Failed to update Telegram message (Digiflazz success awaiting webhook)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                        }
+                    }
+                } else {
+                    // Legacy (non-Digiflazz) provider success - fetch balance and complete order
                     try {
-                        if ($order->seller_id && !$order->seller_profit_paid) {
-                            $order->creditSellerProfit();
+                        $vipReseller = app(VipResellerService::class);
+                        $profileResult = $vipReseller->getProfile();
+
+                        if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                            $balance = (string) $profileResult['data']['balance'];
+                            $vipResellerStatus->balance = $balance;
+                            $vipResellerStatus->save();
+
+                            Log::info('Chargily: Balance fetched and saved for successful order', [
+                                'provider_status_id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'balance' => $balance,
+                            ]);
+                        } else {
+                            Log::warning('Chargily: Failed to fetch balance from provider API', [
+                                'provider_status_id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'message' => $profileResult['message'] ?? 'Unknown error',
+                            ]);
                         }
                     } catch (\Exception $e) {
-                        Log::warning('Chargily: Failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
-                    }
-                }
-                
-                // Update Telegram message if exists (always update when VIP Reseller status changes)
-                if ($order->tlg_message_id) {
-                    try {
-                        $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
-                        $updatedMessage = TelegramService::formatOrderMessage($order);
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
-                        TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
-                    } catch (\Exception $e) {
-                        Log::error('Failed to update Telegram message', [
+                        Log::error('Chargily: Error fetching balance from provider API', [
+                            'vipreseller_status_id' => $vipResellerStatus->id ?? null,
                             'order_id' => $order->id,
                             'error' => $e->getMessage(),
                         ]);
+                    }
+
+                    // Provider success - set order to completed
+                    if ($oldOrderStatus !== 'completed') {
+                        $order->status = 'completed';
+                        $order->save();
+                        Log::info('Chargily: Order status updated to completed (provider success)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'old_status' => $oldOrderStatus,
+                            'new_status' => 'completed',
+                            'provider_status' => $status,
+                        ]);
+                        // Credit seller profit if applicable and not already paid
+                        try {
+                            if ($order->seller_id && !$order->seller_profit_paid) {
+                                $order->creditSellerProfit();
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Chargily: Failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                        }
+                    }
+
+                    // Update Telegram message if exists (always update when VIP Reseller status changes)
+                    if ($order->tlg_message_id) {
+                        try {
+                            $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
+                            $updatedMessage = TelegramService::formatOrderMessage($order);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
+                            TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to update Telegram message', [
+                                'order_id' => $order->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
                     }
                 }
             } elseif ($status === 'error') {

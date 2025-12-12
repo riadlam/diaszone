@@ -341,11 +341,9 @@ class CouponController extends Controller
             if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
                 $topUpResult = app(\App\Services\DigiflazzService::class)->placeOrder($diamondPack, $order);
             } else {
-                $topUpResult = $this->vipResellerService->placeOrder(
-                    $packageCode,
-                    $order->user_id_ml,
-                    $order->zone_id_ml
-                );
+                // Do not use VIP Reseller for actual top-ups anymore. Require Digiflazz configuration.
+                Log::error('Free order: Digiflazz not configured; cannot process top-up', ['order_id' => $order->id]);
+                throw new \Exception('Top-up provider not configured. Please configure Digiflazz to enable automatic top-ups.');
             }
             
             Log::info('Free order: provider API response', [

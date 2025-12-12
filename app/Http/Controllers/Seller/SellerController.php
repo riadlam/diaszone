@@ -522,25 +522,69 @@ class SellerController extends Controller
             $result = $this->placeVipResellerOrder($pack, $order);
 
             if ($result['success']) {
+                $usingDigiflazz = (bool)(config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME'));
                 // Deduct from wallet now that provider accepted order
                 $tx = $seller->deductWallet($baseCost, "Direct top-up order #{$order->order_number}", $order->id);
 
                 // Persist vipreseller_status and update order
                 $apiData = $result['data']['data'] ?? [];
 
-                $vipResellerStatus = \App\Models\VipResellerStatus::create([
-                    'order_id' => $order->id,
-                    'trxid' => $apiData['trxid'] ?? null,
-                    'data' => $apiData['data'] ?? $validated['player_id'],
-                    'zone' => $apiData['zone'] ?? ($validated['zone_id'] ?? null),
-                    'service' => $apiData['service'] ?? $pack->code,
-                    'status' => 'success',
-                    'note' => $apiData['note'] ?? null,
-                    'price' => $apiData['price'] ?? null,
-                    'additional_data' => $result,
-                ]);
+                if ($usingDigiflazz) {
+                    // Digiflazz already persists a DigiflazzStatus inside the service; duplicate a lightweight record for admin view
+                    $dig = $result['data'] ?? [];
+                    \App\Models\DigiflazzStatus::create([
+                        'order_id' => $order->id,
+                        'ref_id' => $dig['ref_id'] ?? null,
+                        'trxid' => $dig['data']['trxid'] ?? null,
+                        'buyer_sku_code' => $dig['data']['buyer_sku_code'] ?? $pack->code,
+                        'customer_no' => $dig['data']['customer_no'] ?? null,
+                        'rc' => $dig['data']['rc'] ?? null,
+                        'status' => $dig['data']['status'] ?? null,
+                        'message' => $dig['data']['message'] ?? null,
+                        'price' => $dig['data']['price'] ?? null,
+                        'sn' => $dig['data']['sn'] ?? null,
+                        'additional_data' => $dig,
+                        'event' => 'create',
+                    ]);
 
-                $order->update(['status' => 'completed', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);
+                    // Save a lightweight provider status record for admin/telegram views and include deposit if available
+                    try {
+                        $digService = app(\App\Services\DigiflazzService::class);
+                        $saldo = $digService->cekSaldo();
+                        $balance = isset($saldo['deposit']) ? (string)$saldo['deposit'] : null;
+                    } catch (\Exception $e) {
+                        $balance = null;
+                    }
+
+                    \App\Models\VipResellerStatus::create([
+                        'order_id' => $order->id,
+                        'trxid' => $dig['data']['trxid'] ?? null,
+                        'data' => $dig['data']['customer_no'] ?? $order->user_id_ml,
+                        'zone' => $dig['data']['zone'] ?? $order->zone_id_ml,
+                        'service' => 'digiflazz',
+                        'status' => 'waiting',
+                        'note' => $dig['data']['message'] ?? null,
+                        'price' => $dig['data']['price'] ?? null,
+                        'balance' => $balance,
+                        'additional_data' => array_merge($dig, ['balance' => $balance]),
+                    ]);
+
+                    $order->update(['status' => 'sending', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);
+                } else {
+                    $vipResellerStatus = \App\Models\VipResellerStatus::create([
+                        'order_id' => $order->id,
+                        'trxid' => $apiData['trxid'] ?? null,
+                        'data' => $apiData['data'] ?? $validated['player_id'],
+                        'zone' => $apiData['zone'] ?? ($validated['zone_id'] ?? null),
+                        'service' => $apiData['service'] ?? $pack->code,
+                        'status' => 'success',
+                        'note' => $apiData['note'] ?? null,
+                        'price' => $apiData['price'] ?? null,
+                        'additional_data' => $result,
+                    ]);
+
+                    $order->update(['status' => 'completed', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);
+                }
 
                 if ($tx) {
                     Log::info('Direct topup: Seller wallet deducted', ['seller_id' => $seller->id, 'order_id' => $order->id, 'tx_id' => $tx->id]);
@@ -669,47 +713,10 @@ class SellerController extends Controller
                 return ['success' => false, 'error' => $response['message'] ?? 'Unknown error from Digiflazz'];
             }
 
-            switch ($pack->game_type) {
-                case 'mobilelegends':
-                    $response = $this->vipResellerService->placeOrder(
-                        $pack->code,
-                        $context['player_id'] ?? null,
-                        $context['zone_id'] ?? ''
-                    );
-                    break;
-
-                case 'freefire':
-                    $response = $this->vipResellerService->placeFreefireOrder(
-                        $pack->code,
-                        $context['player_id'] ?? null
-                    );
-                    break;
-
-                case 'pubgmobile':
-                    $response = $this->vipResellerService->placePubgOrder(
-                        $pack->code,
-                        $context['player_id'] ?? null
-                    );
-                    break;
-
-                case 'honorofkings':
-                    $response = $this->vipResellerService->placeHokOrder(
-                        $pack->code,
-                        $context['player_id'] ?? null
-                    );
-                    break;
-
-                case 'bloodstrike':
-                    $response = $this->vipResellerService->placeBloodstrikeOrder(
-                        $pack->code,
-                        $context['player_id'] ?? null,
-                        $context['zone_id'] ?? 'Global'
-                    );
-                    break;
-
-                default:
-                    return ['success' => false, 'error' => 'Unsupported game type'];
-            }
+            // VIP Reseller should NOT be used to place top-ups anymore.
+            // The system now relies on Digiflazz as the top-up provider; if Digiflazz is not configured,
+            // return an error so admins can configure Digiflazz instead of falling back to VIP Reseller.
+            return ['success' => false, 'error' => 'Provider not configured: configure Digiflazz for top-ups'];
 
             if (isset($response['result']) && $response['result'] === true) {
                 return ['success' => true, 'data' => $response];
@@ -1347,9 +1354,12 @@ class SellerController extends Controller
             }
 
             // Mark processing then deduct within transaction
+            $usingDigiflazz = (bool)(config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME'));
+
             $order->update(['status' => 'processing']);
             $seller->deductWallet($baseCost, "Flexy order #{$order->order_number}", $order->id);
-            $order->update(['wallet_deducted' => true, 'status' => 'completed']);
+            // If using Digiflazz, set to 'sending' and wait for webhook confirmation; otherwise mark completed
+            $order->update(['wallet_deducted' => true, 'status' => ($usingDigiflazz ? 'sending' : 'completed')]);
 
             // Add earnings (totals) and credit profit to seller wallet (idempotent)
             $seller->addEarnings($order->seller_profit, $order->final_price);
@@ -1365,7 +1375,7 @@ class SellerController extends Controller
 
             // Notify via Telegram about success with wallet details
             try {
-                $this->sendFlexyConfirmNotification($seller, $order, $pack, $walletBefore, $walletAfter);
+                $this->sendFlexyConfirmNotification($seller, $order, $pack, $walletBefore, $walletAfter, $usingDigiflazz ?? false);
             } catch (\Throwable $ex) {
                 Log::warning('Failed to send telegram success notification', ['order_id'=>$order->id,'error'=>$ex->getMessage()]);
             }
@@ -1455,7 +1465,7 @@ class SellerController extends Controller
     /**
      * Send Telegram notification for Flexy order confirmation
      */
-    protected function sendFlexyConfirmNotification(Seller $seller, Order $order, DiamondPack $pack, ?float $walletBefore = null, ?float $walletAfter = null): void
+    protected function sendFlexyConfirmNotification(Seller $seller, Order $order, DiamondPack $pack, ?float $walletBefore = null, ?float $walletAfter = null, bool $waitingForProvider = false): void
     {
         try {
             $gameNames = [
@@ -1476,7 +1486,11 @@ class SellerController extends Controller
             $message .= "🆔 Player ID: `{$playerId}`\n";
             $message .= "💰 Cost: {$order->seller_cost} DZD\n";
             $message .= "📈 Profit: {$order->seller_profit} DZD\n";
-            $message .= "✅ Status: Completed\n";
+            if ($waitingForProvider) {
+                $message .= "⏳ Status: Waiting for provider confirmation\n";
+            } else {
+                $message .= "✅ Status: Completed\n";
+            }
 
             if (!is_null($walletBefore) || !is_null($walletAfter)) {
                 $message .= "\n🏦 <b>Seller Wallet</b>:\n";

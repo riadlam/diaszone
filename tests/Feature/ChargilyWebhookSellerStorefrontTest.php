@@ -73,8 +73,10 @@ class ChargilyWebhookSellerStorefrontTest extends TestCase
             ],
         ];
 
-        // Configure API secret and mock provider service to avoid external calls
-        config(['services.chargily_pay_v2.secret' => 'testsecret']);
+        // Configure API secret and ensure Digiflazz is not configured for this legacy test
+        config(['services.chargily_pay_v2.secret' => 'testsecret', 'services.digiflazz.username' => null, 'services.digiflazz.sign' => null]);
+        putenv('DIGIFLAZZ_USERNAME=');
+        putenv('DIGIFLAZZ_SIGN=');
 
         $mockVip = \Mockery::mock(\App\Services\VipResellerService::class);
         $mockVip->shouldReceive('checkNickname')->andReturn(['result' => true, 'data' => 'nick']);

@@ -80,7 +80,7 @@ class AdminController extends Controller
                 $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
                 $currencyText = 'Diamonds';
                 $gameName = 'Mobile Legends';
-                
+
                 if ($gameType === 'freefire') {
                     $currencyText = 'Diamonds';
                     $gameName = 'Free Fire';
@@ -94,50 +94,27 @@ class AdminController extends Controller
                     $currencyText = 'Golds';
                     $gameName = 'Blood Strike';
                 }
-                
+
                 $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
                 if ($order->diamondPack->bonus_diamonds > 0) {
                     $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
                 }
-                
+
                 // Calculate amount from price_dzd with discount
                 $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
                 $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
                 $discountAmount = ($priceDzd * $discountPercentage) / 100;
                 $amount = $priceDzd - $discountAmount;
-                
+
                 return [
                     'id' => $order->order_number,
                     'user' => $order->user->name ?? 'Guest',
-                    'product' => $gameName,
+                    'product' => $packName,
                     'amount' => $amount,
                     'status' => $order->status,
                     'date' => $order->created_at,
-                    'pack_name' => $packName,
                 ];
             });
-
-        // Revenue chart data (last 7 days)
-        $revenueChart = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i);
-            $dayName = $date->format('D');
-            $revenue = Order::where('status', 'completed')
-                ->whereDate('created_at', $date->toDateString())
-                ->with('diamondPack')
-                ->get()
-                ->sum(function ($order) {
-                    $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
-                    $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
-                    $discountAmount = ($priceDzd * $discountPercentage) / 100;
-                    return $priceDzd - $discountAmount;
-                });
-            
-            $revenueChart[] = [
-                'day' => $dayName,
-                'revenue' => $revenue,
-            ];
-        }
 
         return view('admin.dashboard', compact('stats', 'recentUsers', 'recentOrders', 'revenueChart'));
     }
@@ -898,29 +875,63 @@ class AdminController extends Controller
                     try {
                         $vipReseller = app(VipResellerService::class);
                         $profileResult = $vipReseller->getProfile();
-                        
+
                         if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
                             $balance = (string) $profileResult['data']['balance'];
                             $vipResellerStatus->balance = $balance;
+                            $additional = $vipResellerStatus->additional_data ?? [];
+                            $additional['balance'] = $balance;
+                            $vipResellerStatus->additional_data = $additional;
                             $vipResellerStatus->save();
-                            
+
                             Log::info('Balance fetched and saved for successful order', [
-                                    'provider status id' => $vipResellerStatus->id,
-                                    'order_id' => $order->id,
-                                    'balance' => $balance,
+                                'provider status id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'balance' => $balance,
                             ]);
                         } else {
                             Log::warning('Failed to fetch balance from VIP Reseller API', [
-                                    'provider status id' => $vipResellerStatus->id,
-                                    'order_id' => $order->id,
-                                    'message' => $profileResult['message'] ?? 'Unknown error',
+                                'provider status id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'message' => $profileResult['message'] ?? 'Unknown error',
                             ]);
                         }
                     } catch (\Exception $e) {
                         Log::error('Error fetching balance from provider API', [
+                            'provider status id' => $vipResellerStatus->id,
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                } elseif ($serviceUsed === 'digiflazz') {
+                    try {
+                        $digService = app(\App\Services\DigiflazzService::class);
+                        $saldo = $digService->cekSaldo();
+                        if ($saldo['result'] === true && isset($saldo['deposit'])) {
+                            $balance = (string) $saldo['deposit'];
+                            $vipResellerStatus->balance = $balance;
+                            $additional = $vipResellerStatus->additional_data ?? [];
+                            $additional['balance'] = $balance;
+                            $vipResellerStatus->additional_data = $additional;
+                            $vipResellerStatus->save();
+
+                            Log::info('Digiflazz balance fetched and saved for successful order', [
                                 'provider status id' => $vipResellerStatus->id,
                                 'order_id' => $order->id,
-                                'error' => $e->getMessage(),
+                                'balance' => $balance,
+                            ]);
+                        } else {
+                            Log::warning('Failed to fetch balance from Digiflazz', [
+                                'provider status id' => $vipResellerStatus->id,
+                                'order_id' => $order->id,
+                                'response' => $saldo,
+                            ]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Error fetching Digiflazz balance', [
+                            'provider status id' => $vipResellerStatus->id,
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
@@ -1170,33 +1181,71 @@ class AdminController extends Controller
 
                 // Fetch balance when status becomes success
                 if ($mappedStatus === 'success' && $oldStatus !== 'success') {
-                    try {
-                        $vipReseller = app(VipResellerService::class);
-                        $profileResult = $vipReseller->getProfile();
-                        
-                        if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
-                            $balance = (string) $profileResult['data']['balance'];
-                            $vipResellerStatus->balance = $balance;
-                            $vipResellerStatus->save();
-                            
-                            Log::info('Balance fetched and saved from webhook for successful order', [
+                    // If this status belongs to Digiflazz, use Digiflazz cek-saldo endpoint
+                    $serviceName = strtolower($vipResellerStatus->service ?? '');
+                    if ((config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) && (str_contains($serviceName, 'digiflazz') || $serviceName === 'digiflazz')) {
+                        try {
+                            $digService = app(\App\Services\DigiflazzService::class);
+                            $saldo = $digService->cekSaldo();
+                            if ($saldo['result'] === true && isset($saldo['deposit'])) {
+                                $balance = (string) $saldo['deposit'];
+                                $vipResellerStatus->balance = $balance;
+                                $additional = $vipResellerStatus->additional_data ?? [];
+                                $additional['balance'] = $balance;
+                                $vipResellerStatus->additional_data = $additional;
+                                $vipResellerStatus->save();
+
+                                Log::info('Digiflazz balance fetched and saved from webhook for successful order', [
+                                    'vipreseller_status_id' => $vipResellerStatus->id,
+                                    'trxid' => $trxid,
+                                    'balance' => $balance,
+                                ]);
+                            } else {
+                                Log::warning('Failed to fetch Digiflazz balance from webhook', [
+                                    'vipreseller_status_id' => $vipResellerStatus->id,
+                                    'trxid' => $trxid,
+                                    'response' => $saldo,
+                                ]);
+                            }
+                        } catch (\Exception $e) {
+                            Log::error('Error fetching Digiflazz balance (webhook)', [
                                 'vipreseller_status_id' => $vipResellerStatus->id,
                                 'trxid' => $trxid,
-                                'balance' => $balance,
-                            ]);
-                        } else {
-                            Log::warning('Failed to fetch balance from provider API (webhook)', [
-                                'vipreseller_status_id' => $vipResellerStatus->id,
-                                'trxid' => $trxid,
-                                'message' => $profileResult['message'] ?? 'Unknown error',
+                                'error' => $e->getMessage(),
                             ]);
                         }
-                    } catch (\Exception $e) {
-                        Log::error('Error fetching balance from provider API (webhook)', [
-                            'vipreseller_status_id' => $vipResellerStatus->id,
-                            'trxid' => $trxid,
-                            'error' => $e->getMessage(),
-                        ]);
+                    } else {
+                        try {
+                            $vipReseller = app(VipResellerService::class);
+                            $profileResult = $vipReseller->getProfile();
+                            
+                            if ($profileResult['result'] === true && isset($profileResult['data']['balance'])) {
+                                $balance = (string) $profileResult['data']['balance'];
+                                $vipResellerStatus->balance = $balance;
+                                $additional = $vipResellerStatus->additional_data ?? [];
+                                $additional['balance'] = $balance;
+                                $vipResellerStatus->additional_data = $additional;
+                                $vipResellerStatus->save();
+                                
+                                Log::info('Balance fetched and saved from webhook for successful order', [
+                                    'vipreseller_status_id' => $vipResellerStatus->id,
+                                    'trxid' => $trxid,
+                                    'balance' => $balance,
+                                ]);
+                            } else {
+                                Log::warning('Failed to fetch balance from provider API (webhook)', [
+                                    'vipreseller_status_id' => $vipResellerStatus->id,
+                                    'trxid' => $trxid,
+                                    'message' => $profileResult['message'] ?? 'Unknown error',
+                                ]);
+                            }
+                        } catch (\Exception $e) {
+                            Log::error('Error fetching balance from provider API (webhook)', [
+                                'vipreseller_status_id' => $vipResellerStatus->id,
+                                'trxid' => $trxid,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
                     }
                 }
 

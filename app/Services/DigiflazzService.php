@@ -165,4 +165,43 @@ class DigiflazzService
             return ['result' => false, 'message' => $e->getMessage()];
         }
     }
+
+    /**
+     * Check deposit balance using Digiflazz cek-saldo endpoint
+     * Request payload: { cmd: 'deposit', username: username, sign: md5(username + apiKey + 'depo') }
+     * Response example: { data: { deposit: 500000000000 } }
+     *
+     * @return array ['result' => bool, 'deposit' => float|null, 'data' => array|null, 'message' => string|null]
+     */
+    public function cekSaldo(): array
+    {
+        if (empty($this->username) || empty($this->sign)) {
+            return ['result' => false, 'message' => 'Digiflazz not configured'];
+        }
+
+        $payload = [
+            'cmd' => 'deposit',
+            'username' => $this->username,
+            'sign' => md5($this->username . $this->sign . 'depo'),
+        ];
+
+        try {
+            $resp = Http::withHeaders(['Content-Type' => 'application/json'])
+                ->post($this->baseUrl . '/cek-saldo', $payload);
+
+            $json = $resp->json();
+
+            $deposit = $json['data']['deposit'] ?? null;
+
+            return [
+                'result' => $resp->successful(),
+                'deposit' => $deposit,
+                'data' => $json['data'] ?? $json,
+                'message' => $json['message'] ?? null,
+                'full_response' => $json,
+            ];
+        } catch (\Throwable $e) {
+            return ['result' => false, 'message' => $e->getMessage()];
+        }
+    }
 }

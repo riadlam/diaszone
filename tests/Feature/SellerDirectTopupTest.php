@@ -31,9 +31,16 @@ class SellerDirectTopupTest extends TestCase
 
         $this->actingAs($seller, 'seller');
 
-        $mockVip = \Mockery::mock(\App\Services\VipResellerService::class);
-        $mockVip->shouldReceive('placeFreefireOrder')->andReturn(['result' => true, 'data' => ['trxid' => 't123', 'price' => 200], 'message' => 'ok']);
-        $this->app->instance(\App\Services\VipResellerService::class, $mockVip);
+        // Configure Digiflazz and mock its service for direct top-up
+        config(['services.digiflazz.username' => 'testuser', 'services.digiflazz.sign' => 'testsign']);
+        $this->mock(\App\Services\DigiflazzService::class, function ($mock) {
+            $mock->shouldReceive('placeOrder')->once()->withAnyArgs()->andReturn([
+                'result' => true,
+                'data' => ['data' => ['trxid' => 't123', 'price' => 200], 'ref_id' => 'ref-1'],
+                'message' => 'ok'
+            ]);
+            $mock->shouldReceive('cekSaldo')->once()->andReturn(['result' => true, 'deposit' => 987654]);
+        });
 
         // Fake Telegram HTTP API responses so sendMessage/editMessageText behave as expected
         config([
@@ -53,7 +60,7 @@ class SellerDirectTopupTest extends TestCase
 
         $resp->assertStatus(200)->assertJson(['success' => true]);
 
-        $this->assertDatabaseHas('orders', ['seller_id' => $seller->id, 'diamond_pack_id' => $pack->id, 'status' => 'completed']);
+        $this->assertDatabaseHas('orders', ['seller_id' => $seller->id, 'diamond_pack_id' => $pack->id, 'status' => 'sending']);
 
         $order = Order::where('seller_id', $seller->id)->first();
 
@@ -65,7 +72,11 @@ class SellerDirectTopupTest extends TestCase
         // ensure seller profit marked as paid on order
         $this->assertTrue((bool) $order->fresh()->seller_profit_paid);
 
-        $this->assertDatabaseHas('vipreseller_status', ['order_id' => $order->id, 'trxid' => 't123', 'status' => 'success']);
+        // Digiflazz initial record should exist (order linked)
+        $this->assertDatabaseHas('digiflazz_statuses', ['order_id' => $order->id]);
+
+        // We should also have a provider status record with the Digiflazz balance
+        $this->assertDatabaseHas('vipreseller_status', ['order_id' => $order->id, 'service' => 'digiflazz', 'balance' => '987654']);
 
         // Ensure we saved the Telegram message id when sending the initial admin notification
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'tlg_message_id' => 999]);

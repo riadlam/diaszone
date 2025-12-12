@@ -5,8 +5,12 @@ namespace Tests\Feature;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
 class DigiflazzWebhookTest extends TestCase
 {
+    use RefreshDatabase;
+    
     public function test_valid_signature_is_accepted()
     {
         $secret = 'testsecret123';

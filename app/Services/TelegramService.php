@@ -297,20 +297,30 @@ class TelegramService
             }
         }
         
-        // Add provider balance if available
-        if ($order->relationLoaded('vipResellerStatuses')) {
-            $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
-            if ($latestVipStatus && isset($latestVipStatus->additional_data['balance'])) {
+        // Add provider balance if available: prefer VipResellerStatus, fall back to DigiflazzStatus
+        $balance = null;
+        $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
+        if ($latestVipStatus) {
+            if (isset($latestVipStatus->additional_data['balance'])) {
                 $balance = $latestVipStatus->additional_data['balance'];
-                $message .= "\n💳 <b>Provider Balance:</b> " . number_format($balance, 0) . " IDR";
+            } elseif (!empty($latestVipStatus->balance)) {
+                $balance = $latestVipStatus->balance;
             }
-        } else {
-            // Try to load if not already loaded
-            $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
-            if ($latestVipStatus && isset($latestVipStatus->additional_data['balance'])) {
-                $balance = $latestVipStatus->additional_data['balance'];
-                $message .= "\n💳 <b>Provider Balance:</b> " . number_format($balance, 0) . " IDR";
+        }
+
+        if ($balance === null) {
+            // Try DigiflazzStatus for buyer_last_saldo
+            if (method_exists($order, 'digiflazzStatuses')) {
+                $latestDig = $order->digiflazzStatuses()->latest()->first();
+                if ($latestDig) {
+                    $additional = $latestDig->additional_data ?? [];
+                    $balance = $additional['buyer_last_saldo'] ?? $additional['buyer_last_saldo'] ?? ($latestDig->buyer_last_saldo ?? null);
+                }
             }
+        }
+
+        if ($balance !== null) {
+            $message .= "\n💳 <b>Provider Balance:</b> " . number_format($balance, 0) . " IDR";
         }
         
         // Format date in Algeria timezone (Africa/Algiers - UTC+1)

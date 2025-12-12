@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Webhook;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Models\DigiflazzStatus;
 use App\Models\Order;
 
@@ -64,6 +65,27 @@ class DigiflazzWebhookController extends Controller
                 $statusRecord = DigiflazzStatus::create($data);
             }
 
+            // Mirror important fields into VipResellerStatus (admin view) so Telegram and admin see provider balance & status
+            try {
+                $buyerLastSaldo = $payload['buyer_last_saldo'] ?? $payload['buyer_last_saldo'] ?? ($payload['data']['buyer_last_saldo'] ?? null);
+                $vip = \App\Models\VipResellerStatus::updateOrCreate([
+                    'trxid' => $payload['trxid'] ?? null,
+                ], [
+                    'order_id' => $statusRecord->order_id ?? null,
+                    'trxid' => $payload['trxid'] ?? null,
+                    'data' => $payload['customer_no'] ?? null,
+                    'zone' => $payload['zone'] ?? null,
+                    'service' => 'digiflazz',
+                    'status' => strtolower($status) === 'sukses' || $rc === '00' ? 'success' : (strtolower($status) === 'pending' ? 'waiting' : 'error'),
+                    'note' => $payload['message'] ?? null,
+                    'price' => $payload['price'] ?? null,
+                    'balance' => $buyerLastSaldo ?? null,
+                    'additional_data' => array_merge($payload, ['buyer_last_saldo' => $buyerLastSaldo ?? null]),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to create/update VipResellerStatus mirror for Digiflazz webhook', ['error' => $e->getMessage()]);
+            }
+
             // Try to attach to an order if not attached already
             if (!$statusRecord->order_id && $customerNo) {
                 $order = $this->findOrderByCustomerNo($customerNo);
@@ -73,10 +95,26 @@ class DigiflazzWebhookController extends Controller
 
                     // Update order status based on Digiflazz status/rc
                     $this->applyStatusToOrder($order, $statusRecord);
+                    // Ensure any mirrored VipResellerStatus gets linked to this order
+                    try {
+                        if (!empty($statusRecord->trxid)) {
+                            \App\Models\VipResellerStatus::where('trxid', $statusRecord->trxid)->whereNull('order_id')->update(['order_id' => $order->id]);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to update VipResellerStatus order_id after attaching DigiflazzStatus', ['error' => $e->getMessage(), 'trxid' => $statusRecord->trxid]);
+                    }
                 }
             } elseif ($statusRecord->order_id) {
                 $order = Order::find($statusRecord->order_id);
                 if ($order) {
+                    // Ensure any mirrored VipResellerStatus gets linked to this order
+                    try {
+                        if (!empty($statusRecord->trxid)) {
+                            \App\Models\VipResellerStatus::where('trxid', $statusRecord->trxid)->whereNull('order_id')->update(['order_id' => $order->id]);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to update VipResellerStatus order_id for existing DigiflazzStatus', ['error' => $e->getMessage(), 'trxid' => $statusRecord->trxid]);
+                    }
                     $this->applyStatusToOrder($order, $statusRecord);
                         // No realtime broadcasting — webhook updates DB; client should read order status from server when appropriate
                 }
@@ -108,7 +146,20 @@ class DigiflazzWebhookController extends Controller
 
         // Try Mobile Legends concatenated pattern user+zone (e.g., 2057629734048)
         if (preg_match('/^\d+$/', $customerNo)) {
-            $order = Order::whereRaw("CONCAT(user_id_ml, zone_id_ml) = ?", [$customerNo])->latest()->first();
+            try {
+                $driver = DB::getPdo()->getAttribute(\PDO::ATTR_DRIVER_NAME);
+            } catch (\Throwable $e) {
+                $driver = null;
+            }
+
+            if ($driver === 'sqlite') {
+                // SQLite uses || for string concatenation
+                $order = Order::whereRaw("user_id_ml || zone_id_ml = ?", [$customerNo])->latest()->first();
+            } else {
+                // MySQL / others: CONCAT
+                $order = Order::whereRaw("CONCAT(user_id_ml, zone_id_ml) = ?", [$customerNo])->latest()->first();
+            }
+
             if ($order) return $order;
         }
 
@@ -143,6 +194,36 @@ class DigiflazzWebhookController extends Controller
         if ($note) {
             $order->notes = trim(($order->notes ?? '') . "\nDigiflazz: " . $note);
             $order->save();
+        }
+
+        // When provider confirms completion, credit seller profit if applicable
+        if ($status === 'completed') {
+            try {
+                if ($order->seller_id && !$order->seller_profit_paid) {
+                    $order->creditSellerProfit();
+                    Log::info('Digiflazz webhook: credited seller profit on order completion', ['order_id' => $order->id]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Digiflazz webhook: failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            }
+        }
+
+        // Update Telegram notification to reflect provider status change
+        try {
+            $order->load('diamondPack', 'user', 'seller');
+            $updatedMessage = \App\Services\TelegramService::formatOrderMessage($order);
+
+            if ($order->tlg_message_id) {
+                \App\Services\TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+            } else {
+                $messageId = \App\Services\TelegramService::sendMessage($updatedMessage);
+                if ($messageId) {
+                    $order->tlg_message_id = $messageId;
+                    $order->save();
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to update Telegram message for Digiflazz webhook', ['order_id' => $order->id, 'error' => $e->getMessage()]);
         }
     }
 }
