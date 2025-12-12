@@ -66,7 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     price: parseFloat(radio.getAttribute('data-pack-price')) || 0,
                     price_usd: priceUsd,
                     price_dzd: priceDzd,
-                    discount: parseFloat(radio.getAttribute('data-pack-discount')) || 0
+                    discount: parseFloat(radio.getAttribute('data-pack-discount')) || 0,
+                    quantity: parseInt(radio.getAttribute('data-pack-quantity') || 1, 10),
+                    name: radio.getAttribute('data-pack-name') || ''
                 };
                 
                 // Update order form
@@ -155,15 +157,20 @@ document.addEventListener('DOMContentLoaded', () => {
             basePrice = currency === 'DZD' ? (parseFloat(selectedPack.price) * 260) : parseFloat(selectedPack.price);
         }
         
-        // Calculate price after discount
-        const discountAmount = (basePrice * parseFloat(selectedPack.discount || 0)) / 100;
-        const priceAfterDiscount = basePrice - discountAmount;
+        // Get quantity (for multi-quantity packs like 3x Weekly Pass)
+        const quantity = selectedPack.quantity || 1;
         
-        // Calculate DiasZone Credits (1 USD = ~416 credits, use USD price for credits)
+        // Calculate price after discount (multiply by quantity)
+        const totalBasePrice = basePrice * quantity;
+        const discountAmount = (totalBasePrice * parseFloat(selectedPack.discount || 0)) / 100;
+        const priceAfterDiscount = totalBasePrice - discountAmount;
+        
+        // Calculate DiasZone Credits (1 USD = ~416 credits, use USD price for credits, multiply by quantity)
         const creditsMultiplier = 416;
         const usdPrice = parseFloat(selectedPack.price_usd || selectedPack.price);
-        const usdDiscountAmount = (usdPrice * parseFloat(selectedPack.discount || 0)) / 100;
-        const usdPriceAfterDiscount = usdPrice - usdDiscountAmount;
+        const totalUsdPrice = usdPrice * quantity;
+        const usdDiscountAmount = (totalUsdPrice * parseFloat(selectedPack.discount || 0)) / 100;
+        const usdPriceAfterDiscount = totalUsdPrice - usdDiscountAmount;
         const calculatedCredits = Math.round(usdPriceAfterDiscount * creditsMultiplier);
         
         // Format price based on currency
@@ -199,10 +206,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
             const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));
             
-            if (selectedPack.bonus > 0) {
-                packName.textContent = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} Bonus`;
+            // Handle special pack names (Weekly Diamond Pass, Twilight Pass, etc.)
+            const packQuantity = selectedPack.quantity || 1;
+            if (selectedPack.name && (selectedPack.name.includes('Weekly Diamond Pass') || selectedPack.name.includes('Event Topup'))) {
+                packName.textContent = packQuantity > 1 ? `${packQuantity}x Weekly Diamond Pass` : 'Weekly Diamond Pass';
+            } else if (selectedPack.name && selectedPack.name.includes('Twilight Pass')) {
+                packName.textContent = 'Twilight Pass';
             } else {
-                packName.textContent = `${selectedPack.diamonds} ${currencyText}`;
+                // Regular pack display
+                if (selectedPack.bonus > 0) {
+                    packName.textContent = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} Bonus`;
+                } else {
+                    packName.textContent = `${selectedPack.diamonds} ${currencyText}`;
+                }
             }
         }
         
