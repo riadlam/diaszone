@@ -108,6 +108,7 @@
                         @endif
                         
                         <!-- Pack Info -->
+                        @php $packQuantity = $pack->special_quantity ?? 1; @endphp
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1">
                                 <h3 class="text-sm font-semibold text-gray-900">
@@ -133,10 +134,10 @@
                                         @endif
                                     @else
                                         @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
-                                            @if(($packQuantity ?? 1) > 1 && stripos($pack->name ?? '', 'weekly') !== false)
+                                            @if($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false)
                                                 {{ $packQuantity }}x Weekly Diamond Pass
                                             @else
-                                                1x Weekly Diamond Pass
+                                                Weekly Diamond Pass
                                             @endif
                                         @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                             Twilight Pass
@@ -145,12 +146,6 @@
                                         @endif
                                     @endif
                                 </h3>
-                                </h3>
-                                @php
-                                    $packQuantity = $pack->special_quantity ?? 1;
-                                @endphp
-                                @if($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false)
-                                @endif
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% OFF</span>
                                 @endif
@@ -167,7 +162,7 @@
                                     $finalPriceDzd = $priceDzd * (1 - $discount / 100);
                                 @endphp
                                 @if($pack->discount_percentage > 0)
-                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}">{{ number_format($priceDzd, 0) }} DZD</span>
+                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * $packQuantity, 0) }} DZD</span>
                                 @endif
                                 <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($finalPriceDzd * ($packQuantity), 0) }} DZD</span>
                             </div>
@@ -190,8 +185,9 @@ window.updatePricesOnPage = function() {
         const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
         const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
         const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+        const quantity = parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
         
-        let price = currency === 'DZD' ? priceDzd : priceUsd;
+        let price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
         if (discount > 0) {
             const discountAmount = (price * discount) / 100;
             price = price - discountAmount;
@@ -208,8 +204,9 @@ window.updatePricesOnPage = function() {
     document.querySelectorAll('.pack-original-price').forEach(element => {
         const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
         const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+        const quantity = parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
         
-        const price = currency === 'DZD' ? priceDzd : priceUsd;
+        const price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
         
         if (currency === 'DZD') {
             element.textContent = Math.round(price).toLocaleString() + ' DZD';
@@ -241,7 +238,7 @@ window.updatePricesOnPage = function() {
             
             let packDisplayName = '';
             if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
-                packDisplayName = `${packQuantity}x Weekly Diamond Pass`;
+                packDisplayName = packQuantity > 1 ? `${packQuantity}x Weekly Diamond Pass` : 'Weekly Diamond Pass';
             } else if (packName && packName.includes('Twilight Pass')) {
                 packDisplayName = 'Twilight Pass';
             } else {
@@ -266,8 +263,9 @@ window.updatePricesOnPage = function() {
     document.querySelectorAll('.mobile-pack-original-price').forEach(element => {
         const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
         const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
+        const quantity = parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
         
-        const price = currency === 'DZD' ? priceDzd : priceUsd;
+        const price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
         
         if (currency === 'DZD') {
             element.textContent = Math.round(price).toLocaleString() + ' DZD';
@@ -665,7 +663,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (selectedPackText) {
                     let packDisplayName = '';
                     if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
-                        packDisplayName = `${packQuantity}x Weekly Diamond Pass`;
+                        packDisplayName = packQuantity > 1 ? `${packQuantity}x Weekly Diamond Pass` : 'Weekly Diamond Pass';
                     } else if (packName && packName.includes('Twilight Pass')) {
                         packDisplayName = 'Twilight Pass';
                     } else {

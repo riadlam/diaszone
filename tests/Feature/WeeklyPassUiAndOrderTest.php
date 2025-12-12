@@ -37,6 +37,27 @@ class WeeklyPassUiAndOrderTest extends TestCase
             $multipliedPriceText = number_format(1000 * 3, 0) . ' DZD';
             $priceFound = str_contains($content, $multipliedPriceText);
 
+            // Create a discounted pack case to assert original price multiplies by quantity in the UI
+            $discountedPack = DiamondPack::create([
+                'game_type' => 'mobilelegends',
+                'name' => '3 Weekly Pass Discount',
+                'code' => 'mlbb-pass-3-discount',
+                'diamonds' => 55,
+                'price' => 10.00,
+                'price_dzd' => 1000,
+                'discount_percentage' => 20,
+                'is_active' => true,
+                'special_quantity' => 3,
+            ]);
+
+            $discountResponse = $this->get('/mobilelegends');
+            $discountResponse->assertStatus(200);
+            $discountContent = $discountResponse->getContent();
+            // Original price should be 1000 * 3 = 3000 DZD (strikethrough)
+            $this->assertStringContainsString(number_format(1000 * 3, 0) . ' DZD', $discountContent, 'Original discounted price not multiplied on the UI');
+            // Final price should be 3000 * (1 - 0.20) = 2400 DZD
+            $this->assertStringContainsString(number_format(1000 * 3 * (1 - 0.20), 0) . ' DZD', $discountContent, 'Final discounted price not showing multiplied and discounted amount on the UI');
+
             // Simulate creating an order for this pack via API
             fwrite(STDERR, "ABOUT TO POST ORDER\n");
                 // Perform POST to create the order

@@ -650,7 +650,7 @@ class CheckoutController extends Controller
         }
         
         // Initialize Chargily Pay v2 service
-        $chargilyService = new ChargilyPayV2Service();
+        $chargilyService = app(ChargilyPayV2Service::class);
         
         if (!$chargilyService->hasCredentials()) {
             // Check what's actually in the environment
@@ -673,8 +673,11 @@ class CheckoutController extends Controller
         }
         
         try {
-            // Calculate amount in DZD: Use price_dzd directly from the diamond pack
-            $priceDzd = (float) ($order->diamondPack->price_dzd ?? 0);
+            // Calculate amount in DZD: Use server-side stored order data when available,
+            // and fallback to pack price and quantity calculation (defense-in-depth).
+            $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
+            // Keep backwards-compatible variable name used by some logs
+            $priceDzd = $unitPriceDzd;
             
             // Fallback: if price_dzd is not set, calculate from price_usd or price
             if (!$priceDzd || $priceDzd <= 0) {
@@ -688,10 +691,25 @@ class CheckoutController extends Controller
                 ]);
             }
             
-            // Apply discount
+            // Ensure quantity is used and server-side recalculation performed
             $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-            $discountAmount = ($priceDzd * $discountPercentage) / 100;
-            $amount = $priceDzd - $discountAmount;
+            $quantity = (int) ($order->quantity ?? 1);
+
+            $computedTotalBeforeDiscount = $unitPriceDzd * $quantity;
+            $computedDiscount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+            $computedFinal = $computedTotalBeforeDiscount - $computedDiscount;
+
+            // If order has stored final_price, verify it matches our computed value. If not, correct it and log.
+            $orderFinalPrice = (float) ($order->final_price ?? 0);
+            if (empty($orderFinalPrice) || abs($orderFinalPrice - $computedFinal) > 0.001) {
+                Log::warning('Order final_price mismatch or empty: correcting to computed value', ['order_id' => $order->id, 'stored_final' => $orderFinalPrice, 'computed_final' => $computedFinal]);
+                $order->final_price = $computedFinal;
+                $order->original_price = $computedTotalBeforeDiscount;
+                $order->save();
+                $orderFinalPrice = $computedFinal;
+            }
+
+            $amount = $orderFinalPrice;
             
             // Log the amount calculation for debugging
             Log::info('Chargily payment amount calculation', [
@@ -699,7 +717,7 @@ class CheckoutController extends Controller
                 'diamond_pack_id' => $order->diamond_pack_id,
                 'price_dzd' => $priceDzd,
                 'discount_percentage' => $discountPercentage,
-                'discount_amount' => $discountAmount,
+                'discount_amount' => $computedDiscount,
                 'final_amount_dzd' => $amount,
             ]);
             
@@ -974,7 +992,7 @@ class CheckoutController extends Controller
             }
             
             // Get API secret key
-            $chargilyService = new ChargilyPayV2Service();
+            $chargilyService = app(ChargilyPayV2Service::class);
             $apiSecret = config('services.chargily_pay_v2.secret') ?? config('laravel-chargily-epay.secret');
             
             if (empty($apiSecret)) {

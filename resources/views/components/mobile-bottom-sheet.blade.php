@@ -162,9 +162,9 @@
                                         <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
                                         <span class="text-sm font-medium text-gray-600">Tokens</span>
                                     @endif
-                                    @else
+                                @else
                                     @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
-                                        <h3 class="text-base font-bold text-gray-900">{{ ($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false) ? $packQuantity . 'x Weekly Diamond Pass' : '1x Weekly Diamond Pass' }}</h3>
+                                        <h3 class="text-base font-bold text-gray-900">{{ ($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false) ? $packQuantity . 'x Weekly Diamond Pass' : 'Weekly Diamond Pass' }}</h3>
                                     @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                         <h3 class="text-base font-bold text-gray-900">Twilight Pass</h3>
                                     @else
@@ -186,14 +186,14 @@
                             </div>
                         @endif
                         <div class="flex items-center justify-between">
-                            @if($pack->discount_percentage > 0)
+                                @if($pack->discount_percentage > 0)
                                 @php
                                     $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
                                 @endphp
-                                <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}">{{ number_format($priceDzd, 0) }} DZD</span>
-                            @else
+                                <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * ($packQuantity), 0) }} DZD</span>
+                                @else
                                 <span class="text-xs text-gray-500">Best Value</span>
-                            @endif
+                                @endif
                             <div class="flex items-baseline gap-1">
                                 @php
                                     $priceDzd = $pack->price_dzd ?? ($pack->price * 260);

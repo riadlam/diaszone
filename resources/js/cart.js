@@ -145,7 +145,7 @@ const CartManager = {
                         if (packInfo.name) {
                         if (packInfo.name.includes('Weekly Diamond Pass') || packInfo.name.includes('Event Topup')) {
                             const qty = packInfo.special_quantity || packInfo.specialQuantity || 1;
-                            packDisplayName = `${qty}x Weekly Diamond Pass`;
+                            packDisplayName = qty > 1 ? `${qty}x Weekly Diamond Pass` : 'Weekly Diamond Pass';
                         } else if (packInfo.name.includes('Twilight Pass')) {
                             packDisplayName = 'Twilight Pass';
                         } else {

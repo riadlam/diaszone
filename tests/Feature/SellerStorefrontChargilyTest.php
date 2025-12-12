@@ -40,8 +40,13 @@ class SellerStorefrontChargilyTest extends TestCase
         $mock = \Mockery::mock(\App\Services\ChargilyPayV2Service::class);
         // Simulate service returning legacy 'id' key
         $mock->shouldReceive('createCheckout')->once()->andReturn([
-            'id' => 'ck_test_123',
-            'checkout_url' => 'https://pay.chargily.net/checkout/ck_test_123'
+            'success' => true,
+            'checkout_id' => 'ck_test_123',
+            'checkout_url' => 'https://pay.chargily.net/checkout/ck_test_123',
+            'data' => [
+                'id' => 'ck_test_123',
+                'status' => 'pending',
+            ]
         ]);
 
         $this->app->instance(\App\Services\ChargilyPayV2Service::class, $mock);
@@ -100,8 +105,13 @@ class SellerStorefrontChargilyTest extends TestCase
 
         $mock = \Mockery::mock(\App\Services\ChargilyPayV2Service::class);
         $mock->shouldReceive('createCheckout')->once()->andReturn([
+            'success' => true,
             'checkout_id' => 'ck_ajax_123',
-            'checkout_url' => 'https://pay.chargily.net/checkout/ck_ajax_123'
+            'checkout_url' => 'https://pay.chargily.net/checkout/ck_ajax_123',
+                'data' => [
+                    'id' => 'ck_ajax_123',
+                    'status' => 'pending',
+                ]
         ]);
         $this->app->instance(\App\Services\ChargilyPayV2Service::class, $mock);
 
@@ -193,8 +203,13 @@ class SellerStorefrontChargilyTest extends TestCase
         // Simulate service returning 'checkout_id' top-level key (newer format)
         $mock = \Mockery::mock(\App\Services\ChargilyPayV2Service::class);
         $mock->shouldReceive('createCheckout')->once()->andReturn([
+            'success' => true,
             'checkout_id' => 'ck_test_custom_123',
-            'checkout_url' => 'https://pay.chargily.net/checkout/ck_test_custom_123'
+            'checkout_url' => 'https://pay.chargily.net/checkout/ck_test_custom_123',
+            'data' => [
+                'id' => 'ck_test_custom_123',
+                'status' => 'pending',
+            ]
         ]);
 
         $this->app->instance(\App\Services\ChargilyPayV2Service::class, $mock);
