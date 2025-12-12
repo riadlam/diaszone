@@ -750,9 +750,238 @@ class AdminController extends Controller
             }
 
             // STEP 2: Call provider API to recharge (nickname already validated)
+            // Multi-item order support with price validation
             if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
-                $digService = app(\App\Services\DigiflazzService::class);
-                $result = $digService->placeOrder($order->diamondPack, $order);
+                $result = ['result' => false, 'message' => 'No provider calls made'];
+                
+                // Atomic multi-quantity submission with proper locking
+                DB::transaction(function () use (&$result, &$order) {
+                    // Lock the order to prevent concurrent modifications
+                    $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                    if (!$orderLocked) {
+                        Log::error('Admin: Failed to lock order for Digiflazz submission', ['order_id' => $order->id]);
+                        return;
+                    }
+
+                    $orderLocked->load('orderItems.diamondPack');
+                    
+                    // SECURITY: Re-calculate and validate prices before top-up to prevent manipulation
+                    $hasOrderItems = $orderLocked->orderItems && $orderLocked->orderItems->count() > 0;
+                    
+                    if ($hasOrderItems) {
+                        // Multi-item order: validate each item
+                        $totalOriginalPrice = 0;
+                        $totalDiscount = 0;
+                        $totalFinalPrice = 0;
+                        $priceValidationErrors = [];
+                        
+                        foreach ($orderLocked->orderItems as $orderItem) {
+                            $pack = $orderItem->diamondPack;
+                            
+                            // Re-calculate prices from current pack data
+                            $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                            $discountPercentage = $pack->discount_percentage ?? 0;
+                            $quantity = max(1, (int)$orderItem->quantity);
+                            
+                            $subtotalDzd = $unitPriceDzd * $quantity;
+                            $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                            $totalDzd = $subtotalDzd - $discountAmount;
+                            
+                            // Validate prices (within 1 DZD tolerance)
+                            $storedTotal = (float)$orderItem->total_dzd;
+                            $calculatedTotal = (float)$totalDzd;
+                            $priceDiff = abs($storedTotal - $calculatedTotal);
+                            
+                            if ($priceDiff > 1.0) {
+                                $priceValidationErrors[] = [
+                                    'order_item_id' => $orderItem->id,
+                                    'pack_id' => $pack->id,
+                                    'stored_price' => $storedTotal,
+                                    'calculated_price' => $calculatedTotal,
+                                    'difference' => $priceDiff
+                                ];
+                            }
+                            
+                            $totalOriginalPrice += $subtotalDzd;
+                            $totalDiscount += $discountAmount;
+                            // Note: totalDzd here is per-item total (after pack discount, before coupon)
+                        }
+                        
+                        if (!empty($priceValidationErrors)) {
+                            Log::error('Admin: Price validation failed', [
+                                'order_id' => $orderLocked->id,
+                                'errors' => $priceValidationErrors
+                            ]);
+                            $result = ['result' => false, 'message' => 'Price validation failed'];
+                            return;
+                        }
+                        
+                        // Apply coupon discount if order has a coupon
+                        $orderDiscountAmount = 0;
+                        $calculatedFinalPrice = $totalOriginalPrice - $totalDiscount; // After pack discounts
+                        
+                        if ($orderLocked->coupon_id) {
+                            $orderLocked->load('coupon');
+                            if ($orderLocked->coupon) {
+                                // Re-calculate coupon discount on the original total
+                                $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($totalOriginalPrice);
+                                $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
+                                $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
+                                $calculatedFinalPrice = max(0, $calculatedFinalPrice);
+                                
+                                Log::info('Admin: Coupon discount recalculated', [
+                                    'order_id' => $orderLocked->id,
+                                    'coupon_id' => $orderLocked->coupon_id,
+                                    'original_total' => $totalOriginalPrice,
+                                    'coupon_discount' => $orderDiscountAmount,
+                                    'pack_discounts' => $totalDiscount,
+                                    'calculated_final_price' => $calculatedFinalPrice
+                                ]);
+                            }
+                        }
+                        
+                        // Validate final order price (accounting for coupon discount)
+                        $storedFinalPrice = (float)($orderLocked->final_price ?? 0);
+                        $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
+                        
+                        if ($finalPriceDiff > 1.0) {
+                            Log::error('Admin: Final price validation failed', [
+                                'order_id' => $orderLocked->id,
+                                'stored_final_price' => $storedFinalPrice,
+                                'calculated_final_price' => $calculatedFinalPrice,
+                                'difference' => $finalPriceDiff,
+                                'has_coupon' => !empty($orderLocked->coupon_id)
+                            ]);
+                            $result = ['result' => false, 'message' => 'Price validation failed'];
+                            return;
+                        }
+                        
+                        // Update order prices
+                        $orderLocked->original_price = $totalOriginalPrice;
+                        $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                        $orderLocked->final_price = $calculatedFinalPrice;
+                        $orderLocked->save();
+                        
+                        // Submit top-ups for each order_item
+                        foreach ($orderLocked->orderItems as $orderItem) {
+                            $submitted = $orderItem->digiflazzStatuses()
+                                ->where(function ($q) {
+                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                                      ->orWhere('event', 'create');
+                                })->count();
+                            
+                            $remaining = max(0, $orderItem->quantity - $submitted);
+                            
+                            $digService = app(\App\Services\DigiflazzService::class);
+                            for ($i = 0; $i < $remaining; $i++) {
+                                $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . \Illuminate\Support\Str::random(8);
+                                $result = $digService->placeOrderWithRefId(
+                                    $orderItem->diamondPack,
+                                    $orderLocked,
+                                    $refId,
+                                    $orderItem->id
+                                );
+                                
+                                Log::info('Admin: Digiflazz placeOrder attempt', [
+                                    'order_id' => $orderLocked->id,
+                                    'order_item_id' => $orderItem->id,
+                                    'pack_id' => $orderItem->diamond_pack_id,
+                                    'remaining' => $remaining - ($i + 1),
+                                    'result' => $result
+                                ]);
+                                
+                                if ($i < $remaining - 1) {
+                                    usleep(100000);
+                                }
+                            }
+                        }
+                    } else {
+                        // Legacy single-pack order
+                        $required = isset($orderLocked->quantity) ? (int)$orderLocked->quantity : 1;
+                        
+                        // Re-calculate and validate price for legacy orders
+                        $pack = $orderLocked->diamondPack;
+                        $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                        $discountPercentage = $pack->discount_percentage ?? 0;
+                        $quantity = max(1, $required);
+                        
+                        $subtotalDzd = $unitPriceDzd * $quantity;
+                        $packDiscountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                        $calculatedFinal = $subtotalDzd - $packDiscountAmount; // After pack discount
+                        
+                        // Apply coupon discount if order has a coupon
+                        $orderDiscountAmount = 0;
+                        if ($orderLocked->coupon_id) {
+                            $orderLocked->load('coupon');
+                            if ($orderLocked->coupon) {
+                                // Re-calculate coupon discount on the original total (before pack discount)
+                                $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($subtotalDzd);
+                                $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
+                                $calculatedFinal = $couponDiscountInfo['final_amount'] - $packDiscountAmount;
+                                $calculatedFinal = max(0, $calculatedFinal);
+                                
+                                Log::info('Admin: Coupon discount recalculated (legacy order)', [
+                                    'order_id' => $orderLocked->id,
+                                    'coupon_id' => $orderLocked->coupon_id,
+                                    'original_total' => $subtotalDzd,
+                                    'coupon_discount' => $orderDiscountAmount,
+                                    'pack_discount' => $packDiscountAmount,
+                                    'calculated_final_price' => $calculatedFinal
+                                ]);
+                            }
+                        }
+                        
+                        // Validate final price (accounting for coupon discount)
+                        $storedFinal = (float)($orderLocked->final_price ?? 0);
+                        $finalPriceDiff = abs($storedFinal - $calculatedFinal);
+                        
+                        if ($finalPriceDiff > 1.0) {
+                            Log::error('Admin: Price validation failed (legacy order)', [
+                                'order_id' => $orderLocked->id,
+                                'stored_price' => $storedFinal,
+                                'calculated_price' => $calculatedFinal,
+                                'difference' => $finalPriceDiff,
+                                'has_coupon' => !empty($orderLocked->coupon_id),
+                                'coupon_discount' => $orderDiscountAmount
+                            ]);
+                            $result = ['result' => false, 'message' => 'Price validation failed'];
+                            return;
+                        }
+                        
+                        // Update order prices
+                        $orderLocked->original_price = $subtotalDzd;
+                        $orderLocked->discount_amount = $packDiscountAmount + $orderDiscountAmount; // Total discount (pack + coupon)
+                        $orderLocked->final_price = $calculatedFinal;
+                        $orderLocked->save();
+                        
+                        // Submit top-ups (legacy logic)
+                        $submitted = $orderLocked->digiflazzStatuses()
+                            ->where(function ($q) {
+                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                                  ->orWhere('event', 'create');
+                            })->count();
+                        
+                        $remaining = max(0, $required - $submitted);
+                        
+                        $digService = app(\App\Services\DigiflazzService::class);
+                        for ($i = 0; $i < $remaining; $i++) {
+                            $result = $digService->placeOrder($orderLocked->diamondPack, $orderLocked);
+                            Log::info('Admin: Digiflazz placeOrder attempt (legacy)', [
+                                'order_id' => $orderLocked->id,
+                                'attempt' => $i + 1,
+                                'remaining' => $remaining - ($i + 1),
+                                'result' => $result
+                            ]);
+                            
+                            if ($i < $remaining - 1) {
+                                usleep(100000);
+                            }
+                        }
+                    }
+
+                    $order = $orderLocked; // Update order reference
+                });
+
                 // Normalize result to expected shape used below
                 // DigiflazzService returns ['result'=>bool, 'data'=>..., 'message'=>...]
                 $apiData = $result['data'] ?? [];

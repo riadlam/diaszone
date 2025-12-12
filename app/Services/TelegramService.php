@@ -235,14 +235,17 @@ class TelegramService
             $currencyText = 'Golds';
         }
         
-        $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
-        if ($order->diamondPack->bonus_diamonds > 0) {
-            $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
+        // Load order items if available (multi-item orders)
+        if (!isset($order->relationLoaded('orderItems'))) {
+            $order->load('orderItems.diamondPack');
         }
+        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
         
-        // Calculate amount - prefer order final_price if present (supports quantity multiplies)
+        // Calculate amount - prefer order final_price if present
         if (!empty($order->final_price)) {
             $amount = $order->final_price;
+        } elseif ($hasOrderItems) {
+            $amount = $order->orderItems->sum('total_dzd');
         } else {
             $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
             $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
@@ -263,12 +266,48 @@ class TelegramService
         $message = "🆕 <b>New Order Created</b>\n\n";
         $message .= "📦 <b>Order:</b> {$escape($order->order_number)}\n";
         $message .= "🎮 <b>Game:</b> {$escape($gameName)}\n";
-        $message .= "💎 <b>Pack:</b> {$escape($packName)}\n";
+        
+        // Show packs (multi-item or single)
+        if ($hasOrderItems) {
+            $message .= "💎 <b>Packs:</b>\n";
+            foreach ($order->orderItems as $item) {
+                $itemPack = $item->diamondPack;
+                $itemName = $itemPack->name ?? ($itemPack->diamonds . ' ' . $currencyText);
+                if ($itemPack->bonus_diamonds > 0) {
+                    $itemName .= ' + ' . $itemPack->bonus_diamonds . ' Bonus';
+                }
+                $message .= "   • {$item->quantity}× {$escape($itemName)} (Pack #{$itemPack->id})\n";
+            }
+        } else {
+            $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
+            if ($order->diamondPack->bonus_diamonds > 0) {
+                $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
+            }
+            $message .= "💎 <b>Pack:</b> {$escape($packName)}\n";
+        }
+        
         $message .= "💰 <b>Amount:</b> " . number_format($amount, 0) . " DZD\n";
         $message .= "📊 <b>Status:</b> " . ucfirst(str_replace('_', ' ', $order->status)) . "\n";
 
-        // If order has quantity (multi-topup pass), show progress
-        if (!empty($order->quantity) && $order->quantity > 1) {
+        // Show progress for multi-item or multi-quantity orders
+        if ($hasOrderItems) {
+            $totalRequired = $order->orderItems->sum('quantity');
+            $totalCompleted = 0;
+            foreach ($order->orderItems as $item) {
+                $totalCompleted += $item->successfulTopupsCount();
+            }
+            $message .= "🔁 <b>Top-ups Progress:</b> {$totalCompleted}/{$totalRequired} completed\n";
+            
+            // Show progress per pack
+            foreach ($order->orderItems as $item) {
+                $itemPack = $item->diamondPack;
+                $itemName = $itemPack->name ?? ($itemPack->diamonds . ' ' . $currencyText);
+                $completed = $item->successfulTopupsCount();
+                $required = $item->quantity;
+                $progressIcons = str_repeat('✅', $completed) . str_repeat('⏳', max(0, $required - $completed));
+                $message .= "   • {$escape($itemName)}: {$completed}/{$required} {$progressIcons}\n";
+            }
+        } elseif (!empty($order->quantity) && $order->quantity > 1) {
             $succeeded = method_exists($order, 'successfulDigiflazzTopupsCount') ? $order->successfulDigiflazzTopupsCount() : 0;
             $message .= "🔁 <b>Top-ups:</b> {$succeeded}/{$order->quantity} completed\n";
             $message .= "🏷️ <b>Offer:</b> {$order->quantity}× Weekly Pass\n";

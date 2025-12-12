@@ -44,56 +44,73 @@ window.CurrencyManager = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    let selectedPack = null;
+    // Track multiple selected packs
+    let selectedPacks = new Map(); // Map<packId, packData>
     
-    // Pack selection using radio buttons
-    const packRadios = document.querySelectorAll('input[name="diamond_pack"]');
+    // Pack selection using checkboxes (multi-select)
+    const packCheckboxes = document.querySelectorAll('input[name="selected_packs[]"]');
     const buyNowBtn = document.getElementById('buy-now-btn');
     const orderForm = document.getElementById('order-form');
     
-    packRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            if (radio.checked) {
-                // Get pack data from radio button
-                // Use getAttribute for data attributes to ensure correct reading
-                const priceUsd = parseFloat(radio.getAttribute('data-pack-price-usd')) || parseFloat(radio.getAttribute('data-pack-price')) || 0;
-                const priceDzd = parseFloat(radio.getAttribute('data-pack-price-dzd')) || (parseFloat(radio.getAttribute('data-pack-price')) * 260) || 0;
+    packCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const packId = parseInt(checkbox.getAttribute('data-pack-id')) || 0;
+            
+            if (checkbox.checked) {
+                // Add pack to selection
+                const priceUsd = parseFloat(checkbox.getAttribute('data-pack-price-usd')) || parseFloat(checkbox.getAttribute('data-pack-price')) || 0;
+                const priceDzd = parseFloat(checkbox.getAttribute('data-pack-price-dzd')) || (parseFloat(checkbox.getAttribute('data-pack-price')) * 260) || 0;
                 
-                selectedPack = {
-                    id: parseInt(radio.getAttribute('data-pack-id')) || 0,
-                    diamonds: parseInt(radio.getAttribute('data-pack-diamonds')) || 0,
-                    bonus: parseInt(radio.getAttribute('data-pack-bonus')) || 0,
-                    price: parseFloat(radio.getAttribute('data-pack-price')) || 0,
+                // Get current quantity from input if available
+                const quantityInput = document.querySelector(`.pack-quantity-input[data-pack-id="${packId}"], .mobile-pack-quantity-input[data-pack-id="${packId}"]`);
+                const currentQuantity = quantityInput ? Math.max(1, Math.min(20, parseInt(quantityInput.value) || 1)) : parseInt(checkbox.getAttribute('data-pack-quantity') || 1, 10);
+                
+                selectedPacks.set(packId, {
+                    id: packId,
+                    diamonds: parseInt(checkbox.getAttribute('data-pack-diamonds')) || 0,
+                    bonus: parseInt(checkbox.getAttribute('data-pack-bonus')) || 0,
+                    price: parseFloat(checkbox.getAttribute('data-pack-price')) || 0,
                     price_usd: priceUsd,
                     price_dzd: priceDzd,
-                    discount: parseFloat(radio.getAttribute('data-pack-discount')) || 0,
-                    quantity: parseInt(radio.getAttribute('data-pack-quantity') || 1, 10),
-                    name: radio.getAttribute('data-pack-name') || ''
-                };
+                    discount: parseFloat(checkbox.getAttribute('data-pack-discount')) || 0,
+                    quantity: currentQuantity,
+                    name: checkbox.getAttribute('data-pack-name') || ''
+                });
                 
-                // Update order form
-                updateOrderForm();
-                
-                // Enable buy button
-                if (buyNowBtn) {
-                    buyNowBtn.disabled = false;
+                // Show selection badge
+                const packWrapper = checkbox.closest('.diamond-pack-item-wrapper');
+                if (packWrapper) {
+                    const badge = packWrapper.querySelector('.pack-selection-badge');
+                    if (badge) badge.classList.remove('hidden');
+                    const packCard = packWrapper.querySelector('.SKU_type');
+                    if (packCard) packCard.classList.add('border-purple-600', 'bg-purple-50');
                 }
+            } else {
+                // Remove pack from selection
+                selectedPacks.delete(packId);
+                
+                // Hide selection badge
+                const packWrapper = checkbox.closest('.diamond-pack-item-wrapper');
+                if (packWrapper) {
+                    const badge = packWrapper.querySelector('.pack-selection-badge');
+                    if (badge) badge.classList.add('hidden');
+                    const packCard = packWrapper.querySelector('.SKU_type');
+                    if (packCard) packCard.classList.remove('border-purple-600', 'bg-purple-50');
+                }
+            }
+            
+            // Keep global reference in sync
+            window.selectedPacks = selectedPacks;
+            
+            // Update order form
+            updateOrderForm();
+            
+            // Enable/disable buy button based on selection
+            if (buyNowBtn) {
+                buyNowBtn.disabled = selectedPacks.size === 0;
             }
         });
     });
-    
-    // Initialize with first selected radio
-    const firstRadio = document.querySelector('input[name="diamond_pack"]:checked');
-    if (firstRadio) {
-        firstRadio.dispatchEvent(new Event('change'));
-    } else {
-        // If no radio is checked, check the first one and trigger change
-        const firstPackRadio = document.querySelector('input[name="diamond_pack"]');
-        if (firstPackRadio) {
-            firstPackRadio.checked = true;
-            firstPackRadio.dispatchEvent(new Event('change'));
-        }
-    }
     
     // Also update order form on page load to ensure currency is correct
     setTimeout(() => {
@@ -102,23 +119,158 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 100);
     
+    // Expose selectedPacks and updateOrderForm globally
+    Object.defineProperty(window, 'selectedPacks', {
+        get: function() { return selectedPacks; },
+        set: function(value) { selectedPacks = value; },
+        configurable: true
+    });
+    window.updateOrderForm = updateOrderForm;
+    
     function updateOrderForm() {
-        if (!selectedPack) {
-            // Reset form if no pack selected
+        if (!selectedPacks || selectedPacks.size === 0) {
+            // Reset form if no packs selected
             const totalPrice = document.getElementById('total-price');
             const diaszoneCredit = document.getElementById('diaszone-credit');
-            const selectedPackInfo = document.getElementById('selected-pack-info');
+            const selectedPacksContainer = document.getElementById('selected-packs-container');
             const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
             
             if (totalPrice) {
                 totalPrice.textContent = currency === 'DZD' ? '0 DZD' : 'US$ 0.00';
             }
             if (diaszoneCredit) diaszoneCredit.textContent = 'diaszone credit 0';
-            if (selectedPackInfo) selectedPackInfo.classList.add('hidden');
+            if (selectedPacksContainer) selectedPacksContainer.classList.add('hidden');
             return;
         }
         
+        // Get currency
+        const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+        const currencyUpper = currency.toUpperCase();
+        
+        // Get game type
+        const orderFormWrapper = document.getElementById('order-form-wrapper');
+        const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
+        const translations = window.GameTranslations || {};
+        const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
+        
+        // Calculate totals for all selected packs
+        let totalOriginalPrice = 0;
+        let totalDiscount = 0;
+        let totalFinalPrice = 0;
+        let totalCredits = 0;
+        
+        const formatPrice = (price) => {
+            const numPrice = parseFloat(price);
+            if (isNaN(numPrice) || numPrice === null || numPrice === undefined) {
+                return currencyUpper === 'DZD' ? '0 DZD' : 'US$ 0.00';
+            }
+            if (currencyUpper === 'DZD') {
+                return `${Math.round(numPrice).toLocaleString()} DZD`;
+            } else {
+                return `US$ ${numPrice.toFixed(2)}`;
+            }
+        };
+        
+        // Build selected packs list HTML
+        const selectedPacksList = document.getElementById('selected-packs-list');
+        const selectedPacksContainer = document.getElementById('selected-packs-container');
+        
+        if (selectedPacksList && selectedPacksContainer) {
+            selectedPacksList.innerHTML = '';
+            selectedPacksContainer.classList.remove('hidden');
+            
+            selectedPacks.forEach((pack, packId) => {
+                // Get current quantity from input field
+                const quantityInput = document.querySelector(`.pack-quantity-input[data-pack-id="${packId}"], .mobile-pack-quantity-input[data-pack-id="${packId}"]`);
+                const quantity = quantityInput ? Math.max(1, Math.min(20, parseInt(quantityInput.value) || 1)) : pack.quantity;
+                pack.quantity = quantity; // Sync quantity
+                
+                // Calculate prices
+                const basePrice = currencyUpper === 'DZD' ? pack.price_dzd : pack.price_usd;
+                const totalBasePrice = basePrice * quantity;
+                const discountAmount = (totalBasePrice * pack.discount) / 100;
+                const finalPrice = totalBasePrice - discountAmount;
+                
+                totalOriginalPrice += totalBasePrice;
+                totalDiscount += discountAmount;
+                totalFinalPrice += finalPrice;
+                
+                // Calculate credits (USD based)
+                const usdPrice = pack.price_usd * quantity;
+                const usdDiscount = (usdPrice * pack.discount) / 100;
+                const usdFinal = usdPrice - usdDiscount;
+                totalCredits += Math.round(usdFinal * 416);
+                
+                // Format pack display name
+                let packDisplayName = pack.name;
+                if (pack.name && (pack.name.includes('Weekly Diamond Pass') || pack.name.includes('Event Topup'))) {
+                    packDisplayName = translations.weeklyDiamondPass || pack.name;
+                } else if (pack.name && pack.name.includes('Twilight Pass')) {
+                    packDisplayName = translations.twilightPass || pack.name;
+                } else {
+                    const bonusText = pack.bonus > 0 ? ` + ${pack.bonus} ${translations.bonus || 'Bonus'}` : '';
+                    packDisplayName = `${pack.diamonds} ${currencyText}${bonusText}`;
+                }
+                
+                // Unit price
+                const unitPrice = basePrice;
+                const unitDiscount = (unitPrice * pack.discount) / 100;
+                const unitFinalPrice = unitPrice - unitDiscount;
+                
+                // Create pack item HTML
+                const packItem = document.createElement('div');
+                packItem.className = 'bg-white rounded-lg p-3 border border-purple-300';
+                packItem.innerHTML = `
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                ${quantity > 1 ? `<span class="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-purple-600 rounded-full">${quantity}</span>` : ''}
+                                <span class="text-sm font-semibold text-gray-900">${packDisplayName}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="remove-pack-btn text-red-500 hover:text-red-700 ml-2" data-pack-id="${packId}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-600">${quantity} × ${formatPrice(unitFinalPrice)}</span>
+                        <span class="font-semibold text-purple-600">${formatPrice(finalPrice)}</span>
+                    </div>
+                `;
+                
+                selectedPacksList.appendChild(packItem);
+                
+                // Add remove button handler
+                const removeBtn = packItem.querySelector('.remove-pack-btn');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const checkbox = document.querySelector(`input[name="selected_packs[]"][value="${packId}"]`);
+                        if (checkbox) {
+                            checkbox.checked = false;
+                            checkbox.dispatchEvent(new Event('change'));
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Update total price
         const totalPrice = document.getElementById('total-price');
+        if (totalPrice) {
+            totalPrice.textContent = formatPrice(totalFinalPrice);
+        }
+        
+        // Update credits
+        const diaszoneCredit = document.getElementById('diaszone-credit');
+        if (diaszoneCredit) {
+            const creditText = translations.diaszoneCredit || 'diaszone credit';
+            diaszoneCredit.textContent = `${creditText} ${totalCredits.toLocaleString()}`;
+        }
+        
+        return; // Multi-pack display complete
         const diaszoneCredit = document.getElementById('diaszone-credit');
         const packName = document.getElementById('pack-name');
         const packPrice = document.getElementById('pack-price');
@@ -157,11 +309,21 @@ document.addEventListener('DOMContentLoaded', () => {
             basePrice = currency === 'DZD' ? (parseFloat(selectedPack.price) * 260) : parseFloat(selectedPack.price);
         }
         
-        // Get quantity (for multi-quantity packs like 3x Weekly Pass)
-        // Ensure quantity is a valid positive integer
-        let quantity = parseInt(selectedPack.quantity, 10);
-        if (isNaN(quantity) || quantity <= 0) {
-            quantity = 1;
+        // Get quantity from input field if pack is selected, otherwise use selectedPack.quantity
+        let quantity = 1;
+        if (selectedPack.id) {
+            const quantityInput = document.querySelector(`.pack-quantity-input[data-pack-id="${selectedPack.id}"], .mobile-pack-quantity-input[data-pack-id="${selectedPack.id}"]`);
+            if (quantityInput) {
+                quantity = Math.max(1, Math.min(20, parseInt(quantityInput.value) || 1));
+                // Sync selectedPack.quantity with input value
+                selectedPack.quantity = quantity;
+            } else {
+                // Fallback to selectedPack.quantity
+                quantity = parseInt(selectedPack.quantity, 10);
+                if (isNaN(quantity) || quantity <= 0) {
+                    quantity = 1;
+                }
+            }
         }
         
         // Calculate price after discount (multiply by quantity)
@@ -208,40 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             diaszoneCredit.textContent = `${creditText} ${calculatedCredits.toLocaleString()}`;
         }
         
-        // Update selected pack info
-        if (packName) {
-            // Get game type from order form wrapper
-            const orderFormWrapper = document.getElementById('order-form-wrapper');
-            const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
-            const translations = window.GameTranslations || {};
-            const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
-            const bonusText = translations.bonus || 'Bonus';
-            
-            // Handle special pack names (Weekly Diamond Pass, Twilight Pass, etc.)
-            const packQuantity = selectedPack.quantity || 1;
-            if (selectedPack.name && (selectedPack.name.includes('Weekly Diamond Pass') || selectedPack.name.includes('Event Topup'))) {
-                const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
-                packName.textContent = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
-            } else if (selectedPack.name && selectedPack.name.includes('Twilight Pass')) {
-                packName.textContent = translations.twilightPass || 'Twilight Pass';
-            } else {
-                // Regular pack display
-                if (selectedPack.bonus > 0) {
-                    packName.textContent = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} ${bonusText}`;
-                } else {
-                    packName.textContent = `${selectedPack.diamonds} ${currencyText}`;
-                }
-            }
-        }
-        
-        if (packPrice) {
-            // priceAfterDiscount already includes quantity multiplication (totalBasePrice * quantity - discount)
-            packPrice.textContent = formatPrice(priceAfterDiscount);
-        }
-        
-        if (selectedPackInfo) {
-            selectedPackInfo.classList.remove('hidden');
-        }
+        // Multi-pack display is handled above, old single-pack code removed
     }
     
     // Cart Management - Secure: Only stores pack_id, fetches data from server
@@ -269,7 +398,30 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         
         addToCart: function(item) {
-            // Single item limit: replace existing item if cart already has one
+            // Handle multi-item cart (cart_items array)
+            if (item.cart_items && Array.isArray(item.cart_items)) {
+                const cartItems = item.cart_items.map((cartItem, index) => ({
+                    id: (Date.now() + index).toString(),
+                    user_id: item.user_id || cartItem.user_id || null,
+                    zone_id: item.zone_id || cartItem.zone_id || null,
+                    player_id: item.player_id || cartItem.player_id || null,
+                    player_id_ff: item.player_id_ff || cartItem.player_id_ff || null,
+                    player_id_pubg: item.player_id_pubg || cartItem.player_id_pubg || null,
+                    player_id_hok: item.player_id_hok || cartItem.player_id_hok || null,
+                    user_id_bs: item.user_id_bs || cartItem.user_id_bs || null,
+                    server_bs: item.server_bs || cartItem.server_bs || null,
+                    server: item.server || cartItem.server || null,
+                    pack_id: cartItem.pack_id,
+                    quantity: cartItem.quantity || 1,
+                    timestamp: new Date().toISOString()
+                }));
+                
+                localStorage.setItem('diaszone_cart', JSON.stringify(cartItems));
+                this.updateCartUI();
+                return cartItems;
+            }
+            
+            // Legacy single item support
             const cartItem = {
                 id: Date.now().toString(),
                 user_id: item.user_id || null,
@@ -281,13 +433,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 user_id_bs: item.user_id_bs || null,
                 server_bs: item.server_bs || null,
                 server: item.server || null,
-                pack_id: item.pack_id, // Only store pack ID, not full pack data
+                pack_id: item.pack_id,
+                quantity: item.quantity || 1,
                 timestamp: new Date().toISOString()
             };
             
-            // Replace entire cart with single item
-            const newCart = [cartItem];
-            localStorage.setItem('diaszone_cart', JSON.stringify(newCart));
+            localStorage.setItem('diaszone_cart', JSON.stringify([cartItem]));
             this.updateCartUI();
             return cartItem;
         },
@@ -535,49 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCartDropdownPricesApp();
         CartManager.updateCartUI(); // Refresh entire cart UI
         updateOrderForm(); // Update order form prices when currency changes
-        // Also update mobile selected pack text if it exists
-        const mobileSelectedPackText = document.getElementById('mobile-selected-pack-text');
-        if (mobileSelectedPackText && selectedPack) {
-            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
-            const basePrice = currency === 'DZD' 
-                ? (selectedPack.price_dzd || (selectedPack.price * 260))
-                : (selectedPack.price_usd || selectedPack.price);
-            const discountAmount = (basePrice * selectedPack.discount) / 100;
-            const priceAfterDiscount = basePrice - discountAmount;
-            
-            const orderFormWrapper = document.getElementById('order-form-wrapper');
-            const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
-            const translations = window.GameTranslations || {};
-            const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
-            const bonusText = translations.bonus || 'Bonus';
-            
-            let packDisplayName = '';
-            
-            // Handle special pack names first
-            if (selectedPack.name && (selectedPack.name.includes('Weekly Diamond Pass') || selectedPack.name.includes('Event Topup'))) {
-                const packQuantity = selectedPack.quantity || 1;
-                const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
-                packDisplayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
-            } else if (selectedPack.name && selectedPack.name.includes('Twilight Pass')) {
-                packDisplayName = translations.twilightPass || 'Twilight Pass';
-            } else {
-                // Regular pack display
-                if (selectedPack.bonus > 0) {
-                    packDisplayName = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} ${bonusText}`;
-                } else {
-                    packDisplayName = `${selectedPack.diamonds} ${currencyText}`;
-                }
-            }
-            
-            const priceText = currency === 'DZD' 
-                ? `${Math.round(priceAfterDiscount).toLocaleString()} DZD`
-                : `$${priceAfterDiscount.toFixed(2)} USD`;
-            
-            mobileSelectedPackText.innerHTML = `
-                <span class="block text-sm font-semibold">${packDisplayName}</span>
-                <span class="text-xs text-white/90 font-medium">${priceText}</span>
-            `;
-        }
+                // Mobile selected pack text update removed - not needed with multi-pack selection
     });
     
     // Make CartManager globally available
@@ -648,9 +757,9 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             
             try {
-                // Check if pack is selected first
-                if (!selectedPack || !selectedPack.id) {
-                    alert('Please select a pack first');
+                // Check if packs are selected first
+                if (!window.selectedPacks || window.selectedPacks.size === 0) {
+                    alert('Please select at least one pack first');
                     return;
                 }
                 
@@ -658,9 +767,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 const orderFormWrapper = document.getElementById('order-form-wrapper');
                 const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
                 
-                // Handle different game types - get the correct fields
+                // Handle multiple selected packs
+                if (!window.selectedPacks || window.selectedPacks.size === 0) {
+                    alert('Please select at least one pack first');
+                    return;
+                }
+                
+                // Build cart items array from selected packs
+                const cartItems = [];
+                window.selectedPacks.forEach((pack, packId) => {
+                    // Get current quantity from input
+                    const quantityInput = document.querySelector(`.pack-quantity-input[data-pack-id="${packId}"], .mobile-pack-quantity-input[data-pack-id="${packId}"]`);
+                    const packQuantity = quantityInput ? Math.max(1, Math.min(20, parseInt(quantityInput.value) || 1)) : pack.quantity;
+                    
+                    cartItems.push({
+                        pack_id: packId,
+                        quantity: packQuantity
+                    });
+                });
+                
+                // Prepare cart data with multiple items
                 let cartData = {
-                    pack_id: selectedPack.id
+                    cart_items: cartItems
                 };
             
             // Flag to track if we're validating (prevents cart addition until validation succeeds)
@@ -731,14 +859,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 cartData.player_id = playerId;
                 
-                // Store in game-specific field for clarity
-                if (gameType === 'freefire') {
-                    cartData.player_id_ff = playerId;
-                } else if (gameType === 'pubgmobile') {
-                    cartData.player_id_pubg = playerId;
-                } else if (gameType === 'honorofkings') {
-                    cartData.player_id_hok = playerId;
-                }
+                // Store in game-specific field for all items
+                cartItems.forEach(item => {
+                    if (gameType === 'freefire') {
+                        item.player_id_ff = playerId;
+                    } else if (gameType === 'pubgmobile') {
+                        item.player_id_pubg = playerId;
+                    } else if (gameType === 'honorofkings') {
+                        item.player_id_hok = playerId;
+                    }
+                    item.player_id = playerId;
+                });
+                
+                cartData.cart_items = cartItems;
                 
                 // Clear form
                 try {
@@ -829,9 +962,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // Show success popup with nickname
                         showNicknameSuccess(nickname, () => {
-                            // Add to cart
-                            cartData.user_id = userId;
-                            cartData.zone_id = zoneId;
+                            // Store user_id and zone_id for all cart items
+                            cartItems.forEach(item => {
+                                item.user_id = userId;
+                                item.zone_id = zoneId;
+                            });
+                            cartData.cart_items = cartItems;
                             
                             // Clear form
                             userIdField.value = '';
@@ -869,6 +1005,24 @@ document.addEventListener('DOMContentLoaded', () => {
             // Only add to cart if we're NOT validating (Mobile Legends validation happens async)
             if (!isValidating) {
                 // For non-Mobile Legends games, proceed directly
+                // Ensure cart_items is set if not already (for games other than mobilelegends)
+                if (!cartData.cart_items && window.selectedPacks && window.selectedPacks.size > 0) {
+                    const cartItems = [];
+                    window.selectedPacks.forEach((pack, packId) => {
+                        const quantityInput = document.querySelector(`.pack-quantity-input[data-pack-id="${packId}"], .mobile-pack-quantity-input[data-pack-id="${packId}"]`);
+                        const packQuantity = quantityInput ? Math.max(1, Math.min(20, parseInt(quantityInput.value) || 1)) : pack.quantity;
+                        
+                        const item = { pack_id: packId, quantity: packQuantity };
+                        // Add game-specific fields from cartData if they exist
+                        if (cartData.player_id) item.player_id = cartData.player_id;
+                        if (cartData.user_id_bs) item.user_id_bs = cartData.user_id_bs;
+                        if (cartData.server_bs) item.server_bs = cartData.server_bs;
+                        
+                        cartItems.push(item);
+                    });
+                    cartData.cart_items = cartItems;
+                }
+                
                 // Add to cart
                 const cartItem = CartManager.addToCart(cartData);
                 

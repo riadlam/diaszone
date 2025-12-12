@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class CheckoutController extends Controller
 {
@@ -238,8 +240,9 @@ class CheckoutController extends Controller
         
         try {
             $request->validate([
-                'cart_items' => 'required|array|min:1|max:1', // Single item limit enforced
+                'cart_items' => 'required|array|min:1|max:10', // Allow up to 10 different packs
                 'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
+                'cart_items.*.quantity' => 'nullable|integer|min:1|max:20', // Quantity per pack
                 'cart_items.*.user_id' => 'nullable|string',
                 'cart_items.*.zone_id' => 'nullable|string',
                 'cart_items.*.player_id' => 'nullable|string',
@@ -255,7 +258,89 @@ class CheckoutController extends Controller
             $cartItems = $request->input('cart_items');
             $paymentMethod = $request->input('payment_method'); // flexy, bmccp, cryptocurrency, or coupon_free
             $userId = Auth::check() ? Auth::id() : null;
-            $createdOrders = [];
+            
+            // Validate all packs exist and are from same game
+            $packs = [];
+            $gameType = null;
+            $gameTypeMap = [];
+            
+            foreach ($cartItems as $item) {
+                $pack = \App\Models\DiamondPack::find($item['pack_id']);
+                if (!$pack) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Pack ID {$item['pack_id']} not found"
+                    ], 404);
+                }
+                
+                // Ensure all packs are from the same game
+                if ($gameType === null) {
+                    $gameType = $pack->game_type;
+                } elseif ($gameType !== $pack->game_type) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'All packs must be from the same game'
+                    ], 422);
+                }
+                
+                $packs[$item['pack_id']] = $pack;
+                $gameTypeMap[$item['pack_id']] = $pack->game_type;
+            }
+            
+            // Validate user/player IDs based on game type
+            $user_id_ml = null;
+            $zone_id_ml = null;
+            $player_id_ff = null;
+            $player_id_pubg = null;
+            $player_id_hok = null;
+            $user_id_bs = null;
+            $server_bs = null;
+            
+            // Get IDs from first item (all items should have same game type)
+            $firstItem = $cartItems[0];
+            if ($gameType === 'mobilelegends') {
+                $user_id_ml = $firstItem['user_id'] ?? null;
+                $zone_id_ml = $firstItem['zone_id'] ?? null;
+                if (empty($user_id_ml) || empty($zone_id_ml)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User ID and Zone ID are required for Mobile Legends'
+                    ], 422);
+                }
+            } elseif ($gameType === 'freefire') {
+                $player_id_ff = $firstItem['player_id_ff'] ?? $firstItem['player_id'] ?? null;
+                if (empty($player_id_ff)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Player ID is required for Free Fire'
+                    ], 422);
+                }
+            } elseif ($gameType === 'pubgmobile') {
+                $player_id_pubg = $firstItem['player_id_pubg'] ?? $firstItem['player_id'] ?? null;
+                if (empty($player_id_pubg)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Player ID is required for PUBG Mobile'
+                    ], 422);
+                }
+            } elseif ($gameType === 'honorofkings') {
+                $player_id_hok = $firstItem['player_id_hok'] ?? $firstItem['player_id'] ?? null;
+                if (empty($player_id_hok)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Player ID is required for Honor of Kings'
+                    ], 422);
+                }
+            } elseif ($gameType === 'bloodstrike') {
+                $user_id_bs = $firstItem['user_id_bs'] ?? $firstItem['user_id'] ?? null;
+                $server_bs = $firstItem['server_bs'] ?? $firstItem['server'] ?? null;
+                if (empty($user_id_bs) || empty($server_bs)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User ID and Server are required for Blood Strike'
+                    ], 422);
+                }
+            }
             
             // Determine status based on payment method
             $orderStatus = 'pending'; // Default
@@ -269,103 +354,81 @@ class CheckoutController extends Controller
                 $orderStatus = 'pending'; // Will be processed immediately by CouponController
             }
             
-            foreach ($cartItems as $item) {
-                // Determine which player_id field to use based on game type
-                $pack = \App\Models\DiamondPack::find($item['pack_id']);
+            // Create single order with multiple order_items
+            return DB::transaction(function () use (
+                $userId, $gameType, $user_id_ml, $zone_id_ml, $player_id_ff, $player_id_pubg,
+                $player_id_hok, $user_id_bs, $server_bs, $cartItems, $packs, $orderStatus, $paymentMethod
+            ) {
+                // Determine which pack to use as primary (first pack)
+                $primaryPack = reset($packs);
                 
-                if (!$pack) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Pack not found'
-                    ], 404);
-                }
-                
-                $playerIdFf = null;
-                $playerIdPubg = null;
-                $playerIdHok = null;
-                $userIdBs = null;
-                $serverBs = null;
-                
-                // Validate that required fields are provided based on game type
-                if ($pack->game_type === 'freefire') {
-                    $playerIdFf = $item['player_id_ff'] ?? $item['player_id'] ?? null;
-                    if (empty($playerIdFf)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Player ID is required for Free Fire'
-                        ], 422);
-                    }
-                } elseif ($pack->game_type === 'pubgmobile') {
-                    $playerIdPubg = $item['player_id_pubg'] ?? $item['player_id'] ?? null;
-                    if (empty($playerIdPubg)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Player ID is required for PUBG Mobile'
-                        ], 422);
-                    }
-                } elseif ($pack->game_type === 'honorofkings') {
-                    $playerIdHok = $item['player_id_hok'] ?? $item['player_id'] ?? null;
-                    if (empty($playerIdHok)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Player ID is required for Honor of Kings'
-                        ], 422);
-                    }
-                } elseif ($pack->game_type === 'bloodstrike') {
-                    $userIdBs = $item['user_id_bs'] ?? $item['user_id'] ?? null;
-                    $serverBs = $item['server_bs'] ?? $item['server'] ?? null;
-                    if (empty($userIdBs) || empty($serverBs)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'User ID and Server are required for Blood Strike'
-                        ], 422);
-                    }
-                } else {
-                    // Mobile Legends - default
-                    if (empty($item['user_id']) || empty($item['zone_id'])) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'User ID and Zone ID are required for Mobile Legends'
-                        ], 422);
-                    }
-                }
-                
+                // Create the order (using primary pack for backward compatibility)
                 $order = Order::create([
                     'order_number' => Order::generateOrderNumber(),
                     'user_id' => $userId,
-                    'diamond_pack_id' => $item['pack_id'],
-                    // Use special_quantity on pack (allows multi-quantity offers,
-                    // e.g. 3× weekly pass) and fall back to provided quantity or 1
-                    'quantity' => ($pack->special_quantity ?? ($item['quantity'] ?? 1)),
-                    'status' => $orderStatus, // Set status based on payment method
-                    'user_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['user_id'] ?? null) : null,
-                    'zone_id_ml' => ($pack->game_type === 'mobilelegends') ? ($item['zone_id'] ?? null) : null,
-                    'player_id_ff' => $playerIdFf,
-                    'player_id_pubg' => $playerIdPubg,
-                    'player_id_hok' => $playerIdHok,
-                    'user_id_bs' => $userIdBs,
-                    'server_bs' => $serverBs,
+                    'diamond_pack_id' => $primaryPack->id, // Keep for backward compatibility
+                    'status' => $orderStatus,
+                    'user_id_ml' => $user_id_ml,
+                    'zone_id_ml' => $zone_id_ml,
+                    'player_id_ff' => $player_id_ff,
+                    'player_id_pubg' => $player_id_pubg,
+                    'player_id_hok' => $player_id_hok,
+                    'user_id_bs' => $user_id_bs,
+                    'server_bs' => $server_bs,
                 ]);
-
-                // Persist calculated prices on the order so payments and notifications reflect total price
-                try {
+                
+                // Create order_items and calculate totals
+                // SECURITY: Always use current pack prices from database (prevents client-side manipulation)
+                $totalOriginalPrice = 0;
+                $totalDiscount = 0;
+                $totalFinalPrice = 0;
+                
+                foreach ($cartItems as $item) {
+                    // Re-fetch pack to ensure we have latest prices
+                    $pack = \App\Models\DiamondPack::find($item['pack_id']);
+                    if (!$pack || !$pack->is_active) {
+                        throw new \Exception("Pack ID {$item['pack_id']} not found or inactive");
+                    }
+                    
+                    // Validate quantity (max 20 per pack, min 1)
+                    $quantity = max(1, min(20, (int)($item['quantity'] ?? ($pack->special_quantity ?? 1))));
+                    
+                    // Calculate prices from current pack data (not from client input)
                     $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
-                    $quantity = $order->quantity ?? 1;
+                    $unitPriceUsd = $pack->price_usd ?? $pack->price;
                     $discountPercentage = $pack->discount_percentage ?? 0;
-                    $totalBeforeDiscount = $unitPriceDzd * $quantity;
+                    $subtotalDzd = $unitPriceDzd * $quantity;
                     $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
-                    $final = $totalBeforeDiscount - $discountAmount;
-                    $order->original_price = $totalBeforeDiscount;
-                    $order->final_price = $final;
-                    $order->save();
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to persist order prices', ['error' => $e->getMessage(), 'order_id' => $order->id ?? null]);
+                    $totalDzd = $subtotalDzd - $discountAmount;
+                    
+                    // Create order item with validated prices
+                    \App\Models\OrderItem::create([
+                        'order_id' => $order->id,
+                        'diamond_pack_id' => $pack->id,
+                        'quantity' => $quantity,
+                        'unit_price_dzd' => $unitPriceDzd,
+                        'unit_price_usd' => $unitPriceUsd,
+                        'discount_percentage' => $discountPercentage,
+                        'subtotal_dzd' => $subtotalDzd,
+                        'discount_amount_dzd' => $discountAmount,
+                        'total_dzd' => $totalDzd,
+                    ]);
+                    
+                    $totalOriginalPrice += $subtotalDzd;
+                    $totalDiscount += $discountAmount;
+                    $totalFinalPrice += $totalDzd;
                 }
+                
+                // Update order with total prices
+                $order->original_price = $totalOriginalPrice;
+                $order->discount_amount = $totalDiscount;
+                $order->final_price = $totalFinalPrice;
+                $order->save();
                 
                 // Send Telegram notification (skip pending_flexy status)
                 if ($order->status !== 'pending_flexy') {
                     try {
-                        $order->load('diamondPack', 'user');
+                        $order->load(['orderItems.diamondPack', 'user']);
                         $message = TelegramService::formatOrderMessage($order);
                         $messageId = TelegramService::sendMessage($message);
                         if ($messageId) {
@@ -373,7 +436,6 @@ class CheckoutController extends Controller
                             $order->save();
                         }
                     } catch (\Exception $e) {
-                        // Don't fail order creation if Telegram fails
                         Log::error('Telegram notification failed for new order', [
                             'order_id' => $order->id,
                             'error' => $e->getMessage(),
@@ -381,25 +443,17 @@ class CheckoutController extends Controller
                     }
                 }
                 
-                $createdOrders[] = [
-                    'id' => $order->id,
-                    'order_number' => $order->order_number,
-                ];
-            }
-        
-            // Encrypt order IDs before returning
-            $encryptedOrders = array_map(function($order) {
-                return [
-                    'id' => $order['id'],
-                    'order_number' => $order['order_number'],
-                    'encrypted_id' => Crypt::encryptString($order['id']),
-                ];
-            }, $createdOrders);
-            
-            return response()->json([
-                'success' => true,
-                'orders' => $encryptedOrders,
-            ]);
+                return response()->json([
+                    'success' => true,
+                    'order' => [
+                        'id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'status' => $order->status,
+                        'final_price' => $order->final_price,
+                    ],
+                    'items_count' => count($cartItems),
+                ], 201);
+            });
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -1432,27 +1486,197 @@ class CheckoutController extends Controller
                     'quantity' => $order->quantity ?? 1,
                 ]);
 
-                // Ensure we submit provider requests up to order->quantity (to support multi-topup offers)
-                $required = isset($order->quantity) ? (int)$order->quantity : 1;
-                $submitted = 0;
-
+                // Multi-item order support: Submit top-ups for each order_item
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
-                    // Compute how many DigiflazzStatus records already exist for this order
-                    $submitted = $order->digiflazzStatuses()->where(function ($q) {
-                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                          ->orWhere('event', 'create');
-                    })->count();
+                    // Atomic multi-quantity submission with proper locking
+                    DB::transaction(function () use (&$result, &$order) {
+                        // Lock the order to prevent concurrent modifications
+                        $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                        if (!$orderLocked) {
+                            Log::error('Chargily: Failed to lock order for Digiflazz submission', ['order_id' => $order->id]);
+                            return;
+                        }
 
-                    $remaining = max(0, $required - $submitted);
-                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+                        $orderLocked->load('orderItems.diamondPack');
+                        
+                        // SECURITY: Re-calculate and validate prices before top-up to prevent manipulation
+                        $totalOriginalPrice = 0;
+                        $totalDiscount = 0;
+                        $totalFinalPrice = 0;
+                        $priceValidationErrors = [];
+                        
+                        foreach ($orderLocked->orderItems as $orderItem) {
+                            $pack = $orderItem->diamondPack;
+                            
+                            // Re-calculate prices from current pack data (prevents price manipulation)
+                            $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                            $unitPriceUsd = $pack->price_usd ?? $pack->price;
+                            $discountPercentage = $pack->discount_percentage ?? 0;
+                            $quantity = max(1, (int)$orderItem->quantity);
+                            
+                            $subtotalDzd = $unitPriceDzd * $quantity;
+                            $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                            $totalDzd = $subtotalDzd - $discountAmount;
+                            
+                            // Validate: stored prices should match calculated prices (within 1 DZD tolerance)
+                            $storedTotal = (float)$orderItem->total_dzd;
+                            $calculatedTotal = (float)$totalDzd;
+                            $priceDiff = abs($storedTotal - $calculatedTotal);
+                            
+                            if ($priceDiff > 1.0) {
+                                $priceValidationErrors[] = [
+                                    'order_item_id' => $orderItem->id,
+                                    'pack_id' => $pack->id,
+                                    'pack_name' => $pack->name,
+                                    'stored_price' => $storedTotal,
+                                    'calculated_price' => $calculatedTotal,
+                                    'difference' => $priceDiff
+                                ];
+                            }
+                            
+                            // Update order_item with recalculated prices (use current pack prices)
+                            $orderItem->unit_price_dzd = $unitPriceDzd;
+                            $orderItem->unit_price_usd = $unitPriceUsd;
+                            $orderItem->discount_percentage = $discountPercentage;
+                            $orderItem->subtotal_dzd = $subtotalDzd;
+                            $orderItem->discount_amount_dzd = $discountAmount;
+                            $orderItem->total_dzd = $totalDzd;
+                            $orderItem->quantity = $quantity; // Ensure quantity is valid
+                            $orderItem->save();
+                            
+                            $totalOriginalPrice += $subtotalDzd;
+                            $totalDiscount += $discountAmount;
+                            // Note: totalDzd here is per-item total (after pack discount, before coupon)
+                            // We'll calculate final order total after applying coupon discount below
+                        }
+                        
+                        // If individual item price validation fails, abort and log
+                        if (!empty($priceValidationErrors)) {
+                            Log::error('Chargily: Price validation failed - potential manipulation detected', [
+                                'order_id' => $orderLocked->id,
+                                'order_number' => $orderLocked->order_number,
+                                'errors' => $priceValidationErrors,
+                                'stored_final_price' => $orderLocked->final_price,
+                                'calculated_original_price' => $totalOriginalPrice
+                            ]);
+                            $result = [
+                                'result' => false,
+                                'message' => 'Price validation failed. Order prices do not match current pack prices.',
+                                'errors' => $priceValidationErrors
+                            ];
+                            return;
+                        }
+                        
+                        // Apply coupon discount if order has a coupon
+                        $orderDiscountAmount = 0;
+                        $calculatedFinalPrice = $totalOriginalPrice - $totalDiscount; // After pack discounts
+                        
+                        if ($orderLocked->coupon_id) {
+                            $orderLocked->load('coupon');
+                            if ($orderLocked->coupon) {
+                                // Re-calculate coupon discount on the original total (before pack discounts)
+                                // This matches how coupons are typically applied in the order creation flow
+                                $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($totalOriginalPrice);
+                                $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
+                                $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
+                                // Ensure final price doesn't go below 0
+                                $calculatedFinalPrice = max(0, $calculatedFinalPrice);
+                                
+                                Log::info('Chargily: Coupon discount recalculated', [
+                                    'order_id' => $orderLocked->id,
+                                    'coupon_id' => $orderLocked->coupon_id,
+                                    'original_total' => $totalOriginalPrice,
+                                    'coupon_discount' => $orderDiscountAmount,
+                                    'pack_discounts' => $totalDiscount,
+                                    'calculated_final_price' => $calculatedFinalPrice
+                                ]);
+                            } else {
+                                Log::warning('Chargily: Order has coupon_id but coupon not found', [
+                                    'order_id' => $orderLocked->id,
+                                    'coupon_id' => $orderLocked->coupon_id
+                                ]);
+                            }
+                        }
+                        
+                        // Validate final order price (accounting for coupon discount)
+                        $storedFinalPrice = (float)($orderLocked->final_price ?? 0);
+                        $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
+                        
+                        if ($finalPriceDiff > 1.0) {
+                            Log::error('Chargily: Final price validation failed - potential manipulation detected', [
+                                'order_id' => $orderLocked->id,
+                                'order_number' => $orderLocked->order_number,
+                                'stored_final_price' => $storedFinalPrice,
+                                'calculated_final_price' => $calculatedFinalPrice,
+                                'difference' => $finalPriceDiff,
+                                'has_coupon' => !empty($orderLocked->coupon_id),
+                                'coupon_discount' => $orderDiscountAmount,
+                                'pack_discounts' => $totalDiscount,
+                                'original_price' => $totalOriginalPrice
+                            ]);
+                            $result = [
+                                'result' => false,
+                                'message' => 'Price validation failed. Final order price does not match calculated price.',
+                                'stored_price' => $storedFinalPrice,
+                                'calculated_price' => $calculatedFinalPrice
+                            ];
+                            return;
+                        }
+                        
+                        // Update order with recalculated total prices
+                        $orderLocked->original_price = $totalOriginalPrice;
+                        $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                        $orderLocked->final_price = $calculatedFinalPrice;
+                        $orderLocked->save();
+                        
+                        Log::info('Chargily: Price validation passed, proceeding with top-up', [
+                            'order_id' => $orderLocked->id,
+                            'final_price' => $totalFinalPrice,
+                            'items_count' => $orderLocked->orderItems->count()
+                        ]);
+                        
+                        $lastResult = ['result' => false, 'message' => 'No provider calls made'];
 
-                    for ($i = 0; $i < $remaining; $i++) {
-                        $attempt = $i + 1;
-                        $lastResult = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
-                        Log::info('Chargily: Digiflazz placeOrder attempt', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
-                    }
+                        // Submit top-ups for each order_item
+                        foreach ($orderLocked->orderItems as $orderItem) {
+                            // Check how many DigiflazzStatus records already exist for this item
+                            $submitted = $orderItem->digiflazzStatuses()
+                                ->where(function ($q) {
+                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                                      ->orWhere('event', 'create');
+                                })->count();
 
-                    $result = $lastResult;
+                            $remaining = max(0, $orderItem->quantity - $submitted);
+
+                            // Submit remaining top-ups for this item
+                            for ($i = 0; $i < $remaining; $i++) {
+                                $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . Str::random(8);
+                                
+                                $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                                    $orderItem->diamondPack,
+                                    $orderLocked,
+                                    $refId,
+                                    $orderItem->id
+                                );
+                                
+                                Log::info('Chargily: Digiflazz placeOrder attempt', [
+                                    'order_id' => $orderLocked->id,
+                                    'order_item_id' => $orderItem->id,
+                                    'pack_id' => $orderItem->diamond_pack_id,
+                                    'quantity' => $orderItem->quantity,
+                                    'remaining' => $remaining - ($i + 1),
+                                    'ref_id' => $refId,
+                                    'result' => $lastResult
+                                ]);
+                                
+                                // Small delay to ensure DigiflazzStatus record is committed
+                                usleep(100000); // 0.1 second
+                            }
+                        }
+
+                        $result = $lastResult;
+                        $order = $orderLocked; // Update order reference
+                    });
                 } else {
                     // Legacy vipReseller flow also might need multiple calls when quantity>1
                     $existing = $order->vipResellerStatuses()->count();
@@ -1578,25 +1802,187 @@ class CheckoutController extends Controller
                     'quantity' => $order->quantity ?? 1,
                 ]);
 
-                $required = isset($order->quantity) ? (int)$order->quantity : 1;
-                $submitted = 0;
-
+                // Multi-item order support: Submit top-ups for each order_item
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
-                    $submitted = $order->digiflazzStatuses()->where(function ($q) {
-                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                          ->orWhere('event', 'create');
-                    })->count();
+                    // Atomic multi-quantity submission with proper locking
+                    DB::transaction(function () use (&$result, &$order) {
+                        // Lock the order to prevent concurrent modifications
+                        $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                        if (!$orderLocked) {
+                            Log::error('Chargily: Failed to lock order for Digiflazz submission (Free Fire)', ['order_id' => $order->id]);
+                            return;
+                        }
 
-                    $remaining = max(0, $required - $submitted);
-                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+                        $orderLocked->load('orderItems.diamondPack');
+                        
+                        // SECURITY: Re-calculate and validate prices before top-up to prevent manipulation
+                        $totalOriginalPrice = 0;
+                        $totalDiscount = 0;
+                        $totalFinalPrice = 0;
+                        $priceValidationErrors = [];
+                        
+                        foreach ($orderLocked->orderItems as $orderItem) {
+                            $pack = $orderItem->diamondPack;
+                            
+                            // Re-calculate prices from current pack data (prevents price manipulation)
+                            $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                            $unitPriceUsd = $pack->price_usd ?? $pack->price;
+                            $discountPercentage = $pack->discount_percentage ?? 0;
+                            $quantity = max(1, (int)$orderItem->quantity);
+                            
+                            $subtotalDzd = $unitPriceDzd * $quantity;
+                            $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                            $totalDzd = $subtotalDzd - $discountAmount;
+                            
+                            // Validate: stored prices should match calculated prices (within 1 DZD tolerance)
+                            $storedTotal = (float)$orderItem->total_dzd;
+                            $calculatedTotal = (float)$totalDzd;
+                            $priceDiff = abs($storedTotal - $calculatedTotal);
+                            
+                            if ($priceDiff > 1.0) {
+                                $priceValidationErrors[] = [
+                                    'order_item_id' => $orderItem->id,
+                                    'pack_id' => $pack->id,
+                                    'pack_name' => $pack->name,
+                                    'stored_price' => $storedTotal,
+                                    'calculated_price' => $calculatedTotal,
+                                    'difference' => $priceDiff
+                                ];
+                            }
+                            
+                            // Update order_item with recalculated prices (use current pack prices)
+                            $orderItem->unit_price_dzd = $unitPriceDzd;
+                            $orderItem->unit_price_usd = $unitPriceUsd;
+                            $orderItem->discount_percentage = $discountPercentage;
+                            $orderItem->subtotal_dzd = $subtotalDzd;
+                            $orderItem->discount_amount_dzd = $discountAmount;
+                            $orderItem->total_dzd = $totalDzd;
+                            $orderItem->quantity = $quantity; // Ensure quantity is valid
+                            $orderItem->save();
+                            
+                            $totalOriginalPrice += $subtotalDzd;
+                            $totalDiscount += $discountAmount;
+                            // Note: totalDzd here is per-item total (after pack discount, before coupon)
+                        }
+                        
+                        // If individual item price validation fails, abort and log
+                        if (!empty($priceValidationErrors)) {
+                            Log::error('Chargily: Price validation failed - potential manipulation detected (Free Fire)', [
+                                'order_id' => $orderLocked->id,
+                                'order_number' => $orderLocked->order_number,
+                                'errors' => $priceValidationErrors,
+                                'stored_final_price' => $orderLocked->final_price,
+                                'calculated_original_price' => $totalOriginalPrice
+                            ]);
+                            $result = [
+                                'result' => false,
+                                'message' => 'Price validation failed. Order prices do not match current pack prices.',
+                                'errors' => $priceValidationErrors
+                            ];
+                            return;
+                        }
+                        
+                        // Apply coupon discount if order has a coupon
+                        $orderDiscountAmount = 0;
+                        $calculatedFinalPrice = $totalOriginalPrice - $totalDiscount; // After pack discounts
+                        
+                        if ($orderLocked->coupon_id) {
+                            $orderLocked->load('coupon');
+                            if ($orderLocked->coupon) {
+                                // Re-calculate coupon discount on the original total (before pack discounts)
+                                $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($totalOriginalPrice);
+                                $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
+                                $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
+                                $calculatedFinalPrice = max(0, $calculatedFinalPrice);
+                                
+                                Log::info('Chargily: Coupon discount recalculated (Free Fire)', [
+                                    'order_id' => $orderLocked->id,
+                                    'coupon_id' => $orderLocked->coupon_id,
+                                    'original_total' => $totalOriginalPrice,
+                                    'coupon_discount' => $orderDiscountAmount,
+                                    'pack_discounts' => $totalDiscount,
+                                    'calculated_final_price' => $calculatedFinalPrice
+                                ]);
+                            }
+                        }
+                        
+                        // Validate final order price (accounting for coupon discount)
+                        $storedFinalPrice = (float)($orderLocked->final_price ?? 0);
+                        $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
+                        
+                        if ($finalPriceDiff > 1.0) {
+                            Log::error('Chargily: Final price validation failed - potential manipulation detected (Free Fire)', [
+                                'order_id' => $orderLocked->id,
+                                'order_number' => $orderLocked->order_number,
+                                'stored_final_price' => $storedFinalPrice,
+                                'calculated_final_price' => $calculatedFinalPrice,
+                                'difference' => $finalPriceDiff,
+                                'has_coupon' => !empty($orderLocked->coupon_id),
+                                'coupon_discount' => $orderDiscountAmount
+                            ]);
+                            $result = [
+                                'result' => false,
+                                'message' => 'Price validation failed. Final order price does not match calculated price.',
+                                'stored_price' => $storedFinalPrice,
+                                'calculated_price' => $calculatedFinalPrice
+                            ];
+                            return;
+                        }
+                        
+                        // Update order with recalculated total prices
+                        $orderLocked->original_price = $totalOriginalPrice;
+                        $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                        $orderLocked->final_price = $calculatedFinalPrice;
+                        $orderLocked->save();
+                        
+                        Log::info('Chargily: Price validation passed, proceeding with top-up (Free Fire)', [
+                            'order_id' => $orderLocked->id,
+                            'final_price' => $totalFinalPrice,
+                            'items_count' => $orderLocked->orderItems->count()
+                        ]);
+                        
+                        $lastResult = ['result' => false, 'message' => 'No provider calls made'];
 
-                    for ($i = 0; $i < $remaining; $i++) {
-                        $attempt = $i + 1;
-                        $lastResult = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
-                        Log::info('Chargily: Digiflazz placeOrder attempt (Free Fire)', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
-                    }
+                        // Submit top-ups for each order_item
+                        foreach ($orderLocked->orderItems as $orderItem) {
+                            // Check how many DigiflazzStatus records already exist for this item
+                            $submitted = $orderItem->digiflazzStatuses()
+                                ->where(function ($q) {
+                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                                      ->orWhere('event', 'create');
+                                })->count();
 
-                    $result = $lastResult;
+                            $remaining = max(0, $orderItem->quantity - $submitted);
+
+                            // Submit remaining top-ups for this item
+                            for ($i = 0; $i < $remaining; $i++) {
+                                $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . Str::random(8);
+                                
+                                $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                                    $orderItem->diamondPack,
+                                    $orderLocked,
+                                    $refId,
+                                    $orderItem->id
+                                );
+                                
+                                Log::info('Chargily: Digiflazz placeOrder attempt (Free Fire)', [
+                                    'order_id' => $orderLocked->id,
+                                    'order_item_id' => $orderItem->id,
+                                    'pack_id' => $orderItem->diamond_pack_id,
+                                    'quantity' => $orderItem->quantity,
+                                    'remaining' => $remaining - ($i + 1),
+                                    'ref_id' => $refId,
+                                    'result' => $lastResult
+                                ]);
+                                
+                                // Small delay to ensure DigiflazzStatus record is committed
+                                usleep(100000); // 0.1 second
+                            }
+                        }
+
+                        $result = $lastResult;
+                        $order = $orderLocked; // Update order reference
+                    });
                 } else {
                     $existing = $order->vipResellerStatuses()->count();
                     $remaining = max(0, $required - $existing);

@@ -26,30 +26,28 @@ class DigiflazzService
      */
     public function placeOrder($pack, $order): array
     {
+        // For multi-item orders, use placeOrderWithRefId instead
+        // This method is kept for backward compatibility
+        $refId = 'order-' . $order->id . '-' . Str::random(8);
+        return $this->placeOrderWithRefId($pack, $order, $refId);
+    }
+
+    /**
+     * Place a top-up order via Digiflazz with custom ref_id (for multi-item orders)
+     * @param \App\Models\DiamondPack $pack
+     * @param \App\Models\Order $order
+     * @param string $refId Custom ref_id (format: "order-{order_id}-item-{order_item_id}-{random}")
+     * @param int|null $orderItemId Optional order_item_id to store in DigiflazzStatus
+     * @return array
+     */
+    public function placeOrderWithRefId($pack, $order, string $refId, ?int $orderItemId = null): array
+    {
         if (empty($this->username) || empty($this->sign)) {
             return ['result' => false, 'message' => 'Digiflazz not configured'];
         }
 
-        // Prevent duplicate submissions from client refresh/retries:
-        try {
-            if (isset($order) && method_exists($order, 'id')) {
-                // For multi-quantity offers, allow up to order->quantity submissions.
-                // Count existing DigiflazzStatus records that indicate a prior submission (created or in-progress/success).
-                $existingCount = \App\Models\DigiflazzStatus::where('order_id', $order->id)
-                    ->where(function ($q) {
-                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                          ->orWhere('event', 'create');
-                    })->count();
-
-                $target = isset($order->quantity) ? (int)$order->quantity : 1;
-                if ($existingCount >= $target) {
-                    return ['result' => false, 'message' => 'Order already submitted to Digiflazz', 'existing_count' => $existingCount];
-                }
-            }
-        } catch (\Throwable $e) {
-            // proceed even if check fails
-            \Log::warning('Digiflazz duplicate-check failed: ' . $e->getMessage());
-        }
+        // Note: Duplicate check is now handled atomically in the calling code (CheckoutController)
+        // with proper transaction locking. This method focuses on the API call itself.
 
         // Determine customer_no: prefer player id / user+zone if available, fall back to order id
         $customerNo = $order->id;
@@ -109,6 +107,8 @@ class DigiflazzService
                         ['ref_id' => $refId],
                         [
                             'order_id' => $order->id ?? null,
+                            'order_item_id' => $orderItemId,
+                            'diamond_pack_id' => $pack->id,
                             'ref_id' => $refId,
                             'trxid' => $json['data']['trxid'] ?? null,
                             'buyer_sku_code' => $json['data']['buyer_sku_code'] ?? ($pack->code ?? null),
@@ -133,6 +133,7 @@ class DigiflazzService
             return ['result' => false, 'message' => $e->getMessage()];
         }
     }
+
 
     /**
      * Compute digiflazz sign for a ref_id (md5 of username + sign + ref_id)

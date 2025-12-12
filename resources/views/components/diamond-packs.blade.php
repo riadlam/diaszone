@@ -180,15 +180,42 @@
                                     $finalPriceUsd = $priceUsd * (1 - $discount / 100);
                                     $finalPriceDzd = $priceDzd * (1 - $discount / 100);
                                 @endphp
-                                @if($pack->discount_percentage > 0)
-                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * $packQuantity, 0) }} DZD</span>
-                                @endif
-                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($finalPriceDzd * ($packQuantity), 0) }} DZD</span>
+                                <div class="flex items-center gap-2">
+                                    @if($pack->discount_percentage > 0)
+                                        <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * $packQuantity, 0) }} DZD</span>
+                                    @endif
+                                    <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $packQuantity }}" data-pack-id="{{ $pack->id }}">{{ number_format($finalPriceDzd * ($packQuantity), 0) }} DZD</span>
+                                </div>
+                                <!-- Quantity Counter -->
+                                <div class="flex items-center gap-2 border border-gray-300 rounded-lg" onclick="event.stopPropagation();">
+                                    <button type="button" class="quantity-btn-decrease px-2 py-1 text-gray-600 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-l-lg" data-pack-id="{{ $pack->id }}" onclick="event.stopPropagation(); updatePackQuantity({{ $pack->id }}, -1);">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                    <input type="number" 
+                                           class="pack-quantity-input w-10 text-center text-sm font-semibold border-0 focus:ring-0 focus:outline-none bg-transparent" 
+                                           value="1" 
+                                           min="1" 
+                                           max="20" 
+                                           data-pack-id="{{ $pack->id }}"
+                                           data-pack-price-usd="{{ $priceUsd }}"
+                                           data-pack-price-dzd="{{ $priceDzd }}"
+                                           data-pack-discount="{{ $discount }}"
+                                           readonly
+                                           onclick="event.stopPropagation(); this.select();">
+                                    <button type="button" class="quantity-btn-increase px-2 py-1 text-gray-600 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-r-lg" data-pack-id="{{ $pack->id }}" onclick="event.stopPropagation(); updatePackQuantity({{ $pack->id }}, 1);">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </label>
+                </label>
+            </div>
         @endforeach
         </div>
     </div>
@@ -211,12 +238,16 @@ window.GameTranslations = {
 window.updatePricesOnPage = function() {
     const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
     
-    // Update all pack prices
+    // Update all pack prices (using quantity from input field)
     document.querySelectorAll('.pack-final-price').forEach(element => {
+        const packId = element.getAttribute('data-pack-id');
         const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
         const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
         const discount = parseFloat(element.getAttribute('data-discount')) || 0;
-        const quantity = parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
+        
+        // Get current quantity from input field
+        const quantityInput = packId ? document.querySelector(`.pack-quantity-input[data-pack-id="${packId}"]`) : null;
+        const quantity = quantityInput ? Math.max(1, Math.min(20, parseInt(quantityInput.value) || 1)) : parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
         
         let price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
         if (discount > 0) {
@@ -310,14 +341,16 @@ window.updatePricesOnPage = function() {
     });
     
     document.querySelectorAll('.mobile-pack-final-price').forEach(element => {
+        const packId = element.getAttribute('data-pack-id');
         const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
         const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
         const discount = parseFloat(element.getAttribute('data-discount')) || 0;
         
-            let price = currency === 'DZD' ? priceDzd : priceUsd;
-            // Multiply displayed price by pack quantity if available
-            const quantity = parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
-            price = price * quantity;
+        // Get current quantity from input field
+        const quantityInput = packId ? document.querySelector(`.mobile-pack-quantity-input[data-pack-id="${packId}"]`) : null;
+        const quantity = quantityInput ? Math.max(1, Math.min(20, parseInt(quantityInput.value) || 1)) : parseInt(element.getAttribute('data-pack-quantity') || 1, 10);
+        
+        let price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
         if (discount > 0) {
             const discountAmount = (price * discount) / 100;
             price = price - discountAmount;
@@ -395,7 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const closeBottomSheetBtn = document.getElementById('close-bottom-sheet-btn');
         const bottomSheet = document.getElementById('mobile-pack-bottom-sheet');
         const bottomSheetOverlay = document.getElementById('bottom-sheet-overlay');
-        const mobilePackItems = document.querySelectorAll('.mobile-pack-item');
         const selectedPackText = document.getElementById('mobile-selected-pack-text');
         
         if (!selectPackBtn || !bottomSheet) {
@@ -765,5 +797,141 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(startInit, 500);
     setTimeout(startInit, 1000);
 })();
+
+// Quantity management functions
+function updatePackQuantity(packId, change) {
+    const quantityInput = document.querySelector(`.pack-quantity-input[data-pack-id="${packId}"]`);
+    const mobileQuantityInput = document.querySelector(`.mobile-pack-quantity-input[data-pack-id="${packId}"]`);
+    
+    if (!quantityInput && !mobileQuantityInput) return;
+    
+    let newQuantity = 1;
+    
+    if (quantityInput) {
+        let currentQuantity = parseInt(quantityInput.value) || 1;
+        newQuantity = Math.max(1, Math.min(20, currentQuantity + change));
+        quantityInput.value = newQuantity;
+        updatePackPrice(packId, newQuantity, 'desktop');
+    }
+    
+    if (mobileQuantityInput) {
+        let currentQuantity = parseInt(mobileQuantityInput.value) || 1;
+        newQuantity = Math.max(1, Math.min(20, currentQuantity + change));
+        mobileQuantityInput.value = newQuantity;
+        updatePackPrice(packId, newQuantity, 'mobile');
+    }
+    
+    // Update selectedPacks quantity if this pack is selected
+    // and trigger order form update
+    if (window.selectedPacks && window.selectedPacks.has(parseInt(packId))) {
+        const pack = window.selectedPacks.get(parseInt(packId));
+        if (pack) {
+            pack.quantity = newQuantity;
+            // Trigger updateOrderForm if it exists
+            if (typeof window.updateOrderForm === 'function') {
+                window.updateOrderForm();
+            }
+        }
+    }
+}
+
+function updateMobilePackQuantity(packId, change) {
+    // Use the shared updatePackQuantity function which handles both desktop and mobile
+    updatePackQuantity(packId, change);
+}
+
+function updatePackPrice(packId, quantity, viewType) {
+    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+    
+    if (viewType === 'desktop') {
+        const priceElement = document.querySelector(`.pack-final-price[data-pack-id="${packId}"]`);
+        const originalPriceElement = document.querySelector(`.pack-original-price[data-pack-id="${packId}"]`);
+        
+        if (priceElement) {
+            const priceUsd = parseFloat(priceElement.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(priceElement.getAttribute('data-price-dzd')) || 0;
+            const discount = parseFloat(priceElement.getAttribute('data-discount')) || 0;
+            
+            let price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
+            if (discount > 0) {
+                const discountAmount = (price * discount) / 100;
+                price = price - discountAmount;
+            }
+            
+            priceElement.textContent = currency === 'DZD' 
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+        
+        if (originalPriceElement) {
+            const priceUsd = parseFloat(originalPriceElement.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(originalPriceElement.getAttribute('data-price-dzd')) || 0;
+            const price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
+            
+            originalPriceElement.textContent = currency === 'DZD'
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+    } else {
+        const priceElement = document.querySelector(`.mobile-pack-final-price[data-pack-id="${packId}"]`);
+        const originalPriceElement = document.querySelector(`.mobile-pack-original-price[data-pack-id="${packId}"]`);
+        
+        if (priceElement) {
+            const priceUsd = parseFloat(priceElement.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(priceElement.getAttribute('data-price-dzd')) || 0;
+            const discount = parseFloat(priceElement.getAttribute('data-discount')) || 0;
+            
+            let price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
+            if (discount > 0) {
+                const discountAmount = (price * discount) / 100;
+                price = price - discountAmount;
+            }
+            
+            priceElement.textContent = currency === 'DZD'
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+        
+        if (originalPriceElement) {
+            const priceUsd = parseFloat(originalPriceElement.getAttribute('data-price-usd')) || 0;
+            const priceDzd = parseFloat(originalPriceElement.getAttribute('data-price-dzd')) || 0;
+            const price = (currency === 'DZD' ? priceDzd : priceUsd) * quantity;
+            
+            originalPriceElement.textContent = currency === 'DZD'
+                ? Math.round(price).toLocaleString() + ' DZD'
+                : '$' + parseFloat(price).toFixed(2) + ' USD';
+        }
+    }
+}
+
+// Make functions available globally
+window.updatePackQuantity = updatePackQuantity;
+window.updateMobilePackQuantity = updateMobilePackQuantity;
+window.updatePackPrice = updatePackPrice;
+
+// Listen for quantity input changes (when user manually types)
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle manual quantity input changes
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('pack-quantity-input') || e.target.classList.contains('mobile-pack-quantity-input')) {
+            const packId = e.target.getAttribute('data-pack-id');
+            const quantity = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
+            
+            // Update price display
+            updatePackPrice(packId, quantity, e.target.classList.contains('pack-quantity-input') ? 'desktop' : 'mobile');
+            
+            // Update order form if this pack is selected
+            if (window.selectedPacks && window.selectedPacks.has(parseInt(packId))) {
+                const pack = window.selectedPacks.get(parseInt(packId));
+                if (pack) {
+                    pack.quantity = quantity;
+                    if (typeof window.updateOrderForm === 'function') {
+                        window.updateOrderForm();
+                    }
+                }
+            }
+        }
+    });
+});
 </script>
 

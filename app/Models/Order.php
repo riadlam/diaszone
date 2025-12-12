@@ -179,6 +179,46 @@ class Order extends Model
     }
 
     /**
+     * Get the order items for this order.
+     */
+    public function orderItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Get total number of top-ups required across all items.
+     */
+    public function getTotalTopupsRequiredAttribute(): int
+    {
+        return $this->orderItems()->sum('quantity');
+    }
+
+    /**
+     * Get count of successful top-ups across all items.
+     */
+    public function getTotalSuccessfulTopupsAttribute(): int
+    {
+        return $this->digiflazzStatuses()
+            ->where(function ($q) {
+                $q->whereRaw("LOWER(status) = 'sukses'")
+                  ->orWhere('rc', '00');
+            })->count();
+    }
+
+    /**
+     * Check if all top-ups for this order are completed.
+     */
+    public function areAllTopupsCompleted(): bool
+    {
+        $required = $this->total_topups_required;
+        if ($required === 0) return false;
+        
+        $completed = $this->total_successful_topups;
+        return $completed >= $required;
+    }
+
+    /**
      * Generate a unique order number
      */
     public static function generateOrderNumber(): string
