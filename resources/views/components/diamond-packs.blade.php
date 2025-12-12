@@ -146,7 +146,6 @@
                                     $packQuantity = $pack->special_quantity ?? 1;
                                 @endphp
                                 @if($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false)
-                                    <span class="ml-2 inline-block text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded">{{ $packQuantity }}× Weekly Pass</span>
                                 @endif
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% OFF</span>
