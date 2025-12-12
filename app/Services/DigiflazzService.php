@@ -33,12 +33,17 @@ class DigiflazzService
         // Prevent duplicate submissions from client refresh/retries:
         try {
             if (isset($order) && method_exists($order, 'id')) {
-                $existing = \App\Models\DigiflazzStatus::where('order_id', $order->id)
-                    ->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                    ->latest()
-                    ->first();
-                if ($existing) {
-                    return ['result' => false, 'message' => 'Order already submitted to Digiflazz', 'existing' => $existing->toArray()];
+                // For multi-quantity offers, allow up to order->quantity submissions.
+                // Count existing DigiflazzStatus records that indicate a prior submission (created or in-progress/success).
+                $existingCount = \App\Models\DigiflazzStatus::where('order_id', $order->id)
+                    ->where(function ($q) {
+                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                          ->orWhere('event', 'create');
+                    })->count();
+
+                $target = isset($order->quantity) ? (int)$order->quantity : 1;
+                if ($existingCount >= $target) {
+                    return ['result' => false, 'message' => 'Order already submitted to Digiflazz', 'existing_count' => $existingCount];
                 }
             }
         } catch (\Throwable $e) {

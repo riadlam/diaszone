@@ -1411,17 +1411,48 @@ class CheckoutController extends Controller
                     'seller_id' => $order->seller_id,
                     'wallet_deducted' => $order->wallet_deducted,
                     'seller_cost' => $order->seller_cost,
+                    'quantity' => $order->quantity ?? 1,
                 ]);
 
+                // Ensure we submit provider requests up to order->quantity (to support multi-topup offers)
+                $required = isset($order->quantity) ? (int)$order->quantity : 1;
+                $submitted = 0;
+
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
-                    // Pass the DiamondPack model instance to DigiflazzService
-                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
+                    // Compute how many DigiflazzStatus records already exist for this order
+                    $submitted = $order->digiflazzStatuses()->where(function ($q) {
+                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                          ->orWhere('event', 'create');
+                    })->count();
+
+                    $remaining = max(0, $required - $submitted);
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+
+                    for ($i = 0; $i < $remaining; $i++) {
+                        $attempt = $i + 1;
+                        $lastResult = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
+                        Log::info('Chargily: Digiflazz placeOrder attempt', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
+                    }
+
+                    $result = $lastResult;
                 } else {
-                    $result = $vipReseller->placeOrder(
-                        $packageCode,
-                        $order->user_id_ml,
-                        $order->zone_id_ml
-                    );
+                    // Legacy vipReseller flow also might need multiple calls when quantity>1
+                    $existing = $order->vipResellerStatuses()->count();
+                    $remaining = max(0, $required - $existing);
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+
+                    for ($i = 0; $i < $remaining; $i++) {
+                        $attempt = $i + 1;
+                        $lastResult = $vipReseller->placeOrder(
+                            $packageCode,
+                            $order->user_id_ml,
+                            $order->zone_id_ml
+                        );
+
+                        Log::info('Chargily: vipReseller placeOrder attempt', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
+                    }
+
+                    $result = $lastResult;
                 }
 
                 // If Digiflazz is used, create a lightweight VipResellerStatus mirror so admin/telegram can show provider info immediately
@@ -1526,16 +1557,44 @@ class CheckoutController extends Controller
                     'seller_id' => $order->seller_id,
                     'wallet_deducted' => $order->wallet_deducted,
                     'seller_cost' => $order->seller_cost,
+                    'quantity' => $order->quantity ?? 1,
                 ]);
 
+                $required = isset($order->quantity) ? (int)$order->quantity : 1;
+                $submitted = 0;
+
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
-                    // Pass the DiamondPack model instance to DigiflazzService
-                    $result = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
+                    $submitted = $order->digiflazzStatuses()->where(function ($q) {
+                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                          ->orWhere('event', 'create');
+                    })->count();
+
+                    $remaining = max(0, $required - $submitted);
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+
+                    for ($i = 0; $i < $remaining; $i++) {
+                        $attempt = $i + 1;
+                        $lastResult = app(\App\Services\DigiflazzService::class)->placeOrder($order->diamondPack, $order);
+                        Log::info('Chargily: Digiflazz placeOrder attempt (Free Fire)', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
+                    }
+
+                    $result = $lastResult;
                 } else {
-                    $result = $vipReseller->placeFreefireOrder(
-                        $packageCode,
-                        $order->player_id_ff
-                    );
+                    $existing = $order->vipResellerStatuses()->count();
+                    $remaining = max(0, $required - $existing);
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+
+                    for ($i = 0; $i < $remaining; $i++) {
+                        $attempt = $i + 1;
+                        $lastResult = $vipReseller->placeFreefireOrder(
+                            $packageCode,
+                            $order->player_id_ff
+                        );
+
+                        Log::info('Chargily: vipReseller placeFreefireOrder attempt', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
+                    }
+
+                    $result = $lastResult;
                 }
 
                 Log::info('Chargily: provider API response (Free Fire)', [
