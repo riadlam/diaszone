@@ -127,7 +127,8 @@ class SyncDigiflazzPrices extends Command
             $updatedCount = 0;
             $activatedCount = 0;
             $deactivatedCount = 0;
-            $deactivatedPacks = [];
+            $deactivatedPacks = []; // Format: ['name' => 'Pack Name', 'reason' => 'Reason text']
+            $activatedPacks = []; // Format: ['name' => 'Pack Name', 'reason' => 'Reason text']
 
             DB::beginTransaction();
             try {
@@ -159,6 +160,7 @@ class SyncDigiflazzPrices extends Command
                         // Price is within limit (or no limit set) - proceed with update
                         $wasInactive = !$pack->is_active;
                         $priceChanged = $pack->price != $price;
+                        $oldPrice = $pack->price;
 
                         // Update code, price, and activate
                         $pack->code = $buyerSkuCode;
@@ -170,6 +172,15 @@ class SyncDigiflazzPrices extends Command
 
                         if ($wasInactive) {
                             $activatedCount++;
+                            $activatedPacks[] = [
+                                'name' => $pack->name,
+                                'reason' => "Activated - Price: {$price} (within limit)",
+                            ];
+                        } elseif ($priceChanged) {
+                            $activatedPacks[] = [
+                                'name' => $pack->name,
+                                'reason' => "Price updated: {$oldPrice} → {$price}",
+                            ];
                         }
 
                         if ($priceChanged) {
@@ -201,7 +212,7 @@ class SyncDigiflazzPrices extends Command
                     if (!in_array($pack->code, $activeSkuCodes)) {
                         // No active sellers - deactivate
                         $shouldDeactivate = true;
-                        $reason = 'no active sellers';
+                        $reason = 'No active sellers available on Digiflazz';
                     } else {
                         // Pack has sellers - check if price exceeds limit
                         $productData = collect($groupedProducts)->firstWhere('buyer_sku_code', $pack->code);
@@ -209,7 +220,7 @@ class SyncDigiflazzPrices extends Command
                             if ($productData['price'] > $pack->price_limit) {
                                 // Price exceeds limit - deactivate
                                 $shouldDeactivate = true;
-                                $reason = "price exceeds limit ({$productData['price']} > {$pack->price_limit})";
+                                $reason = "Price exceeds limit: {$productData['price']} > {$pack->price_limit}";
                             }
                         }
                     }
@@ -218,7 +229,10 @@ class SyncDigiflazzPrices extends Command
                         $pack->is_active = false;
                         $pack->save();
                         $deactivatedCount++;
-                        $deactivatedPacks[] = $pack->name;
+                        $deactivatedPacks[] = [
+                            'name' => $pack->name,
+                            'reason' => $reason,
+                        ];
                         $this->warn("Deactivated: {$pack->name} ({$reason})");
                     }
                 }
@@ -231,7 +245,7 @@ class SyncDigiflazzPrices extends Command
                 $this->info("Deactivated: {$deactivatedCount} packs");
 
                 // Send Telegram notification
-                $this->sendTelegramNotification($updatedCount, $activatedCount, $deactivatedCount, $deactivatedPacks);
+                $this->sendTelegramNotification($updatedCount, $activatedCount, $deactivatedCount, $activatedPacks, $deactivatedPacks);
 
                 Log::info('Digiflazz price sync completed', [
                     'updated' => $updatedCount,
@@ -286,24 +300,36 @@ class SyncDigiflazzPrices extends Command
      * @param int $updatedCount
      * @param int $activatedCount
      * @param int $deactivatedCount
-     * @param array $deactivatedPacks
+     * @param array $activatedPacks Array of ['name' => string, 'reason' => string]
+     * @param array $deactivatedPacks Array of ['name' => string, 'reason' => string]
      * @return void
      */
-    private function sendTelegramNotification(int $updatedCount, int $activatedCount, int $deactivatedCount, array $deactivatedPacks): void
+    private function sendTelegramNotification(int $updatedCount, int $activatedCount, int $deactivatedCount, array $activatedPacks, array $deactivatedPacks): void
     {
         try {
             $message = "🔄 <b>Digiflazz Price Sync Complete</b>\n\n";
             $message .= "✅ Updated: <b>{$updatedCount}</b> packs\n";
             $message .= "🟢 Activated: <b>{$activatedCount}</b> packs\n";
 
+            // Show activated packs with reasons if any
+            if (count($activatedPacks) > 0) {
+                $message .= "\n<b>🟢 Activated/Updated Packs:</b>\n";
+                foreach ($activatedPacks as $pack) {
+                    $message .= "• <b>{$pack['name']}</b>\n";
+                    $message .= "  └ {$pack['reason']}\n";
+                }
+            }
+
+            // Show deactivated packs with reasons
             if ($deactivatedCount > 0) {
-                $message .= "🔴 Deactivated: <b>{$deactivatedCount}</b> packs\n\n";
-                $message .= "<b>Deactivated Packs:</b>\n";
-                foreach ($deactivatedPacks as $packName) {
-                    $message .= "• {$packName}\n";
+                $message .= "\n🔴 Deactivated: <b>{$deactivatedCount}</b> packs\n";
+                $message .= "<b>🔴 Deactivated Packs:</b>\n";
+                foreach ($deactivatedPacks as $pack) {
+                    $message .= "• <b>{$pack['name']}</b>\n";
+                    $message .= "  └ {$pack['reason']}\n";
                 }
             } else {
-                $message .= "🔴 Deactivated: <b>0</b> packs\n";
+                $message .= "\n🔴 Deactivated: <b>0</b> packs\n";
             }
 
             TelegramService::sendMessage($message);
