@@ -694,7 +694,8 @@ class CheckoutController extends Controller
             ], 400);
         }
         
-        $order = Order::with('diamondPack')->find($orderId);
+        // Load order with relationships - support both single-pack and multi-item orders
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
         
         if (!$order) {
             return response()->json([
@@ -702,6 +703,9 @@ class CheckoutController extends Controller
                 'message' => 'Order not found'
             ], 404);
         }
+        
+        // Check if this is a multi-item order
+        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
         
         // Initialize Chargily Pay v2 service
         $chargilyService = app(ChargilyPayV2Service::class);
@@ -727,51 +731,58 @@ class CheckoutController extends Controller
         }
         
         try {
-            // Calculate amount in DZD: Use server-side stored order data when available,
-            // and fallback to pack price and quantity calculation (defense-in-depth).
-            $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
-            // Keep backwards-compatible variable name used by some logs
-            $priceDzd = $unitPriceDzd;
+            // Calculate amount - use stored final_price if available (most reliable)
+            $amount = (float) ($order->final_price ?? 0);
             
-            // Fallback: if price_dzd is not set, calculate from price_usd or price
-            if (!$priceDzd || $priceDzd <= 0) {
-                $priceUsd = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price ?? 0);
-                $priceDzd = $priceUsd * 260; // Convert USD to DZD as fallback
-                Log::warning('Chargily payment: price_dzd not found, using fallback calculation', [
-                    'order_id' => $order->id,
-                    'diamond_pack_id' => $order->diamond_pack_id,
-                    'price_usd' => $priceUsd,
-                    'calculated_price_dzd' => $priceDzd,
-                ]);
+            if ($hasOrderItems) {
+                // Multi-item order: sum from order items if final_price not set
+                if (empty($amount)) {
+                    $amount = $order->orderItems->sum('total_dzd');
+                    Log::info('Chargily payment: Multi-item order amount calculated from items', [
+                        'order_id' => $order->id,
+                        'items_count' => $order->orderItems->count(),
+                        'calculated_amount' => $amount,
+                    ]);
+                }
+            } else {
+                // Legacy single-pack order: calculate from pack if final_price not set
+                if (empty($amount) && $order->diamondPack) {
+                    $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
+                    
+                    // Fallback: if price_dzd is not set, calculate from price_usd or price
+                    if (!$unitPriceDzd || $unitPriceDzd <= 0) {
+                        $priceUsd = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price ?? 0);
+                        $unitPriceDzd = $priceUsd * 260;
+                        Log::warning('Chargily payment: price_dzd not found, using fallback calculation', [
+                            'order_id' => $order->id,
+                            'diamond_pack_id' => $order->diamond_pack_id,
+                            'price_usd' => $priceUsd,
+                            'calculated_price_dzd' => $unitPriceDzd,
+                        ]);
+                    }
+                    
+                    $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+                    $quantity = (int) ($order->quantity ?? 1);
+                    
+                    $computedTotalBeforeDiscount = $unitPriceDzd * $quantity;
+                    $computedDiscount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                    $amount = $computedTotalBeforeDiscount - $computedDiscount;
+                    
+                    Log::info('Chargily payment: Legacy order amount calculated', [
+                        'order_id' => $order->id,
+                        'diamond_pack_id' => $order->diamond_pack_id,
+                        'price_dzd' => $unitPriceDzd,
+                        'discount_percentage' => $discountPercentage,
+                        'discount_amount' => $computedDiscount,
+                        'final_amount_dzd' => $amount,
+                    ]);
+                }
             }
-            
-            // Ensure quantity is used and server-side recalculation performed
-            $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-            $quantity = (int) ($order->quantity ?? 1);
-
-            $computedTotalBeforeDiscount = $unitPriceDzd * $quantity;
-            $computedDiscount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
-            $computedFinal = $computedTotalBeforeDiscount - $computedDiscount;
-
-            // If order has stored final_price, verify it matches our computed value. If not, correct it and log.
-            $orderFinalPrice = (float) ($order->final_price ?? 0);
-            if (empty($orderFinalPrice) || abs($orderFinalPrice - $computedFinal) > 0.001) {
-                Log::warning('Order final_price mismatch or empty: correcting to computed value', ['order_id' => $order->id, 'stored_final' => $orderFinalPrice, 'computed_final' => $computedFinal]);
-                $order->final_price = $computedFinal;
-                $order->original_price = $computedTotalBeforeDiscount;
-                $order->save();
-                $orderFinalPrice = $computedFinal;
-            }
-
-            $amount = $orderFinalPrice;
             
             // Log the amount calculation for debugging
             Log::info('Chargily payment amount calculation', [
                 'order_id' => $order->id,
-                'diamond_pack_id' => $order->diamond_pack_id,
-                'price_dzd' => $priceDzd,
-                'discount_percentage' => $discountPercentage,
-                'discount_amount' => $computedDiscount,
+                'is_multi_item' => $hasOrderItems,
                 'final_amount_dzd' => $amount,
             ]);
             
@@ -794,7 +805,16 @@ class CheckoutController extends Controller
             }
             
             // Determine game type for description
-            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            // For multi-item orders, get game type from first order item
+            // For legacy orders, use diamondPack
+            if ($hasOrderItems && $order->orderItems->first()) {
+                $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
+            } elseif ($order->diamondPack) {
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            } else {
+                $gameType = 'mobilelegends';
+            }
+            
             $gameName = 'Mobile Legends';
             $currencyText = 'Diamonds';
             
@@ -812,12 +832,28 @@ class CheckoutController extends Controller
                 $currencyText = 'Golds';
             }
             
-            $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
-            $description = "DiasZone - {$gameName} - {$packName}";
+            // Build description based on order type
+            if ($hasOrderItems) {
+                $itemsCount = $order->orderItems->count();
+                $description = "DiasZone - {$gameName} - {$itemsCount} pack(s)";
+            } elseif ($order->diamondPack) {
+                $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
+                $description = "DiasZone - {$gameName} - {$packName}";
+            } else {
+                $description = "DiasZone - {$gameName} - Order #{$order->order_number}";
+            }
             
             // Create invoice in bmccp table first
+            // For multi-item orders, use first pack ID (legacy compatibility) or null
+            $firstPackId = null;
+            if ($hasOrderItems && $order->orderItems->first()) {
+                $firstPackId = $order->orderItems->first()->diamond_pack_id;
+            } elseif ($order->diamond_pack_id) {
+                $firstPackId = $order->diamond_pack_id;
+            }
+            
             $bmccp = \App\Models\Bmccp::create([
-                'diamond_pack_id' => $order->diamond_pack_id,
+                'diamond_pack_id' => $firstPackId,
                 'status' => 'pending',
                 'notes' => $description,
             ]);

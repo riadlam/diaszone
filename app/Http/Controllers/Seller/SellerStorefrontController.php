@@ -697,16 +697,48 @@ class SellerStorefrontController extends Controller
             return false;
         }
 
-        $pack = $order->diamondPack;
-        // Recalculate expected base cost from the pack to protect against tampering
-        $expectedBaseCost = $pack->base_price_dzd ?? $pack->price_dzd;
+        // Support both single-pack and multi-item orders
+        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+        
+        if ($hasOrderItems) {
+            // Multi-item order: calculate expected base cost from order items
+            $order->load('orderItems.diamondPack');
+            $expectedBaseCost = 0;
+            foreach ($order->orderItems as $orderItem) {
+                $pack = $orderItem->diamondPack;
+                if (!$pack) {
+                    Log::error('Order item missing diamond pack when processing seller order', [
+                        'order_id' => $order->id,
+                        'order_item_id' => $orderItem->id,
+                    ]);
+                    return false;
+                }
+                $packBaseCost = $pack->base_price_dzd ?? $pack->price_dzd;
+                $expectedBaseCost += $packBaseCost * $orderItem->quantity;
+            }
+        } else {
+            // Legacy single-pack order
+            $pack = $order->diamondPack;
+            if (!$pack) {
+                Log::error('Order missing diamond pack when processing seller order', [
+                    'order_id' => $order->id,
+                ]);
+                return false;
+            }
+            // Recalculate expected base cost from the pack to protect against tampering
+            $expectedBaseCost = $pack->base_price_dzd ?? $pack->price_dzd;
+            // Apply quantity if set
+            $quantity = (int)($order->quantity ?? 1);
+            $expectedBaseCost *= $quantity;
+        }
 
-        // If the stored order seller_cost doesn't match the pack base cost, reject processing
-        if ((float)$order->seller_cost != (float)$expectedBaseCost) {
+        // If the stored order seller_cost doesn't match the expected base cost, reject processing
+        if (abs((float)$order->seller_cost - (float)$expectedBaseCost) > 0.01) {
             Log::error('Order seller_cost mismatch when processing seller order', [
                 'order_id' => $order->id,
                 'order_seller_cost' => $order->seller_cost,
-                'expected_base' => $expectedBaseCost
+                'expected_base' => $expectedBaseCost,
+                'is_multi_item' => $hasOrderItems,
             ]);
             return false;
         }
