@@ -18,9 +18,52 @@ const CartManager = {
         const existingIndex = cart.findIndex(cartItem => cartItem.pack_id === item.pack_id);
         
         if (existingIndex >= 0) {
-            // Update existing item quantity
-            cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + quantity));
-            cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
+            // Check if this is a nickname validation update (has user_id/zone_id or player_id)
+            const isValidationUpdate = (item.user_id !== undefined && item.user_id !== null) || 
+                                      (item.zone_id !== undefined && item.zone_id !== null) ||
+                                      (item.player_id !== undefined && item.player_id !== null) ||
+                                      (item.player_id_ff !== undefined && item.player_id_ff !== null) ||
+                                      (item.player_id_pubg !== undefined && item.player_id_pubg !== null) ||
+                                      (item.player_id_hok !== undefined && item.player_id_hok !== null) ||
+                                      (item.user_id_bs !== undefined && item.user_id_bs !== null);
+            
+            if (isValidationUpdate) {
+                // Replace quantity when updating with validation data (nickname validation flow)
+                cart[existingIndex].quantity = quantity;
+            } else {
+                // Add to existing quantity when just adding more (checkbox selection flow)
+                cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + quantity));
+                cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
+            }
+            
+            // Update game-specific IDs if provided (important for nickname validation flow)
+            if (item.user_id !== undefined && item.user_id !== null) {
+                cart[existingIndex].user_id = item.user_id;
+            }
+            if (item.zone_id !== undefined && item.zone_id !== null) {
+                cart[existingIndex].zone_id = item.zone_id;
+            }
+            if (item.player_id !== undefined && item.player_id !== null) {
+                cart[existingIndex].player_id = item.player_id;
+            }
+            if (item.player_id_ff !== undefined && item.player_id_ff !== null) {
+                cart[existingIndex].player_id_ff = item.player_id_ff;
+            }
+            if (item.player_id_pubg !== undefined && item.player_id_pubg !== null) {
+                cart[existingIndex].player_id_pubg = item.player_id_pubg;
+            }
+            if (item.player_id_hok !== undefined && item.player_id_hok !== null) {
+                cart[existingIndex].player_id_hok = item.player_id_hok;
+            }
+            if (item.user_id_bs !== undefined && item.user_id_bs !== null) {
+                cart[existingIndex].user_id_bs = item.user_id_bs;
+            }
+            if (item.server_bs !== undefined && item.server_bs !== null) {
+                cart[existingIndex].server_bs = item.server_bs;
+            }
+            if (item.server !== undefined && item.server !== null) {
+                cart[existingIndex].server = item.server;
+            }
         } else {
             // Add new item
             const cartItem = {
