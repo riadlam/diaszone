@@ -543,8 +543,9 @@ class DigiflazzWebhookController extends Controller
             'rc' => $rc
         ]);
         
-        // Load order items for multi-item orders
-        $order->load('orderItems');
+        // Refresh order and load order items to ensure we have latest data
+        $order->refresh();
+        $order->load('orderItems.digiflazzStatuses');
         
         // Map Digiflazz responses to our order statuses
         if ($status === 'sukses' || $rc === '00') {
@@ -558,8 +559,17 @@ class DigiflazzWebhookController extends Controller
                 $totalCompleted = 0;
                 
                 foreach ($order->orderItems as $item) {
+                    // Refresh the item to ensure latest relationship data
+                    $item->refresh();
+                    $item->load('digiflazzStatuses');
+                    
                     $required = $item->quantity;
-                    $completed = $item->successfulTopupsCount();
+                    // Use fresh query instead of relationship to avoid cache issues
+                    $completed = \App\Models\DigiflazzStatus::where('order_item_id', $item->id)
+                        ->where(function ($q) {
+                            $q->whereRaw("LOWER(status) = 'sukses'")
+                              ->orWhere('rc', '00');
+                        })->count();
                     
                     $totalRequired += $required;
                     $totalCompleted += $completed;
