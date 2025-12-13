@@ -531,8 +531,8 @@ class AdminController extends Controller
             'from_admin' => 'sometimes|boolean', // Flag to ensure this is from admin dashboard
         ]);
 
-        // Load order with relationships
-        $order = Order::with('diamondPack')->where('order_number', $orderNumber)->firstOrFail();
+        // Load order with relationships (support multi-item orders)
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->where('order_number', $orderNumber)->firstOrFail();
         $oldStatus = $order->status;
         $newStatus = $request->status;
         
@@ -543,7 +543,8 @@ class AdminController extends Controller
         // Send Telegram notification for important status changes (skip pending_flexy)
         if ($newStatus !== 'pending_flexy' && in_array($newStatus, ['pending_confirmation', 'sending', 'completed'])) {
             try {
-                $order->load('diamondPack', 'user');
+                // Load order with all relationships for multi-item orders
+                $order->load('diamondPack', 'orderItems.diamondPack', 'user', 'seller');
                 $message = TelegramService::formatOrderMessage($order);
                 // Add confirm button only for pending_confirmation orders
                 $addButton = ($newStatus === 'pending_confirmation');
@@ -670,7 +671,26 @@ class AdminController extends Controller
             }
 
             // Only process Mobile Legends orders for now
-            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            // Support both single-pack and multi-item orders
+            $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+            
+            if ($hasOrderItems) {
+                // Multi-item order: get game type from first order item
+                $order->load('orderItems.diamondPack');
+                $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
+            } elseif ($order->diamondPack) {
+                // Legacy single-pack order
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            } else {
+                Log::error('Recharge aborted: No diamond pack or order items found', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'Order has no diamond pack or order items. Cannot determine game type.',
+                ];
+            }
             
             if ($gameType !== 'mobilelegends') {
                 Log::info('Recharge skipped: Not a Mobile Legends order', [

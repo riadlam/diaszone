@@ -615,8 +615,8 @@ class DigiflazzWebhookController extends Controller
             $order->save();
         }
 
-        // When provider confirms completion, credit seller profit if applicable
-        if ($status === 'completed') {
+        // When order is completed, credit seller profit if applicable
+        if ($order->status === 'completed') {
             try {
                 if ($order->seller_id && !$order->seller_profit_paid) {
                     $order->creditSellerProfit();
@@ -628,21 +628,39 @@ class DigiflazzWebhookController extends Controller
         }
 
         // Update Telegram notification to reflect provider status change
+        // Always update when status changes, especially when order is completed
         try {
-            $order->load('orderItems.diamondPack', 'diamondPack', 'user', 'seller');
+            // Refresh order to get latest status and relationships
+            $order->refresh();
+            $order->load('orderItems.diamondPack', 'diamondPack', 'user', 'seller', 'digiflazzStatuses');
             $updatedMessage = \App\Services\TelegramService::formatOrderMessage($order);
 
             if ($order->tlg_message_id) {
-                \App\Services\TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                $editResult = \App\Services\TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                Log::info('Digiflazz webhook: Telegram message updated', [
+                    'order_id' => $order->id,
+                    'order_status' => $order->status,
+                    'message_id' => $order->tlg_message_id,
+                    'edit_success' => $editResult !== false,
+                ]);
             } else {
                 $messageId = \App\Services\TelegramService::sendMessage($updatedMessage);
                 if ($messageId) {
                     $order->tlg_message_id = $messageId;
                     $order->save();
+                    Log::info('Digiflazz webhook: Telegram message sent (no existing message_id)', [
+                        'order_id' => $order->id,
+                        'new_message_id' => $messageId,
+                    ]);
                 }
             }
         } catch (\Exception $e) {
-            Log::warning('Failed to update Telegram message for Digiflazz webhook', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            Log::warning('Failed to update Telegram message for Digiflazz webhook', [
+                'order_id' => $order->id,
+                'order_status' => $order->status,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 }

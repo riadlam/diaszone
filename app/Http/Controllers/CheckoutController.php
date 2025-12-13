@@ -622,7 +622,8 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
         
-        $order = Order::with('diamondPack')->find($orderId);
+        // Load order with relationships - support both single-pack and multi-item orders
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
         
         if (!$order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
@@ -2574,7 +2575,8 @@ class CheckoutController extends Controller
         // Send Telegram notification for status change to pending_confirmation
         if ($oldStatus === 'pending_flexy' && $order->status === 'pending_confirmation') {
             try {
-                $order->load('diamondPack', 'user');
+                // Load order with all relationships for multi-item orders
+                $order->load('diamondPack', 'orderItems.diamondPack', 'user');
                 $message = TelegramService::formatOrderMessage($order);
                 // Add confirm button for pending_confirmation orders
                 $messageId = TelegramService::sendMessage($message, true);
