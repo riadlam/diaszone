@@ -198,10 +198,10 @@
                                     <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * $packQuantity, 0) }} DZD</span>
                                 @endif
                                 <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($finalPriceDzd * ($packQuantity), 0) }} DZD</span>
-                            </div>
                         </div>
                     </div>
-                    </label>
+                </div>
+            </label>
                 </div>
             </div>
         @endforeach
@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.stopPropagation();
                 console.log('Select Pack button clicked');
                 if (typeof openBottomSheet === 'function') {
-                    openBottomSheet();
+                openBottomSheet();
                 } else {
                     // Fallback if function not defined yet
                     if (bottomSheet) {
@@ -869,10 +869,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         packItem.classList.remove('border-gray-200');
                         packItem.classList.add('border-purple-500', 'bg-purple-50/50');
                     }
-                    if (indicator) {
-                        indicator.classList.remove('border-gray-300');
-                        indicator.classList.add('bg-purple-600', 'border-purple-600');
-                    }
+                if (indicator) {
+                    indicator.classList.remove('border-gray-300');
+                    indicator.classList.add('bg-purple-600', 'border-purple-600');
+                }
                     if (checkIcon) checkIcon.classList.remove('hidden');
                 }
             }
@@ -980,8 +980,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (typeof updateOrderForm === 'function') {
                         updateOrderForm();
                     }
-                    
-                    // Update mobile button text
+                
+                // Update mobile button text
                     if (typeof updateMobileButtonText === 'function') {
                         updateMobileButtonText();
                     }
@@ -1024,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let priceAfterDiscount = price - discountAmount;
                 priceAfterDiscount = priceAfterDiscount * packQuantity;
                 
-                let packDisplayName = '';
+                    let packDisplayName = '';
                 const packNameData = checkbox.dataset.packName || '';
                 const weeklyPassText = '{{ __('game.weekly_diamond_pass') }}';
                 const twilightPassText = '{{ __('game.twilight_pass') }}';
@@ -1034,22 +1034,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     packDisplayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
                 } else if (packNameData && packNameData.includes('Twilight Pass')) {
                     packDisplayName = twilightPassText;
-                } else {
-                    const gameType = '{{ $gameType ?? "mobilelegends" }}';
+                    } else {
+                        const gameType = '{{ $gameType ?? "mobilelegends" }}';
                     const currencyText = gameType === 'pubgmobile' ? '{{ __('game.uc') }}' : (gameType === 'honorofkings' ? '{{ __('game.tokens') }}' : (gameType === 'bloodstrike' ? '{{ __('game.golds') }}' : '{{ __('game.diamonds') }}'));
                     const bonusTextFinal = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} ${bonusText}` : '';
                     packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusTextFinal}`;
+                    }
+                    
+                    const priceText = currency === 'DZD' 
+                        ? `${Math.round(priceAfterDiscount).toLocaleString()} DZD`
+                        : `$${priceAfterDiscount.toFixed(2)} USD`;
+                    
+                    selectedPackText.innerHTML = `
+                        <span class="block text-sm font-semibold">${packDisplayName}</span>
+                        <span class="text-xs text-white/90 font-medium">${priceText}</span>
+                    `;
                 }
-                
-                const priceText = currency === 'DZD' 
-                    ? `${Math.round(priceAfterDiscount).toLocaleString()} DZD`
-                    : `$${priceAfterDiscount.toFixed(2)} USD`;
-                
-                selectedPackText.innerHTML = `
-                    <span class="block text-sm font-semibold">${packDisplayName}</span>
-                    <span class="text-xs text-white/90 font-medium">${priceText}</span>
-                `;
-            }
         }
         
         // Update mobile button text when checkboxes change

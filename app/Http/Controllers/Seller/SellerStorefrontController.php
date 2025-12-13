@@ -718,15 +718,15 @@ class SellerStorefrontController extends Controller
             }
         } else {
             // Legacy single-pack order
-            $pack = $order->diamondPack;
+        $pack = $order->diamondPack;
             if (!$pack) {
                 Log::error('Order missing diamond pack when processing seller order', [
                     'order_id' => $order->id,
                 ]);
                 return false;
             }
-            // Recalculate expected base cost from the pack to protect against tampering
-            $expectedBaseCost = $pack->base_price_dzd ?? $pack->price_dzd;
+        // Recalculate expected base cost from the pack to protect against tampering
+        $expectedBaseCost = $pack->base_price_dzd ?? $pack->price_dzd;
             // Apply quantity if set
             $quantity = (int)($order->quantity ?? 1);
             $expectedBaseCost *= $quantity;

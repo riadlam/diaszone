@@ -283,7 +283,7 @@ class TelegramService
             if ($order->diamondPack->bonus_diamonds > 0) {
                 $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
             }
-            $message .= "💎 <b>Pack:</b> {$escape($packName)}\n";
+        $message .= "💎 <b>Pack:</b> {$escape($packName)}\n";
         }
         
         $message .= "💰 <b>Amount:</b> " . number_format($amount, 0) . " DZD\n";

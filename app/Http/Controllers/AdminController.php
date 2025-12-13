@@ -680,7 +680,7 @@ class AdminController extends Controller
                 $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
             } elseif ($order->diamondPack) {
                 // Legacy single-pack order
-                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             } else {
                 Log::error('Recharge aborted: No diamond pack or order items found', [
                     'order_id' => $order->id,
@@ -892,7 +892,7 @@ class AdminController extends Controller
                             
                             $remaining = max(0, $orderItem->quantity - $submitted);
                             
-                            $digService = app(\App\Services\DigiflazzService::class);
+                $digService = app(\App\Services\DigiflazzService::class);
                             for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . \Illuminate\Support\Str::random(8);
                                 $result = $digService->placeOrderWithRefId(

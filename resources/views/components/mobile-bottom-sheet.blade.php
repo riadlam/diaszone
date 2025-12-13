@@ -80,15 +80,15 @@
                     <input type="checkbox" 
                            class="hidden mobile-pack-checkbox" 
                            id="mobile-pack-checkbox-{{ $pack->id }}"
-                           data-pack-id="{{ $pack->id }}"
-                           data-pack-quantity="{{ $packQuantity }}"
-                           data-pack-diamonds="{{ $pack->diamonds }}"
-                           data-pack-bonus="{{ $pack->bonus_diamonds }}"
-                           data-pack-price="{{ $pack->price }}"
-                           data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
-                           data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
-                           data-pack-name="{{ $pack->name }}"
-                           data-pack-discount="{{ $pack->discount_percentage }}">
+                    data-pack-id="{{ $pack->id }}"
+                    data-pack-quantity="{{ $packQuantity }}"
+                    data-pack-diamonds="{{ $pack->diamonds }}"
+                    data-pack-bonus="{{ $pack->bonus_diamonds }}"
+                    data-pack-price="{{ $pack->price }}"
+                    data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
+                    data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
+                    data-pack-name="{{ $pack->name }}"
+                    data-pack-discount="{{ $pack->discount_percentage }}">
                     
                     <!-- Quantity Selector (visible when checked) -->
                     <div class="mobile-pack-quantity-control absolute top-2 right-2 hidden flex items-center gap-1.5 bg-purple-50 rounded-lg px-1.5 py-0.5 border border-purple-200 z-10">
@@ -108,7 +108,7 @@
                            class="mobile-pack-item w-full bg-white border border-gray-200 rounded-2xl p-4 active:scale-[0.98] transition-all text-left shadow-sm hover:shadow-md hover:border-purple-300 active:bg-purple-50/30 cursor-pointer block"
                            data-pack-wrapper="{{ $pack->id }}"
                            onclick="event.stopPropagation();">
-                    <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4">
                     <!-- Image (empty space for PUBG Mobile, Honor of Kings, Blood Strike) -->
                     @if(($gameType ?? 'mobilelegends') === 'pubgmobile' || ($gameType ?? 'mobilelegends') === 'bloodstrike')
                         <!-- PUBG Mobile / Blood Strike: Empty space to maintain layout -->
@@ -244,7 +244,7 @@
                             </svg>
                         </div>
                     </div>
-                    </div>
+                </div>
                     </label>
                 </div>
         @endforeach

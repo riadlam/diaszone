@@ -539,8 +539,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const formatPrice = (price) => {
                     return currency === 'DZD' 
-                        ? Math.round(price).toLocaleString() + ' DZD'
-                        : '$' + price.toFixed(2) + ' USD';
+                    ? Math.round(price).toLocaleString() + ' DZD'
+                    : '$' + price.toFixed(2) + ' USD';
                 };
                 
                 element.textContent = formatPrice(totalPrice);

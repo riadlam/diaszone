@@ -310,36 +310,36 @@ class CheckoutController extends Controller
             } elseif ($gameType === 'freefire') {
                 $player_id_ff = $firstItem['player_id_ff'] ?? $firstItem['player_id'] ?? null;
                 if (empty($player_id_ff)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Player ID is required for Free Fire'
-                    ], 422);
-                }
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Player ID is required for Free Fire'
+                        ], 422);
+                    }
             } elseif ($gameType === 'pubgmobile') {
                 $player_id_pubg = $firstItem['player_id_pubg'] ?? $firstItem['player_id'] ?? null;
                 if (empty($player_id_pubg)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Player ID is required for PUBG Mobile'
-                    ], 422);
-                }
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Player ID is required for PUBG Mobile'
+                        ], 422);
+                    }
             } elseif ($gameType === 'honorofkings') {
                 $player_id_hok = $firstItem['player_id_hok'] ?? $firstItem['player_id'] ?? null;
                 if (empty($player_id_hok)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Player ID is required for Honor of Kings'
-                    ], 422);
-                }
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Player ID is required for Honor of Kings'
+                        ], 422);
+                    }
             } elseif ($gameType === 'bloodstrike') {
                 $user_id_bs = $firstItem['user_id_bs'] ?? $firstItem['user_id'] ?? null;
                 $server_bs = $firstItem['server_bs'] ?? $firstItem['server'] ?? null;
                 if (empty($user_id_bs) || empty($server_bs)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'User ID and Server are required for Blood Strike'
-                    ], 422);
-                }
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'User ID and Server are required for Blood Strike'
+                        ], 422);
+                    }
             }
             
             // Determine status based on payment method
@@ -445,9 +445,9 @@ class CheckoutController extends Controller
                 
                 // Encrypt order ID for frontend
                 $encryptedOrderId = Crypt::encryptString($order->id);
-                
-                return response()->json([
-                    'success' => true,
+            
+            return response()->json([
+                'success' => true,
                     'orders' => [
                         [
                             'id' => $order->id,
@@ -771,25 +771,25 @@ class CheckoutController extends Controller
             } else {
                 // Legacy single-pack order: calculate from pack if final_price not set
                 if (empty($amount) && $order->diamondPack) {
-                    $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
-                    
-                    // Fallback: if price_dzd is not set, calculate from price_usd or price
+            $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
+            
+            // Fallback: if price_dzd is not set, calculate from price_usd or price
                     if (!$unitPriceDzd || $unitPriceDzd <= 0) {
-                        $priceUsd = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price ?? 0);
+                $priceUsd = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price ?? 0);
                         $unitPriceDzd = $priceUsd * 260;
-                        Log::warning('Chargily payment: price_dzd not found, using fallback calculation', [
-                            'order_id' => $order->id,
-                            'diamond_pack_id' => $order->diamond_pack_id,
-                            'price_usd' => $priceUsd,
+                Log::warning('Chargily payment: price_dzd not found, using fallback calculation', [
+                    'order_id' => $order->id,
+                    'diamond_pack_id' => $order->diamond_pack_id,
+                    'price_usd' => $priceUsd,
                             'calculated_price_dzd' => $unitPriceDzd,
-                        ]);
-                    }
-                    
-                    $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-                    $quantity = (int) ($order->quantity ?? 1);
-                    
-                    $computedTotalBeforeDiscount = $unitPriceDzd * $quantity;
-                    $computedDiscount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                ]);
+            }
+            
+            $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+            $quantity = (int) ($order->quantity ?? 1);
+
+            $computedTotalBeforeDiscount = $unitPriceDzd * $quantity;
+            $computedDiscount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                     $amount = $computedTotalBeforeDiscount - $computedDiscount;
                     
                     Log::info('Chargily payment: Legacy order amount calculated', [
@@ -834,7 +834,7 @@ class CheckoutController extends Controller
             if ($hasOrderItems && $order->orderItems->first()) {
                 $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
             } elseif ($order->diamondPack) {
-                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             } else {
                 $gameType = 'mobilelegends';
             }
@@ -861,8 +861,8 @@ class CheckoutController extends Controller
                 $itemsCount = $order->orderItems->count();
                 $description = "DiasZone - {$gameName} - {$itemsCount} pack(s)";
             } elseif ($order->diamondPack) {
-                $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
-                $description = "DiasZone - {$gameName} - {$packName}";
+            $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
+            $description = "DiasZone - {$gameName} - {$packName}";
             } else {
                 $description = "DiasZone - {$gameName} - Order #{$order->order_number}";
             }
@@ -1717,14 +1717,14 @@ class CheckoutController extends Controller
                             // Check how many DigiflazzStatus records already exist for this item
                             $submitted = $orderItem->digiflazzStatuses()
                                 ->where(function ($q) {
-                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                      ->orWhere('event', 'create');
-                                })->count();
+                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                          ->orWhere('event', 'create');
+                    })->count();
 
                             $remaining = max(0, $orderItem->quantity - $submitted);
 
                             // Submit remaining top-ups for this item
-                            for ($i = 0; $i < $remaining; $i++) {
+                    for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . Str::random(8);
                                 
                                 $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
@@ -1747,9 +1747,9 @@ class CheckoutController extends Controller
                                 // Small delay to ensure DigiflazzStatus record is committed
                                 usleep(100000); // 0.1 second
                             }
-                        }
+                    }
 
-                        $result = $lastResult;
+                    $result = $lastResult;
                         $order = $orderLocked; // Update order reference
                     });
                 } else {
@@ -2023,14 +2023,14 @@ class CheckoutController extends Controller
                             // Check how many DigiflazzStatus records already exist for this item
                             $submitted = $orderItem->digiflazzStatuses()
                                 ->where(function ($q) {
-                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                      ->orWhere('event', 'create');
-                                })->count();
+                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                          ->orWhere('event', 'create');
+                    })->count();
 
                             $remaining = max(0, $orderItem->quantity - $submitted);
 
                             // Submit remaining top-ups for this item
-                            for ($i = 0; $i < $remaining; $i++) {
+                    for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . Str::random(8);
                                 
                                 $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
@@ -2053,9 +2053,9 @@ class CheckoutController extends Controller
                                 // Small delay to ensure DigiflazzStatus record is committed
                                 usleep(100000); // 0.1 second
                             }
-                        }
+                    }
 
-                        $result = $lastResult;
+                    $result = $lastResult;
                         $order = $orderLocked; // Update order reference
                     });
                 } else {
