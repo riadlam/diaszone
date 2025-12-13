@@ -12,64 +12,68 @@ const CartManager = {
     
     addToCart: function(item, quantity = 1) {
         const cart = this.getCart();
-        quantity = Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
+        // Use item.quantity if provided, otherwise use the quantity parameter
+        const finalQuantity = (item.quantity !== undefined && item.quantity !== null) 
+            ? Math.max(1, Math.min(20, parseInt(item.quantity) || 1))
+            : Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
         
         // Check if pack already exists in cart
         const existingIndex = cart.findIndex(cartItem => cartItem.pack_id === item.pack_id);
         
         if (existingIndex >= 0) {
             // Check if this is a nickname validation update (has user_id/zone_id or player_id)
-            const isValidationUpdate = (item.user_id !== undefined && item.user_id !== null) || 
-                                      (item.zone_id !== undefined && item.zone_id !== null) ||
-                                      (item.player_id !== undefined && item.player_id !== null) ||
-                                      (item.player_id_ff !== undefined && item.player_id_ff !== null) ||
-                                      (item.player_id_pubg !== undefined && item.player_id_pubg !== null) ||
-                                      (item.player_id_hok !== undefined && item.player_id_hok !== null) ||
-                                      (item.user_id_bs !== undefined && item.user_id_bs !== null);
+            const isValidationUpdate = (item.user_id !== undefined && item.user_id !== null && item.user_id !== '') || 
+                                      (item.zone_id !== undefined && item.zone_id !== null && item.zone_id !== '') ||
+                                      (item.player_id !== undefined && item.player_id !== null && item.player_id !== '') ||
+                                      (item.player_id_ff !== undefined && item.player_id_ff !== null && item.player_id_ff !== '') ||
+                                      (item.player_id_pubg !== undefined && item.player_id_pubg !== null && item.player_id_pubg !== '') ||
+                                      (item.player_id_hok !== undefined && item.player_id_hok !== null && item.player_id_hok !== '') ||
+                                      (item.user_id_bs !== undefined && item.user_id_bs !== null && item.user_id_bs !== '');
             
             if (isValidationUpdate) {
                 // Replace quantity when updating with validation data (nickname validation flow)
-                cart[existingIndex].quantity = quantity;
+                cart[existingIndex].quantity = finalQuantity;
             } else {
                 // Add to existing quantity when just adding more (checkbox selection flow)
-                cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + quantity));
+                cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + finalQuantity));
                 cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
             }
             
             // Update game-specific IDs if provided (important for nickname validation flow)
-            if (item.user_id !== undefined && item.user_id !== null) {
-                cart[existingIndex].user_id = item.user_id;
+            // Always update if the value is provided (even if it's an empty string, we update it)
+            if (item.user_id !== undefined) {
+                cart[existingIndex].user_id = item.user_id || null;
             }
-            if (item.zone_id !== undefined && item.zone_id !== null) {
-                cart[existingIndex].zone_id = item.zone_id;
+            if (item.zone_id !== undefined) {
+                cart[existingIndex].zone_id = item.zone_id || null;
             }
-            if (item.player_id !== undefined && item.player_id !== null) {
-                cart[existingIndex].player_id = item.player_id;
+            if (item.player_id !== undefined) {
+                cart[existingIndex].player_id = item.player_id || null;
             }
-            if (item.player_id_ff !== undefined && item.player_id_ff !== null) {
-                cart[existingIndex].player_id_ff = item.player_id_ff;
+            if (item.player_id_ff !== undefined) {
+                cart[existingIndex].player_id_ff = item.player_id_ff || null;
             }
-            if (item.player_id_pubg !== undefined && item.player_id_pubg !== null) {
-                cart[existingIndex].player_id_pubg = item.player_id_pubg;
+            if (item.player_id_pubg !== undefined) {
+                cart[existingIndex].player_id_pubg = item.player_id_pubg || null;
             }
-            if (item.player_id_hok !== undefined && item.player_id_hok !== null) {
-                cart[existingIndex].player_id_hok = item.player_id_hok;
+            if (item.player_id_hok !== undefined) {
+                cart[existingIndex].player_id_hok = item.player_id_hok || null;
             }
-            if (item.user_id_bs !== undefined && item.user_id_bs !== null) {
-                cart[existingIndex].user_id_bs = item.user_id_bs;
+            if (item.user_id_bs !== undefined) {
+                cart[existingIndex].user_id_bs = item.user_id_bs || null;
             }
-            if (item.server_bs !== undefined && item.server_bs !== null) {
-                cart[existingIndex].server_bs = item.server_bs;
+            if (item.server_bs !== undefined) {
+                cart[existingIndex].server_bs = item.server_bs || null;
             }
-            if (item.server !== undefined && item.server !== null) {
-                cart[existingIndex].server = item.server;
+            if (item.server !== undefined) {
+                cart[existingIndex].server = item.server || null;
             }
         } else {
             // Add new item
             const cartItem = {
                 id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
                 pack_id: item.pack_id,
-                quantity: quantity,
+                quantity: finalQuantity,
                 user_id: item.user_id || null,
                 zone_id: item.zone_id || null,
                 player_id: item.player_id || null,

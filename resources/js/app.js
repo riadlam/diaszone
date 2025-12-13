@@ -1041,15 +1041,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // Show success popup with nickname
                         showNicknameSuccess(nickname, () => {
-                            // Add all selected packs to cart with user info
+                            // Update existing cart items with user_id/zone_id while preserving quantities
+                            const cart = CartManager.getCart();
                             selectedPacks.forEach(pack => {
+                                const existingItem = cart.find(item => item.pack_id === pack.pack_id);
+                                const quantityToUse = existingItem ? existingItem.quantity : pack.quantity;
+                                
                                 const cartItem = {
                                     pack_id: pack.pack_id,
-                                    quantity: pack.quantity,
+                                    quantity: quantityToUse,
                                     user_id: userId,
                                     zone_id: zoneId
                                 };
-                                CartManager.addToCart(cartItem, pack.quantity);
+                                // This will update existing item or add new one, preserving quantity
+                                CartManager.addToCart(cartItem);
                             });
                             
                             // Clear form
