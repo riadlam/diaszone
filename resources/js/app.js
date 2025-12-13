@@ -1041,19 +1041,32 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // Show success popup with nickname
                         showNicknameSuccess(nickname, () => {
+                            // userId and zoneId are already trimmed strings from form validation above
+                            // Ensure they're non-empty strings
+                            if (!userId || !zoneId) {
+                                console.error('userId or zoneId is missing after validation');
+                                return;
+                            }
+                            
+                            const validatedUserId = String(userId).trim();
+                            const validatedZoneId = String(zoneId).trim();
+                            
                             // Update existing cart items with user_id/zone_id while preserving quantities
+                            // Get fresh cart from localStorage (key: 'diaszone_cart')
                             const cart = CartManager.getCart();
                             selectedPacks.forEach(pack => {
                                 const existingItem = cart.find(item => item.pack_id === pack.pack_id);
                                 const quantityToUse = existingItem ? existingItem.quantity : pack.quantity;
                                 
+                                // Create cartItem with user_id and zone_id explicitly set
                                 const cartItem = {
                                     pack_id: pack.pack_id,
                                     quantity: quantityToUse,
-                                    user_id: userId,
-                                    zone_id: zoneId
+                                    user_id: validatedUserId,  // Will be saved to localStorage
+                                    zone_id: validatedZoneId   // Will be saved to localStorage
                                 };
-                                // This will update existing item or add new one, preserving quantity
+                                
+                                // Update existing item in cart - this will save to localStorage 'diaszone_cart'
                                 CartManager.addToCart(cartItem);
                             });
                             

@@ -39,34 +39,43 @@ const CartManager = {
                 cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
             }
             
-            // Update game-specific IDs if provided (important for nickname validation flow)
-            // Always update if the value is provided (even if it's an empty string, we update it)
-            if (item.user_id !== undefined) {
-                cart[existingIndex].user_id = item.user_id || null;
+            // ALWAYS update game-specific IDs if the property exists on the item object
+            // This ensures validation updates work even if values were previously null
+            if ('user_id' in item) {
+                const val = item.user_id;
+                cart[existingIndex].user_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.zone_id !== undefined) {
-                cart[existingIndex].zone_id = item.zone_id || null;
+            if ('zone_id' in item) {
+                const val = item.zone_id;
+                cart[existingIndex].zone_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.player_id !== undefined) {
-                cart[existingIndex].player_id = item.player_id || null;
+            if ('player_id' in item) {
+                const val = item.player_id;
+                cart[existingIndex].player_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.player_id_ff !== undefined) {
-                cart[existingIndex].player_id_ff = item.player_id_ff || null;
+            if ('player_id_ff' in item) {
+                const val = item.player_id_ff;
+                cart[existingIndex].player_id_ff = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.player_id_pubg !== undefined) {
-                cart[existingIndex].player_id_pubg = item.player_id_pubg || null;
+            if ('player_id_pubg' in item) {
+                const val = item.player_id_pubg;
+                cart[existingIndex].player_id_pubg = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.player_id_hok !== undefined) {
-                cart[existingIndex].player_id_hok = item.player_id_hok || null;
+            if ('player_id_hok' in item) {
+                const val = item.player_id_hok;
+                cart[existingIndex].player_id_hok = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.user_id_bs !== undefined) {
-                cart[existingIndex].user_id_bs = item.user_id_bs || null;
+            if ('user_id_bs' in item) {
+                const val = item.user_id_bs;
+                cart[existingIndex].user_id_bs = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.server_bs !== undefined) {
-                cart[existingIndex].server_bs = item.server_bs || null;
+            if ('server_bs' in item) {
+                const val = item.server_bs;
+                cart[existingIndex].server_bs = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
-            if (item.server !== undefined) {
-                cart[existingIndex].server = item.server || null;
+            if ('server' in item) {
+                const val = item.server;
+                cart[existingIndex].server = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
         } else {
             // Add new item
@@ -88,6 +97,7 @@ const CartManager = {
             cart.push(cartItem);
         }
         
+        // Save to localStorage - key is always 'diaszone_cart'
         localStorage.setItem('diaszone_cart', JSON.stringify(cart));
         this.updateCartUI();
         return cart;
