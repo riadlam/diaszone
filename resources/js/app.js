@@ -1086,10 +1086,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             userIdField.value = '';
                             zoneIdField.value = '';
                             
-                            // Small delay to ensure localStorage save completes before redirect
-                            setTimeout(() => {
-                                window.location.href = '/cart';
-                            }, 100);
+                            // Redirect to cart immediately
+                            window.location.href = '/cart';
                         });
                     } else {
                         // Validation failed - result is false
