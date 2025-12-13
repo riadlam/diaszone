@@ -2,7 +2,14 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+// Schedule Digiflazz price sync every 5 minutes
+Schedule::command('digiflazz:sync-prices')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
