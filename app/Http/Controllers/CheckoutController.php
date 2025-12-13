@@ -443,13 +443,19 @@ class CheckoutController extends Controller
                     }
                 }
                 
+                // Encrypt order ID for frontend
+                $encryptedOrderId = Crypt::encryptString($order->id);
+                
                 return response()->json([
                     'success' => true,
-                    'order' => [
-                        'id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'status' => $order->status,
-                        'final_price' => $order->final_price,
+                    'orders' => [
+                        [
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => $order->status,
+                            'final_price' => $order->final_price,
+                            'encrypted_id' => $encryptedOrderId,
+                        ]
                     ],
                     'items_count' => count($cartItems),
                 ], 201);
