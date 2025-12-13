@@ -1051,31 +1051,45 @@ document.addEventListener('DOMContentLoaded', () => {
                             const validatedUserId = String(userId).trim();
                             const validatedZoneId = String(zoneId).trim();
                             
-                            // Update existing cart items with user_id/zone_id while preserving quantities
-                            // Get fresh cart from localStorage (key: 'diaszone_cart')
-                            const cart = CartManager.getCart();
-                            selectedPacks.forEach(pack => {
-                                const existingItem = cart.find(item => item.pack_id === pack.pack_id);
-                                const quantityToUse = existingItem ? existingItem.quantity : pack.quantity;
-                                
-                                // Create cartItem with user_id and zone_id explicitly set
-                                const cartItem = {
-                                    pack_id: pack.pack_id,
-                                    quantity: quantityToUse,
-                                    user_id: validatedUserId,  // Will be saved to localStorage
-                                    zone_id: validatedZoneId   // Will be saved to localStorage
-                                };
-                                
-                                // Update existing item in cart - this will save to localStorage 'diaszone_cart'
-                                CartManager.addToCart(cartItem);
+                            // DIRECTLY update localStorage - get fresh cart, update all matching items, save immediately
+                            const cartJson = localStorage.getItem('diaszone_cart');
+                            const cart = cartJson ? JSON.parse(cartJson) : [];
+                            
+                            // Get pack IDs from selected packs
+                            const selectedPackIds = selectedPacks.map(pack => pack.pack_id);
+                            
+                            // Update ALL cart items that match selected pack IDs
+                            let updated = false;
+                            cart.forEach(cartItem => {
+                                if (selectedPackIds.includes(cartItem.pack_id)) {
+                                    cartItem.user_id = validatedUserId;
+                                    cartItem.zone_id = validatedZoneId;
+                                    updated = true;
+                                }
                             });
+                            
+                            // Save updated cart to localStorage IMMEDIATELY
+                            if (updated) {
+                                localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+                                
+                                // Verify save worked
+                                const verifyCart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
+                                console.log('Cart updated with user_id and zone_id:', verifyCart);
+                            }
+                            
+                            // Update CartManager's internal state and UI
+                            if (window.CartManager && window.CartManager.updateCartUI) {
+                                window.CartManager.updateCartUI();
+                            }
                             
                             // Clear form
                             userIdField.value = '';
                             zoneIdField.value = '';
                             
-                            // Redirect to cart
-                            window.location.href = '/cart';
+                            // Small delay to ensure localStorage save completes before redirect
+                            setTimeout(() => {
+                                window.location.href = '/cart';
+                            }, 100);
                         });
                     } else {
                         // Validation failed - result is false
