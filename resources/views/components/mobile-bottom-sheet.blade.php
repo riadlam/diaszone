@@ -196,7 +196,6 @@
                             </div>
                         @endif
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
                                 @if($pack->discount_percentage > 0)
                                 @php
                                     $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
@@ -205,49 +204,19 @@
                                 @else
                                 <span class="text-xs text-gray-500">{{ __('game.best_value') }}</span>
                                 @endif
-                                <div class="flex items-baseline gap-1">
-                                    @php
-                                        $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
-                                        $discountPercentage = $pack->discount_percentage ?? 0;
-                                        $priceAfterDiscountDzd = $priceDzd * (1 - $discountPercentage / 100);
-                                    @endphp
-                                    <span class="text-lg font-bold text-purple-600 mobile-pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discountPercentage }}" data-pack-quantity="{{ $packQuantity }}" data-pack-id="{{ $pack->id }}">{{ number_format($priceAfterDiscountDzd * ($packQuantity), 0) }} DZD</span>
-                                </div>
-                            </div>
-                            <!-- Quantity Counter -->
-                            <div class="flex items-center gap-1 border border-gray-300 rounded-lg" onclick="event.stopPropagation();">
-                                <button type="button" class="mobile-quantity-btn-decrease px-2 py-1 text-gray-600 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-l-lg" data-pack-id="{{ $pack->id }}" onclick="event.stopPropagation(); updateMobilePackQuantity({{ $pack->id }}, -1);">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
-                                    </svg>
-                                </button>
-                                <input type="number" 
-                                       class="mobile-pack-quantity-input w-8 text-center text-sm font-semibold border-0 focus:ring-0 focus:outline-none bg-transparent" 
-                                       value="1" 
-                                       min="1" 
-                                       max="20" 
-                                       data-pack-id="{{ $pack->id }}"
-                                       data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
-                                       data-pack-price-dzd="{{ $priceDzd }}"
-                                       data-pack-discount="{{ $discountPercentage }}"
-                                       readonly
-                                       onclick="event.stopPropagation(); this.select();">
-                                <button type="button" class="mobile-quantity-btn-increase px-2 py-1 text-gray-600 hover:text-purple-600 hover:bg-purple-50 transition-colors rounded-r-lg" data-pack-id="{{ $pack->id }}" onclick="event.stopPropagation(); updateMobilePackQuantity({{ $pack->id }}, 1);">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                </button>
+                            <div class="flex items-baseline gap-1">
+                                @php
+                                    $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                                    $discountPercentage = $pack->discount_percentage ?? 0;
+                                    $priceAfterDiscountDzd = $priceDzd * (1 - $discountPercentage / 100);
+                                @endphp
+                                <span class="text-lg font-bold text-purple-600 mobile-pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discountPercentage }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceAfterDiscountDzd * ($packQuantity), 0) }} DZD</span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Selection Indicator -->
                     <div class="flex-shrink-0">
-                        <div class="mobile-pack-selection-badge hidden absolute top-2 right-2 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
-                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                        </div>
                         <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-colors mobile-pack-indicator">
                             <svg class="w-4 h-4 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
@@ -255,8 +224,7 @@
                         </div>
                     </div>
                 </div>
-                </label>
-            </div>
+            </button>
         @endforeach
         @endif
     </div>

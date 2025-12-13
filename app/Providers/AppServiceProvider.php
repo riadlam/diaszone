@@ -26,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Ensure language path is set (fallback)
         if ($this->app->make('path.lang') !== base_path('lang')) {
-            $this->app->useLangPath(base_path('lang'));
+        $this->app->useLangPath(base_path('lang'));
         }
         // storage_public_url helper is declared in global namespace
         // Register console commands (reconcile digiflazz statuses)
