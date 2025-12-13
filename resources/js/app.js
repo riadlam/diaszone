@@ -126,25 +126,35 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         // Build selected packs list HTML - checkedPacks is already deduplicated
+        // First, sync quantity inputs from cart (cart is source of truth)
+        const cart = window.CartManager ? window.CartManager.getCart() : [];
+        checkedPacks.forEach(checkbox => {
+            const packId = parseInt(checkbox.dataset.packId);
+            if (!packId) return;
+            
+            const cartItem = cart.find(item => item.pack_id == packId);
+            const quantity = cartItem ? (cartItem.quantity || 1) : 1;
+            
+            // Sync desktop quantity input
+            const desktopInput = document.querySelector(`.quantity-input[data-pack-id="${packId}"]`);
+            if (desktopInput) {
+                desktopInput.value = quantity;
+            }
+            
+            // Sync mobile quantity input
+            const mobileInput = document.querySelector(`.mobile-quantity-input[data-pack-id="${packId}"]`);
+            if (mobileInput) {
+                mobileInput.value = quantity;
+            }
+        });
+        
         const packsHTML = checkedPacks.map(checkbox => {
                 const packId = parseInt(checkbox.dataset.packId);
                 if (!packId) return ''; // Safety check
                 
-                // Find quantity input - prefer desktop, fallback to mobile
-            let quantityInput = document.querySelector(`.quantity-input[data-pack-id="${packId}"]`);
-            if (!quantityInput) {
-                quantityInput = document.querySelector(`.mobile-quantity-input[data-pack-id="${packId}"]`);
-            }
-            
-            // If still no quantity input found, check cart for quantity
-            let quantity = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
-            if (!quantityInput) {
-                const cart = window.CartManager ? window.CartManager.getCart() : [];
+                // Always read quantity from cart (source of truth)
                 const cartItem = cart.find(item => item.pack_id == packId);
-                if (cartItem) {
-                    quantity = cartItem.quantity || 1;
-                }
-            }
+                const quantity = cartItem ? (cartItem.quantity || 1) : 1;
             
             totalItemsCount += quantity;
             
@@ -279,15 +289,54 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Remove pack from summary (unchecks checkbox and removes from cart)
     window.removePackFromSummary = function(packId) {
-        const checkbox = document.querySelector(`#pack-checkbox-${packId}, #mobile-pack-checkbox-${packId}`);
-        if (checkbox) {
-            checkbox.checked = false;
-            // Trigger change event to update UI
-            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        // Find and uncheck desktop checkbox
+        const desktopCheckbox = document.querySelector(`#pack-checkbox-${packId}`);
+        if (desktopCheckbox) {
+            desktopCheckbox.checked = false;
+            desktopCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Hide quantity control and reset visual state
+            const desktopWrapper = desktopCheckbox.closest('.diamond-pack-item-wrapper');
+            if (desktopWrapper) {
+                const quantityControl = desktopWrapper.querySelector('.pack-quantity-control');
+                const packCard = desktopWrapper.querySelector('.SKU_type');
+                if (quantityControl) quantityControl.classList.add('hidden');
+                if (packCard) {
+                    packCard.classList.remove('border-purple-500', 'bg-purple-50/30');
+                    packCard.classList.add('border-gray-200');
+                }
+            }
+        }
+        
+        // Find and uncheck mobile checkbox
+        const mobileCheckbox = document.querySelector(`#mobile-pack-checkbox-${packId}`);
+        if (mobileCheckbox) {
+            mobileCheckbox.checked = false;
+            mobileCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Hide quantity control and reset visual state
+            const mobileWrapper = mobileCheckbox.closest('.mobile-pack-item-wrapper');
+            if (mobileWrapper) {
+                const quantityControl = mobileWrapper.querySelector('.mobile-pack-quantity-control');
+                const packItem = mobileWrapper.querySelector('.mobile-pack-item');
+                const indicator = packItem?.querySelector('.mobile-pack-indicator');
+                const checkIcon = packItem?.querySelector('.mobile-pack-indicator svg');
+                
+                if (quantityControl) quantityControl.classList.add('hidden');
+                if (packItem) {
+                    packItem.classList.remove('border-purple-500', 'bg-purple-50/50');
+                    packItem.classList.add('border-gray-200');
+                }
+                if (indicator) {
+                    indicator.classList.remove('bg-purple-600', 'border-purple-600');
+                    indicator.classList.add('border-gray-300');
+                }
+                if (checkIcon) checkIcon.classList.add('hidden');
+            }
         }
         
         // Remove from cart
-        const cart = window.CartManager.getCart();
+        const cart = window.CartManager ? window.CartManager.getCart() : [];
         const cartItem = cart.find(item => item.pack_id == packId);
         if (cartItem) {
             window.CartManager.removeFromCart(cartItem.id);
