@@ -540,6 +540,7 @@ class DigiflazzWebhookController extends Controller
         // Use database transaction with locking to handle concurrent webhooks
         return DB::transaction(function () use ($order, $statusRecord) {
             // Lock the order to prevent concurrent updates
+            // lockForUpdate() ensures serialized access - second webhook waits for first to complete
             $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
             if (!$orderLocked) {
                 Log::error('Digiflazz webhook: failed to lock order', ['order_id' => $order->id]);
@@ -559,14 +560,17 @@ class DigiflazzWebhookController extends Controller
                 'status_record_id' => $statusRecord->id
             ]);
             
-            // Ensure statusRecord is saved and refreshed to have latest data
-            if (!$statusRecord->exists) {
-                $statusRecord->save();
-            }
+            // Refresh statusRecord to ensure we have latest data including order_item_id
             $statusRecord->refresh();
             
-            // Load fresh order items with their digiflazz statuses
-            $orderLocked->load('orderItems.digiflazzStatuses');
+            // Ensure statusRecord is saved (should already be, but double-check)
+            if (!$statusRecord->exists || $statusRecord->isDirty()) {
+                $statusRecord->save();
+                $statusRecord->refresh();
+            }
+            
+            // Load fresh order items
+            $orderLocked->load('orderItems');
             
         // Map Digiflazz responses to our order statuses
         if ($status === 'sukses' || $rc === '00') {
@@ -582,28 +586,36 @@ class DigiflazzWebhookController extends Controller
                     foreach ($orderLocked->orderItems as $item) {
                         $required = $item->quantity;
                         
-                        // Count successful top-ups for this order_item - use direct DB query for accuracy
-                        // Exclude the current statusRecord from count, then add it explicitly if successful
-                        $completed = \App\Models\DigiflazzStatus::where('order_item_id', $item->id)
-                            ->where('id', '!=', $statusRecord->id) // Exclude current record from count
+                        // BULLETPROOF COUNTING: Since lockForUpdate() serializes access, second webhook
+                        // should see first webhook's committed record. However, to be absolutely safe,
+                        // we count all records EXCEPT current one, then add current one if successful.
+                        $completed = DB::table('digiflazz_statuses')
+                            ->where('order_item_id', $item->id)
+                            ->where('id', '!=', $statusRecord->id) // Exclude current record
                             ->where(function ($q) {
                                 $q->whereRaw("LOWER(status) = 'sukses'")
                                   ->orWhere('rc', '00');
-                            })->count();
+                            })
+                            ->count();
                         
-                        // CRITICAL: Always add the current statusRecord to count if it's successful and for this item
-                        // This ensures we count it reliably even with transaction isolation issues
+                        // Always add current record if it's successful and for this order_item
+                        // This ensures we count it even if transaction isolation prevents seeing it in query
                         if ($statusRecord->order_item_id == $item->id && ($status === 'sukses' || $rc === '00')) {
                             $completed++;
-                            Log::info('Digiflazz webhook: counted current statusRecord', [
+                            Log::info('Digiflazz webhook: counted current statusRecord + others', [
                                 'order_item_id' => $item->id,
                                 'status_record_id' => $statusRecord->id,
-                                'status' => $statusRecord->status,
-                                'rc' => $statusRecord->rc,
-                                'other_records_count' => $completed - 1,
+                                'other_successful_count' => $completed - 1,
                                 'total_count' => $completed
                             ]);
                         }
+                        
+                        Log::info('Digiflazz webhook: order_item completion', [
+                            'order_item_id' => $item->id,
+                            'required' => $required,
+                            'completed' => $completed,
+                            'status_record_id' => $statusRecord->id
+                        ]);
                         
                         $totalRequired += $required;
                         $totalCompleted += $completed;
