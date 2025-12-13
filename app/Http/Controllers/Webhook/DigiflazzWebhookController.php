@@ -73,16 +73,29 @@ class DigiflazzWebhookController extends Controller
         try {
             DB::transaction(function () use ($request, $payload, $refId, $trxId, $customerNo, $buyerSku, $rc, $status) {
                 // STEP 1: Find or create DigiflazzStatus record
-                $statusRecord = DigiflazzStatus::where('ref_id', $refId)
-                    ->orWhere(function ($q) use ($trxId) {
-                        if ($trxId) {
-                            $q->where('trxid', $trxId);
-                        }
-                    })
-                    ->first();
+                // Try to find by ref_id first (what we sent)
+                $statusRecord = DigiflazzStatus::where('ref_id', $refId)->first();
+                
+                // If not found by ref_id, try to find by trxid (Digiflazz might have changed ref_id)
+                if (!$statusRecord && $trxId) {
+                    $statusRecord = DigiflazzStatus::where('trxid', $trxId)->first();
+                    if ($statusRecord) {
+                        Log::info('Digiflazz webhook: found existing status by trxid instead of ref_id', [
+                            'trxid' => $trxId,
+                            'original_ref_id' => $statusRecord->ref_id,
+                            'webhook_ref_id' => $refId,
+                            'existing_order_item_id' => $statusRecord->order_item_id,
+                        ]);
+                    }
+                }
 
+                // Preserve existing order_item_id and diamond_pack_id when updating
+                $preserveOrderItemId = $statusRecord ? $statusRecord->order_item_id : null;
+                $preserveDiamondPackId = $statusRecord ? $statusRecord->diamond_pack_id : null;
+                $preserveOrderId = $statusRecord ? $statusRecord->order_id : null;
+                
                 $data = [
-                    'ref_id' => $refId,
+                    'ref_id' => $refId, // Update ref_id to webhook's version (Digiflazz may change it)
                     'trxid' => $trxId,
                     'buyer_sku_code' => $buyerSku,
                     'customer_no' => $customerNo,
@@ -94,6 +107,17 @@ class DigiflazzWebhookController extends Controller
                     'additional_data' => $payload,
                     'event' => $request->header('X-Digiflazz-Event') ?? null,
                 ];
+                
+                // Preserve important fields if they exist
+                if ($preserveOrderItemId) {
+                    $data['order_item_id'] = $preserveOrderItemId;
+                }
+                if ($preserveDiamondPackId) {
+                    $data['diamond_pack_id'] = $preserveDiamondPackId;
+                }
+                if ($preserveOrderId) {
+                    $data['order_id'] = $preserveOrderId;
+                }
 
                 if ($statusRecord) {
                     $statusRecord->update($data);
@@ -139,6 +163,38 @@ class DigiflazzWebhookController extends Controller
                 // Refresh status record to get latest order_id (might have been set in parallel request)
                 $statusRecord->refresh();
                 
+                // If status record doesn't have order_item_id yet, try to find an existing record for the same order
+                // that has order_item_id set (created by DigiflazzService when we sent the request)
+                if (!$statusRecord->order_item_id && $orderId && ($buyerSku || $customerNo)) {
+                    $existingStatusWithItem = DigiflazzStatus::where('order_id', $orderId)
+                        ->whereNotNull('order_item_id')
+                        ->where(function ($q) use ($buyerSku, $customerNo) {
+                            if ($buyerSku) {
+                                $q->where('buyer_sku_code', $buyerSku);
+                            }
+                            if ($customerNo) {
+                                $q->orWhere('customer_no', $customerNo);
+                            }
+                        })
+                        ->first();
+                    
+                    if ($existingStatusWithItem) {
+                        // Found existing record with order_item_id - copy it to current record
+                        $statusRecord->order_item_id = $existingStatusWithItem->order_item_id;
+                        $statusRecord->diamond_pack_id = $existingStatusWithItem->diamond_pack_id;
+                        $statusRecord->order_id = $orderId;
+                        $statusRecord->save();
+                        
+                        Log::info('Digiflazz webhook: copied order_item_id from existing status record', [
+                            'current_status_id' => $statusRecord->id,
+                            'existing_status_id' => $existingStatusWithItem->id,
+                            'order_item_id' => $existingStatusWithItem->order_item_id,
+                            'order_id' => $orderId,
+                        ]);
+                    }
+                }
+                
+                // Link order_id if we have it and status record doesn't have it yet
                 if ($orderId && !$statusRecord->order_id) {
                     $order = Order::where('id', $orderId)->lockForUpdate()->first();
                     if ($order) {
@@ -146,18 +202,68 @@ class DigiflazzWebhookController extends Controller
                         $statusRecord->refresh();
                         if (!$statusRecord->order_id) {
                             $statusRecord->order_id = $orderId;
-                            // Link to order_item if available
+                            
+                            // Link to order_item: prioritize extracted orderItemId, then existing, then match by criteria
                             if ($orderItemId) {
+                                // Use extracted order_item_id from ref_id
                                 $statusRecord->order_item_id = $orderItemId;
-                                // Also set diamond_pack_id from order_item
                                 $orderItem = \App\Models\OrderItem::find($orderItemId);
                                 if ($orderItem) {
                                     $statusRecord->diamond_pack_id = $orderItem->diamond_pack_id;
                                 }
-                            } elseif (!$statusRecord->diamond_pack_id && $order->diamond_pack_id) {
-                                // Fallback: use order's primary diamond_pack_id
-                                $statusRecord->diamond_pack_id = $order->diamond_pack_id;
+                            } elseif (!$statusRecord->order_item_id) {
+                                // Try to match order_item by order_id + buyer_sku_code + customer_no
+                                $order->load('orderItems.diamondPack');
+                                if ($order->orderItems && $order->orderItems->count() > 0 && $buyerSku && $customerNo) {
+                                    foreach ($order->orderItems as $item) {
+                                        if ($item->diamondPack && $item->diamondPack->code === $buyerSku) {
+                                            // Additional validation: check if customer_no matches order's game IDs
+                                            $customerMatches = false;
+                                            if ($order->user_id_ml && str_contains($customerNo, $order->user_id_ml)) {
+                                                $customerMatches = true;
+                                            } elseif ($order->player_id_ff && str_contains($customerNo, $order->player_id_ff)) {
+                                                $customerMatches = true;
+                                            }
+                                            
+                                            // If customer matches or we're confident, link it
+                                            if ($customerMatches || $order->orderItems->count() === 1) {
+                                                $statusRecord->order_item_id = $item->id;
+                                                $statusRecord->diamond_pack_id = $item->diamond_pack_id;
+                                                Log::info('Digiflazz webhook: matched order_item by buyer_sku_code and customer_no', [
+                                                    'order_item_id' => $item->id,
+                                                    'buyer_sku_code' => $buyerSku,
+                                                    'customer_no' => $customerNo,
+                                                ]);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Fallback: if still no order_item_id but order has only one item, use it
+                                if (!$statusRecord->order_item_id && $order->orderItems && $order->orderItems->count() === 1) {
+                                    $singleItem = $order->orderItems->first();
+                                    $statusRecord->order_item_id = $singleItem->id;
+                                    $statusRecord->diamond_pack_id = $singleItem->diamond_pack_id;
+                                    Log::info('Digiflazz webhook: linked to single order_item as fallback', [
+                                        'order_item_id' => $singleItem->id,
+                                    ]);
+                                } elseif (!$statusRecord->diamond_pack_id && $order->diamond_pack_id) {
+                                    // Last fallback: use order's primary diamond_pack_id (legacy orders)
+                                    $statusRecord->diamond_pack_id = $order->diamond_pack_id;
+                                }
+                            } else {
+                                // Status record already has order_item_id - ensure diamond_pack_id is set
+                                if (!$statusRecord->diamond_pack_id) {
+                                    $existingOrderItem = \App\Models\OrderItem::find($statusRecord->order_item_id);
+                                    if ($existingOrderItem) {
+                                        $statusRecord->diamond_pack_id = $existingOrderItem->diamond_pack_id;
+                                    } elseif ($order->diamond_pack_id) {
+                                        $statusRecord->diamond_pack_id = $order->diamond_pack_id;
+                                    }
+                                }
                             }
+                            
                             $statusRecord->save();
 
                             // Link VipResellerStatus mirrors
@@ -174,15 +280,46 @@ class DigiflazzWebhookController extends Controller
                                 }
                             }
 
+                            // Refresh status record to ensure we have the latest order_item_id before applying
+                            $statusRecord->refresh();
+                            
                             // Apply status update to order
                             $this->applyStatusToOrder($order, $statusRecord);
-
-                            Log::info('Digiflazz webhook: linked status to order', [
+                            
+                            Log::info('Digiflazz webhook: linked status to order with order_item', [
                                 'digiflazz_status_id' => $statusRecord->id,
                                 'order_id' => $orderId,
-                                'ref_id' => $refId
+                                'order_item_id' => $statusRecord->order_item_id,
+                                'diamond_pack_id' => $statusRecord->diamond_pack_id,
+                                'ref_id' => $refId,
                             ]);
+
                         } else {
+                            // Order already linked - but check if order_item_id needs updating
+                            if (!$statusRecord->order_item_id && $orderId) {
+                                $order->load('orderItems.diamondPack');
+                                if ($order->orderItems && $order->orderItems->count() > 0 && $buyerSku && $customerNo) {
+                                    foreach ($order->orderItems as $item) {
+                                        if ($item->diamondPack && $item->diamondPack->code === $buyerSku) {
+                                            $statusRecord->order_item_id = $item->id;
+                                            $statusRecord->diamond_pack_id = $item->diamond_pack_id;
+                                            $statusRecord->save();
+                                            Log::info('Digiflazz webhook: updated order_item_id for already-linked status', [
+                                                'digiflazz_status_id' => $statusRecord->id,
+                                                'order_item_id' => $item->id,
+                                            ]);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Apply status update even if already linked (webhook might have new status)
+                            $order = Order::where('id', $orderId)->lockForUpdate()->first();
+                            if ($order) {
+                                $this->applyStatusToOrder($order, $statusRecord);
+                            }
+                            
                             Log::info('Digiflazz webhook: status already linked by another request', [
                                 'digiflazz_status_id' => $statusRecord->id,
                                 'existing_order_id' => $statusRecord->order_id,
