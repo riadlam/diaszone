@@ -44,72 +44,55 @@ window.CurrencyManager = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Legacy selectedPack variable for backward compatibility (not used in new multi-select flow)
     let selectedPack = null;
     
-    // Pack selection using radio buttons
-    const packRadios = document.querySelectorAll('input[name="diamond_pack"]');
     const buyNowBtn = document.getElementById('buy-now-btn');
     const orderForm = document.getElementById('order-form');
     
-    packRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            if (radio.checked) {
-                // Get pack data from radio button
-                // Use getAttribute for data attributes to ensure correct reading
-                const priceUsd = parseFloat(radio.getAttribute('data-pack-price-usd')) || parseFloat(radio.getAttribute('data-pack-price')) || 0;
-                const priceDzd = parseFloat(radio.getAttribute('data-pack-price-dzd')) || (parseFloat(radio.getAttribute('data-pack-price')) * 260) || 0;
-                
-                selectedPack = {
-                    id: parseInt(radio.getAttribute('data-pack-id')) || 0,
-                    diamonds: parseInt(radio.getAttribute('data-pack-diamonds')) || 0,
-                    bonus: parseInt(radio.getAttribute('data-pack-bonus')) || 0,
-                    price: parseFloat(radio.getAttribute('data-pack-price')) || 0,
-                    price_usd: priceUsd,
-                    price_dzd: priceDzd,
-                    discount: parseFloat(radio.getAttribute('data-pack-discount')) || 0,
-                    quantity: parseInt(radio.getAttribute('data-pack-quantity') || 1, 10),
-                    name: radio.getAttribute('data-pack-name') || ''
-                };
-                
-                // Update order form
-                updateOrderForm();
-                
-                // Enable buy button
-                if (buyNowBtn) {
-                    buyNowBtn.disabled = false;
-                }
-            }
-        });
-    });
-    
-    // Initialize with first selected radio
-    const firstRadio = document.querySelector('input[name="diamond_pack"]:checked');
-    if (firstRadio) {
-        firstRadio.dispatchEvent(new Event('change'));
-    } else {
-        // If no radio is checked, check the first one and trigger change
-        const firstPackRadio = document.querySelector('input[name="diamond_pack"]');
-        if (firstPackRadio) {
-            firstPackRadio.checked = true;
-            firstPackRadio.dispatchEvent(new Event('change'));
-        }
-    }
-    
-    // Also update order form on page load to ensure currency is correct
+    // Multi-select support: Update order form when checkboxes change
+    // This is handled in diamond-packs.blade.php checkbox handlers, but we initialize here
     setTimeout(() => {
-        if (selectedPack) {
+        // Update order form on page load to show any pre-selected items
+        if (typeof updateOrderForm === 'function') {
             updateOrderForm();
         }
-    }, 100);
+    }, 200);
     
     function updateOrderForm() {
-        if (!selectedPack) {
-            // Reset form if no pack selected
-            const totalPrice = document.getElementById('total-price');
-            const diaszoneCredit = document.getElementById('diaszone-credit');
-            const selectedPackInfo = document.getElementById('selected-pack-info');
-            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
-            
+        // Get all checked checkboxes (desktop and mobile) - deduplicate by pack_id
+        const allChecked = Array.from(document.querySelectorAll('.pack-checkbox:checked, .mobile-pack-checkbox:checked'));
+        
+        // Deduplicate by pack_id - use a Set to track unique pack IDs
+        const uniquePackIds = new Set();
+        const checkedPacks = [];
+        
+        allChecked.forEach(checkbox => {
+            const packId = parseInt(checkbox.dataset.packId);
+            if (packId && !uniquePackIds.has(packId)) {
+                uniquePackIds.add(packId);
+                checkedPacks.push(checkbox);
+            }
+        });
+        
+        const totalPrice = document.getElementById('total-price');
+        const diaszoneCredit = document.getElementById('diaszone-credit');
+        const selectedPackInfo = document.getElementById('selected-pack-info');
+        const selectedPacksList = document.getElementById('selected-packs-list');
+        const selectedCountText = document.getElementById('selected-count-text');
+        
+        // Get selected currency
+        let currency = localStorage.getItem('diaszone_currency');
+        if (!currency && window.CurrencyManager) {
+            currency = window.CurrencyManager.getCurrency();
+        }
+        if (!currency) {
+            currency = 'DZD';
+        }
+        currency = currency.toUpperCase();
+        
+        if (checkedPacks.length === 0) {
+            // Reset form if no packs selected
             if (totalPrice) {
                 totalPrice.textContent = currency === 'DZD' ? '0 DZD' : 'US$ 0.00';
             }
@@ -118,69 +101,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        const totalPrice = document.getElementById('total-price');
-        const diaszoneCredit = document.getElementById('diaszone-credit');
-        const packName = document.getElementById('pack-name');
-        const packPrice = document.getElementById('pack-price');
-        const selectedPackInfo = document.getElementById('selected-pack-info');
+        // Get game type for currency text
+        const orderFormWrapper = document.getElementById('order-form-wrapper');
+        const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
+        const translations = window.GameTranslations || {};
+        const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
+        const bonusText = translations.bonus || 'Bonus';
         
-        // Get selected currency - read directly from localStorage first, then check CurrencyManager
-        let currency = localStorage.getItem('diaszone_currency');
-        if (!currency && window.CurrencyManager) {
-            currency = window.CurrencyManager.getCurrency();
-        }
-        if (!currency) {
-            currency = 'DZD'; // Default to DZD
-        }
+        // Calculate totals across all selected packs
+        let totalPriceAmount = 0;
+        let totalCredits = 0;
+        let totalItemsCount = 0; // Sum of all quantities
         
-        // Ensure currency is uppercase for consistency
-        currency = currency.toUpperCase();
-        
-        // Get price based on currency - ensure we have valid values
-        let basePrice;
-        if (currency === 'DZD') {
-            basePrice = parseFloat(selectedPack.price_dzd);
-            // Fallback if price_dzd is not set or is 0 or NaN
-            if (!basePrice || basePrice === 0 || isNaN(basePrice)) {
-                basePrice = parseFloat(selectedPack.price) * 260;
-            }
-        } else {
-            basePrice = parseFloat(selectedPack.price_usd);
-            // Fallback if price_usd is not set or is 0 or NaN
-            if (!basePrice || basePrice === 0 || isNaN(basePrice)) {
-                basePrice = parseFloat(selectedPack.price);
-            }
-        }
-        
-        // Ensure basePrice is a valid number
-        if (isNaN(basePrice) || basePrice <= 0) {
-            basePrice = currency === 'DZD' ? (parseFloat(selectedPack.price) * 260) : parseFloat(selectedPack.price);
-        }
-        
-        // Get quantity (for multi-quantity packs like 3x Weekly Pass)
-        // Ensure quantity is a valid positive integer
-        let quantity = parseInt(selectedPack.quantity, 10);
-        if (isNaN(quantity) || quantity <= 0) {
-            quantity = 1;
-        }
-        
-        // Calculate price after discount (multiply by quantity)
-        const totalBasePrice = basePrice * quantity;
-        const discountAmount = (totalBasePrice * parseFloat(selectedPack.discount || 0)) / 100;
-        const priceAfterDiscount = totalBasePrice - discountAmount;
-        
-        // Debug log (remove in production if needed)
-        // console.log('Price calculation:', { basePrice, quantity, totalBasePrice, discountAmount, priceAfterDiscount });
-        
-        // Calculate DiasZone Credits (1 USD = ~416 credits, use USD price for credits, multiply by quantity)
-        const creditsMultiplier = 416;
-        const usdPrice = parseFloat(selectedPack.price_usd || selectedPack.price);
-        const totalUsdPrice = usdPrice * quantity;
-        const usdDiscountAmount = (totalUsdPrice * parseFloat(selectedPack.discount || 0)) / 100;
-        const usdPriceAfterDiscount = totalUsdPrice - usdDiscountAmount;
-        const calculatedCredits = Math.round(usdPriceAfterDiscount * creditsMultiplier);
-        
-        // Format price based on currency
         const formatPrice = (price) => {
             const numPrice = parseFloat(price);
             if (isNaN(numPrice) || numPrice === null || numPrice === undefined) {
@@ -193,56 +125,256 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
-        // Update total price - force update
+        // Build selected packs list HTML - checkedPacks is already deduplicated
+        const packsHTML = checkedPacks.map(checkbox => {
+                const packId = parseInt(checkbox.dataset.packId);
+                if (!packId) return ''; // Safety check
+                
+                // Find quantity input - prefer desktop, fallback to mobile
+            let quantityInput = document.querySelector(`.quantity-input[data-pack-id="${packId}"]`);
+            if (!quantityInput) {
+                quantityInput = document.querySelector(`.mobile-quantity-input[data-pack-id="${packId}"]`);
+            }
+            
+            // If still no quantity input found, check cart for quantity
+            let quantity = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
+            if (!quantityInput) {
+                const cart = window.CartManager ? window.CartManager.getCart() : [];
+                const cartItem = cart.find(item => item.pack_id == packId);
+                if (cartItem) {
+                    quantity = cartItem.quantity || 1;
+                }
+            }
+            
+            totalItemsCount += quantity;
+            
+            // Get pack data from checkbox data attributes
+            const priceUsd = parseFloat(checkbox.dataset.packPriceUsd) || parseFloat(checkbox.dataset.packPrice) || 0;
+            const priceDzd = parseFloat(checkbox.dataset.packPriceDzd) || (parseFloat(checkbox.dataset.packPrice) * 260) || 0;
+            const discount = parseFloat(checkbox.dataset.packDiscount) || 0;
+            const diamonds = parseInt(checkbox.dataset.packDiamonds) || 0;
+            const bonus = parseInt(checkbox.dataset.packBonus) || 0;
+            const packName = checkbox.dataset.packName || '';
+            const packQuantity = parseInt(checkbox.dataset.packQuantity) || 1;
+            
+            // Calculate unit price (before discount)
+            const unitBasePrice = currency === 'DZD' ? priceDzd : priceUsd;
+            // Calculate unit price after discount
+            const unitDiscountAmount = (unitBasePrice * discount) / 100;
+            const unitPriceAfterDiscount = unitBasePrice - unitDiscountAmount;
+            
+            // Calculate total price for this item (unit price * quantity)
+            const itemTotal = unitPriceAfterDiscount * quantity;
+            
+            // Calculate credits (based on USD)
+            const usdUnitPrice = priceUsd;
+            const usdUnitDiscount = (usdUnitPrice * discount) / 100;
+            const usdUnitPriceAfterDiscount = usdUnitPrice - usdUnitDiscount;
+            const usdItemTotal = usdUnitPriceAfterDiscount * quantity;
+            const itemCredits = Math.round(usdItemTotal * 416);
+            
+            totalPriceAmount += itemTotal;
+            totalCredits += itemCredits;
+            
+            // Format pack display name
+            let displayName = '';
+            if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
+                const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
+                displayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
+            } else if (packName && packName.includes('Twilight Pass')) {
+                displayName = translations.twilightPass || 'Twilight Pass';
+            } else {
+                if (bonus > 0) {
+                    displayName = `${diamonds.toLocaleString()} ${currencyText} + ${bonus.toLocaleString()} ${bonusText}`;
+                } else {
+                    displayName = `${diamonds.toLocaleString()} ${currencyText}`;
+                }
+            }
+            
+            return `
+                <div class="flex items-start justify-between text-xs py-2 border-b border-purple-100 last:border-0" data-pack-summary-id="${packId}">
+                    <div class="flex-1 min-w-0 pr-2">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="text-gray-700 font-medium">${displayName}</div>
+                            <button type="button" 
+                                    onclick="removePackFromSummary(${packId})"
+                                    class="text-red-400 hover:text-red-600 transition-colors p-1 ml-2 flex-shrink-0"
+                                    title="Remove pack">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="text-gray-500 text-[10px]">
+                                ${formatPrice(unitPriceAfterDiscount)} ${discount > 0 ? `<span class="text-purple-500">(${discount}% off)</span>` : ''}
+                            </div>
+                            <!-- Quantity Controls -->
+                            <div class="flex items-center gap-1 bg-purple-50 rounded px-1.5 py-0.5 border border-purple-200">
+                                <button type="button" 
+                                        onclick="decreasePackQuantity(${packId})"
+                                        class="w-5 h-5 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-[10px] border border-purple-200 transition-colors"
+                                        ${quantity <= 1 ? 'disabled class="opacity-50 cursor-not-allowed"' : ''}
+                                        title="Decrease">−</button>
+                                <span class="w-6 text-center text-[10px] font-semibold text-gray-700">${quantity}</span>
+                                <button type="button" 
+                                        onclick="increasePackQuantity(${packId})"
+                                        class="w-5 h-5 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-[10px] border border-purple-200 transition-colors"
+                                        ${quantity >= 20 ? 'disabled class="opacity-50 cursor-not-allowed"' : ''}
+                                        title="Increase">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-purple-600 font-semibold ml-2 whitespace-nowrap text-right">
+                        ${formatPrice(itemTotal)}
+                    </div>
+                </div>
+            `;
+        }).filter(html => html.trim() !== '').join(''); // Filter out empty strings to avoid duplicates
+        
+        // Update selected packs list
+        if (selectedPacksList) {
+            if (checkedPacks.length === 0 || packsHTML.trim() === '') {
+                selectedPacksList.innerHTML = '<div class="text-xs text-gray-500 py-2 text-center">No packs selected</div>';
+            } else {
+                selectedPacksList.innerHTML = packsHTML;
+            }
+        }
+        
+        // Update count - show unique packs and total items
+        if (selectedCountText) {
+            if (checkedPacks.length === 0) {
+                selectedCountText.textContent = '(0)';
+            } else if (totalItemsCount > checkedPacks.length) {
+                // Show both unique packs and total items if quantities > 1
+                selectedCountText.textContent = `(${checkedPacks.length} pack${checkedPacks.length > 1 ? 's' : ''}, ${totalItemsCount} item${totalItemsCount > 1 ? 's' : ''})`;
+            } else {
+                selectedCountText.textContent = `(${checkedPacks.length} pack${checkedPacks.length > 1 ? 's' : ''})`;
+            }
+        }
+        
+        // Update total price
         if (totalPrice) {
-            const formattedPrice = formatPrice(priceAfterDiscount);
-            totalPrice.textContent = formattedPrice;
-            // Force a re-render by accessing offsetHeight
-            void totalPrice.offsetHeight;
+            totalPrice.textContent = formatPrice(totalPriceAmount);
         }
         
         // Update DiasZone credit
         if (diaszoneCredit) {
-            const translations = window.GameTranslations || {};
             const creditText = translations.diaszoneCredit || 'diaszone credit';
-            diaszoneCredit.textContent = `${creditText} ${calculatedCredits.toLocaleString()}`;
+            diaszoneCredit.textContent = `${creditText} ${totalCredits.toLocaleString()}`;
         }
         
-        // Update selected pack info
-        if (packName) {
-            // Get game type from order form wrapper
-            const orderFormWrapper = document.getElementById('order-form-wrapper');
-            const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
-            const translations = window.GameTranslations || {};
-            const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
-            const bonusText = translations.bonus || 'Bonus';
-            
-            // Handle special pack names (Weekly Diamond Pass, Twilight Pass, etc.)
-            const packQuantity = selectedPack.quantity || 1;
-            if (selectedPack.name && (selectedPack.name.includes('Weekly Diamond Pass') || selectedPack.name.includes('Event Topup'))) {
-                const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
-                packName.textContent = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
-            } else if (selectedPack.name && selectedPack.name.includes('Twilight Pass')) {
-                packName.textContent = translations.twilightPass || 'Twilight Pass';
+        // Show/hide selected packs info
+        if (selectedPackInfo) {
+            if (checkedPacks.length === 0) {
+                selectedPackInfo.classList.add('hidden');
             } else {
-                // Regular pack display
-                if (selectedPack.bonus > 0) {
-                    packName.textContent = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} ${bonusText}`;
-                } else {
-                    packName.textContent = `${selectedPack.diamonds} ${currencyText}`;
-                }
+                selectedPackInfo.classList.remove('hidden');
             }
         }
-        
-        if (packPrice) {
-            // priceAfterDiscount already includes quantity multiplication (totalBasePrice * quantity - discount)
-            packPrice.textContent = formatPrice(priceAfterDiscount);
-        }
-        
-        if (selectedPackInfo) {
-            selectedPackInfo.classList.remove('hidden');
-        }
     }
+    
+    // Make updateOrderForm globally available
+    window.updateOrderForm = updateOrderForm;
+    
+    // Remove pack from summary (unchecks checkbox and removes from cart)
+    window.removePackFromSummary = function(packId) {
+        const checkbox = document.querySelector(`#pack-checkbox-${packId}, #mobile-pack-checkbox-${packId}`);
+        if (checkbox) {
+            checkbox.checked = false;
+            // Trigger change event to update UI
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        
+        // Remove from cart
+        const cart = window.CartManager.getCart();
+        const cartItem = cart.find(item => item.pack_id == packId);
+        if (cartItem) {
+            window.CartManager.removeFromCart(cartItem.id);
+        }
+        
+        // Update order form
+        if (typeof updateOrderForm === 'function') {
+            updateOrderForm();
+        }
+        
+        // Update mobile button text if function exists
+        if (typeof updateMobileButtonText === 'function') {
+            updateMobileButtonText();
+        }
+    };
+    
+    // Increase pack quantity in summary
+    window.increasePackQuantity = function(packId) {
+        // Find quantity input (desktop or mobile)
+        let quantityInput = document.querySelector(`.quantity-input[data-pack-id="${packId}"]`);
+        if (!quantityInput) {
+            quantityInput = document.querySelector(`.mobile-quantity-input[data-pack-id="${packId}"]`);
+        }
+        
+        if (!quantityInput) return;
+        
+        let currentQty = parseInt(quantityInput.value) || 1;
+        if (currentQty >= 20) return;
+        
+        currentQty = Math.min(20, currentQty + 1);
+        quantityInput.value = currentQty;
+        
+        // Update cart
+        const cart = window.CartManager.getCart();
+        const cartItem = cart.find(item => item.pack_id == packId);
+        if (cartItem) {
+            window.CartManager.updateQuantity(cartItem.id, currentQty);
+        }
+        
+        // Update order form
+        if (typeof updateOrderForm === 'function') {
+            updateOrderForm();
+        }
+        
+        // Update mobile button text if function exists
+        if (typeof updateMobileButtonText === 'function') {
+            updateMobileButtonText();
+        }
+    };
+    
+    // Decrease pack quantity in summary
+    window.decreasePackQuantity = function(packId) {
+        // Find quantity input (desktop or mobile)
+        let quantityInput = document.querySelector(`.quantity-input[data-pack-id="${packId}"]`);
+        if (!quantityInput) {
+            quantityInput = document.querySelector(`.mobile-quantity-input[data-pack-id="${packId}"]`);
+        }
+        
+        if (!quantityInput) return;
+        
+        let currentQty = parseInt(quantityInput.value) || 1;
+        if (currentQty <= 1) {
+            // If quantity would go to 0, remove the pack instead
+            removePackFromSummary(packId);
+            return;
+        }
+        
+        currentQty = Math.max(1, currentQty - 1);
+        quantityInput.value = currentQty;
+        
+        // Update cart
+        const cart = window.CartManager.getCart();
+        const cartItem = cart.find(item => item.pack_id == packId);
+        if (cartItem) {
+            window.CartManager.updateQuantity(cartItem.id, currentQty);
+        }
+        
+        // Update order form
+        if (typeof updateOrderForm === 'function') {
+            updateOrderForm();
+        }
+        
+        // Update mobile button text if function exists
+        if (typeof updateMobileButtonText === 'function') {
+            updateMobileButtonText();
+        }
+    };
     
     // Cart Management - Secure: Only stores pack_id, fetches data from server
     const CartManager = {
@@ -251,52 +383,73 @@ document.addEventListener('DOMContentLoaded', () => {
         getCart: function() {
             const cart = localStorage.getItem('diaszone_cart');
             const parsed = cart ? JSON.parse(cart) : [];
-            // Enforce single-item limit: if multiple items, keep only the newest (last added)
-            if (Array.isArray(parsed) && parsed.length > 1) {
-                // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
-                const sorted = parsed.sort((a, b) => {
-                    if (a.timestamp && b.timestamp) {
-                        return new Date(b.timestamp) - new Date(a.timestamp);
-                    }
-                    // Fallback: use id (higher number = newer)
-                    return parseInt(b.id || 0) - parseInt(a.id || 0);
-                });
-                const newestItem = [sorted[0]];
-                localStorage.setItem('diaszone_cart', JSON.stringify(newestItem));
-                return newestItem;
-            }
-            return parsed;
+            // Ensure all items have quantity field (default to 1 for backward compatibility)
+            return parsed.map(item => ({
+                ...item,
+                quantity: item.quantity || 1
+            }));
         },
-        
-        addToCart: function(item) {
-            // Single item limit: replace existing item if cart already has one
-            const cartItem = {
-                id: Date.now().toString(),
-                user_id: item.user_id || null,
-                zone_id: item.zone_id || null,
-                player_id: item.player_id || null,
-                player_id_ff: item.player_id_ff || null,
-                player_id_pubg: item.player_id_pubg || null,
-                player_id_hok: item.player_id_hok || null,
-                user_id_bs: item.user_id_bs || null,
-                server_bs: item.server_bs || null,
-                server: item.server || null,
-                pack_id: item.pack_id, // Only store pack ID, not full pack data
-                timestamp: new Date().toISOString()
-            };
+
+        addToCart: function(item, quantity = 1) {
+            const cart = this.getCart();
+            quantity = Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
             
-            // Replace entire cart with single item
-            const newCart = [cartItem];
-            localStorage.setItem('diaszone_cart', JSON.stringify(newCart));
+            // Check if pack already exists in cart
+            const existingIndex = cart.findIndex(cartItem => cartItem.pack_id === item.pack_id);
+            
+            if (existingIndex >= 0) {
+                // Update existing item quantity
+                cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + quantity));
+                cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
+            } else {
+                // Add new item
+                const cartItem = {
+                    id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
+                    pack_id: item.pack_id,
+                    quantity: quantity,
+                    user_id: item.user_id || null,
+                    zone_id: item.zone_id || null,
+                    player_id: item.player_id || null,
+                    player_id_ff: item.player_id_ff || null,
+                    player_id_pubg: item.player_id_pubg || null,
+                    player_id_hok: item.player_id_hok || null,
+                    user_id_bs: item.user_id_bs || null,
+                    server_bs: item.server_bs || null,
+                    server: item.server || null,
+                    timestamp: new Date().toISOString()
+                };
+                cart.push(cartItem);
+            }
+            
+            localStorage.setItem('diaszone_cart', JSON.stringify(cart));
             this.updateCartUI();
-            return cartItem;
+            return cart;
         },
-        
+
+        updateQuantity: function(itemId, quantity) {
+            const cart = this.getCart();
+            quantity = Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
+            
+            const itemIndex = cart.findIndex(item => item.id === itemId);
+            if (itemIndex >= 0) {
+                if (quantity <= 0) {
+                    // Remove item if quantity is 0 or less
+                    cart.splice(itemIndex, 1);
+                } else {
+                    cart[itemIndex].quantity = quantity;
+                }
+                localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+                this.updateCartUI();
+            }
+            return cart;
+        },
+
         removeFromCart: function(itemId) {
             const cart = this.getCart();
             const filtered = cart.filter(item => item.id !== itemId);
             localStorage.setItem('diaszone_cart', JSON.stringify(filtered));
             this.updateCartUI();
+            return filtered;
         },
         
         clearCart: function() {
@@ -648,9 +801,11 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             
             try {
-                // Check if pack is selected first
-                if (!selectedPack || !selectedPack.id) {
-                    alert('Please select a pack first');
+                // Get all checked checkboxes (multi-offer support)
+                const checkedPacks = Array.from(document.querySelectorAll('.pack-checkbox:checked, .mobile-pack-checkbox:checked'));
+                
+                if (checkedPacks.length === 0) {
+                    alert('Please select at least one pack first');
                     return;
                 }
                 
@@ -658,10 +813,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const orderFormWrapper = document.getElementById('order-form-wrapper');
                 const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
                 
-                // Handle different game types - get the correct fields
-                let cartData = {
-                    pack_id: selectedPack.id
-                };
+                // Collect selected packs with quantities
+                const selectedPacks = checkedPacks.map(checkbox => {
+                    const packId = parseInt(checkbox.dataset.packId);
+                    const quantityInput = document.querySelector(`.quantity-input[data-pack-id="${packId}"], .mobile-quantity-input[data-pack-id="${packId}"]`);
+                    const quantity = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
+                    return { pack_id: packId, quantity: quantity };
+                });
             
             // Flag to track if we're validating (prevents cart addition until validation succeeds)
             let isValidating = false;
@@ -689,11 +847,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                cartData.user_id_bs = userIdBs;
-                cartData.server_bs = serverBs;
-                // Also store as user_id and server for backend compatibility
-                cartData.user_id = userIdBs;
-                cartData.server = serverBs;
+                // Store user info for all selected packs
+                selectedPacks.forEach(pack => {
+                    pack.user_id_bs = userIdBs;
+                    pack.server_bs = serverBs;
+                    pack.user_id = userIdBs;
+                    pack.server = serverBs;
+                });
                 
                 // Clear form
                 userIdBsField.value = '';
@@ -729,16 +889,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                cartData.player_id = playerId;
-                
-                // Store in game-specific field for clarity
-                if (gameType === 'freefire') {
-                    cartData.player_id_ff = playerId;
-                } else if (gameType === 'pubgmobile') {
-                    cartData.player_id_pubg = playerId;
-                } else if (gameType === 'honorofkings') {
-                    cartData.player_id_hok = playerId;
-                }
+                // Store player_id for all selected packs
+                selectedPacks.forEach(pack => {
+                    pack.player_id = playerId;
+                    
+                    // Store in game-specific field for clarity
+                    if (gameType === 'freefire') {
+                        pack.player_id_ff = playerId;
+                    } else if (gameType === 'pubgmobile') {
+                        pack.player_id_pubg = playerId;
+                    } else if (gameType === 'honorofkings') {
+                        pack.player_id_hok = playerId;
+                    }
+                });
                 
                 // Clear form
                 try {
@@ -829,16 +992,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // Show success popup with nickname
                         showNicknameSuccess(nickname, () => {
-                            // Add to cart
-                            cartData.user_id = userId;
-                            cartData.zone_id = zoneId;
+                            // Add all selected packs to cart with user info
+                            selectedPacks.forEach(pack => {
+                                const cartItem = {
+                                    pack_id: pack.pack_id,
+                                    quantity: pack.quantity,
+                                    user_id: userId,
+                                    zone_id: zoneId
+                                };
+                                CartManager.addToCart(cartItem, pack.quantity);
+                            });
                             
                             // Clear form
                             userIdField.value = '';
                             zoneIdField.value = '';
                             
-                            // Add to cart and redirect
-                            CartManager.addToCart(cartData);
+                            // Redirect to cart
                             window.location.href = '/cart';
                         });
                     } else {
@@ -869,8 +1038,25 @@ document.addEventListener('DOMContentLoaded', () => {
             // Only add to cart if we're NOT validating (Mobile Legends validation happens async)
             if (!isValidating) {
                 // For non-Mobile Legends games, proceed directly
-                // Add to cart
-                const cartItem = CartManager.addToCart(cartData);
+                // Add all selected packs to cart (fields already added above)
+                selectedPacks.forEach(pack => {
+                    const cartItem = {
+                        pack_id: pack.pack_id,
+                        quantity: pack.quantity
+                    };
+                    // Copy game-specific fields that were added to pack object
+                    if (pack.player_id) cartItem.player_id = pack.player_id;
+                    if (pack.player_id_ff) cartItem.player_id_ff = pack.player_id_ff;
+                    if (pack.player_id_pubg) cartItem.player_id_pubg = pack.player_id_pubg;
+                    if (pack.player_id_hok) cartItem.player_id_hok = pack.player_id_hok;
+                    if (pack.user_id_bs) {
+                        cartItem.user_id_bs = pack.user_id_bs;
+                        cartItem.user_id = pack.user_id;
+                        cartItem.server_bs = pack.server_bs;
+                        cartItem.server = pack.server;
+                    }
+                    CartManager.addToCart(cartItem, pack.quantity);
+                });
                 
                 // Redirect to cart page
                 window.location.href = '/cart';

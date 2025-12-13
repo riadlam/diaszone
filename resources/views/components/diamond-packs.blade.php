@@ -5,12 +5,11 @@
     <div class="hidden lg:block" id="desktop-grid-wrapper">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         @foreach($packs as $index => $pack)
-            <label class="diamond-pack-item cursor-pointer">
-                  <input type="radio" 
-                       name="diamond_pack" 
+            <div class="diamond-pack-item-wrapper">
+                  <input type="checkbox" 
+                       name="diamond_pack[]" 
                        value="{{ $pack->id }}" 
-                       class="hidden pack-radio"
-                       {{ $index === 0 ? 'checked' : '' }}
+                       class="hidden pack-checkbox"
                        data-pack-id="{{ $pack->id }}"
                        data-pack-quantity="{{ $pack->special_quantity ?? 1 }}"
                        data-pack-diamonds="{{ $pack->diamonds }}"
@@ -19,9 +18,24 @@
                        data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
                        data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
                        data-pack-name="{{ $pack->name }}"
-                       data-pack-discount="{{ $pack->discount_percentage }}">
+                       data-pack-discount="{{ $pack->discount_percentage }}"
+                       id="pack-checkbox-{{ $pack->id }}">
                 
-                <div class="SKU_type bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-500 transition-all">
+                <div class="SKU_type bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-500 transition-all relative" data-pack-wrapper="{{ $pack->id }}">
+                    <!-- Quantity Selector (visible when checked) -->
+                    <div class="pack-quantity-control absolute top-2 right-2 hidden flex items-center gap-2 bg-purple-50 rounded-lg px-2 py-1 border border-purple-200 z-10">
+                        <button type="button" class="quantity-decrease w-6 h-6 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-sm border border-purple-200 transition-colors" data-pack-id="{{ $pack->id }}" title="Decrease quantity">−</button>
+                        <input type="number" 
+                               class="quantity-input w-10 h-6 text-center text-xs font-semibold bg-transparent border-0 p-0 focus:outline-none" 
+                               value="1" 
+                               min="1" 
+                               max="20" 
+                               data-pack-id="{{ $pack->id }}"
+                               readonly>
+                        <button type="button" class="quantity-increase w-6 h-6 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-sm border border-purple-200 transition-colors" data-pack-id="{{ $pack->id }}" title="Increase quantity">+</button>
+                    </div>
+                    
+                    <label for="pack-checkbox-{{ $pack->id }}" class="cursor-pointer block">
                     <div class="flex items-start gap-4">
                         <!-- Image (empty space for PUBG Mobile, Honor of Kings, Blood Strike) -->
                         @if(($gameType ?? 'mobilelegends') === 'pubgmobile' || ($gameType ?? 'mobilelegends') === 'bloodstrike')
@@ -187,8 +201,9 @@
                             </div>
                         </div>
                     </div>
+                    </label>
                 </div>
-            </label>
+            </div>
         @endforeach
         </div>
     </div>
@@ -456,6 +471,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (bottomSheetOverlay) {
                 bottomSheetOverlay.style.display = 'block';
                 bottomSheetOverlay.style.zIndex = '9998';
+            }
+            
+            // Show floating close button
+            const floatingCloseBtn = document.getElementById('mobile-bottom-sheet-floating-close');
+            if (floatingCloseBtn) {
+                floatingCloseBtn.style.display = 'flex';
+                floatingCloseBtn.style.zIndex = '10000';
                 bottomSheetOverlay.classList.remove('hidden');
             }
             
@@ -592,6 +614,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 bottomSheetOverlay.style.display = 'none';
                 bottomSheetOverlay.classList.add('hidden');
             }
+            // Hide floating close button
+            const floatingCloseBtn = document.getElementById('mobile-bottom-sheet-floating-close');
+            if (floatingCloseBtn) {
+                floatingCloseBtn.style.display = 'none';
+            }
             // Restore body scroll
             const scrollY = document.body.style.top;
             document.body.style.overflow = '';
@@ -609,7 +636,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('Select Pack button clicked');
-                openBottomSheet();
+                if (typeof openBottomSheet === 'function') {
+                    openBottomSheet();
+                } else {
+                    // Fallback if function not defined yet
+                    if (bottomSheet) {
+                        bottomSheet.style.display = 'flex';
+                        bottomSheetOverlay.style.display = 'block';
+                        const floatingCloseBtn = document.getElementById('mobile-bottom-sheet-floating-close');
+                        if (floatingCloseBtn) {
+                            floatingCloseBtn.style.display = 'flex';
+                        }
+                        requestAnimationFrame(() => {
+                            bottomSheet.style.setProperty('transform', 'translateY(0)', 'important');
+                        });
+                        document.body.style.overflow = 'hidden';
+                    }
+                }
             });
         } else {
             console.error('Select Pack button not found!');
@@ -620,6 +663,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 e.stopPropagation();
                 closeBottomSheet();
+            });
+        }
+        
+        // Floating close button handler
+        const floatingCloseBtn = document.getElementById('mobile-bottom-sheet-floating-close');
+        if (floatingCloseBtn) {
+            // Remove inline onclick handler and use event listener
+            floatingCloseBtn.removeAttribute('onclick');
+            floatingCloseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof closeBottomSheet === 'function') {
+                    closeBottomSheet();
+                }
             });
         }
         
@@ -646,102 +703,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }, { passive: true });
         }
         
-        // Handle pack selection from mobile bottom sheet
-        mobilePackItems.forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const packId = this.dataset.packId;
-                const packDiamonds = this.dataset.packDiamonds;
-                const packBonus = this.dataset.packBonus;
-                const packPrice = this.dataset.packPrice;
-                const packPriceUsd = this.dataset.packPriceUsd || packPrice;
-                const packPriceDzd = this.dataset.packPriceDzd || (packPrice * 260);
-                const packName = this.dataset.packName || '';
-                const packDiscount = this.dataset.packDiscount || 0;
-                const packQuantity = parseInt(this.dataset.packQuantity || 1, 10);
-                
-                // Remove previous selection indicator
-                mobilePackItems.forEach(packItem => {
-                    const indicator = packItem.querySelector('.mobile-pack-indicator');
-                    const checkIcon = packItem.querySelector('.mobile-pack-indicator svg');
-                    if (indicator) {
-                        indicator.classList.remove('bg-purple-600', 'border-purple-600');
-                        indicator.classList.add('border-gray-300');
-                    }
-                    if (checkIcon) {
-                        checkIcon.classList.add('hidden');
-                    }
-                    packItem.classList.remove('border-purple-500', 'bg-purple-50');
-                    packItem.classList.add('border-gray-200');
-                });
-                
-                // Add selection indicator to clicked item
-                const indicator = this.querySelector('.mobile-pack-indicator');
-                const checkIcon = this.querySelector('.mobile-pack-indicator svg');
-                if (indicator) {
-                    indicator.classList.remove('border-gray-300');
-                    indicator.classList.add('bg-purple-600', 'border-purple-600');
-                }
-                if (checkIcon) {
-                    checkIcon.classList.remove('hidden');
-                }
-                this.classList.remove('border-gray-200');
-                this.classList.add('border-purple-500', 'bg-purple-50/50');
-                
-                // Update mobile button text
-                const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
-                let price = currency === 'DZD' ? parseFloat(packPriceDzd) : parseFloat(packPriceUsd);
-                const discountAmount = (price * parseFloat(packDiscount)) / 100;
-                let priceAfterDiscount = price - discountAmount;
-                // Multiply by quantity (e.g., 3x weekly pass)
-                priceAfterDiscount = priceAfterDiscount * packQuantity;
-                
-                if (selectedPackText) {
-                    let packDisplayName = '';
-                    const packNameData = this.dataset.packName || '';
-                    const weeklyPassText = '{{ __('game.weekly_diamond_pass') }}';
-                    const twilightPassText = '{{ __('game.twilight_pass') }}';
-                    const bonusText = '{{ __('game.bonus') }}';
-                    
-                    if (packNameData && (packNameData.includes('Weekly Diamond Pass') || packNameData.includes('Event Topup'))) {
-                        packDisplayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
-                    } else if (packNameData && packNameData.includes('Twilight Pass')) {
-                        packDisplayName = twilightPassText;
-                    } else {
-                        const gameType = '{{ $gameType ?? "mobilelegends" }}';
-                        const currencyText = gameType === 'pubgmobile' ? '{{ __('game.uc') }}' : (gameType === 'honorofkings' ? '{{ __('game.tokens') }}' : (gameType === 'bloodstrike' ? '{{ __('game.golds') }}' : '{{ __('game.diamonds') }}'));
-                        const bonusTextFinal = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} ${bonusText}` : '';
-                        packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusTextFinal}`;
-                    }
-                    
-                    const priceText = currency === 'DZD' 
-                        ? `${Math.round(priceAfterDiscount).toLocaleString()} DZD`
-                        : `$${priceAfterDiscount.toFixed(2)} USD`;
-                    
-                    selectedPackText.innerHTML = `
-                        <span class="block text-sm font-semibold">${packDisplayName}</span>
-                        <span class="text-xs text-white/90 font-medium">${priceText}</span>
-                    `;
-                }
-                
-                // Update the hidden radio button (for form submission and desktop JS compatibility)
-                // This triggers the existing app.js logic to update the order form
-                const radio = document.querySelector(`input[name="diamond_pack"][value="${packId}"]`);
-                if (radio) {
-                    radio.checked = true;
-                    // Trigger change event to update order form via existing app.js
-                    const changeEvent = new Event('change', { bubbles: true });
-                    radio.dispatchEvent(changeEvent);
-                }
-                
-                // Close bottom sheet with slight delay for visual feedback
-                setTimeout(() => {
-                    closeBottomSheet();
-                }, 200);
-            });
-        });
+        // OLD CODE REMOVED: Mobile pack items now use checkboxes for multi-select
+        // The checkbox change handlers handle selection, and the sheet stays open for multiple selections
+        // Users can close it manually via the close button or overlay
     }
     
     // Initialize when DOM is ready - try multiple times to catch late-loading elements
@@ -764,6 +728,349 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(startInit, 200);
     setTimeout(startInit, 500);
     setTimeout(startInit, 1000);
+})();
+
+// Multi-offer selection: Checkbox and Quantity Management
+(function() {
+    'use strict';
+    
+    function initMultiOfferSelection() {
+        // Wait for CartManager to be available
+        if (typeof window.CartManager === 'undefined') {
+            setTimeout(initMultiOfferSelection, 100);
+            return;
+        }
+        
+        // Desktop: Handle checkbox changes
+        const desktopCheckboxes = document.querySelectorAll('.pack-checkbox');
+        desktopCheckboxes.forEach(checkbox => {
+            // Load existing cart state
+            const cart = window.CartManager.getCart();
+            const packId = parseInt(checkbox.dataset.packId);
+            const cartItem = cart.find(item => item.pack_id == packId);
+            
+            if (cartItem) {
+                checkbox.checked = true;
+                // Show quantity control
+                const wrapper = checkbox.closest('.diamond-pack-item-wrapper');
+                if (wrapper) {
+                    const quantityControl = wrapper.querySelector('.pack-quantity-control');
+                    const quantityInput = wrapper.querySelector('.quantity-input');
+                    if (quantityControl) quantityControl.classList.remove('hidden');
+                    if (quantityInput) quantityInput.value = cartItem.quantity || 1;
+                }
+            }
+            
+            checkbox.addEventListener('change', function() {
+                const packId = parseInt(this.dataset.packId);
+                const wrapper = this.closest('.diamond-pack-item-wrapper');
+                const quantityControl = wrapper?.querySelector('.pack-quantity-control');
+                const quantityInput = wrapper?.querySelector('.quantity-input');
+                const quantity = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
+                
+                if (this.checked) {
+                    // Add to cart
+                    if (quantityControl) quantityControl.classList.remove('hidden');
+                    
+                    const packData = {
+                        pack_id: packId,
+                        // Game-specific IDs will be set from order form
+                    };
+                    
+                    window.CartManager.addToCart(packData, quantity);
+                    
+                    // Update border to show selected
+                    const packCard = wrapper?.querySelector('.SKU_type');
+                    if (packCard) {
+                        packCard.classList.remove('border-gray-200');
+                        packCard.classList.add('border-purple-500', 'bg-purple-50/30');
+                    }
+                } else {
+                    // Remove from cart
+                    const cart = window.CartManager.getCart();
+                    const cartItem = cart.find(item => item.pack_id == packId);
+                    if (cartItem) {
+                        window.CartManager.removeFromCart(cartItem.id);
+                    }
+                    
+                    if (quantityControl) quantityControl.classList.add('hidden');
+                    
+                    // Update border to show unselected
+                    const packCard = wrapper?.querySelector('.SKU_type');
+                    if (packCard) {
+                        packCard.classList.remove('border-purple-500', 'bg-purple-50/30');
+                        packCard.classList.add('border-gray-200');
+                    }
+                    
+                    // Update order form summary
+                    if (typeof updateOrderForm === 'function') {
+                        updateOrderForm();
+                    }
+                }
+            });
+        });
+        
+        // Desktop: Handle quantity +/- buttons
+        document.querySelectorAll('.quantity-increase, .quantity-decrease').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const packId = parseInt(this.dataset.packId);
+                const wrapper = document.querySelector(`[data-pack-wrapper="${packId}"]`);
+                const quantityInput = wrapper?.querySelector('.quantity-input');
+                const checkbox = document.querySelector(`#pack-checkbox-${packId}`);
+                
+                if (!quantityInput || !checkbox || !checkbox.checked) return;
+                
+                let currentQty = parseInt(quantityInput.value) || 1;
+                if (this.classList.contains('quantity-increase')) {
+                    currentQty = Math.min(20, currentQty + 1);
+                } else {
+                    currentQty = Math.max(1, currentQty - 1);
+                }
+                
+                quantityInput.value = currentQty;
+                
+                // Update cart
+                const cart = window.CartManager.getCart();
+                const cartItem = cart.find(item => item.pack_id == packId);
+                if (cartItem) {
+                    window.CartManager.updateQuantity(cartItem.id, currentQty);
+                }
+                
+                // Update order form summary
+                if (typeof updateOrderForm === 'function') {
+                    updateOrderForm();
+                }
+            });
+        });
+        
+        // Mobile: Handle checkbox changes
+        const mobileCheckboxes = document.querySelectorAll('.mobile-pack-checkbox');
+        mobileCheckboxes.forEach(checkbox => {
+            // Load existing cart state
+            const cart = window.CartManager.getCart();
+            const packId = parseInt(checkbox.dataset.packId);
+            const cartItem = cart.find(item => item.pack_id == packId);
+            
+            if (cartItem) {
+                checkbox.checked = true;
+                // Show quantity control and selection indicator
+                const wrapper = checkbox.closest('.mobile-pack-item-wrapper');
+                if (wrapper) {
+                    const quantityControl = wrapper.querySelector('.mobile-pack-quantity-control');
+                    const quantityInput = wrapper.querySelector('.mobile-quantity-input');
+                    const packItem = wrapper.querySelector('.mobile-pack-item');
+                    const indicator = packItem?.querySelector('.mobile-pack-indicator');
+                    const checkIcon = packItem?.querySelector('.mobile-pack-indicator svg');
+                    
+                    if (quantityControl) quantityControl.classList.remove('hidden');
+                    if (quantityInput) quantityInput.value = cartItem.quantity || 1;
+                    if (packItem) {
+                        packItem.classList.remove('border-gray-200');
+                        packItem.classList.add('border-purple-500', 'bg-purple-50/50');
+                    }
+                    if (indicator) {
+                        indicator.classList.remove('border-gray-300');
+                        indicator.classList.add('bg-purple-600', 'border-purple-600');
+                    }
+                    if (checkIcon) checkIcon.classList.remove('hidden');
+                }
+            }
+            
+            checkbox.addEventListener('change', function() {
+                const packId = parseInt(this.dataset.packId);
+                const wrapper = this.closest('.mobile-pack-item-wrapper');
+                const quantityControl = wrapper?.querySelector('.mobile-pack-quantity-control');
+                const quantityInput = wrapper?.querySelector('.mobile-quantity-input');
+                const packItem = wrapper?.querySelector('.mobile-pack-item');
+                const indicator = packItem?.querySelector('.mobile-pack-indicator');
+                const checkIcon = packItem?.querySelector('.mobile-pack-indicator svg');
+                const quantity = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
+                
+                if (this.checked) {
+                    // Add to cart
+                    if (quantityControl) quantityControl.classList.remove('hidden');
+                    if (packItem) {
+                        packItem.classList.remove('border-gray-200');
+                        packItem.classList.add('border-purple-500', 'bg-purple-50/50');
+                    }
+                    if (indicator) {
+                        indicator.classList.remove('border-gray-300');
+                        indicator.classList.add('bg-purple-600', 'border-purple-600');
+                    }
+                    if (checkIcon) checkIcon.classList.remove('hidden');
+                    
+                    const packData = {
+                        pack_id: packId,
+                    };
+                    
+                    window.CartManager.addToCart(packData, quantity);
+                } else {
+                    // Remove from cart
+                    const cart = window.CartManager.getCart();
+                    const cartItem = cart.find(item => item.pack_id == packId);
+                    if (cartItem) {
+                        window.CartManager.removeFromCart(cartItem.id);
+                    }
+                    
+                    if (quantityControl) quantityControl.classList.add('hidden');
+                    if (packItem) {
+                        packItem.classList.remove('border-purple-500', 'bg-purple-50/50');
+                        packItem.classList.add('border-gray-200');
+                    }
+                    if (indicator) {
+                        indicator.classList.remove('bg-purple-600', 'border-purple-600');
+                        indicator.classList.add('border-gray-300');
+                    }
+                    if (checkIcon) checkIcon.classList.add('hidden');
+                }
+                
+                // Update order form summary and mobile button text
+                if (typeof updateOrderForm === 'function') {
+                    updateOrderForm();
+                }
+                if (typeof updateMobileButtonText === 'function') {
+                    updateMobileButtonText();
+                }
+            });
+        });
+        
+        // Mobile: Handle quantity +/- buttons (fixed selector)
+        function attachMobileQuantityHandlers() {
+            document.querySelectorAll('.mobile-quantity-increase, .mobile-quantity-decrease').forEach(btn => {
+                // Remove any existing listeners by cloning
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                
+                newBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    
+                    const packId = parseInt(this.dataset.packId);
+                    if (!packId) return;
+                    
+                    // Find the checkbox and wrapper more reliably
+                    const checkbox = document.querySelector(`#mobile-pack-checkbox-${packId}`);
+                    if (!checkbox || !checkbox.checked) return;
+                    
+                    const wrapper = checkbox.closest('.mobile-pack-item-wrapper');
+                    if (!wrapper) return;
+                    
+                    const quantityInput = wrapper.querySelector(`.mobile-quantity-input[data-pack-id="${packId}"]`);
+                    if (!quantityInput) return;
+                    
+                    let currentQty = parseInt(quantityInput.value) || 1;
+                    if (this.classList.contains('mobile-quantity-increase')) {
+                        currentQty = Math.min(20, currentQty + 1);
+                    } else {
+                        currentQty = Math.max(1, currentQty - 1);
+                    }
+                    
+                    quantityInput.value = currentQty;
+                    
+                    // Update cart
+                    const cart = window.CartManager.getCart();
+                    const cartItem = cart.find(item => item.pack_id == packId);
+                    if (cartItem) {
+                        window.CartManager.updateQuantity(cartItem.id, currentQty);
+                    }
+                    
+                    // Update order form summary
+                    if (typeof updateOrderForm === 'function') {
+                        updateOrderForm();
+                    }
+                    
+                    // Update mobile button text
+                    if (typeof updateMobileButtonText === 'function') {
+                        updateMobileButtonText();
+                    }
+                });
+            });
+        }
+        
+        // Attach handlers after a short delay to ensure DOM is ready
+        setTimeout(attachMobileQuantityHandlers, 200);
+        
+        // Mobile bottom sheet: Update button text based on selected items
+        function updateMobileButtonText() {
+            const selectedPackText = document.getElementById('mobile-selected-pack-text');
+            if (!selectedPackText) return;
+            
+            const cart = window.CartManager.getCart();
+            const checkedBoxes = document.querySelectorAll('.mobile-pack-checkbox:checked');
+            
+            if (checkedBoxes.length === 0) {
+                selectedPackText.innerHTML = '<span class="block text-sm font-semibold">{{ __('game.select_topup_amount') }}</span>';
+                return;
+            }
+            
+            // Show count if multiple items selected
+            if (checkedBoxes.length > 1) {
+                selectedPackText.innerHTML = `<span class="block text-sm font-semibold">${checkedBoxes.length} {{ __('game.packs_selected') }}</span>`;
+            } else {
+                // Show single pack info (similar to old logic but using checkbox data)
+                const checkbox = checkedBoxes[0];
+                const packPriceUsd = parseFloat(checkbox.dataset.packPriceUsd) || 0;
+                const packPriceDzd = parseFloat(checkbox.dataset.packPriceDzd) || 0;
+                const packDiscount = parseFloat(checkbox.dataset.packDiscount) || 0;
+                const packQuantity = parseInt(checkbox.dataset.packQuantity) || 1;
+                const packDiamonds = parseInt(checkbox.dataset.packDiamonds) || 0;
+                const packBonus = parseInt(checkbox.dataset.packBonus) || 0;
+                
+                const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
+                let price = currency === 'DZD' ? parseFloat(packPriceDzd) : parseFloat(packPriceUsd);
+                const discountAmount = (price * parseFloat(packDiscount)) / 100;
+                let priceAfterDiscount = price - discountAmount;
+                priceAfterDiscount = priceAfterDiscount * packQuantity;
+                
+                let packDisplayName = '';
+                const packNameData = checkbox.dataset.packName || '';
+                const weeklyPassText = '{{ __('game.weekly_diamond_pass') }}';
+                const twilightPassText = '{{ __('game.twilight_pass') }}';
+                const bonusText = '{{ __('game.bonus') }}';
+                
+                if (packNameData && (packNameData.includes('Weekly Diamond Pass') || packNameData.includes('Event Topup'))) {
+                    packDisplayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
+                } else if (packNameData && packNameData.includes('Twilight Pass')) {
+                    packDisplayName = twilightPassText;
+                } else {
+                    const gameType = '{{ $gameType ?? "mobilelegends" }}';
+                    const currencyText = gameType === 'pubgmobile' ? '{{ __('game.uc') }}' : (gameType === 'honorofkings' ? '{{ __('game.tokens') }}' : (gameType === 'bloodstrike' ? '{{ __('game.golds') }}' : '{{ __('game.diamonds') }}'));
+                    const bonusTextFinal = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} ${bonusText}` : '';
+                    packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusTextFinal}`;
+                }
+                
+                const priceText = currency === 'DZD' 
+                    ? `${Math.round(priceAfterDiscount).toLocaleString()} DZD`
+                    : `$${priceAfterDiscount.toFixed(2)} USD`;
+                
+                selectedPackText.innerHTML = `
+                    <span class="block text-sm font-semibold">${packDisplayName}</span>
+                    <span class="text-xs text-white/90 font-medium">${priceText}</span>
+                `;
+            }
+        }
+        
+        // Update mobile button text when checkboxes change
+        const mobileCheckboxesForButton = document.querySelectorAll('.mobile-pack-checkbox');
+        mobileCheckboxesForButton.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                updateMobileButtonText();
+                // Update CartManager when checkbox changes (handled by main handler, but ensure button text updates)
+            });
+        });
+        
+        // Quantity handlers are attached separately in attachMobileQuantityHandlers()
+        
+        updateMobileButtonText(); // Initial update
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMultiOfferSelection);
+    } else {
+        initMultiOfferSelection();
+    }
 })();
 </script>
 

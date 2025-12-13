@@ -85,15 +85,15 @@
                     </div>
                 </div>
                 
-                <!-- Cart Icon (visible on all screens) -->
+                <!-- Cart Icon (visible on all screens - not clickable) -->
                 @if(!request()->routeIs('select-payment'))
                 <div class="relative cart-dropdown group">
-                    <a href="{{ route('cart') }}" class="relative inline-flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors">
+                    <span class="relative inline-flex items-center justify-center p-2 text-gray-700 cursor-default pointer-events-none" title="Cart">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                         </svg>
                         <span id="cart-count" class="absolute -top-0.5 -right-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-tight hidden">0</span>
-                    </a>
+                    </span>
                     
                     <!-- Cart Dropdown -->
                     <div class="cart-dropdown-menu absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
@@ -110,9 +110,9 @@
                             </div>
                         </div>
                         <div id="cart-footer" class="hidden px-4 py-3 border-t border-gray-100 bg-gray-50">
-                            <a href="{{ route('cart') }}" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg text-center transition-colors">
+                            <span class="block w-full bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg text-center cursor-default pointer-events-none opacity-75">
                                 {{ __('cart_dropdown.view_cart') }}
-                            </a>
+                            </span>
                         </div>
                     </div>
                 </div>

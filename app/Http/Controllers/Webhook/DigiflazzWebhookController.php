@@ -93,20 +93,20 @@ class DigiflazzWebhookController extends Controller
                 $preserveOrderItemId = $statusRecord ? $statusRecord->order_item_id : null;
                 $preserveDiamondPackId = $statusRecord ? $statusRecord->diamond_pack_id : null;
                 $preserveOrderId = $statusRecord ? $statusRecord->order_id : null;
-                
-                $data = [
+
+            $data = [
                     'ref_id' => $refId, // Update ref_id to webhook's version (Digiflazz may change it)
-                    'trxid' => $trxId,
-                    'buyer_sku_code' => $buyerSku,
-                    'customer_no' => $customerNo,
-                    'rc' => $rc,
-                    'status' => $status,
-                    'message' => $payload['message'] ?? null,
-                    'price' => $payload['price'] ?? null,
-                    'sn' => $payload['sn'] ?? null,
-                    'additional_data' => $payload,
-                    'event' => $request->header('X-Digiflazz-Event') ?? null,
-                ];
+                'trxid' => $trxId,
+                'buyer_sku_code' => $buyerSku,
+                'customer_no' => $customerNo,
+                'rc' => $rc,
+                'status' => $status,
+                'message' => $payload['message'] ?? null,
+                'price' => $payload['price'] ?? null,
+                'sn' => $payload['sn'] ?? null,
+                'additional_data' => $payload,
+                'event' => $request->header('X-Digiflazz-Event') ?? null,
+            ];
                 
                 // Preserve important fields if they exist
                 if ($preserveOrderItemId) {
@@ -119,11 +119,11 @@ class DigiflazzWebhookController extends Controller
                     $data['order_id'] = $preserveOrderId;
                 }
 
-                if ($statusRecord) {
-                    $statusRecord->update($data);
-                } else {
-                    $statusRecord = DigiflazzStatus::create($data);
-                }
+            if ($statusRecord) {
+                $statusRecord->update($data);
+            } else {
+                $statusRecord = DigiflazzStatus::create($data);
+            }
 
                 Log::info('Digiflazz webhook: status record persisted', [
                     'id' => $statusRecord->id,
@@ -192,8 +192,8 @@ class DigiflazzWebhookController extends Controller
                             'order_id' => $orderId,
                         ]);
                     }
-                }
-                
+            }
+
                 // Link order_id if we have it and status record doesn't have it yet
                 if ($orderId && !$statusRecord->order_id) {
                     $order = Order::where('id', $orderId)->lockForUpdate()->first();
@@ -237,9 +237,9 @@ class DigiflazzWebhookController extends Controller
                                                 break;
                                             }
                                         }
-                                    }
-                                }
-                                
+                }
+            }
+
                                 // Fallback: if still no order_item_id but order has only one item, use it
                                 if (!$statusRecord->order_item_id && $order->orderItems && $order->orderItems->count() === 1) {
                                     $singleItem = $order->orderItems->first();
@@ -252,7 +252,7 @@ class DigiflazzWebhookController extends Controller
                                     // Last fallback: use order's primary diamond_pack_id (legacy orders)
                                     $statusRecord->diamond_pack_id = $order->diamond_pack_id;
                                 }
-                            } else {
+                        } else {
                                 // Status record already has order_item_id - ensure diamond_pack_id is set
                                 if (!$statusRecord->diamond_pack_id) {
                                     $existingOrderItem = \App\Models\OrderItem::find($statusRecord->order_item_id);
@@ -272,12 +272,12 @@ class DigiflazzWebhookController extends Controller
                                     \App\Models\VipResellerStatus::where('trxid', $trxId)
                                         ->whereNull('order_id')
                                         ->update(['order_id' => $orderId]);
-                                } catch (\Throwable $e) {
+                            } catch (\Throwable $e) {
                                     Log::warning('Failed to update VipResellerStatus order_id', [
                                         'error' => $e->getMessage(),
                                         'trxid' => $trxId
                                     ]);
-                                }
+                            }
                             }
 
                             // Refresh status record to ensure we have the latest order_item_id before applying
@@ -285,7 +285,7 @@ class DigiflazzWebhookController extends Controller
                             
                             // Apply status update to order
                             $this->applyStatusToOrder($order, $statusRecord);
-                            
+
                             Log::info('Digiflazz webhook: linked status to order with order_item', [
                                 'digiflazz_status_id' => $statusRecord->id,
                                 'order_id' => $orderId,
@@ -309,11 +309,11 @@ class DigiflazzWebhookController extends Controller
                                                 'order_item_id' => $item->id,
                                             ]);
                                             break;
-                                        }
+                        }
                                     }
-                                }
-                            }
-                            
+                    }
+                }
+
                             // Apply status update even if already linked (webhook might have new status)
                             $order = Order::where('id', $orderId)->lockForUpdate()->first();
                             if ($order) {
@@ -376,11 +376,11 @@ class DigiflazzWebhookController extends Controller
                             'additional_data' => $additional,
                         ]
                     );
-                } catch (\Throwable $e) {
+                        } catch (\Throwable $e) {
                     Log::warning('Failed to create/update VipResellerStatus mirror', [
                         'error' => $e->getMessage()
                     ]);
-                }
+                        }
             });
 
             return response()->json(['ok' => true], 200);
@@ -500,8 +500,8 @@ class DigiflazzWebhookController extends Controller
         // Try matching common player id fields (Free Fire, PUBG, Honor of Kings, Blood Strike)
         $candidates = Order::where(function ($q) use ($customerNo) {
                 $q->where('player_id_ff', $customerNo)
-                  ->orWhere('player_id_pubg', $customerNo)
-                  ->orWhere('player_id_hok', $customerNo)
+            ->orWhere('player_id_pubg', $customerNo)
+            ->orWhere('player_id_hok', $customerNo)
                   ->orWhere('user_id_bs', $customerNo);
             })
             ->where('created_at', '>=', $timeWindow)
@@ -587,16 +587,16 @@ class DigiflazzWebhookController extends Controller
                 // Legacy single-pack order: use old logic
                 $quantity = $order->quantity ?? 1;
                 if ($quantity > 1) {
-                    $succeeded = $order->successfulDigiflazzTopupsCount();
+                $succeeded = $order->successfulDigiflazzTopupsCount();
                     if ($succeeded >= $quantity) {
-                        $order->update(['status' => 'completed']);
-                    } else {
-                        $order->update(['status' => 'sending']);
-                        $order->notes = trim(($order->notes ?? '') . "\nDigiflazz: {$succeeded}/{$quantity} top-ups completed");
-                        $order->save();
-                    }
-                } else {
                     $order->update(['status' => 'completed']);
+                } else {
+                    $order->update(['status' => 'sending']);
+                        $order->notes = trim(($order->notes ?? '') . "\nDigiflazz: {$succeeded}/{$quantity} top-ups completed");
+                    $order->save();
+                }
+            } else {
+                $order->update(['status' => 'completed']);
                 }
             }
         } elseif ($status === 'pending' || in_array($rc, ['03', '99'])) {

@@ -66,15 +66,13 @@
             </div>
         @endif
         
-        <!-- Selected Pack Info -->
+        <!-- Selected Packs Summary -->
         <div id="selected-pack-info" class="hidden bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-sm font-semibold text-gray-700">{{ __('game.selected_pack') }}</span>
-                <span id="pack-name" class="text-sm font-bold text-purple-600"></span>
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-semibold text-gray-700">{{ __('game.selected_pack') }} <span id="selected-count-text">(0)</span></span>
             </div>
-            <div class="flex items-center justify-between">
-                <span class="text-xs text-gray-600">{{ __('game.price') }}</span>
-                <span id="pack-price" class="text-sm font-semibold text-purple-600"></span>
+            <div id="selected-packs-list" class="space-y-2 max-h-48 overflow-y-auto">
+                <!-- Selected packs will be listed here -->
             </div>
         </div>
         

@@ -1002,9 +1002,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitBtn.textContent = {!! json_encode(__('seller.processing_text')) !!};
                     
                     try {
-                    // Prepare cart items for API - include all game-specific fields
+                    // Prepare cart items for API - include all game-specific fields and quantity
                     const cartItems = cart.map(item => {
-                        const cartItem = { pack_id: item.pack_id };
+                        const cartItem = { 
+                            pack_id: item.pack_id,
+                            quantity: item.quantity || 1 // Include quantity
+                        };
                         
                         // Include all possible fields - backend will validate based on game type
                         if (item.user_id) cartItem.user_id = item.user_id;
@@ -1126,9 +1129,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     try {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                     
-                    // Prepare cart items for API - include all game-specific fields
+                    // Prepare cart items for API - include all game-specific fields and quantity
                     const cartItems = cart.map(item => {
-                        const cartItem = { pack_id: item.pack_id };
+                        const cartItem = { 
+                            pack_id: item.pack_id,
+                            quantity: item.quantity || 1 // Include quantity
+                        };
                         
                         // Add game-specific fields based on what's available
                         if (item.user_id) cartItem.user_id = item.user_id;

@@ -3,38 +3,65 @@ const CartManager = {
     getCart: function() {
         const cart = localStorage.getItem('diaszone_cart');
         const parsed = cart ? JSON.parse(cart) : [];
-        // Enforce single-item limit: if multiple items, keep only the newest (last added)
-        if (Array.isArray(parsed) && parsed.length > 1) {
-            // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
-            const sorted = parsed.sort((a, b) => {
-                if (a.timestamp && b.timestamp) {
-                    return new Date(b.timestamp) - new Date(a.timestamp);
-                }
-                // Fallback: use id (higher number = newer)
-                return parseInt(b.id || 0) - parseInt(a.id || 0);
-            });
-            const newestItem = [sorted[0]];
-            localStorage.setItem('diaszone_cart', JSON.stringify(newestItem));
-            return newestItem;
-        }
-        return parsed;
+        // Ensure all items have quantity field (default to 1 for backward compatibility)
+        return parsed.map(item => ({
+            ...item,
+            quantity: item.quantity || 1
+        }));
     },
     
-    addToCart: function(item) {
-        // Single item limit: replace existing item if cart already has one
-        const cartItem = {
-            id: Date.now().toString(),
-            user_id: item.user_id,
-            zone_id: item.zone_id,
-            pack: item.pack,
-            timestamp: new Date().toISOString()
-        };
+    addToCart: function(item, quantity = 1) {
+        const cart = this.getCart();
+        quantity = Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
         
-        // Replace entire cart with single item
-        const newCart = [cartItem];
-        localStorage.setItem('diaszone_cart', JSON.stringify(newCart));
+        // Check if pack already exists in cart
+        const existingIndex = cart.findIndex(cartItem => cartItem.pack_id === item.pack_id);
+        
+        if (existingIndex >= 0) {
+            // Update existing item quantity
+            cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + quantity));
+            cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
+        } else {
+            // Add new item
+            const cartItem = {
+                id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
+                pack_id: item.pack_id,
+                quantity: quantity,
+                user_id: item.user_id || null,
+                zone_id: item.zone_id || null,
+                player_id: item.player_id || null,
+                player_id_ff: item.player_id_ff || null,
+                player_id_pubg: item.player_id_pubg || null,
+                player_id_hok: item.player_id_hok || null,
+                user_id_bs: item.user_id_bs || null,
+                server_bs: item.server_bs || null,
+                server: item.server || null,
+                timestamp: new Date().toISOString()
+            };
+            cart.push(cartItem);
+        }
+        
+        localStorage.setItem('diaszone_cart', JSON.stringify(cart));
         this.updateCartUI();
-        return cartItem;
+        return cart;
+    },
+    
+    updateQuantity: function(itemId, quantity) {
+        const cart = this.getCart();
+        quantity = Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
+        
+        const itemIndex = cart.findIndex(item => item.id === itemId);
+        if (itemIndex >= 0) {
+            if (quantity <= 0) {
+                // Remove item if quantity is 0 or less
+                cart.splice(itemIndex, 1);
+            } else {
+                cart[itemIndex].quantity = quantity;
+            }
+            localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+            this.updateCartUI();
+        }
+        return cart;
     },
     
     removeFromCart: function(itemId) {
@@ -42,6 +69,7 @@ const CartManager = {
         const filtered = cart.filter(item => item.id !== itemId);
         localStorage.setItem('diaszone_cart', JSON.stringify(filtered));
         this.updateCartUI();
+        return filtered;
     },
     
     clearCart: function() {

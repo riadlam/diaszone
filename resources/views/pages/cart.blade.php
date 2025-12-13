@@ -8,13 +8,13 @@
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('cart.title') }}</h1>
             <p class="text-sm text-gray-600">{{ __('cart.subtitle') }}</p>
-            <!-- Single Item Limit Notice -->
-            <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
-                <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Multi-Item Cart Notice -->
+            <div class="mt-3 bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-start gap-2">
+                <svg class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <p class="text-xs text-blue-800">
-                    <span class="font-semibold">{{ __('cart.note') }}</span> {{ __('cart.single_item_notice') }}
+                <p class="text-xs text-purple-800">
+                    <span class="font-semibold">{{ __('cart.note') }}</span> You can select multiple packs from the same game. Use quantity selectors to adjust amounts.
                 </p>
             </div>
         </div>
@@ -83,23 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tTotalBeforeDiscounts = {!! json_encode(__('checkout.total_before_discounts')) !!};
     const tDiscountLabel = {!! json_encode(__('coupons.discount')) !!};
     const tTotalLabel = {!! json_encode(__('checkout.total')) !!};
-    // Enforce single-item cart limit - cleanup if multiple items exist
-    (function enforceSingleItemCart() {
-        const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
-        if (Array.isArray(cart) && cart.length > 1) {
-            console.log('Multiple items detected in cart, keeping only the newest item');
-            // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
-            const sorted = cart.sort((a, b) => {
-                if (a.timestamp && b.timestamp) {
-                    return new Date(b.timestamp) - new Date(a.timestamp);
-                }
-                // Fallback: use id (higher number = newer)
-                return parseInt(b.id || 0) - parseInt(a.id || 0);
-            });
-            const newestItem = [sorted[0]];
-            localStorage.setItem('diaszone_cart', JSON.stringify(newestItem));
-        }
-    })();
+            // Multi-item cart is now supported - no limit enforcement needed
     
     waitForCartManager(() => {
         const cartItemsList = document.getElementById('cart-items-list');
@@ -112,21 +96,29 @@ document.addEventListener('DOMContentLoaded', () => {
             getCart: function() {
                 const cart = localStorage.getItem('diaszone_cart');
                 const parsed = cart ? JSON.parse(cart) : [];
-                // Enforce single-item limit: if multiple items, keep only the newest (last added)
-                if (Array.isArray(parsed) && parsed.length > 1) {
-                    // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
-                    const sorted = parsed.sort((a, b) => {
-                        if (a.timestamp && b.timestamp) {
-                            return new Date(b.timestamp) - new Date(a.timestamp);
-                        }
-                        // Fallback: use id (higher number = newer)
-                        return parseInt(b.id || 0) - parseInt(a.id || 0);
-                    });
-                    const newestItem = [sorted[0]];
-                    localStorage.setItem('diaszone_cart', JSON.stringify(newestItem));
-                    return newestItem;
+                // Ensure all items have quantity field
+                return parsed.map(item => ({
+                    ...item,
+                    quantity: item.quantity || 1
+                }));
+            },
+            
+            updateQuantity: function(itemId, quantity) {
+                const cart = this.getCart();
+                quantity = Math.max(1, Math.min(20, parseInt(quantity) || 1));
+                const itemIndex = cart.findIndex(item => item.id === itemId);
+                if (itemIndex >= 0) {
+                    if (quantity <= 0) {
+                        cart.splice(itemIndex, 1);
+                    } else {
+                        cart[itemIndex].quantity = quantity;
+                    }
+                    localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+                    if (window.CartManager && window.CartManager.updateCartUI) {
+                        window.CartManager.updateCartUI();
+                    }
                 }
-                return parsed;
+                return cart;
             },
             removeFromCart: function(itemId) {
                 const cart = this.getCart();
@@ -236,20 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let cart = CartManager.getCart();
             
-            // Enforce single-item limit: if multiple items exist, keep only the newest (last added)
-            if (Array.isArray(cart) && cart.length > 1) {
-                console.log('Multiple items in cart detected, keeping only the newest item');
-                // Sort by timestamp (newest first) or by id (higher = newer) and keep the newest
-                const sorted = cart.sort((a, b) => {
-                    if (a.timestamp && b.timestamp) {
-                        return new Date(b.timestamp) - new Date(a.timestamp);
-                    }
-                    // Fallback: use id (higher number = newer)
-                    return parseInt(b.id || 0) - parseInt(a.id || 0);
-                });
-                cart = [sorted[0]];
-                localStorage.setItem('diaszone_cart', JSON.stringify(cart));
-            }
+            // Multi-item cart is supported - no limit enforcement
             
             if (cart.length === 0) {
                 emptyCart.classList.remove('hidden');
@@ -279,10 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let totalAmount = 0;
             let totalCredits = 0;
             
-            // Display cart items in same format as checkout
-            // Only show first item if multiple exist (shouldn't happen, but safety check)
-            const itemsToShow = cart.slice(0, 1);
-            cartItemsList.innerHTML = itemsToShow.map((item, index) => {
+            // Display all cart items with quantity controls
+            cartItemsList.innerHTML = cart.map((item, index) => {
                 const pack = packsMap[item.pack_id];
                 
                 if (!pack) {
@@ -292,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 }
-                const quantity = 1;
+                const quantity = item.quantity || 1;
                 // Use price_usd or price_dzd based on selected currency
                 const unitPriceBase = currency === 'DZD' 
                     ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
@@ -473,10 +450,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="text-xs text-gray-500"><span class="text-purple-600">${packDisplayText}</span></p>
                         </div>
                         <button onclick="removeCartItem('${item.id}')" 
-                                class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0"
+                                class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0 p-1"
                                 title="Remove from cart">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                             </svg>
                         </button>
                     </div>
@@ -546,21 +523,27 @@ document.addEventListener('DOMContentLoaded', () => {
         function updateCartPrices() {
             const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
             
-            // Update item prices
+            // Update item prices (with quantity)
             document.querySelectorAll('.cart-item-price').forEach(element => {
                 const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
                 const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
                 const discount = parseFloat(element.getAttribute('data-discount')) || 0;
+                const quantity = parseInt(element.getAttribute('data-quantity')) || 1;
                 
-                let price = currency === 'DZD' ? priceDzd : priceUsd;
+                let unitPrice = currency === 'DZD' ? priceDzd : priceUsd;
                 if (discount > 0) {
-                    const discountAmount = (price * discount) / 100;
-                    price = price - discountAmount;
+                    const discountAmount = (unitPrice * discount) / 100;
+                    unitPrice = unitPrice - discountAmount;
                 }
+                const totalPrice = unitPrice * quantity;
                 
-                element.textContent = currency === 'DZD' 
-                    ? Math.round(price).toLocaleString() + ' DZD'
-                    : '$' + price.toFixed(2) + ' USD';
+                const formatPrice = (price) => {
+                    return currency === 'DZD' 
+                        ? Math.round(price).toLocaleString() + ' DZD'
+                        : '$' + price.toFixed(2) + ' USD';
+                };
+                
+                element.textContent = formatPrice(totalPrice);
             });
             
             // Recalculate totals based on new currency
@@ -583,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const pack = packsMap[item.pack_id];
                         if (!pack) return;
                         
-                        const quantity = 1;
+                        const quantity = item.quantity || 1; // Use actual item quantity
                         const unitPriceBase = currency === 'DZD' 
                             ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
                             : (parseFloat(pack.price_usd) || parseFloat(pack.price));

@@ -76,18 +76,39 @@
                 }
             @endphp
                 @php $packQuantity = $pack->special_quantity ?? 1; @endphp
-                <button type="button"
-                    class="mobile-pack-item w-full bg-white border border-gray-200 rounded-2xl p-4 active:scale-[0.98] transition-all text-left shadow-sm hover:shadow-md hover:border-purple-300 active:bg-purple-50/30"
-                    data-pack-id="{{ $pack->id }}"
-                    data-pack-quantity="{{ $packQuantity }}"
-                    data-pack-diamonds="{{ $pack->diamonds }}"
-                    data-pack-bonus="{{ $pack->bonus_diamonds }}"
-                    data-pack-price="{{ $pack->price }}"
-                    data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
-                    data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
-                    data-pack-name="{{ $pack->name }}"
-                    data-pack-discount="{{ $pack->discount_percentage }}">
-                <div class="flex items-center gap-4">
+                <div class="mobile-pack-item-wrapper relative">
+                    <input type="checkbox" 
+                           class="hidden mobile-pack-checkbox" 
+                           id="mobile-pack-checkbox-{{ $pack->id }}"
+                           data-pack-id="{{ $pack->id }}"
+                           data-pack-quantity="{{ $packQuantity }}"
+                           data-pack-diamonds="{{ $pack->diamonds }}"
+                           data-pack-bonus="{{ $pack->bonus_diamonds }}"
+                           data-pack-price="{{ $pack->price }}"
+                           data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
+                           data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
+                           data-pack-name="{{ $pack->name }}"
+                           data-pack-discount="{{ $pack->discount_percentage }}">
+                    
+                    <!-- Quantity Selector (visible when checked) -->
+                    <div class="mobile-pack-quantity-control absolute top-2 right-2 hidden flex items-center gap-1.5 bg-purple-50 rounded-lg px-1.5 py-0.5 border border-purple-200 z-10">
+                        <button type="button" class="mobile-quantity-decrease w-5 h-5 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-xs border border-purple-200 transition-colors" data-pack-id="{{ $pack->id }}" title="Decrease" onclick="event.stopPropagation(); event.preventDefault();">−</button>
+                        <input type="number" 
+                               class="mobile-quantity-input w-8 h-5 text-center text-xs font-semibold bg-transparent border-0 p-0 focus:outline-none" 
+                               value="1" 
+                               min="1" 
+                               max="20" 
+                               data-pack-id="{{ $pack->id }}"
+                               readonly
+                               onclick="event.stopPropagation();">
+                        <button type="button" class="mobile-quantity-increase w-5 h-5 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-xs border border-purple-200 transition-colors" data-pack-id="{{ $pack->id }}" title="Increase" onclick="event.stopPropagation(); event.preventDefault();">+</button>
+                    </div>
+                    
+                    <label for="mobile-pack-checkbox-{{ $pack->id }}" 
+                           class="mobile-pack-item w-full bg-white border border-gray-200 rounded-2xl p-4 active:scale-[0.98] transition-all text-left shadow-sm hover:shadow-md hover:border-purple-300 active:bg-purple-50/30 cursor-pointer block"
+                           data-pack-wrapper="{{ $pack->id }}"
+                           onclick="event.stopPropagation();">
+                    <div class="flex items-center gap-4">
                     <!-- Image (empty space for PUBG Mobile, Honor of Kings, Blood Strike) -->
                     @if(($gameType ?? 'mobilelegends') === 'pubgmobile' || ($gameType ?? 'mobilelegends') === 'bloodstrike')
                         <!-- PUBG Mobile / Blood Strike: Empty space to maintain layout -->
@@ -223,8 +244,9 @@
                             </svg>
                         </div>
                     </div>
+                    </div>
+                    </label>
                 </div>
-            </button>
         @endforeach
         @endif
     </div>
@@ -232,4 +254,14 @@
 
 <!-- Bottom Sheet Overlay -->
 <div id="bottom-sheet-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden lg:hidden" style="display: none; z-index: 9998;"></div>
+
+<!-- Floating Close Button (only visible when bottom sheet is open) -->
+<button id="mobile-bottom-sheet-floating-close" 
+        class="fixed bottom-24 right-4 w-12 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg flex items-center justify-center z-[10000] hidden lg:hidden transition-all hover:scale-110 active:scale-95"
+        style="display: none;"
+        title="Close">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+    </svg>
+</button>
 
