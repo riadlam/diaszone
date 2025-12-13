@@ -681,13 +681,21 @@ class CheckoutController extends Controller
      */
     public function processBaridimobPayment(Request $request)
     {
+        Log::info('=== BARIDIMOB PAYMENT PROCESS STARTED ===', [
+            'encrypted_order_id' => substr($request->encrypted_order_id ?? '', 0, 20) . '...',
+        ]);
+        
         $request->validate([
             'encrypted_order_id' => 'required|string',
         ]);
         
         try {
             $orderId = Crypt::decryptString($request->encrypted_order_id);
+            Log::info('Baridimob: Order ID decrypted', ['order_id' => $orderId]);
         } catch (\Exception $e) {
+            Log::error('Baridimob: Failed to decrypt order ID', [
+                'error' => $e->getMessage(),
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid order ID'
@@ -698,11 +706,20 @@ class CheckoutController extends Controller
         $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
         
         if (!$order) {
+            Log::error('Baridimob: Order not found', ['order_id' => $orderId]);
             return response()->json([
                 'success' => false,
                 'message' => 'Order not found'
             ], 404);
         }
+        
+        Log::info('Baridimob: Order loaded', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'has_diamond_pack' => $order->diamondPack ? true : false,
+            'has_order_items' => $order->orderItems && $order->orderItems->count() > 0,
+            'order_items_count' => $order->orderItems ? $order->orderItems->count() : 0,
+        ]);
         
         // Check if this is a multi-item order
         $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
@@ -863,6 +880,12 @@ class CheckoutController extends Controller
             $order->status = 'pending_bmccp';
             $order->save();
             
+            Log::info('Baridimob: BMCCP record created and order updated', [
+                'order_id' => $order->id,
+                'bmccp_id' => $bmccp->id,
+                'amount' => $amount,
+            ]);
+            
             // Prepare checkout data for Chargily Pay v2
             // Note: Chargily Pay v2 expects amount in DZD (not centimes)
             $checkoutData = [
@@ -959,6 +982,15 @@ class CheckoutController extends Controller
             
         } catch (\Exception $e) {
             $errorMessage = $e->getMessage();
+            
+            Log::error('Baridimob payment exception caught', [
+                'order_id' => $orderId ?? null,
+                'error_message' => $errorMessage,
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
             
             // Detect timeout errors with multiple patterns
             $isTimeoutError = str_contains($errorMessage, 'cURL error 28') 
