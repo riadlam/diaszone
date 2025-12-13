@@ -236,7 +236,7 @@ class TelegramService
         }
         
         // Load order items if available (multi-item orders)
-        if (!isset($order->relationLoaded('orderItems'))) {
+        if (!$order->relationLoaded('orderItems')) {
             $order->load('orderItems.diamondPack');
         }
         $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
