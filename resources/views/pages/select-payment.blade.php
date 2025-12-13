@@ -409,27 +409,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (orderInfoContent) orderInfoContent.style.display = 'block';
                 
                 if (orderInfoSection && orderInfoContent) {
-                const item = cart[0]; // Only one item allowed on /select
-                const pack = packsMap[item.pack_id];
+                // Display all cart items (multi-item support)
+                let orderItemsHTML = '';
                 
-                if (pack) {
-                    const gameType = pack.game_type || 'mobilelegends';
-                    let currencyText = 'Diamonds';
-                    let gameName = 'Mobile Legends';
+                // Get game type from first pack (all packs should be same game)
+                const firstItem = cart[0];
+                const firstPack = packsMap[firstItem?.pack_id];
+                const gameType = firstPack?.game_type || 'mobilelegends';
+                
+                let currencyText = 'Diamonds';
+                let gameName = 'Mobile Legends';
+                
+                if (gameType === 'freefire') {
+                    currencyText = 'Diamonds';
+                    gameName = 'Free Fire';
+                } else if (gameType === 'pubgmobile') {
+                    currencyText = 'UC';
+                    gameName = 'PUBG Mobile';
+                } else if (gameType === 'honorofkings') {
+                    currencyText = 'Tokens';
+                    gameName = 'Honor of Kings';
+                } else if (gameType === 'bloodstrike') {
+                    currencyText = 'Golds';
+                    gameName = 'Blood Strike';
+                }
+                
+                // Display each cart item
+                cart.forEach((item, index) => {
+                    const pack = packsMap[item.pack_id];
+                    if (!pack) return;
                     
-                    if (gameType === 'freefire') {
-                        currencyText = 'Diamonds';
-                        gameName = 'Free Fire';
-                    } else if (gameType === 'pubgmobile') {
-                        currencyText = 'UC';
-                        gameName = 'PUBG Mobile';
-                    } else if (gameType === 'honorofkings') {
-                        currencyText = 'Tokens';
-                        gameName = 'Honor of Kings';
-                    } else if (gameType === 'bloodstrike') {
-                        currencyText = 'Golds';
-                        gameName = 'Blood Strike';
-                    }
+                    const quantity = parseInt(item.quantity) || 1;
                     
                     // Determine pack display name
                     let packDisplayName = '';
@@ -444,36 +454,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     const bonusText = bonus > 0 ? ` + ${bonus} ${tBonus}` : '';
                     const packDisplayText = packDisplayName + bonusText;
                     
-                    // Determine order information fields based on game type
+                    // Determine order information fields based on game type (only show once)
                     let orderFieldsHTML = '';
-                    if (gameType === 'bloodstrike') {
-                        const userIdBs = item.user_id_bs || '';
-                        const serverBs = item.server_bs || 'Global';
-                        orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userIdBs}</p>
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tServer}:</span> ${serverBs}</p>
-                        `;
-                    } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
-                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || '';
-                        orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tPlayerId}:</span> ${playerId}</p>
-                        `;
-                    } else {
-                        // Mobile Legends
-                        const userId = item.user_id || '';
-                        const zoneId = item.zone_id || '';
-                        orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userId}</p>
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tZoneId}:</span> ${zoneId}</p>
-                        `;
+                    if (index === 0) { // Only show fields for first item
+                        if (gameType === 'bloodstrike') {
+                            const userIdBs = item.user_id_bs || '';
+                            const serverBs = item.server_bs || 'Global';
+                            orderFieldsHTML = `
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userIdBs}</p>
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tServer}:</span> ${serverBs}</p>
+                            `;
+                        } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                            const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || '';
+                            orderFieldsHTML = `
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tPlayerId}:</span> ${playerId}</p>
+                            `;
+                        } else {
+                            // Mobile Legends
+                            const userId = item.user_id || '';
+                            const zoneId = item.zone_id || '';
+                            orderFieldsHTML = `
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userId}</p>
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tZoneId}:</span> ${zoneId}</p>
+                            `;
+                        }
                     }
                     
-                    orderInfoContent.innerHTML = `
-                        <p class="text-gray-800 font-medium">${gameName}</p>
-                        <p class="text-purple-600 font-semibold">${packDisplayText}</p>
-                        ${orderFieldsHTML}
+                    orderItemsHTML += `
+                        <div class="${index > 0 ? 'mt-3 pt-3 border-t border-gray-200' : ''}">
+                            ${index === 0 ? `<p class="text-gray-800 font-medium">${gameName}</p>` : ''}
+                            <p class="text-purple-600 font-semibold">${packDisplayText}${quantity > 1 ? ` × ${quantity}` : ''}</p>
+                            ${orderFieldsHTML}
+                        </div>
                     `;
-                }
+                });
+                
+                orderInfoContent.innerHTML = orderItemsHTML;
                 }
             } else {
                 // Cart is empty - show empty message, hide order info and payment info

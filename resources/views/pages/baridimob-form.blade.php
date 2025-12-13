@@ -31,7 +31,17 @@
                 </div>
                 
                 @php
-                    $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                    // Load order items if available (multi-item support)
+                    $order->load('orderItems.diamondPack');
+                    $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+                    
+                    // Get game type from first pack/item
+                    if ($hasOrderItems && $order->orderItems->first()) {
+                        $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
+                    } else {
+                        $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                    }
+                    
                     $currencyText = 'Diamonds';
                     $gameName = 'Mobile Legends';
                     
@@ -48,19 +58,6 @@
                         $currencyText = 'Golds';
                         $gameName = 'Blood Strike';
                     }
-                    
-                    // Determine pack display name
-                    $packDisplayName = '';
-                    if ($order->diamondPack->name) {
-                        $packDisplayName = $order->diamondPack->name;
-                    } else {
-                        $packDisplayName = $order->diamondPack->diamonds . ' ' . $currencyText;
-                    }
-                    
-                    // Bonus display
-                    $bonus = $order->diamondPack->bonus_diamonds ?? 0;
-                    $bonusText = $bonus > 0 ? ' + ' . $bonus . ' Bonus' : '';
-                    $packDisplayText = $packDisplayName . $bonusText;
                 @endphp
                 
                 <div class="flex justify-between items-center">
@@ -68,12 +65,52 @@
                     <span class="text-sm font-semibold text-gray-900">{{ $gameName }}</span>
                 </div>
                 
-                <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">{{ $currencyText }}</span>
-                    <span class="text-sm font-semibold text-purple-600">
-                        {{ $packDisplayText }}
-                    </span>
-                </div>
+                @if($hasOrderItems)
+                    {{-- Multi-item order: show all items --}}
+                    @foreach($order->orderItems as $index => $orderItem)
+                        @php
+                            $pack = $orderItem->diamondPack;
+                            $quantity = $orderItem->quantity ?? 1;
+                            
+                            $packDisplayName = '';
+                            if ($pack->name) {
+                                $packDisplayName = $pack->name;
+                            } else {
+                                $packDisplayName = $pack->diamonds . ' ' . $currencyText;
+                            }
+                            
+                            $bonus = $pack->bonus_diamonds ?? 0;
+                            $bonusText = $bonus > 0 ? ' + ' . $bonus . ' Bonus' : '';
+                            $packDisplayText = $packDisplayName . $bonusText;
+                        @endphp
+                        <div class="flex justify-between items-center {{ $index > 0 ? 'mt-2 pt-2 border-t border-gray-200' : '' }}">
+                            <span class="text-sm text-gray-600">{{ $currencyText }}</span>
+                            <span class="text-sm font-semibold text-purple-600">
+                                {{ $packDisplayText }}{{ $quantity > 1 ? ' × ' . $quantity : '' }}
+                            </span>
+                        </div>
+                    @endforeach
+                @else
+                    {{-- Legacy single-pack order --}}
+                    @php
+                        $packDisplayName = '';
+                        if ($order->diamondPack->name) {
+                            $packDisplayName = $order->diamondPack->name;
+                        } else {
+                            $packDisplayName = $order->diamondPack->diamonds . ' ' . $currencyText;
+                        }
+                        
+                        $bonus = $order->diamondPack->bonus_diamonds ?? 0;
+                        $bonusText = $bonus > 0 ? ' + ' . $bonus . ' Bonus' : '';
+                        $packDisplayText = $packDisplayName . $bonusText;
+                    @endphp
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">{{ $currencyText }}</span>
+                        <span class="text-sm font-semibold text-purple-600">
+                            {{ $packDisplayText }}
+                        </span>
+                    </div>
+                @endif
                 
                 @if($gameType === 'bloodstrike')
                     <div class="flex justify-between items-center">
@@ -118,13 +155,28 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
             <div class="space-y-3">
                 @php
-                    $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
-                    $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
-                    $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-                    $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
-                    $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
-                    $finalUsdPrice = $usdPrice - $discountAmountUsd;
-                    $finalDzdPrice = $dzdPrice - $discountAmountDzd;
+                    // Use final_price from order if available (supports multi-item orders with quantities)
+                    // Otherwise calculate from single pack (legacy support)
+                    if ($order->final_price && $order->final_price > 0) {
+                        // Multi-item order: use stored final_price
+                        $finalDzdPrice = (float) $order->final_price;
+                        $finalUsdPrice = $finalDzdPrice / 260; // Convert DZD to USD
+                        
+                        // Calculate discount for display (if original_price is available)
+                        $originalPrice = (float) ($order->original_price ?? $finalDzdPrice);
+                        $discountAmountDzd = $originalPrice - $finalDzdPrice;
+                        $discountPercentage = $originalPrice > 0 ? ($discountAmountDzd / $originalPrice) * 100 : 0;
+                        $discountAmountUsd = $discountAmountDzd / 260;
+                    } else {
+                        // Legacy single-pack order: calculate from pack
+                        $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
+                        $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
+                        $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+                        $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
+                        $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
+                        $finalUsdPrice = $usdPrice - $discountAmountUsd;
+                        $finalDzdPrice = $dzdPrice - $discountAmountDzd;
+                    }
                 @endphp
                 @if($discountPercentage > 0)
                 <div class="flex justify-between items-center">
