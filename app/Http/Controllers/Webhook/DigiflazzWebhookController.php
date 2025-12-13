@@ -283,6 +283,11 @@ class DigiflazzWebhookController extends Controller
                             // Refresh status record to ensure we have the latest order_item_id before applying
                             $statusRecord->refresh();
                             
+                            // Ensure statusRecord is saved before applying status (needed for accurate counting)
+                            if (!$statusRecord->exists || $statusRecord->wasRecentlyCreated) {
+                                $statusRecord->save();
+                            }
+                            
                             // Apply status update to order
                             $this->applyStatusToOrder($order, $statusRecord);
 
@@ -559,17 +564,38 @@ class DigiflazzWebhookController extends Controller
                 $totalCompleted = 0;
                 
                 foreach ($order->orderItems as $item) {
-                    // Refresh the item to ensure latest relationship data
-                    $item->refresh();
-                    $item->load('digiflazzStatuses');
-                    
                     $required = $item->quantity;
-                    // Use fresh query instead of relationship to avoid cache issues
+                    
+                    // Count successful top-ups for this order_item
                     $completed = \App\Models\DigiflazzStatus::where('order_item_id', $item->id)
                         ->where(function ($q) {
                             $q->whereRaw("LOWER(status) = 'sukses'")
                               ->orWhere('rc', '00');
                         })->count();
+                    
+                    // CRITICAL FIX: If current statusRecord is for this order_item and is successful,
+                    // check if it's already counted. If not, add 1 (handles race conditions)
+                    if ($statusRecord->order_item_id == $item->id && ($status === 'sukses' || $rc === '00')) {
+                        // Check if this specific statusRecord is already in the successful count
+                        $currentRecordCounted = \App\Models\DigiflazzStatus::where('id', $statusRecord->id)
+                            ->where('order_item_id', $item->id)
+                            ->where(function ($q) {
+                                $q->whereRaw("LOWER(status) = 'sukses'")
+                                  ->orWhere('rc', '00');
+                            })->exists();
+                        
+                        if (!$currentRecordCounted && $statusRecord->id) {
+                            // Current record is successful but not yet visible in DB count (transaction timing)
+                            // Add 1 to ensure we count this record being processed
+                            $completed++;
+                            Log::info('Digiflazz webhook: added current statusRecord to count', [
+                                'order_item_id' => $item->id,
+                                'status_record_id' => $statusRecord->id,
+                                'db_count' => $completed - 1,
+                                'final_count' => $completed
+                            ]);
+                        }
+                    }
                     
                     $totalRequired += $required;
                     $totalCompleted += $completed;
