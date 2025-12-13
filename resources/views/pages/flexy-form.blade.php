@@ -112,14 +112,30 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('checkout.price_breakdown') }}</h2>
             <div class="space-y-3">
                 @php
-                    $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
-                    $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
-                    $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-                    $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
-                    $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
-                    $finalUsdPrice = $usdPrice - $discountAmountUsd;
-                    $finalDzdPrice = $dzdPrice - $discountAmountDzd;
-                    $flexyFee = 50; // 50 DZD processing fee
+                    // Use final_price from order if available (supports multi-item orders with quantities)
+                    // Otherwise calculate from single pack (legacy support)
+                    if ($order->final_price && $order->final_price > 0) {
+                        // Multi-item order: use stored final_price
+                        $finalDzdPrice = (float) $order->final_price;
+                        $finalUsdPrice = $finalDzdPrice / 260; // Convert DZD to USD
+                        
+                        // Calculate discount for display (if original_price is available)
+                        $originalPrice = (float) ($order->original_price ?? $finalDzdPrice);
+                        $discountAmountDzd = $originalPrice - $finalDzdPrice;
+                        $discountPercentage = $originalPrice > 0 ? ($discountAmountDzd / $originalPrice) * 100 : 0;
+                        $discountAmountUsd = $discountAmountDzd / 260;
+                    } else {
+                        // Legacy single-pack order: calculate from pack
+                        $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
+                        $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
+                        $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+                        $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
+                        $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
+                        $finalUsdPrice = $usdPrice - $discountAmountUsd;
+                        $finalDzdPrice = $dzdPrice - $discountAmountDzd;
+                    }
+                    
+                    $flexyFee = 50; // 50 DZD processing fee (added to final price)
                     $totalWithFee = $finalDzdPrice + $flexyFee;
                 @endphp
                 @if($discountPercentage > 0)

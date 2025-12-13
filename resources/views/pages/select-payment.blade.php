@@ -515,7 +515,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const pack = packsMap[item.pack_id];
                 if (!pack) return;
                 
-                const quantity = 1;
+                // Use actual quantity from cart item (multi-offer support)
+                const quantity = parseInt(item.quantity) || 1;
+                
                 // Use price_usd or price_dzd based on selected currency
                 const unitPrice = currency === 'DZD' 
                     ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
@@ -524,6 +526,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const discountAmount = (unitPrice * discountPercentage) / 100;
                 const priceAfterDiscount = unitPrice - discountAmount;
                 
+                // Multiply by quantity to get total for this item
                 const itemTotalBeforeDiscount = unitPrice * quantity;
                 const itemTotalDiscount = discountAmount * quantity;
                 const itemTotal = priceAfterDiscount * quantity;
