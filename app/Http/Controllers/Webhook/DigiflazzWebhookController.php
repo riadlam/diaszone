@@ -540,15 +540,12 @@ class DigiflazzWebhookController extends Controller
         // Use database transaction with locking to handle concurrent webhooks
         return DB::transaction(function () use ($order, $statusRecord) {
             // Lock the order to prevent concurrent updates
-            // lockForUpdate() ensures serialized access - second webhook waits for first to complete
             $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
             if (!$orderLocked) {
                 Log::error('Digiflazz webhook: failed to lock order', ['order_id' => $order->id]);
                 return;
             }
             
-        $status = strtolower($statusRecord->status ?? '');
-        $rc = $statusRecord->rc ?? null;
             $oldStatus = $orderLocked->status;
             
             Log::info('Digiflazz webhook: applying status to order', [
@@ -556,111 +553,86 @@ class DigiflazzWebhookController extends Controller
                 'order_item_id' => $statusRecord->order_item_id,
                 'old_status' => $oldStatus,
                 'digiflazz_status' => $statusRecord->status,
-                'rc' => $rc,
                 'status_record_id' => $statusRecord->id
             ]);
             
-            // Refresh statusRecord to ensure we have latest data including order_item_id
-            $statusRecord->refresh();
-            
-            // Ensure statusRecord is saved (should already be, but double-check)
-            if (!$statusRecord->exists || $statusRecord->isDirty()) {
-                $statusRecord->save();
-                $statusRecord->refresh();
-            }
-            
-            // Load fresh order items
+            // SIMPLE APPROACH: Query digiflazz_statuses table directly to check all records for this order
+            // Load order items to get required quantities
             $orderLocked->load('orderItems');
             
-        // Map Digiflazz responses to our order statuses
-        if ($status === 'sukses' || $rc === '00') {
-                // For multi-item orders, check if all order_items are completed
-                $hasOrderItems = $orderLocked->orderItems->count() > 0;
+            $hasOrderItems = $orderLocked->orderItems->count() > 0;
+            
+            if ($hasOrderItems) {
+                // Multi-item order: Check each order_item
+                $allItemsComplete = true;
+                $totalRequired = 0;
+                $totalCompleted = 0;
                 
-                if ($hasOrderItems) {
-                    // Multi-item order: check each order_item
-                    $allItemsComplete = true;
-                    $totalRequired = 0;
-                    $totalCompleted = 0;
+                foreach ($orderLocked->orderItems as $item) {
+                    $required = $item->quantity;
                     
-                    foreach ($orderLocked->orderItems as $item) {
-                        $required = $item->quantity;
-                        
-                        // BULLETPROOF COUNTING: Since lockForUpdate() serializes access, second webhook
-                        // should see first webhook's committed record. However, to be absolutely safe,
-                        // we count all records EXCEPT current one, then add current one if successful.
-                        $completed = DB::table('digiflazz_statuses')
-                            ->where('order_item_id', $item->id)
-                            ->where('id', '!=', $statusRecord->id) // Exclude current record
-                            ->where(function ($q) {
-                                $q->whereRaw("LOWER(status) = 'sukses'")
-                                  ->orWhere('rc', '00');
-                            })
-                            ->count();
-                        
-                        // Always add current record if it's successful and for this order_item
-                        // This ensures we count it even if transaction isolation prevents seeing it in query
-                        if ($statusRecord->order_item_id == $item->id && ($status === 'sukses' || $rc === '00')) {
-                            $completed++;
-                            Log::info('Digiflazz webhook: counted current statusRecord + others', [
-                                'order_item_id' => $item->id,
-                                'status_record_id' => $statusRecord->id,
-                                'other_successful_count' => $completed - 1,
-                                'total_count' => $completed
-                            ]);
-                        }
-                        
-                        Log::info('Digiflazz webhook: order_item completion', [
-                            'order_item_id' => $item->id,
-                            'required' => $required,
-                            'completed' => $completed,
-                            'status_record_id' => $statusRecord->id
-                        ]);
-                        
-                        $totalRequired += $required;
-                        $totalCompleted += $completed;
-                        
-                        if ($completed < $required) {
-                            $allItemsComplete = false;
-                        }
-                    }
-                
-                    Log::info('Digiflazz webhook: multi-item order progress', [
-                        'order_id' => $orderLocked->id,
-                        'total_completed' => $totalCompleted,
-                        'total_required' => $totalRequired,
-                        'all_complete' => $allItemsComplete,
-                        'status_record_id' => $statusRecord->id
+                    // Query ALL successful digiflazz_statuses records for this order_item
+                    $completed = DB::table('digiflazz_statuses')
+                        ->where('order_item_id', $item->id)
+                        ->where(function ($q) {
+                            $q->whereRaw("LOWER(status) = 'sukses'")
+                              ->orWhere('rc', '00');
+                        })
+                        ->count();
+                    
+                    Log::info('Digiflazz webhook: order_item status check', [
+                        'order_item_id' => $item->id,
+                        'required' => $required,
+                        'completed' => $completed
                     ]);
                     
-                    if ($allItemsComplete) {
-                        $orderLocked->update(['status' => 'completed']);
-                    } else {
-                        $orderLocked->update(['status' => 'sending']);
-                        $orderLocked->notes = trim(($orderLocked->notes ?? '') . "\nDigiflazz: {$totalCompleted}/{$totalRequired} top-ups completed");
-                        $orderLocked->save();
+                    $totalRequired += $required;
+                    $totalCompleted += $completed;
+                    
+                    if ($completed < $required) {
+                        $allItemsComplete = false;
                     }
+                }
+                
+                Log::info('Digiflazz webhook: order completion check', [
+                    'order_id' => $orderLocked->id,
+                    'total_completed' => $totalCompleted,
+                    'total_required' => $totalRequired,
+                    'all_complete' => $allItemsComplete
+                ]);
+                
+                if ($allItemsComplete) {
+                    $orderLocked->update(['status' => 'completed']);
+                    Log::info('Digiflazz webhook: order marked as completed', [
+                        'order_id' => $orderLocked->id,
+                        'completed' => $totalCompleted,
+                        'required' => $totalRequired
+                    ]);
                 } else {
-                    // Legacy single-pack order: use old logic
-                    $quantity = $orderLocked->quantity ?? 1;
-                    if ($quantity > 1) {
-                        $succeeded = $orderLocked->successfulDigiflazzTopupsCount();
-                        if ($succeeded >= $quantity) {
-                            $orderLocked->update(['status' => 'completed']);
-                } else {
-                            $orderLocked->update(['status' => 'sending']);
-                            $orderLocked->notes = trim(($orderLocked->notes ?? '') . "\nDigiflazz: {$succeeded}/{$quantity} top-ups completed");
-                            $orderLocked->save();
+                    $orderLocked->update(['status' => 'sending']);
+                    $orderLocked->notes = trim(($orderLocked->notes ?? '') . "\nDigiflazz: {$totalCompleted}/{$totalRequired} top-ups completed");
+                    $orderLocked->save();
                 }
             } else {
-                        $orderLocked->update(['status' => 'completed']);
-                    }
-            }
-        } elseif ($status === 'pending' || in_array($rc, ['03', '99'])) {
-                $orderLocked->update(['status' => 'sending']);
-        } else {
-            // All other cases considered failed
-                $orderLocked->update(['status' => 'failed']);
+                // Legacy single-pack order
+                $quantity = $orderLocked->quantity ?? 1;
+                
+                // Query successful records for this order (legacy: order_id directly, not order_item_id)
+                $completed = DB::table('digiflazz_statuses')
+                    ->where('order_id', $orderLocked->id)
+                    ->where(function ($q) {
+                        $q->whereRaw("LOWER(status) = 'sukses'")
+                          ->orWhere('rc', '00');
+                    })
+                    ->count();
+                
+                if ($completed >= $quantity) {
+                    $orderLocked->update(['status' => 'completed']);
+                } else {
+                    $orderLocked->update(['status' => 'sending']);
+                    $orderLocked->notes = trim(($orderLocked->notes ?? '') . "\nDigiflazz: {$completed}/{$quantity} top-ups completed");
+                    $orderLocked->save();
+                }
             }
 
             Log::info('Digiflazz webhook: order status updated', [
@@ -669,9 +641,9 @@ class DigiflazzWebhookController extends Controller
                 'new_status' => $orderLocked->status
             ]);
 
-        // Save a note on order (append)
-        $note = $statusRecord->message ?? ($statusRecord->additional_data['message'] ?? null);
-        if ($note) {
+            // Save a note on order (append)
+            $note = $statusRecord->message ?? ($statusRecord->additional_data['message'] ?? null);
+            if ($note) {
                 $orderLocked->notes = trim(($orderLocked->notes ?? '') . "\nDigiflazz: " . $note);
                 $orderLocked->save();
             }
@@ -682,18 +654,16 @@ class DigiflazzWebhookController extends Controller
                     if ($orderLocked->seller_id && !$orderLocked->seller_profit_paid) {
                         $orderLocked->creditSellerProfit();
                         Log::info('Digiflazz webhook: credited seller profit on order completion', ['order_id' => $orderLocked->id]);
-                }
-            } catch (\Exception $e) {
+                    }
+                } catch (\Exception $e) {
                     Log::warning('Digiflazz webhook: failed to credit seller profit', ['order_id' => $orderLocked->id, 'error' => $e->getMessage()]);
+                }
             }
-        }
 
-        // Update Telegram notification to reflect provider status change
-            // Always update when status changes, especially when order is completed
+            // Update Telegram notification to reflect provider status change
             try {
-                // Refresh locked order to get latest status and relationships
                 $orderLocked->refresh();
-                $orderLocked->load('orderItems.diamondPack', 'diamondPack', 'user', 'seller', 'digiflazzStatuses');
+                $orderLocked->load('orderItems.diamondPack', 'diamondPack', 'user', 'seller');
                 $updatedMessage = \App\Services\TelegramService::formatOrderMessage($orderLocked);
 
                 if ($orderLocked->tlg_message_id) {
@@ -704,18 +674,18 @@ class DigiflazzWebhookController extends Controller
                         'message_id' => $orderLocked->tlg_message_id,
                         'edit_success' => $editResult !== false,
                     ]);
-            } else {
-                $messageId = \App\Services\TelegramService::sendMessage($updatedMessage);
-                if ($messageId) {
+                } else {
+                    $messageId = \App\Services\TelegramService::sendMessage($updatedMessage);
+                    if ($messageId) {
                         $orderLocked->tlg_message_id = $messageId;
                         $orderLocked->save();
                         Log::info('Digiflazz webhook: Telegram message sent (no existing message_id)', [
                             'order_id' => $orderLocked->id,
                             'new_message_id' => $messageId,
                         ]);
+                    }
                 }
-            }
-        } catch (\Exception $e) {
+            } catch (\Exception $e) {
                 Log::warning('Failed to update Telegram message for Digiflazz webhook', [
                     'order_id' => $orderLocked->id,
                     'order_status' => $orderLocked->status,
