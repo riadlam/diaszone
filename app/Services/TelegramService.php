@@ -98,6 +98,66 @@ class TelegramService
     }
     
     /**
+     * Send a message to Telegram Updates channel
+     * Used for system updates like price syncs
+     *
+     * @param string $message
+     * @return int|null Returns message_id on success, null on failure
+     */
+    public static function sendToUpdatesChannel(string $message): ?int
+    {
+        try {
+            // Updates channel bot credentials
+            $botToken = '8292888727:AAE2bsTL2fJCZs8MjS10nby0zNST8mmZgQg';
+            $chatId = '@diaszone_updates'; // Channel username with @ prefix
+            $apiUrl = config('telegram.api_url', 'https://api.telegram.org/bot');
+            
+            if (!$botToken) {
+                Log::error('Telegram Updates: Missing bot token');
+                return null;
+            }
+            
+            $url = $apiUrl . $botToken . '/sendMessage';
+            
+            Log::info('Telegram Updates: Sending message', [
+                'chat_id' => $chatId,
+                'message_length' => strlen($message),
+            ]);
+            
+            $payload = [
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'HTML',
+            ];
+            
+            $response = Http::timeout(10)->post($url, $payload);
+            
+            $responseData = $response->json();
+            
+            if ($response->successful() && isset($responseData['ok']) && $responseData['ok'] === true) {
+                $messageId = $responseData['result']['message_id'] ?? null;
+                Log::info('Telegram Updates: Message sent successfully', [
+                    'message_id' => $messageId,
+                ]);
+                return $messageId ? (int) $messageId : null;
+            } else {
+                Log::error('Telegram Updates: Failed to send message', [
+                    'status' => $response->status(),
+                    'response' => $responseData,
+                    'chat_id' => $chatId,
+                ]);
+                return null;
+            }
+        } catch (\Exception $e) {
+            Log::error('Telegram Updates: Exception while sending message', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return null;
+        }
+    }
+    
+    /**
      * Answer callback query (for button clicks)
      *
      * @param string $callbackQueryId

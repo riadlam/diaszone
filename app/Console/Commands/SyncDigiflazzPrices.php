@@ -332,7 +332,7 @@ class SyncDigiflazzPrices extends Command
                 $message .= "\n🔴 Deactivated: <b>0</b> packs\n";
             }
 
-            TelegramService::sendMessage($message);
+            TelegramService::sendToUpdatesChannel($message);
         } catch (\Exception $e) {
             Log::warning('Failed to send Telegram notification for price sync', [
                 'error' => $e->getMessage(),
