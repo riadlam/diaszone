@@ -143,9 +143,31 @@ class SyncDigiflazzPrices extends Command
                     $price = $productData['cheapest_price'];
                     $allSkuCodes = $productData['buyer_sku_codes'];
 
-                    // Find diamond pack by matching ANY of the SKU codes in this group
-                    // This allows us to find packs even if they have an older/different SKU variant
-                    $pack = DiamondPack::whereIn('code', $allSkuCodes)->first();
+                    // Always match by normalized product name first - product name is the stable index
+                    // SKU codes change in API responses, but product names are more consistent
+                    $normalizedPackName = $this->normalizeProductName($productData['product_name']);
+                    $pack = null;
+                    
+                    // Get all packs and match by normalized name
+                    $allPacks = DiamondPack::whereNotNull('name')
+                        ->where('name', '!=', '')
+                        ->get();
+                    
+                    foreach ($allPacks as $candidatePack) {
+                        $candidateNormalizedName = $this->normalizeProductName($candidatePack->name);
+                        if ($candidateNormalizedName === $normalizedPackName) {
+                            $pack = $candidatePack;
+                            $this->info("Matched pack by name: {$pack->name} (DB code: {$pack->code}, Digiflazz codes: " . implode(", ", $allSkuCodes) . ")");
+                            Log::info('Digiflazz sync: Matched pack by normalized product name', [
+                                'pack_id' => $pack->id,
+                                'pack_name' => $pack->name,
+                                'pack_code' => $pack->code,
+                                'digiflazz_codes' => $allSkuCodes,
+                                'normalized_name' => $normalizedPackName,
+                            ]);
+                            break;
+                        }
+                    }
 
                     if ($pack) {
                         // Check price_limit: if set, price must be <= price_limit
