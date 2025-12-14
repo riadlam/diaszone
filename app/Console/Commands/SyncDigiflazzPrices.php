@@ -90,7 +90,7 @@ class SyncDigiflazzPrices extends Command
 
             $this->info('Found ' . count($activeProducts) . ' active products');
 
-            // Group products by normalized product name and select cheapest
+            // Group products by normalized product name and track all SKU variants
             $groupedProducts = [];
             foreach ($activeProducts as $product) {
                 $normalizedName = $this->normalizeProductName($product['product_name']);
@@ -101,27 +101,32 @@ class SyncDigiflazzPrices extends Command
                 if (!isset($groupedProducts[$normalizedName])) {
                     $groupedProducts[$normalizedName] = [
                         'product_name' => $product['product_name'],
-                        'buyer_sku_code' => $buyerSkuCode,
-                        'price' => $price,
-                        'seller_name' => $product['seller_name'] ?? '',
+                        'buyer_sku_codes' => [$buyerSkuCode], // Track all SKU variants
+                        'cheapest_sku_code' => $buyerSkuCode,
+                        'cheapest_price' => $price,
+                        'cheapest_seller' => $product['seller_name'] ?? '',
                     ];
                 } else {
-                    // Keep the cheapest one
-                    if ($price < $groupedProducts[$normalizedName]['price']) {
-                        $groupedProducts[$normalizedName] = [
-                            'product_name' => $product['product_name'],
-                            'buyer_sku_code' => $buyerSkuCode,
-                            'price' => $price,
-                            'seller_name' => $product['seller_name'] ?? '',
-                        ];
+                    // Add this SKU to the list of variants
+                    $groupedProducts[$normalizedName]['buyer_sku_codes'][] = $buyerSkuCode;
+                    
+                    // Update cheapest if this one is cheaper
+                    if ($price < $groupedProducts[$normalizedName]['cheapest_price']) {
+                        $groupedProducts[$normalizedName]['cheapest_sku_code'] = $buyerSkuCode;
+                        $groupedProducts[$normalizedName]['cheapest_price'] = $price;
+                        $groupedProducts[$normalizedName]['cheapest_seller'] = $product['seller_name'] ?? '';
                     }
                 }
             }
 
             $this->info('Grouped to ' . count($groupedProducts) . ' unique packs');
 
-            // Get all active buyer_sku_codes from grouped products
-            $activeSkuCodes = array_column($groupedProducts, 'buyer_sku_code');
+            // Get all active buyer_sku_codes (all variants, not just cheapest)
+            $activeSkuCodes = [];
+            foreach ($groupedProducts as $group) {
+                $activeSkuCodes = array_merge($activeSkuCodes, $group['buyer_sku_codes']);
+            }
+            $activeSkuCodes = array_unique($activeSkuCodes);
 
             // Update diamond packs
             $updatedCount = 0;
@@ -161,9 +166,11 @@ class SyncDigiflazzPrices extends Command
                         $wasInactive = !$pack->is_active;
                         $priceChanged = $pack->price != $price;
                         $oldPrice = $pack->price;
+                        $oldCode = $pack->code;
 
-                        // Update code, price, and activate
-                        $pack->code = $buyerSkuCode;
+                        // Update code to cheapest SKU, price, and activate
+                        $codeChanged = $oldCode !== $cheapestSkuCode;
+                        $pack->code = $cheapestSkuCode;
                         $pack->price = $price;
                         $pack->is_active = true;
                         $pack->save();
@@ -172,14 +179,25 @@ class SyncDigiflazzPrices extends Command
 
                         if ($wasInactive) {
                             $activatedCount++;
+                            $reason = "Activated - Price: {$price}";
+                            if ($codeChanged) {
+                                $reason .= ", SKU updated to: {$cheapestSkuCode}";
+                            }
                             $activatedPacks[] = [
                                 'name' => $pack->name,
-                                'reason' => "Activated - Price: {$price} (within limit)",
+                                'reason' => $reason,
                             ];
-                        } elseif ($priceChanged) {
+                        } elseif ($priceChanged || $codeChanged) {
+                            $changes = [];
+                            if ($priceChanged) {
+                                $changes[] = "Price: {$oldPrice} → {$price}";
+                            }
+                            if ($codeChanged) {
+                                $changes[] = "SKU: {$oldCode} → {$cheapestSkuCode}";
+                            }
                             $activatedPacks[] = [
                                 'name' => $pack->name,
-                                'reason' => "Price updated: {$oldPrice} → {$price}",
+                                'reason' => implode(", ", $changes),
                             ];
                         }
 
