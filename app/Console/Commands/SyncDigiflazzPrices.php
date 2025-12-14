@@ -139,11 +139,13 @@ class SyncDigiflazzPrices extends Command
             try {
                 // Update packs that match active SKU codes
                 foreach ($groupedProducts as $normalizedName => $productData) {
-                    $buyerSkuCode = $productData['buyer_sku_code'];
-                    $price = $productData['price'];
+                    $cheapestSkuCode = $productData['cheapest_sku_code'];
+                    $price = $productData['cheapest_price'];
+                    $allSkuCodes = $productData['buyer_sku_codes'];
 
-                    // Find diamond pack by code (buyer_sku_code should match diamond_packs.code)
-                    $pack = DiamondPack::where('code', $buyerSkuCode)->first();
+                    // Find diamond pack by matching ANY of the SKU codes in this group
+                    // This allows us to find packs even if they have an older/different SKU variant
+                    $pack = DiamondPack::whereIn('code', $allSkuCodes)->first();
 
                     if ($pack) {
                         // Check price_limit: if set, price must be <= price_limit
@@ -201,14 +203,22 @@ class SyncDigiflazzPrices extends Command
                             ];
                         }
 
-                        if ($priceChanged) {
-                            $this->line("Updated: {$pack->name} - Price: {$price}");
+                        if ($priceChanged || $codeChanged) {
+                            $changeMsg = [];
+                            if ($codeChanged) {
+                                $changeMsg[] = "SKU: {$oldCode} → {$cheapestSkuCode}";
+                            }
+                            if ($priceChanged) {
+                                $changeMsg[] = "Price: {$oldPrice} → {$price}";
+                            }
+                            $this->line("Updated: {$pack->name} - " . implode(", ", $changeMsg));
                         }
                     } else {
                         // Pack not found - log for manual review
-                        $this->warn("Pack not found for SKU: {$buyerSkuCode} ({$productData['product_name']})");
-                        Log::warning('Digiflazz sync: Pack not found', [
-                            'buyer_sku_code' => $buyerSkuCode,
+                        $this->warn("Pack not found for any SKU variants: " . implode(", ", $allSkuCodes) . " ({$productData['product_name']})");
+                        Log::warning('Digiflazz sync: Pack not found for any SKU variants', [
+                            'sku_codes' => $allSkuCodes,
+                            'cheapest_sku_code' => $cheapestSkuCode,
                             'product_name' => $productData['product_name'],
                         ]);
                     }
