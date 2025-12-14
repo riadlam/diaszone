@@ -55,6 +55,11 @@
                         {{ __('cart.proceed_to_checkout') }}
                     </a>
                 </div>
+
+                <!-- Product Availability Error Container -->
+                <div id="product-availability-errors" class="hidden mt-4">
+                    <!-- Error messages will be inserted here dynamically -->
+                </div>
             </div>
         </div>
     </div>
@@ -628,70 +633,245 @@ document.addEventListener('DOMContentLoaded', () => {
         // Make removeCartItem globally available
         window.removeCartItem = removeCartItem;
         
-        // Handle "Pay Now" button click - redirect to payment selection
-        const proceedCheckoutBtn = document.getElementById('proceed-checkout-btn');
-        if (proceedCheckoutBtn) {
-            proceedCheckoutBtn.addEventListener('click', async (e) => {
-                // Validate cart before redirecting
-                const cart = CartManager.getCart();
-                if (cart.length === 0) {
-                    e.preventDefault();
-                    alert({!! json_encode(__('seller.cart_empty')) !!} + '. ' + {!! json_encode(__('seller.cart_empty_info')) !!});
-                    window.location.href = '{{ route("home") }}';
-                    return;
+                // Handle "Pay Now" button click - redirect to payment selection
+                const proceedCheckoutBtn = document.getElementById('proceed-checkout-btn');
+                if (proceedCheckoutBtn) {
+                    proceedCheckoutBtn.addEventListener('click', async (e) => {
+                        e.preventDefault(); // Always prevent default to validate first
+                        
+                        // Show loading state
+                        const originalText = proceedCheckoutBtn.innerHTML;
+                        proceedCheckoutBtn.innerHTML = '<span class="inline-block animate-spin mr-2">⏳</span> Validating...';
+                        proceedCheckoutBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                        proceedCheckoutBtn.style.pointerEvents = 'none';
+                        
+                        // Hide previous errors
+                        const errorContainer = document.getElementById('product-availability-errors');
+                        if (errorContainer) {
+                            errorContainer.classList.add('hidden');
+                            errorContainer.innerHTML = '';
+                        }
+
+                        // Validate cart before redirecting
+                        const cart = CartManager.getCart();
+                        if (cart.length === 0) {
+                            proceedCheckoutBtn.innerHTML = originalText;
+                            proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                            proceedCheckoutBtn.style.pointerEvents = '';
+                            alert({!! json_encode(__('seller.cart_empty')) !!} + '. ' + {!! json_encode(__('seller.cart_empty_info')) !!});
+                            window.location.href = '{{ route("home") }}';
+                            return;
+                        }
+                        
+                        // Validate each item has required fields based on game type
+                        const packIds = cart.map(item => item.pack_id).filter(Boolean);
+                        const packs = await CartManager.fetchPacks(packIds);
+                        const packsMap = {};
+                        packs.forEach(pack => {
+                            packsMap[pack.id] = pack;
+                        });
+                        
+                        for (const item of cart) {
+                            if (!item.pack_id) {
+                                proceedCheckoutBtn.innerHTML = originalText;
+                                proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                proceedCheckoutBtn.style.pointerEvents = '';
+                                alert({!! json_encode(__('seller.cart_items_missing_pack_info')) !!});
+                                return;
+                            }
+                            
+                            const pack = packsMap[item.pack_id];
+                            if (!pack) {
+                                proceedCheckoutBtn.innerHTML = originalText;
+                                proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                proceedCheckoutBtn.style.pointerEvents = '';
+                                alert({!! json_encode(__('seller.cart_items_invalid_pack_info')) !!});
+                                return;
+                            }
+                            
+                            const gameType = pack.game_type || 'mobilelegends';
+                            
+                            // Validate based on game type
+                            if (gameType === 'bloodstrike') {
+                                if (!item.user_id_bs || !item.server_bs) {
+                                    proceedCheckoutBtn.innerHTML = originalText;
+                                    proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                    proceedCheckoutBtn.style.pointerEvents = '';
+                                    alert({!! json_encode(__('seller.cart_items_missing_userid_server')) !!});
+                                    return;
+                                }
+                            } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                                const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok;
+                                if (!playerId) {
+                                    proceedCheckoutBtn.innerHTML = originalText;
+                                    proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                    proceedCheckoutBtn.style.pointerEvents = '';
+                                    alert({!! json_encode(__('seller.cart_items_missing_player_id')) !!});
+                                    return;
+                                }
+                            } else {
+                                // Mobile Legends
+                                if (!item.user_id || !item.zone_id) {
+                                    proceedCheckoutBtn.innerHTML = originalText;
+                                    proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                    proceedCheckoutBtn.style.pointerEvents = '';
+                                    alert({!! json_encode(__('seller.cart_items_missing_userid_zone_id')) !!});
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Validate product availability with Digiflazz
+                        try {
+                            const cartItemsForValidation = cart.map(item => ({
+                                pack_id: parseInt(item.pack_id),
+                                quantity: parseInt(item.quantity) || 1,
+                            })).filter(item => item.pack_id); // Filter out items without pack_id
+
+                            if (cartItemsForValidation.length === 0) {
+                                proceedCheckoutBtn.innerHTML = originalText;
+                                proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                proceedCheckoutBtn.style.pointerEvents = '';
+                                alert('Cart items are missing product codes. Please refresh and try again.');
+                                return;
+                            }
+
+                            const response = await fetch('{{ route("api.cart.validate") }}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                },
+                                body: JSON.stringify({
+                                    cart_items: cartItemsForValidation
+                                })
+                            });
+
+                            const result = await response.json();
+
+                            if (!result.valid) {
+                                // Show error UI
+                                proceedCheckoutBtn.innerHTML = originalText;
+                                proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                proceedCheckoutBtn.style.pointerEvents = '';
+                                
+                                showProductAvailabilityErrors(result.unavailable_items || [], cart, packsMap);
+                                return;
+                            }
+
+                            // All validations passed - proceed to checkout
+                            window.location.href = '{{ route("select-payment") }}';
+                            
+                        } catch (error) {
+                            console.error('Error validating cart:', error);
+                            proceedCheckoutBtn.innerHTML = originalText;
+                            proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                            proceedCheckoutBtn.style.pointerEvents = '';
+                            alert('Error validating products. Please try again.');
+                        }
+                    });
                 }
-                
-                // Validate each item has required fields based on game type
-                const packIds = cart.map(item => item.pack_id).filter(Boolean);
-                const packs = await CartManager.fetchPacks(packIds);
-                const packsMap = {};
-                packs.forEach(pack => {
-                    packsMap[pack.id] = pack;
-                });
-                
-                for (const item of cart) {
-                    if (!item.pack_id) {
-                        e.preventDefault();
-                        alert({!! json_encode(__('seller.cart_items_missing_pack_info')) !!});
+
+                // Function to show product availability errors
+                function showProductAvailabilityErrors(unavailableItems, cart, packsMap) {
+                    const errorContainer = document.getElementById('product-availability-errors');
+                    if (!errorContainer || unavailableItems.length === 0) {
                         return;
                     }
+
+                    let errorHTML = `
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-md">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <h3 class="text-sm font-semibold text-red-800 mb-3">
+                                        ⚠️ Some products are not available
+                                    </h3>
+                                    <div class="space-y-3">
+                    `;
+
+                    unavailableItems.forEach((unavailableItem) => {
+                        // Find cart item by pack_id (there might be multiple items with same pack_id, get first match)
+                        const cartItem = cart.find(item => item.pack_id === unavailableItem.pack_id);
+                        const pack = packsMap[unavailableItem.pack_id];
+                        const packName = pack?.name || unavailableItem.product_name || 'Unknown Product';
+                        const itemId = cartItem?.id || `${unavailableItem.pack_id}-${Date.now()}`;
+
+                        errorHTML += `
+                            <div class="bg-white border border-red-200 rounded-lg p-4">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-gray-900">${escapeHtml(packName)}</p>
+                                        <p class="text-sm text-red-600 mt-1">${escapeHtml(unavailableItem.reason)}</p>
+                                        ${unavailableItem.can_retry ? `
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                💡 This offer may become available again in a few minutes. You can remove it now or wait and try again.
+                                            </p>
+                                        ` : `
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                ⚠️ This product doesn't support the selected quantity. Please remove it to continue.
+                                            </p>
+                                        `}
+                                    </div>
+                                    <button 
+                                        onclick="removeUnavailableItem('${itemId}', ${unavailableItem.pack_id})"
+                                        class="ml-4 flex-shrink-0 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    errorHTML += `
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    errorContainer.innerHTML = errorHTML;
+                    errorContainer.classList.remove('hidden');
                     
-                    const pack = packsMap[item.pack_id];
-                    if (!pack) {
-                        e.preventDefault();
-                        alert({!! json_encode(__('seller.cart_items_invalid_pack_info')) !!});
-                        return;
-                    }
-                    
-                    const gameType = pack.game_type || 'mobilelegends';
-                    
-                    // Validate based on game type
-                    if (gameType === 'bloodstrike') {
-                        if (!item.user_id_bs || !item.server_bs) {
-                            e.preventDefault();
-                            alert({!! json_encode(__('seller.cart_items_missing_userid_server')) !!});
-                            return;
-                        }
-                    } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
-                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok;
-                        if (!playerId) {
-                            e.preventDefault();
-                            alert({!! json_encode(__('seller.cart_items_missing_player_id')) !!});
-                            return;
-                        }
-                    } else {
-                        // Mobile Legends
-                        if (!item.user_id || !item.zone_id) {
-                            e.preventDefault();
-                            alert({!! json_encode(__('seller.cart_items_missing_userid_zone_id')) !!});
-                            return;
-                        }
-                    }
+                    // Scroll to error container
+                    errorContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
-                
-                // Allow default link behavior (redirect to payment selection)
-            });
-        }
+
+                // Helper function to escape HTML
+                function escapeHtml(text) {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                }
+
+                // Function to remove unavailable item from cart
+                window.removeUnavailableItem = function(itemId, packId) {
+                    if (typeof CartManager !== 'undefined' && CartManager.removeFromCart) {
+                        // Remove by item ID if it exists, otherwise try to find by pack_id
+                        if (itemId && CartManager.getCart().some(item => item.id === itemId)) {
+                            CartManager.removeFromCart(itemId);
+                        } else {
+                            // Find all items with this pack_id and remove them
+                            const cart = CartManager.getCart();
+                            cart.filter(item => item.pack_id === packId).forEach(item => {
+                                if (item.id) {
+                                    CartManager.removeFromCart(item.id);
+                                }
+                            });
+                        }
+                        loadCart(); // Reload cart to update UI
+                        
+                        // Hide error container after removal
+                        const errorContainer = document.getElementById('product-availability-errors');
+                        if (errorContainer) {
+                            errorContainer.classList.add('hidden');
+                        }
+                    }
+                };
         
         // Load cart on page load
         loadCart();

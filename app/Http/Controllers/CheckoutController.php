@@ -14,6 +14,7 @@ use App\Services\MixPayService;
 use App\Services\ChargilyPayV2Service;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
+use App\Services\DigiflazzService;
 use TheHocineSaad\LaravelChargilyEPay\Models\Epay_Invoice;
 use TheHocineSaad\LaravelChargilyEPay\Epay_Webhook;
 use Illuminate\Http\Request;
@@ -105,6 +106,125 @@ class CheckoutController extends Controller
     public function cart()
     {
         return view('pages.cart');
+    }
+
+    /**
+     * Validate cart items availability with Digiflazz
+     * Checks if each product is available and allows multi-quantity if applicable
+     */
+    public function validateCartItems(Request $request)
+    {
+        $request->validate([
+            'cart_items' => 'required|array',
+            'cart_items.*.pack_id' => 'required|integer',
+            'cart_items.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        $cartItems = $request->input('cart_items', []);
+        $digiflazzService = app(DigiflazzService::class);
+        $unavailableItems = [];
+        $errors = [];
+
+        // Fetch all packs to get their codes
+        $packIds = array_column($cartItems, 'pack_id');
+        $packs = DiamondPack::whereIn('id', $packIds)->get()->keyBy('id');
+
+        foreach ($cartItems as $index => $item) {
+            $packId = $item['pack_id'] ?? null;
+            $quantity = (int)($item['quantity'] ?? 1);
+
+            if (!$packId) {
+                $errors[] = [
+                    'index' => $index,
+                    'pack_id' => null,
+                    'reason' => 'Missing pack ID',
+                ];
+                continue;
+            }
+
+            $pack = $packs->get($packId);
+            if (!$pack) {
+                $errors[] = [
+                    'index' => $index,
+                    'pack_id' => $packId,
+                    'reason' => 'Pack not found',
+                ];
+                continue;
+            }
+
+            $code = $pack->code;
+            if (!$code) {
+                $errors[] = [
+                    'index' => $index,
+                    'pack_id' => $packId,
+                    'code' => null,
+                    'reason' => 'Pack missing product code',
+                ];
+                continue;
+            }
+
+            // Check product availability
+            $productData = $digiflazzService->checkProductAvailability($code);
+
+            if (!$productData) {
+                // API call failed - consider unavailable
+                $unavailableItems[] = [
+                    'pack_id' => $packId,
+                    'code' => $code,
+                    'quantity' => $quantity,
+                    'product_name' => $pack->name,
+                    'reason' => 'Unable to verify product availability. Please try again in a moment.',
+                    'can_retry' => true,
+                ];
+                continue;
+            }
+
+            // Check if product is available
+            if (!$productData['available']) {
+                $reason = 'This product is not currently available';
+                if (!$productData['buyer_product_status']) {
+                    $reason = 'Product temporarily unavailable" (can retry in 5 min)';
+                } elseif (!$productData['seller_product_status']) {
+                    $reason = 'Product temporarily unavailable (can retry in 5 minutes)';
+                }
+
+                $unavailableItems[] = [
+                    'pack_id' => $packId,
+                    'code' => $code,
+                    'quantity' => $quantity,
+                    'product_name' => $productData['product_name'] ?? $pack->name,
+                    'reason' => $reason,
+                    'can_retry' => $productData['seller_product_status'] ?? false, // Can retry if seller status might change
+                ];
+                continue;
+            }
+
+            // Check if quantity > 1 but multi is false
+            if ($quantity > 1 && !$productData['multi']) {
+                $unavailableItems[] = [
+                    'pack_id' => $packId,
+                    'code' => $code,
+                    'quantity' => $quantity,
+                    'product_name' => $productData['product_name'] ?? $pack->name,
+                    'reason' => "This product doesn't support multiple quantities. You selected {$quantity}, but maximum is 1. Please remove it or reduce quantity to 1.",
+                    'can_retry' => false,
+                ];
+                continue;
+            }
+        }
+
+        if (count($unavailableItems) > 0 || count($errors) > 0) {
+            return response()->json([
+                'valid' => false,
+                'unavailable_items' => $unavailableItems,
+                'errors' => $errors,
+            ], 400);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'message' => 'All products are available',
+        ]);
     }
     
     public function orderCheckout(Request $request)

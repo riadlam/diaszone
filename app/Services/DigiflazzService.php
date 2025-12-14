@@ -144,6 +144,81 @@ class DigiflazzService
     }
 
     /**
+     * Check product availability by SKU code
+     * Returns product data if available, null if not available
+     * 
+     * @param string $code Buyer SKU code (e.g., 'mlbb-275dias')
+     * @return array|null Product data with availability info, or null if not available
+     */
+    public function checkProductAvailability(string $code): ?array
+    {
+        if (empty($this->username) || empty($this->sign)) {
+            return null;
+        }
+
+        // Generate signature for price-list API with code parameter
+        $sign = md5($this->username . $this->sign . 'pricelist');
+
+        try {
+            $response = Http::timeout(10)
+                ->post($this->baseUrl . '/price-list', [
+                    'cmd' => 'prepaid',
+                    'username' => $this->username,
+                    'sign' => $sign,
+                    'code' => $code,
+                    'category' => 'Games',
+                ]);
+
+            if (!$response->successful()) {
+                \Log::warning('Digiflazz: Failed to check product availability', [
+                    'code' => $code,
+                    'status' => $response->status(),
+                ]);
+                return null;
+            }
+
+            $data = $response->json();
+            $products = $data['data'] ?? [];
+
+            // Find product with matching buyer_sku_code
+            foreach ($products as $product) {
+                if (($product['buyer_sku_code'] ?? '') === $code) {
+                    // Check if product is active
+                    $isActive = ($product['buyer_product_status'] ?? false) === true
+                        && ($product['seller_product_status'] ?? false) === true;
+                    
+                    return [
+                        'available' => $isActive,
+                        'buyer_product_status' => $product['buyer_product_status'] ?? false,
+                        'seller_product_status' => $product['seller_product_status'] ?? false,
+                        'multi' => $product['multi'] ?? false,
+                        'price' => $product['price'] ?? null,
+                        'product_name' => $product['product_name'] ?? '',
+                        'buyer_sku_code' => $product['buyer_sku_code'] ?? $code,
+                    ];
+                }
+            }
+
+            // Product code not found in response
+            return [
+                'available' => false,
+                'buyer_product_status' => false,
+                'seller_product_status' => false,
+                'multi' => false,
+                'price' => null,
+                'product_name' => '',
+                'buyer_sku_code' => $code,
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Digiflazz: Exception checking product availability', [
+                'code' => $code,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Check status for postpaid via commands=status-pasca
      * @param string $buyerSku
      * @param string $customerNo

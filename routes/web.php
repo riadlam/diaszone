@@ -73,6 +73,7 @@ Route::get('/privacy-policy', [HomeController::class, 'privacyPolicy'])->name('p
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'contactSubmit'])->name('contact.submit');
 Route::get('/cart', [CheckoutController::class, 'cart'])->name('cart');
+Route::post('/api/cart/validate', [CheckoutController::class, 'validateCartItems'])->name('api.cart.validate');
 Route::get('/cart/order_checkout', [CheckoutController::class, 'orderCheckout'])->name('checkout');
 Route::get('/select', [CheckoutController::class, 'selectPayment'])->name('select-payment');
 // Flexy routes with rate limiting
