@@ -107,21 +107,28 @@ class TelegramService
     public static function sendToUpdatesChannel(string $message): ?int
     {
         try {
-            // Updates channel bot credentials
-            $botToken = '8292888727:AAE2bsTL2fJCZs8MjS10nby0zNST8mmZgQg';
-            $chatId = '@diaszone_updates'; // Channel username with @ prefix
+            // Get Updates channel bot credentials from config
+            $botToken = config('telegram.updates_bot_token') ?? env('TELEGRAM_UPDATES_BOT_TOKEN');
+            $chatId = config('telegram.updates_chat_id') ?? env('TELEGRAM_UPDATES_CHAT_ID', '@diaszone_updates');
             $apiUrl = config('telegram.api_url', 'https://api.telegram.org/bot');
             
-            if (!$botToken) {
-                Log::error('Telegram Updates: Missing bot token');
+            if (!$botToken || !$chatId) {
+                Log::error('Telegram Updates: Missing bot token or chat ID', [
+                    'bot_token_set' => !empty($botToken),
+                    'chat_id_set' => !empty($chatId),
+                ]);
                 return null;
             }
             
             $url = $apiUrl . $botToken . '/sendMessage';
             
+            // Ensure chat_id is a string (Telegram API requirement)
+            $chatId = (string) $chatId;
+            
             Log::info('Telegram Updates: Sending message', [
                 'chat_id' => $chatId,
                 'message_length' => strlen($message),
+                'url' => str_replace($botToken, '***', $url), // Hide token in logs
             ]);
             
             $payload = [

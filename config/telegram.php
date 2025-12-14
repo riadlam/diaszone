@@ -20,6 +20,8 @@ return [
 
     'bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
     'chat_id' => env('TELEGRAM_CHAT_ID', ''),
+    'updates_bot_token' => env('TELEGRAM_UPDATES_BOT_TOKEN', ''),
+    'updates_chat_id' => env('TELEGRAM_UPDATES_CHAT_ID', '8147422935'), // Default to personal chat, change to channel ID when ready
     'api_url' => 'https://api.telegram.org/bot',
 ];
 
