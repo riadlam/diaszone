@@ -315,6 +315,31 @@ class HomeController extends Controller
         $gameTypeLower = strtolower($gameType);
         $extensions = ['.webp', '.jpg', '.jpeg', '.png'];
         
+        // Special case: Delta Force - check for delta-force-coin.webp specifically
+        if (stripos($gameName ?? '', 'delta force') !== false || $gameTypeLower === 'deltaforce' || stripos($gameTypeLower, 'delta') !== false) {
+            foreach ($extensions as $ext) {
+                $deltaForcePath = $top4gamersDir . '/delta-force-coin' . $ext;
+                if (file_exists($deltaForcePath)) {
+                    return 'storage_public/top4gamers_images/delta-force-coin' . $ext;
+                }
+            }
+            // Also check without numbered prefix
+            try {
+                $files = scandir($top4gamersDir);
+                foreach ($files as $file) {
+                    if ($file === '.' || $file === '..' || is_dir($top4gamersDir . '/' . $file)) {
+                        continue;
+                    }
+                    $fileLower = strtolower($file);
+                    if (strpos($fileLower, 'delta-force-coin') !== false) {
+                        return 'storage_public/top4gamers_images/' . $file;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Continue to other strategies
+            }
+        }
+        
         // Strategy 0: Try numbered prefix with game_type (e.g., 02_mobile-legends.webp, 04_free-fire-icon.webp)
         // Build game type variations for matching
         $gameTypeVariations = [];
@@ -450,13 +475,6 @@ class HomeController extends Controller
                 return strlen($word) > 2 && !in_array($word, ['of', 'the', 'and', 'a', 'an']);
             });
             
-            // Build normalized game name for exact matching (e.g., "delta force" -> "delta-force" or "delta_force")
-            $normalizedGameName = null;
-            if ($gameName && count($gameNameWords) > 0) {
-                $normalizedGameName = strtolower(implode('-', $gameNameWords));
-                $normalizedGameNameUnderscore = strtolower(implode('_', $gameNameWords));
-            }
-            
             // Special case: For "Arena of Valor", require both "arena" AND "valor" to be present
             $isArenaOfValor = false;
             if ($gameName && stripos($gameName, 'arena') !== false && stripos($gameName, 'valor') !== false) {
@@ -476,22 +494,6 @@ class HomeController extends Controller
                 // Remove common prefixes like "12_", "01_", etc. for matching
                 $fileLowerClean = preg_replace('/^\d+[_-]/', '', $fileLower);
                 
-                // Priority 1: Exact normalized name match (e.g., "delta-force-coin" contains "delta-force")
-                if ($normalizedGameName) {
-                    if (strpos($fileLowerClean, $normalizedGameName) !== false || strpos($fileLowerClean, $normalizedGameNameUnderscore) !== false) {
-                        // Extra bonus for exact match - return immediately if exact match found
-                        if (strpos($fileLowerClean, $normalizedGameName) === 0 || strpos($fileLowerClean, $normalizedGameNameUnderscore) === 0) {
-                            return 'storage_public/top4gamers_images/' . $file;
-                        }
-                        // Still high score for containing the exact normalized name
-                        if ($bestMatchScore < 50) {
-                            $bestMatch = $file;
-                            $bestMatchScore = 50;
-                            continue;
-                        }
-                    }
-                }
-                
                 $nameMatches = 0;
                 $typeMatches = 0;
                 $allNameWordsMatch = true;
@@ -504,11 +506,6 @@ class HomeController extends Controller
                     } else {
                         $allNameWordsMatch = false;
                     }
-                }
-                
-                // Skip if none of the name words match (to avoid false positives)
-                if (count($gameNameWords) > 0 && $nameMatches === 0) {
-                    continue;
                 }
                 
                 // Special handling for Arena of Valor - must have both "arena" and "valor"
@@ -527,15 +524,10 @@ class HomeController extends Controller
                     }
                 }
                 
-                // Calculate match score - prioritize files where ALL name words match
+                // Calculate match score - prioritize files where ALL name words match, but also accept partial matches
                 $matchScore = $nameMatches;
                 if ($allNameWordsMatch && count($gameNameWords) > 0) {
-                    $matchScore += 20; // Big bonus for matching all words
-                } elseif ($nameMatches > 0 && count($gameNameWords) > 1) {
-                    // For multi-word names, require at least 2 words to match to avoid false positives
-                    if ($nameMatches < 2) {
-                        continue; // Skip if less than 2 words match for multi-word game names
-                    }
+                    $matchScore += 10; // Big bonus for matching all words
                 }
                 
                 // For Arena of Valor with both words, return immediately (highest priority)
@@ -545,14 +537,15 @@ class HomeController extends Controller
                     }
                 }
                 
-                // For other games, only accept if score is better and we have good matches
-                if ($matchScore > $bestMatchScore) {
+                // For other games, accept matches if at least one word matches (but prefer more matches)
+                $minMatches = $isArenaOfValor ? 2 : 1; // Arena of Valor needs 2, others need 1
+                if ($nameMatches >= $minMatches && $matchScore > $bestMatchScore) {
                     $bestMatch = $file;
                     $bestMatchScore = $matchScore;
                 }
             }
             
-            // Return best match if found and it has a reasonable score
+            // Return best match if found
             if ($bestMatch && $bestMatchScore > 0) {
                 return 'storage_public/top4gamers_images/' . $bestMatch;
             }
