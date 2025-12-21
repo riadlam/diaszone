@@ -23,7 +23,7 @@ class SyncDigiflazzPrices extends Command
      *
      * @var string
      */
-    protected $description = 'Sync diamond pack prices from Digiflazz API';
+    protected $description = 'Sync diamond pack prices from Digiflazz API (only mobilelegends and freefire)';
 
     /**
      * Execute the console command.
@@ -148,9 +148,10 @@ class SyncDigiflazzPrices extends Command
                     $normalizedPackName = $this->normalizeProductName($productData['product_name']);
                     $pack = null;
                     
-                    // Get all packs and match by normalized name
+                    // Get all packs and match by normalized name (only mobilelegends and freefire)
                     $allPacks = DiamondPack::whereNotNull('name')
                         ->where('name', '!=', '')
+                        ->whereIn('game_type', ['mobilelegends', 'freefire'])
                         ->get();
                     
                     foreach ($allPacks as $candidatePack) {
@@ -249,9 +250,11 @@ class SyncDigiflazzPrices extends Command
                 // Deactivate packs that:
                 // 1. Don't have active sellers in Digiflazz (not in activeSkuCodes)
                 // 2. Have prices exceeding their price_limit
+                // Only process mobilelegends and freefire game types
                 $packsToDeactivate = DiamondPack::where('is_active', true)
                     ->whereNotNull('code')
                     ->where('code', '!=', '')
+                    ->whereIn('game_type', ['mobilelegends', 'freefire'])
                     ->get();
 
                 foreach ($packsToDeactivate as $pack) {
