@@ -5,7 +5,7 @@
                 <!-- Slide 1 -->
                 <div class="slide flex-shrink-0" style="width: 100%; max-width: 100%; box-sizing: border-box;">
                     <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <img src="{{ url('storage/images_homepage/testslide.webp') }}" 
+                        <img src="{{ url('storage_public/images_homepage/testslide.webp') }}" 
                              alt="Gaming Slide 1" 
                              class="w-full h-full object-contain"
                              loading="eager">
@@ -25,7 +25,7 @@
                 {{-- Slide 2 - Commented out
                 <div class="slide flex-shrink-0" style="width: 100%; max-width: 100%; box-sizing: border-box;">
                     <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2">
-                        <img src="{{ asset('storage/images_homepage/testtowslide.webp') }}" 
+                        <img src="{{ asset('storage_public/images_homepage/testtowslide.webp') }}" 
                              alt="Gaming Slide 2" 
                              class="w-full h-full object-contain"
                              loading="eager"
@@ -47,7 +47,7 @@
                 {{-- Slide 3 - Commented out
                 <div class="slide flex-shrink-0" style="width: 100%; max-width: 100%; box-sizing: border-box;">
                     <div class="relative h-96 md:h-[500px] rounded-2xl overflow-hidden mx-2">
-                        <img src="{{ asset('storage/images_homepage/testthreeslide.webp') }}" 
+                        <img src="{{ asset('storage_public/images_homepage/testthreeslide.webp') }}" 
                              alt="Gaming Slide 3" 
                              class="w-full h-full object-contain"
                              loading="eager"

@@ -42,7 +42,7 @@
     $currentGame = $gameData[$gameType] ?? $gameData['mobilelegends'];
     
     // Use dynamic image if provided, otherwise use fallback
-    $displayImage = $gameImage ? asset($gameImage) : asset('storage/images_homepage/' . $currentGame['image']);
+    $displayImage = $gameImage ? asset($gameImage) : asset('storage_public/images_homepage/' . $currentGame['image']);
     $displayTitle = $gameTitle ?: $currentGame['title'];
 @endphp
 

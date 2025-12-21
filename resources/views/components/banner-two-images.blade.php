@@ -1,10 +1,10 @@
 <div class="page-section banner-section">
     <div class="banners has-grid grid-2">
         <a href="{{ route('bloodstrike') }}" class="banners__item" title="Blood Strike">
-            <img src="{{ url('storage/images_homepage/blood-srike-item4gamer-1-1536x421.webp') }}" alt="Blood Strike" class="w-full h-full object-cover">
+            <img src="{{ url('storage_public/images_homepage/blood-srike-item4gamer-1-1536x421.webp') }}" alt="Blood Strike" class="w-full h-full object-cover">
         </a>
         <a href="{{ url('/steam_gift_card') }}" class="banners__item" title="Steam Gift Cards">
-            <img src="{{ url('storage/images_homepage/steam-gift-card-item4gamer-1-1536x421.webp') }}" alt="Steam Gift Cards" class="w-full h-full object-cover">
+            <img src="{{ url('storage_public/images_homepage/steam-gift-card-item4gamer-1-1536x421.webp') }}" alt="Steam Gift Cards" class="w-full h-full object-cover">
         </a>
     </div>
 </div>

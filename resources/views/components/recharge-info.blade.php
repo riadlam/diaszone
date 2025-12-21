@@ -438,8 +438,8 @@
                                     <li>Go to your Profile</li>
                                     <li>Your User ID and Zone ID are displayed at the top of your profile</li>
                                 </ol>
-                                <p><img src="{{ asset('storage/images_homepage/how.webp') }}" alt="How to find User ID and Zone ID" class="mt-4 rounded-lg"></p>
-                                <p><img src="{{ asset('storage/images_homepage/howtwo.webp') }}" alt="User ID and Zone ID example" class="mt-4 rounded-lg"></p>
+                                <p><img src="{{ asset('storage_public/images_homepage/how.webp') }}" alt="How to find User ID and Zone ID" class="mt-4 rounded-lg"></p>
+                                <p><img src="{{ asset('storage_public/images_homepage/howtwo.webp') }}" alt="User ID and Zone ID example" class="mt-4 rounded-lg"></p>
                             </div>
                         </div>
                         

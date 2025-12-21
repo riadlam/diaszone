@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $seller->store_name ?? $seller->name }} - DiasZone</title>
-    <link rel="icon" type="image/png" href="{{ asset('storage/images_homepage/favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('storage_public/images_homepage/favicon.png') }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
@@ -84,11 +84,11 @@
                    class="game-card bg-slate-800 rounded-xl overflow-hidden border border-slate-700 hover:border-blue-500 flex flex-col">
                     <div class="w-full h-48 bg-slate-700 overflow-hidden flex-shrink-0 relative">
                         @if($game['type'] === 'mobilelegends')
-                            <img src="{{ asset('storage/images_homepage/ml.webp') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
+                            <img src="{{ asset('storage_public/images_homepage/ml.webp') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
                         @elseif($game['type'] === 'freefire')
-                            <img src="{{ asset('storage/images_homepage/Free_Fire.webp') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
+                            <img src="{{ asset('storage_public/images_homepage/Free_Fire.webp') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
                         @elseif($game['type'] === 'pubgmobile')
-                            <img src="{{ asset('storage/images_homepage/games/pubg.png') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
+                            <img src="{{ asset('storage_public/images_homepage/games/pubg.png') }}" alt="{{ $game['name'] }}" class="absolute top-0 left-0 w-full h-auto min-h-full object-cover" onerror="this.style.display='none'">
                         @else
                             <div class="w-full h-48 bg-blue-500/20 flex items-center justify-center">
                                 <span class="text-4xl">🎮</span>

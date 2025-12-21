@@ -90,7 +90,7 @@
                                         }
                                     }
                                 @endphp
-                                <img src="{{ url('storage/images_homepage/' . $imageName) }}" 
+                                <img src="{{ url('storage_public/images_homepage/' . $imageName) }}" 
                                      alt="{{ $pack->diamonds }} {{ __('game.diamonds') }}" 
                                      class="w-full h-full object-contain"
                                      style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">

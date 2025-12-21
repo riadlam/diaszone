@@ -1,16 +1,16 @@
 <div class="page-section banner-section">
     <div class="banners has-grid grid-4">
         <a href="{{ route('freefire') }}" class="banners__item" title="Free Fire Diamonds">
-            <img src="{{ url('storage/images_homepage/free-fire-1.webp') }}" alt="Free Fire Diamonds">
+            <img src="{{ url('storage_public/images_homepage/free-fire-1.webp') }}" alt="Free Fire Diamonds">
         </a>
         <a href="{{ route('pubgmobile') }}" class="banners__item" title="PUBG Mobile UC">
-            <img src="{{ url('storage/images_homepage/pubg-mobile-uc-1.webp') }}" alt="PUBG Mobile UC">
+            <img src="{{ url('storage_public/images_homepage/pubg-mobile-uc-1.webp') }}" alt="PUBG Mobile UC">
         </a>
         <a href="{{ url('/bigo_live') }}" class="banners__item" title="Bigo Live Gift Card">
-            <img src="{{ url('storage/images_homepage/bige-live-diamonds-1.webp') }}" alt="Bigo Live Gift Card">
+            <img src="{{ url('storage_public/images_homepage/bige-live-diamonds-1.webp') }}" alt="Bigo Live Gift Card">
         </a>
         <a href="{{ url('/clash_royale') }}" class="banners__item" title="Clash Royale Gems">
-            <img src="{{ url('storage/images_homepage/clash-royale-1.webp') }}" alt="Clash Royale Gems">
+            <img src="{{ url('storage_public/images_homepage/clash-royale-1.webp') }}" alt="Clash Royale Gems">
         </a>
     </div>
 </div>

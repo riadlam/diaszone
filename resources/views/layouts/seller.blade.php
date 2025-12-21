@@ -8,7 +8,7 @@
     <title>@yield('title', 'Seller Dashboard - DiasZone')</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ asset('storage/images_homepage/favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('storage_public/images_homepage/favicon.png') }}">
     
     <!-- Google Fonts - Cairo -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
