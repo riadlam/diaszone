@@ -144,7 +144,7 @@ class CheckoutController extends Controller
                                     $fileWithoutPrefix = preg_replace('/^\d{2}_/', '', $fileLower);
                                     foreach ($gameTypeVariations as $variation) {
                                         if (strpos($fileWithoutPrefix, $variation) === 0) {
-                                            $gameImagePath = 'storage/top4gamers_images/' . $file;
+                                            $gameImagePath = 'storage_public/top4gamers_images/' . $file;
                                             break 2;
                                         }
                                     }
@@ -159,7 +159,7 @@ class CheckoutController extends Controller
                             foreach ($extensions as $ext) {
                                 $testPath = $top4gamersDir . '/' . $gameTypeLower . $ext;
                                 if (file_exists($testPath)) {
-                                    $gameImagePath = 'storage/top4gamers_images/' . $gameTypeLower . $ext;
+                                    $gameImagePath = 'storage_public/top4gamers_images/' . $gameTypeLower . $ext;
                                     break;
                                 }
                             }

@@ -374,7 +374,7 @@ class HomeController extends Controller
                         $fileWithoutPrefix === $variationLower . '_icon.png' ||
                         strpos($fileWithoutPrefix, $variationLower . '-') === 0 ||
                         strpos($fileWithoutPrefix, $variationLower . '_') === 0) {
-                        return 'storage/top4gamers_images/' . $file;
+                        return 'storage_public/top4gamers_images/' . $file;
                     }
                 }
             }
@@ -386,7 +386,7 @@ class HomeController extends Controller
         foreach ($extensions as $ext) {
             $testPath = $top4gamersDir . '/' . $gameTypeLower . $ext;
             if (file_exists($testPath)) {
-                return 'storage/top4gamers_images/' . $gameTypeLower . $ext;
+                return 'storage_public/top4gamers_images/' . $gameTypeLower . $ext;
             }
         }
         
@@ -399,7 +399,7 @@ class HomeController extends Controller
             foreach ($extensions as $ext) {
                 $testPath = $top4gamersDir . '/' . $hyphenName . '-icon' . $ext;
                 if (file_exists($testPath)) {
-                    return 'storage/top4gamers_images/' . $hyphenName . '-icon' . $ext;
+                    return 'storage_public/top4gamers_images/' . $hyphenName . '-icon' . $ext;
                 }
             }
             
@@ -407,7 +407,7 @@ class HomeController extends Controller
             foreach ($extensions as $ext) {
                 $testPath = $top4gamersDir . '/' . $hyphenName . $ext;
                 if (file_exists($testPath)) {
-                    return 'storage/top4gamers_images/' . $hyphenName . $ext;
+                    return 'storage_public/top4gamers_images/' . $hyphenName . $ext;
                 }
             }
             
@@ -416,7 +416,7 @@ class HomeController extends Controller
             foreach ($extensions as $ext) {
                 $testPath = $top4gamersDir . '/' . $normalizedName . $ext;
                 if (file_exists($testPath)) {
-                    return 'storage/top4gamers_images/' . $normalizedName . $ext;
+                    return 'storage_public/top4gamers_images/' . $normalizedName . $ext;
                 }
             }
             
@@ -425,7 +425,7 @@ class HomeController extends Controller
             foreach ($extensions as $ext) {
                 $testPath = $top4gamersDir . '/' . $noUnderscore . $ext;
                 if (file_exists($testPath)) {
-                    return 'storage/top4gamers_images/' . $noUnderscore . $ext;
+                    return 'storage_public/top4gamers_images/' . $noUnderscore . $ext;
                 }
             }
             
@@ -434,7 +434,7 @@ class HomeController extends Controller
             foreach ($extensions as $ext) {
                 $testPath = $top4gamersDir . '/' . $spaceReplaced . $ext;
                 if (file_exists($testPath)) {
-                    return 'storage/top4gamers_images/' . $spaceReplaced . $ext;
+                    return 'storage_public/top4gamers_images/' . $spaceReplaced . $ext;
                 }
             }
         }
@@ -508,7 +508,7 @@ class HomeController extends Controller
                 // For Arena of Valor with both words, return immediately (highest priority)
                 if ($isArenaOfValor && stripos($fileLower, 'arena') !== false && stripos($fileLower, 'valor') !== false) {
                     if ($nameMatches >= 2) {
-                        return 'storage/top4gamers_images/' . $file;
+                        return 'storage_public/top4gamers_images/' . $file;
                     }
                 }
                 
@@ -522,7 +522,7 @@ class HomeController extends Controller
             
             // Return best match if found
             if ($bestMatch && $bestMatchScore > 0) {
-                return 'storage/top4gamers_images/' . $bestMatch;
+                return 'storage_public/top4gamers_images/' . $bestMatch;
             }
         } catch (\Exception $e) {
             // If scanning fails, just return null
