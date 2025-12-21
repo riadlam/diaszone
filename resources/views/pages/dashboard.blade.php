@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard - DiasZone')
+@section('title', __('dashboard.page_title'))
 
 @section('content')
 <div class="bg-gray-50 min-h-screen py-12">
@@ -8,7 +8,7 @@
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold text-purple-600 mb-4">
-                Dashboard
+                {{ __('dashboard.title') }}
             </h1>
         </div>
 
@@ -116,6 +116,9 @@
                             <div id="orders-container" class="hidden space-y-4">
                                 <!-- Orders will be loaded here via JavaScript -->
                             </div>
+                            <div id="orders-pagination" class="hidden mt-6 flex justify-center items-center space-x-2">
+                                <!-- Pagination controls will be loaded here via JavaScript -->
+                            </div>
                             <div id="orders-empty" class="hidden text-center py-12">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
@@ -134,9 +137,9 @@
                                         <div class="flex justify-between items-start">
                                             <div>
                                                 <h3 class="text-lg font-semibold text-gray-900">{{ $invoice['invoice_number'] }}</h3>
-                                                <p class="text-sm text-gray-600 mt-1">Order: {{ $invoice['order_id'] }}</p>
-                                                <p class="text-sm text-gray-600">Issue Date: {{ $invoice['issue_date'] }}</p>
-                                                <p class="text-sm text-gray-600">Due Date: {{ $invoice['due_date'] }}</p>
+                                                <p class="text-sm text-gray-600 mt-1">{{ __('dashboard.order_label') }}: {{ $invoice['order_id'] }}</p>
+                                                <p class="text-sm text-gray-600">{{ __('dashboard.issue_date') }}: {{ $invoice['issue_date'] }}</p>
+                                                <p class="text-sm text-gray-600">{{ __('dashboard.due_date') }}: {{ $invoice['due_date'] }}</p>
                                                 <p class="text-sm text-gray-600">{{ __('checkout.payment_method') }}: {{ $invoice['payment_method'] }}</p>
                                             </div>
                                             <div class="text-right">
@@ -177,7 +180,7 @@
                             <h2 class="text-3xl font-bold text-gray-900 mb-6">{{ __('seller.my_account') }}</h2>
                             <div class="space-y-6 max-w-2xl">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('dashboard.name') }}</label>
                                     <input type="text" value="{{ $user['name'] }}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500" readonly>
                                 </div>
                                 <div>
@@ -201,10 +204,10 @@
                             <p class="text-gray-600 mb-8">{{ __('auth.login_required_message') ?? 'Please log in to view your account information.' }}</p>
                             <div class="flex gap-4 justify-center">
                                 <a href="{{ route('dashboard.myaccount') }}" class="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all shadow-md hover:shadow-lg">
-                                    Login
+                                    {{ __('profile.login') }}
                                 </a>
                                 <a href="{{ route('dashboard.myaccount') }}" class="px-8 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-lg transition-colors">
-                                    Sign Up
+                                    {{ __('profile.signup') }}
                                 </a>
                             </div>
                         </div>
@@ -220,6 +223,17 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Translation strings
+    const translations = {
+        game: {!! json_encode(__('dashboard.game')) !!},
+        orderNumber: {!! json_encode(__('dashboard.order_number')) !!},
+        created: {!! json_encode(__('dashboard.created')) !!},
+        user_id: {!! json_encode(__('checkout.user_id')) !!},
+        zone_id: {!! json_encode(__('checkout.zone_id')) !!},
+        player_id: {!! json_encode(__('checkout.player_id')) !!},
+        server: {!! json_encode(__('checkout.server')) !!},
+    };
+    
     const ordersContainer = document.getElementById('orders-container');
     const ordersLoading = document.getElementById('orders-loading');
     const ordersEmpty = document.getElementById('orders-empty');
@@ -285,10 +299,29 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        ordersContainer.classList.remove('hidden');
+        // Sort orders by date (newest first)
+        validResults.sort((a, b) => {
+            const dateA = new Date(a.order.created_at);
+            const dateB = new Date(b.order.created_at);
+            return dateB - dateA; // Descending order (newest first)
+        });
         
-        // Render orders
-        ordersContainer.innerHTML = validResults.map(result => {
+        // Pagination state (store in object for global access)
+        const ordersPerPage = 5;
+        const paginationState = {
+            currentPage: 1,
+            totalPages: Math.ceil(validResults.length / ordersPerPage),
+            allOrders: validResults
+        };
+        const paginationContainer = document.getElementById('orders-pagination');
+        
+        // Function to render orders for a specific page
+        function renderOrders(page) {
+            const startIndex = (page - 1) * ordersPerPage;
+            const endIndex = startIndex + ordersPerPage;
+            const ordersToShow = paginationState.allOrders.slice(startIndex, endIndex);
+            
+            ordersContainer.innerHTML = ordersToShow.map(result => {
             const order = result.order;
             const encryptedOrderId = result.encryptedId;
             
@@ -362,39 +395,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 const userIdBs = order.user_id_bs || '';
                 const serverBs = order.server_bs || 'Global';
                 gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">Game:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">User ID:</span> ${userIdBs}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">Server:</span> ${serverBs}</p>
+                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
+                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${userIdBs}</p>
+                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.server}:</span> ${serverBs}</p>
                 `;
             } else if (gameType === 'freefire') {
                 // Free Fire: Player ID
                 const playerId = order.player_id_ff || '';
                 gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">Game:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">Player ID:</span> ${playerId}</p>
+                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
+                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${playerId}</p>
                 `;
             } else if (gameType === 'pubgmobile') {
                 // PUBG Mobile: Player ID
                 const playerId = order.player_id_pubg || '';
                 gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">Game:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">Player ID:</span> ${playerId}</p>
+                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
+                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${playerId}</p>
                 `;
             } else if (gameType === 'honorofkings') {
                 // Honor of Kings: Player ID
                 const playerId = order.player_id_hok || '';
                 gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">Game:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">Player ID:</span> ${playerId}</p>
+                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
+                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${playerId}</p>
                 `;
             } else {
                 // Mobile Legends (default): User ID and Zone ID
                 const userId = order.user_id_ml || '';
                 const zoneId = order.zone_id_ml || '';
                 gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">Game:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">User ID:</span> ${userId}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">Zone ID:</span> ${zoneId}</p>
+                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
+                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${userId}</p>
+                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.zone_id}:</span> ${zoneId}</p>
                 `;
             }
             
@@ -470,7 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all">
                     <div class="flex justify-between items-start mb-4">
                         <div>
-                            <h3 class="text-xl font-bold text-gray-900 mb-2">Order #${order.order_number}</h3>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">${translations.orderNumber.replace(':number', order.order_number)}</h3>
                             <p class="text-lg text-purple-600 font-semibold mb-2">${packDisplayText}</p>
                             ${gameInfo}
                         </div>
@@ -488,12 +521,55 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                     <div class="text-sm text-gray-500 border-t border-gray-200 pt-4">
-                        <p>Created: ${new Date(order.created_at).toLocaleString()}</p>
+                        <p>${translations.created}: ${new Date(order.created_at).toLocaleString()}</p>
                     </div>
                     ${continuePaymentBtn}
                 </div>
             `;
-        }).join('');
+            }).join('');
+            
+            // Render pagination
+            if (paginationState.totalPages > 1) {
+                const tPrevious = {!! json_encode(__('pagination.previous')) !!};
+                const tNext = {!! json_encode(__('pagination.next')) !!};
+                
+                let paginationHTML = '<div class="flex items-center space-x-2">';
+                
+                // Previous button
+                if (page > 1) {
+                    paginationHTML += `<button onclick="window.goToPage(${page - 1})" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors">${tPrevious}</button>`;
+                } else {
+                    paginationHTML += `<button disabled class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-400 font-medium cursor-not-allowed">${tPrevious}</button>`;
+                }
+                
+                // Page numbers
+                for (let i = 1; i <= paginationState.totalPages; i++) {
+                    if (i === page) {
+                        paginationHTML += `<button class="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold">${i}</button>`;
+                    } else {
+                        paginationHTML += `<button onclick="window.goToPage(${i})" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors">${i}</button>`;
+                    }
+                }
+                
+                // Next button
+                if (page < paginationState.totalPages) {
+                    paginationHTML += `<button onclick="window.goToPage(${page + 1})" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors">${tNext}</button>`;
+                } else {
+                    paginationHTML += `<button disabled class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-400 font-medium cursor-not-allowed">${tNext}</button>`;
+                }
+                
+                paginationHTML += '</div>';
+                paginationContainer.innerHTML = paginationHTML;
+                paginationContainer.classList.remove('hidden');
+            } else {
+                paginationContainer.classList.add('hidden');
+            }
+            
+            // Update prices after rendering
+            setTimeout(() => {
+                updateDashboardPrices();
+            }, 0);
+        }
         
         // Update prices when currency changes (but keep Flexy orders in DZD)
         function updateDashboardPrices() {
@@ -526,6 +602,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
+        
+        // Function to navigate to a specific page (must be accessible globally)
+        window.goToPage = function(page) {
+            if (page >= 1 && page <= paginationState.totalPages) {
+                paginationState.currentPage = page;
+                renderOrders(paginationState.currentPage);
+            }
+        };
+        
+        // Initial render
+        ordersContainer.classList.remove('hidden');
+        renderOrders(paginationState.currentPage);
         
         // Listen for currency changes (but Flexy orders won't change)
         window.addEventListener('currencyChanged', function(e) {

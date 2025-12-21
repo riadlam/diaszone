@@ -80,4 +80,13 @@ return [
     'honor_point_value_pack' => 'باقة نقاط الشرف',
     'premium_purchase_rebate_pack' => 'باقة استرداد الشراء المميزة',
     'special_pack' => 'باقة خاصة',
+    
+    // Product Features
+    'instant' => 'فوري',
+    'validity_guarantee' => 'ضمان الصلاحية',
+    'reviews' => 'تقييمات',
+    'topup' => 'شحن',
+    'delivery_type' => 'نوع التسليم',
+    'delivery_time' => '1~30 دقيقة',
+    'delivery_time_text' => 'وقت التسليم',
 ];

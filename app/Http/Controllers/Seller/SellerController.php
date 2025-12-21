@@ -433,6 +433,44 @@ class SellerController extends Controller
 
         $pack = DiamondPack::findOrFail($validated['pack_id']);
 
+        // Validate product availability with Digiflazz
+        if (!$pack->code) {
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => 'Product code is missing. Please contact support.'], 400)
+                : back()->withErrors(['error' => 'Product code is missing. Please contact support.']);
+        }
+
+        $digiflazzService = app(\App\Services\DigiflazzService::class);
+        $productData = $digiflazzService->checkProductAvailability($pack->code);
+
+        if (!$productData) {
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => 'Unable to verify product availability. Please try again in a moment.'], 400)
+                : back()->withErrors(['error' => 'Unable to verify product availability. Please try again in a moment.']);
+        }
+
+        // Check if product is available
+        if (!$productData['available']) {
+            $reason = 'This product is not currently available';
+            if (!$productData['buyer_product_status']) {
+                $reason = 'This product has been disabled and is no longer available';
+            } elseif (!$productData['seller_product_status']) {
+                $reason = 'This product is temporarily unavailable from the seller';
+            }
+            
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => $reason], 400)
+                : back()->withErrors(['error' => $reason]);
+        }
+
+        // Check quantity support (if quantity > 1, multi must be true)
+        $quantity = (int)($request->input('quantity', 1));
+        if ($quantity > 1 && !$productData['multi']) {
+            return $request->wantsJson()
+                ? response()->json(['success' => false, 'message' => "This product doesn't support multiple quantities. Maximum quantity: 1"], 400)
+                : back()->withErrors(['error' => "This product doesn't support multiple quantities. Maximum quantity: 1"]);
+        }
+
         // Check if seller can sell this game
         if (!$seller->canSellGame($pack->game_type)) {
             return back()->withErrors(['error' => 'You are not allowed to sell this game']);

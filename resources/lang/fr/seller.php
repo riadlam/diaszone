@@ -124,6 +124,7 @@ return [
     'cart_items_missing_userid_server' => 'Certains articles du panier manquent des informations requises (ID utilisateur ou serveur). Vérifiez votre panier.',
     'cart_items_missing_player_id' => 'Certains articles du panier manquent l’identifiant du joueur. Vérifiez votre panier.',
     'cart_items_missing_userid_zone_id' => 'Certains articles du panier manquent des informations requises (ID utilisateur ou ID de zone). Vérifiez votre panier.',
+    'cart_items_missing_user_id' => 'Certains articles du panier manquent des informations requises (ID utilisateur). Vérifiez votre panier.',
     'topup_completed' => 'Rechargement terminé — Commande n°:order',
     'cart_empty_info' => 'Veuillez ajouter des articles à votre panier d’abord.',
     'failed_to_create_payment_prefix' => 'Échec de la création du paiement : ',

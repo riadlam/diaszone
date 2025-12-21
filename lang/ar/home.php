@@ -43,4 +43,10 @@ return [
     'lightning_fast_desc' => 'احصل على عملتك داخل اللعبة فوراً بعد تأكيد الدفع. لا انتظار، لا تأخير - فقط متعة لعب خالصة!',
     'secure_transactions' => 'معاملات آمنة 100%',
     'secure_transactions_desc' => 'معلومات الدفع الخاصة بك محمية بتشفير متوافق مع معايير الصناعة. تسوق بثقة!',
+    
+    // Homepage Product Sections
+    'top_selling_products' => 'الأكثر مبيعاً',
+    'new_products' => 'منتجات جديدة',
+    'gift_cards' => 'بطاقات الهدايا',
+    'no_games_available' => 'لا توجد ألعاب متاحة في الوقت الحالي.',
 ];

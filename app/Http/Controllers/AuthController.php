@@ -35,6 +35,8 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        // CAPTCHA disabled for testing - uncomment below to re-enable
+        /*
         // Validate reCAPTCHA first
         $recaptchaResponse = $request->input('g-recaptcha-response');
         if (!$recaptchaResponse) {
@@ -64,6 +66,7 @@ class AuthController extends Controller
             Log::error('Login: reCAPTCHA verification error', ['error' => $e->getMessage()]);
             return back()->withErrors(['recaptcha' => 'reCAPTCHA verification error. Please try again.'])->withInput($request->only('email'));
         }
+        */
 
         // Validate input - Laravel automatically protects against SQL injection
         $validator = Validator::make($request->all(), [

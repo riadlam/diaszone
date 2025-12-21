@@ -28,7 +28,8 @@ const CartManager = {
                                       (item.player_id_ff !== undefined && item.player_id_ff !== null && item.player_id_ff !== '') ||
                                       (item.player_id_pubg !== undefined && item.player_id_pubg !== null && item.player_id_pubg !== '') ||
                                       (item.player_id_hok !== undefined && item.player_id_hok !== null && item.player_id_hok !== '') ||
-                                      (item.user_id_bs !== undefined && item.user_id_bs !== null && item.user_id_bs !== '');
+                                      (item.user_id_bs !== undefined && item.user_id_bs !== null && item.user_id_bs !== '') ||
+                                      (item.save_id !== undefined && item.save_id !== null && item.save_id !== '');
             
             if (isValidationUpdate) {
                 // Replace quantity when updating with validation data (nickname validation flow)
@@ -41,6 +42,15 @@ const CartManager = {
             
             // ALWAYS update game-specific IDs if the property exists on the item object
             // This ensures validation updates work even if values were previously null
+            // Process save_id FIRST so it can set user_id for other games (Aether Gazer, etc.)
+            if (item.save_id !== undefined) {
+                const val = item.save_id;
+                cart[existingIndex].save_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                // Also update user_id if save_id is set (for compatibility with other games)
+                if (cart[existingIndex].save_id) {
+                    cart[existingIndex].user_id = cart[existingIndex].save_id;
+                }
+            }
             if ('user_id' in item) {
                 const val = item.user_id;
                 cart[existingIndex].user_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
@@ -79,11 +89,11 @@ const CartManager = {
             }
         } else {
             // Add new item
-            const cartItem = {
+        const cartItem = {
                 id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
                 pack_id: item.pack_id,
                 quantity: finalQuantity,
-                user_id: item.user_id || null,
+                user_id: item.user_id || item.save_id || null, // Use save_id as fallback for user_id
                 zone_id: item.zone_id || null,
                 player_id: item.player_id || null,
                 player_id_ff: item.player_id_ff || null,
@@ -92,13 +102,25 @@ const CartManager = {
                 user_id_bs: item.user_id_bs || null,
                 server_bs: item.server_bs || null,
                 server: item.server || null,
-                timestamp: new Date().toISOString()
-            };
+                save_id: item.save_id || null,
+            timestamp: new Date().toISOString()
+        };
+            // If save_id exists but user_id doesn't, set user_id = save_id
+            if (cartItem.save_id && !cartItem.user_id) {
+                cartItem.user_id = cartItem.save_id;
+            }
+            console.log('Creating new cart item:', cartItem);
             cart.push(cartItem);
         }
         
         // Save to localStorage - key is always 'diaszone_cart'
+        console.log('Saving cart to localStorage:', cart);
         localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+        
+        // Verify it was saved correctly
+        const verify = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
+        console.log('Verified cart in localStorage:', verify);
+        
         this.updateCartUI();
         return cart;
     },
@@ -116,7 +138,7 @@ const CartManager = {
                 cart[itemIndex].quantity = quantity;
             }
             localStorage.setItem('diaszone_cart', JSON.stringify(cart));
-            this.updateCartUI();
+        this.updateCartUI();
         }
         return cart;
     },
@@ -247,7 +269,12 @@ const CartManager = {
                     const gameType = packInfo.game_type || 'mobilelegends';
                     let orderInfoHTML = '';
                     
-                    if (gameType === 'bloodstrike') {
+                    if (gameType === 'mobilelegends') {
+                        orderInfoHTML = `
+                            <p><span class="font-medium">User ID:</span> ${item.user_id || 'N/A'}</p>
+                            <p><span class="font-medium">Zone ID:</span> ${item.zone_id || 'N/A'}</p>
+                        `;
+                    } else if (gameType === 'bloodstrike') {
                         orderInfoHTML = `
                             <p><span class="font-medium">User ID:</span> ${item.user_id_bs || 'N/A'}</p>
                             <p><span class="font-medium">Server:</span> ${item.server_bs || 'Global'}</p>
@@ -256,10 +283,12 @@ const CartManager = {
                         const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || 'N/A';
                         orderInfoHTML = `<p><span class="font-medium">Player ID:</span> ${playerId}</p>`;
                     } else {
-                        orderInfoHTML = `
-                            <p><span class="font-medium">User ID:</span> ${item.user_id || 'N/A'}</p>
-                            <p><span class="font-medium">Zone ID:</span> ${item.zone_id || 'N/A'}</p>
-                        `;
+                        // New games - User ID (save_id) and optionally Server
+                        const userId = item.save_id || item.user_id || 'N/A';
+                        orderInfoHTML = `<p><span class="font-medium">User ID:</span> ${userId}</p>`;
+                        if (item.server) {
+                            orderInfoHTML += `<p><span class="font-medium">Server:</span> ${item.server}</p>`;
+                        }
                     }
                     
                     const bonus = packInfo.bonus || packInfo.bonus_diamonds || 0;

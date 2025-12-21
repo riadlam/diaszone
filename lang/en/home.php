@@ -43,4 +43,10 @@ return [
     'lightning_fast_desc' => 'Get your in-game currency instantly after payment confirmation. No waiting, no delays - just pure gaming fun!',
     'secure_transactions' => '100% Secure Transactions',
     'secure_transactions_desc' => 'Your payment information is protected with industry-standard encryption. Shop with confidence!',
+    
+    // Homepage Product Sections
+    'top_selling_products' => 'Top Selling Products',
+    'new_products' => 'New Products',
+    'gift_cards' => 'Gift Cards',
+    'no_games_available' => 'No games available at the moment.',
 ];

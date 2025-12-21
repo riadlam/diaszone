@@ -24,6 +24,8 @@ class Order extends Model
         'player_id_hok',
         'user_id_bs',
         'server_bs',
+        'save_id', // Generic user ID for new games (same as user_id)
+        'server', // Generic server field for new games
         'notes',
         'tlg_message_id',
         // Coupon fields
@@ -176,6 +178,14 @@ class Order extends Model
     public function digiflazzStatuses(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(DigiflazzStatus::class);
+    }
+
+    /**
+     * Get the Item4Gamer orders for this order.
+     */
+    public function item4gamerOrders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Item4GamerOrder::class);
     }
 
     /**

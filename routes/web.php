@@ -67,15 +67,20 @@ Route::get('/blood-strike-golds-top-up-global', function() {
     $controller = app(HomeController::class);
     return $controller->gameTopUp('bloodstrike');
 })->name('bloodstrike');
+Route::get('/shop', [HomeController::class, 'shop'])->name('shop');
+Route::get('/api/search', [HomeController::class, 'searchAjax'])->name('api.search');
 Route::get('/about', [HomeController::class, 'about'])->name('about');
 Route::get('/terms-of-use', [HomeController::class, 'termsOfUse'])->name('terms-of-use');
 Route::get('/privacy-policy', [HomeController::class, 'privacyPolicy'])->name('privacy-policy');
 Route::get('/contact', [HomeController::class, 'contact'])->name('contact');
 Route::post('/contact', [HomeController::class, 'contactSubmit'])->name('contact.submit');
+Route::post('/api/games/review', [HomeController::class, 'submitReview'])->name('api.games.review');
+Route::get('/api/games/{gameId}/reviews', [HomeController::class, 'getGameReviews'])->name('api.games.reviews');
 Route::get('/cart', [CheckoutController::class, 'cart'])->name('cart');
 Route::post('/api/cart/validate', [CheckoutController::class, 'validateCartItems'])->name('api.cart.validate');
 Route::get('/cart/order_checkout', [CheckoutController::class, 'orderCheckout'])->name('checkout');
 Route::get('/select', [CheckoutController::class, 'selectPayment'])->name('select-payment');
+Route::post('/api/cart/convert-to-usd', [CheckoutController::class, 'convertCartToUsd'])->name('api.cart.convert-to-usd');
 // Flexy routes with rate limiting
 Route::get('/select/flexy', [CheckoutController::class, 'flexyForm'])
     ->middleware('throttle:20,1') // 20 requests per minute
@@ -211,6 +216,16 @@ Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin', 'throttle:60,
     Route::patch('/topups/{topup}/reject', [\App\Http\Controllers\Admin\TopupController::class, 'reject'])->name('topups.reject');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
 
+    // Game Content Management Routes
+    Route::prefix('game-content')->name('game-content.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\GameContentController::class, 'index'])->name('index');
+        Route::get('/{game}/edit', [\App\Http\Controllers\Admin\GameContentController::class, 'edit'])->name('edit');
+        Route::post('/{game}/store', [\App\Http\Controllers\Admin\GameContentController::class, 'store'])->name('store');
+        Route::post('/{game}/images', [\App\Http\Controllers\Admin\GameContentController::class, 'storeImage'])->name('images.store');
+        Route::delete('/{game}/images/{image}', [\App\Http\Controllers\Admin\GameContentController::class, 'deleteImage'])->name('images.delete');
+        Route::patch('/{game}/images/order', [\App\Http\Controllers\Admin\GameContentController::class, 'updateImageOrder'])->name('images.order');
+    });
+
     // Seller Management Routes
     Route::prefix('sellers')->name('sellers.')->group(function () {
         Route::get('/', [SellerManagementController::class, 'index'])->name('index');
@@ -288,3 +303,21 @@ Route::get('/store/{username}/pack/{pack}/flexy-price', [SellerStorefrontControl
 Route::get('/store/{username}/{gameType}', [SellerStorefrontController::class, 'gamePage'])->name('seller.store.game');
 Route::get('/store/{username}/{gameType}/packs', [SellerStorefrontController::class, 'getPacksApi'])->name('seller.store.packs');
 Route::get('/store/payment/success/{encrypted_order_id}', [SellerStorefrontController::class, 'paymentSuccess'])->name('seller.payment.success');
+
+// Dynamic game routes - matches snake_case game names (e.g., /arena_breakout, /naruto_shippuden)
+// Must be placed last to avoid conflicts with other routes
+Route::get('/{gameType}', function($gameType) {
+    // Only allow snake_case game types (letters, numbers, underscores)
+    if (!preg_match('/^[a-z0-9_]+$/', $gameType)) {
+        abort(404);
+    }
+    
+    // Check if game type has packs in database
+    $hasPacks = \App\Models\DiamondPack::where('game_type', $gameType)->exists();
+    if (!$hasPacks) {
+        abort(404);
+    }
+    
+    $controller = app(\App\Http\Controllers\HomeController::class);
+    return $controller->gameTopUp($gameType);
+})->where('gameType', '[a-z0-9_]+')->name('game-topup');

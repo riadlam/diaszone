@@ -55,7 +55,15 @@ class OrderItem extends Model
     }
 
     /**
-     * Get count of successful top-ups for this item.
+     * Get the Item4Gamer orders for this order item.
+     */
+    public function item4gamerOrders(): HasMany
+    {
+        return $this->hasMany(Item4GamerOrder::class, 'order_item_id');
+    }
+
+    /**
+     * Get count of successful top-ups for this item (Digiflazz).
      */
     public function successfulTopupsCount(): int
     {
@@ -67,7 +75,19 @@ class OrderItem extends Model
     }
 
     /**
-     * Check if all top-ups for this item are completed.
+     * Check if Item4Gamer order for this item is completed.
+     */
+    public function isItem4GamerCompleted(): bool
+    {
+        $item4gamerOrder = $this->item4gamerOrders()->first();
+        if (!$item4gamerOrder) {
+            return false;
+        }
+        return in_array(strtolower($item4gamerOrder->status ?? ''), ['completed', 'success']);
+    }
+
+    /**
+     * Check if all top-ups for this item are completed (Digiflazz).
      */
     public function isCompleted(): bool
     {

@@ -29,49 +29,36 @@
             @php
                 $discountAmount = ($pack->price * $pack->discount_percentage) / 100;
                 $priceAfterDiscount = $pack->price - $discountAmount;
-                // Image selection based on diamond quantity and game type
-                $gameType = $gameType ?? 'mobilelegends';
-                if ($gameType === 'freefire') {
-                    // Free Fire diamond images
-                    if ($pack->diamonds >= 5000) {
-                        $imageName = 'freefirelaaargediamonds.webp';
-                    } elseif ($pack->diamonds >= 2000) {
-                        $imageName = 'bigfreefirediamonds.webp';
-                    } elseif ($pack->diamonds >= 500) {
-                        $imageName = 'diamondslargefreefire.webp';
-                    } elseif ($pack->diamonds >= 100) {
-                        $imageName = 'diamondsmidfreefire.webp';
-                    } else {
-                        $imageName = 'diamondssmallfreefire.webp';
-                    }
-                } elseif ($gameType === 'pubgmobile') {
-                    // PUBG Mobile UC images (using Mobile Legends images as placeholder)
-                    if ($pack->diamonds >= 2000) {
-                        $imageName = 'diasbigbig.webp';
-                    } elseif ($pack->diamonds >= 500) {
-                        $imageName = 'diaslarge.webp';
-                    } elseif ($pack->diamonds >= 100) {
-                        $imageName = 'diasmid.webp';
-                    } else {
-                        $imageName = 'diaslow.webp';
-                    }
-                } else {
-                    // Mobile Legends (default)
-                    // Check for special passes first
-                    if (stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false) {
-                        $imageName = 'weeklymlbb.webp';
-                    } elseif (stripos($pack->name, 'Twilight Pass') !== false) {
-                        $imageName = 'twlilightpass.jpg';
-                    } else {
-                        // Regular diamond packs
-                        $imageName = 'diaslow.webp';
-                        if ($pack->diamonds >= 2000) {
-                            $imageName = 'diasbigbig.webp';
-                        } elseif ($pack->diamonds >= 500) {
-                            $imageName = 'diaslarge.webp';
-                        } elseif ($pack->diamonds >= 100) {
-                            $imageName = 'diasmid.webp';
-                        }
+                $packQuantity = $pack->special_quantity ?? 1;
+                
+                // Extract currency name from pack name
+                $currencyName = 'Diamonds'; // default
+                $packNameLower = strtolower($pack->name ?? '');
+                
+                // Common currency keywords to look for in pack name
+                if (preg_match('/\b(tokens?|diamonds?|coins?|crystals?|golds?|bonds?|points?|flowers?|uc|conquer points?)\b/i', $packNameLower, $matches)) {
+                    $currencyName = ucfirst(rtrim($matches[1], 's')); // Remove plural 's' and capitalize
+                    // Handle special cases
+                    if (stripos($currencyName, 'token') !== false) $currencyName = 'Tokens';
+                    elseif (stripos($currencyName, 'diamond') !== false) $currencyName = 'Diamonds';
+                    elseif (stripos($currencyName, 'coin') !== false) $currencyName = 'Coins';
+                    elseif (stripos($currencyName, 'crystal') !== false) $currencyName = 'Crystals';
+                    elseif (stripos($currencyName, 'gold') !== false) $currencyName = 'Gold';
+                    elseif (stripos($currencyName, 'bond') !== false) $currencyName = 'Bonds';
+                    elseif (stripos($currencyName, 'point') !== false) $currencyName = 'Points';
+                    elseif (stripos($currencyName, 'flower') !== false) $currencyName = 'Flowers';
+                    elseif (stripos($currencyName, 'uc') !== false) $currencyName = 'UC';
+                }
+                
+                // Fallback to game type defaults for legacy games
+                if ($currencyName === 'Diamonds') {
+                    $gameType = $gameType ?? 'mobilelegends';
+                    if ($gameType === 'pubgmobile') {
+                        $currencyName = 'UC';
+                    } elseif ($gameType === 'honorofkings') {
+                        $currencyName = 'Tokens';
+                    } elseif ($gameType === 'bloodstrike') {
+                        $currencyName = 'Golds';
                     }
                 }
             @endphp
@@ -88,7 +75,8 @@
                     data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
                     data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
                     data-pack-name="{{ $pack->name }}"
-                    data-pack-discount="{{ $pack->discount_percentage }}">
+                    data-pack-discount="{{ $pack->discount_percentage }}"
+                    data-pack-currency="{{ $currencyName }}">
                     
                     <!-- Quantity Selector (visible when checked) -->
                     <div class="mobile-pack-quantity-control absolute top-2 right-2 hidden flex items-center gap-1.5 bg-purple-50 rounded-lg px-1.5 py-0.5 border border-purple-200 z-10">
@@ -109,56 +97,79 @@
                            data-pack-wrapper="{{ $pack->id }}"
                            onclick="event.stopPropagation();">
                 <div class="flex items-center gap-4">
-                    <!-- Image (empty space for PUBG Mobile, Honor of Kings, Blood Strike) -->
-                    @if(($gameType ?? 'mobilelegends') === 'pubgmobile' || ($gameType ?? 'mobilelegends') === 'bloodstrike')
-                        <!-- PUBG Mobile / Blood Strike: Empty space to maintain layout -->
-                        <div class="flex-shrink-0 w-16 h-16"></div>
-                    @elseif(($gameType ?? 'mobilelegends') === 'honorofkings')
-                        <!-- Honor of Kings: Images from honorofkings folder (empty for 0 token packs) -->
-                        @if($pack->diamonds == 0)
-                            <!-- Empty space for packs with 0 tokens -->
-                            <div class="flex-shrink-0 w-16 h-16"></div>
-                        @else
-                            <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                                @php
-                                    // Honor of Kings image selection based on token quantity
-                                    // Available images: bigtoken.webp, laargetoken.webp, midtokne.webp, smalltoken.webp, weeklycard.webp, weeklycardplus.webp
-                                    if ($pack->price == 2.99 && $pack->diamonds <= 2) {
-                                        // Weekly Card Plus
-                                        $imageName = 'honorofkings/weeklycardplus.webp';
-                                    } elseif ($pack->price == 0.96 && $pack->diamonds <= 2) {
-                                        // Weekly Card
-                                        $imageName = 'honorofkings/weeklycard.webp';
-                                    } elseif ($pack->diamonds >= 4000) {
-                                        $imageName = 'honorofkings/bigtoken.webp';
-                                    } elseif ($pack->diamonds >= 1200) {
-                                        $imageName = 'honorofkings/laargetoken.webp';
-                                    } elseif ($pack->diamonds >= 400) {
-                                        $imageName = 'honorofkings/midtokne.webp';
-                                    } elseif ($pack->diamonds >= 16) {
-                                        $imageName = 'honorofkings/smalltoken.webp';
-                                    } else {
-                                        // Default for other special packs
-                                        $imageName = 'honorofkings/weeklycard.webp';
-                                    }
-                                @endphp
-                                <img src="{{ url('storage/images_homepage/' . $imageName) }}" 
-                                     alt="{{ $pack->diamonds }} Tokens" 
-                                     class="w-12 h-12 object-contain"
-                                     style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
-                            </div>
-                        @endif
-                    @else
-                        <!-- Other Games: Diamond Image -->
+                    <!-- Image: Only show for Mobile Legends -->
+                    @if(($gameType ?? 'mobilelegends') === 'mobilelegends')
                         <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                            @php
+                                // Mobile Legends images only
+                                if (stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false) {
+                                    $imageName = 'weeklymlbb.webp';
+                                } elseif (stripos($pack->name, 'Twilight Pass') !== false) {
+                                    $imageName = 'twlilightpass.jpg';
+                                } else {
+                                    // Regular diamond packs
+                                    $imageName = 'diaslow.webp';
+                                    if ($pack->diamonds >= 2000) {
+                                        $imageName = 'diasbigbig.webp';
+                                    } elseif ($pack->diamonds >= 500) {
+                                        $imageName = 'diaslarge.webp';
+                                    } elseif ($pack->diamonds >= 100) {
+                                        $imageName = 'diasmid.webp';
+                                    }
+                                }
+                            @endphp
                             <img src="{{ url('storage/images_homepage/' . $imageName) }}" 
                                  alt="{{ $pack->diamonds }} {{ __('game.diamonds') }}" 
                                  class="w-12 h-12 object-contain"
                                  style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
                         </div>
+                    @elseif(($gameType ?? '') !== 'freefire' && !empty($gameImage ?? null))
+                        <!-- Show game image thumbnail for games other than Mobile Legends and Free Fire -->
+                        <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden">
+                            <img src="{{ asset($gameImage) }}" 
+                                 alt="{{ $gameTitle ?? '' }}" 
+                                 class="w-full h-full object-cover rounded-lg"
+                                 style="display: block !important; width: 100% !important; height: 100% !important; object-fit: cover !important;">
+                        </div>
+                    @else
+                        <!-- Free Fire and games without images: Empty space to maintain layout -->
+                        <div class="flex-shrink-0 w-16 h-16"></div>
                     @endif
                     
                     <!-- Pack Info -->
+                    @php 
+                        $packQuantity = $pack->special_quantity ?? 1;
+                        
+                        // Extract currency name from pack name (e.g., "60 + 6 Bonds" -> "Bonds")
+                        $currencyName = 'Diamonds'; // default
+                        $packNameLower = strtolower($pack->name ?? '');
+                        
+                        // Common currency keywords to look for in pack name
+                        if (preg_match('/\b(tokens?|diamonds?|coins?|crystals?|golds?|bonds?|points?|flowers?|uc|conquer points?)\b/i', $packNameLower, $matches)) {
+                            $currencyName = ucfirst(rtrim($matches[1], 's')); // Remove plural 's' and capitalize
+                            // Handle special cases
+                            if (stripos($currencyName, 'token') !== false) $currencyName = 'Tokens';
+                            elseif (stripos($currencyName, 'diamond') !== false) $currencyName = 'Diamonds';
+                            elseif (stripos($currencyName, 'coin') !== false) $currencyName = 'Coins';
+                            elseif (stripos($currencyName, 'crystal') !== false) $currencyName = 'Crystals';
+                            elseif (stripos($currencyName, 'gold') !== false) $currencyName = 'Gold';
+                            elseif (stripos($currencyName, 'bond') !== false) $currencyName = 'Bonds';
+                            elseif (stripos($currencyName, 'point') !== false) $currencyName = 'Points';
+                            elseif (stripos($currencyName, 'flower') !== false) $currencyName = 'Flowers';
+                            elseif (stripos($currencyName, 'uc') !== false) $currencyName = 'UC';
+                        }
+                        
+                        // Fallback to game type defaults for legacy games
+                        if ($currencyName === 'Diamonds') {
+                            if (($gameType ?? 'mobilelegends') === 'pubgmobile') {
+                                $currencyName = 'UC';
+                            } elseif (($gameType ?? 'mobilelegends') === 'honorofkings') {
+                                $currencyName = 'Tokens';
+                            } elseif (($gameType ?? 'mobilelegends') === 'bloodstrike') {
+                                $currencyName = 'Golds';
+                            }
+                        }
+                    @endphp
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between mb-1.5">
                             <div class="flex items-center gap-2">
@@ -181,7 +192,7 @@
                                         <h3 class="text-base font-bold text-gray-900">{{ __('game.weekly_card_plus') }}</h3>
                                     @else
                                         <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                        <span class="text-sm font-medium text-gray-600">{{ __('game.tokens') }}</span>
+                                        <span class="text-sm font-medium text-gray-600">{{ $currencyName }}</span>
                                     @endif
                                 @else
                                     @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
@@ -190,17 +201,7 @@
                                         <h3 class="text-base font-bold text-gray-900">{{ __('game.twilight_pass') }}</h3>
                                     @else
                                         <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                        <span class="text-sm font-medium text-gray-600">
-                                            @if(($gameType ?? 'mobilelegends') === 'pubgmobile')
-                                                {{ __('game.uc') }}
-                                            @elseif(($gameType ?? 'mobilelegends') === 'honorofkings')
-                                                {{ __('game.tokens') }}
-                                            @elseif(($gameType ?? 'mobilelegends') === 'bloodstrike')
-                                                {{ __('game.golds') }}
-                                            @else
-                                                {{ __('game.diamonds') }}
-                                            @endif
-                                        </span>
+                                        <span class="text-sm font-medium text-gray-600">{{ $currencyName }}</span>
                                     @endif
                                 @endif
                             </div>
@@ -213,7 +214,7 @@
                                 <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
                                 </svg>
-                                <p class="text-sm text-gray-600 font-medium">+ {{ number_format($pack->bonus_diamonds) }} {{ __('game.bonus') }}</p>
+                                <p class="text-sm text-gray-600 font-medium">+ {{ number_format($pack->bonus_diamonds) }} {{ __('game.bonus') }} {{ $currencyName }}</p>
                             </div>
                         @endif
                         <div class="flex items-center justify-between">

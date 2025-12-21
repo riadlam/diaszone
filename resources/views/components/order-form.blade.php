@@ -5,64 +5,85 @@
     @endif
     
     <form id="order-form" class="space-y-4">
-        @if(isset($gameType) && $gameType === 'bloodstrike')
-            <!-- User ID and Server (Blood Strike) -->
+        @php
+            // Check if game has required_fields defined (from JSON import)
+            $requiredFields = isset($game) && $game && $game->required_fields ? $game->required_fields : null;
+            
+            // Fallback to hardcoded logic for existing games if no required_fields
+            if (!$requiredFields) {
+                if (isset($gameType) && $gameType === 'mobilelegends') {
+                    $requiredFields = [
+                        ['data_name' => 'user_id', 'type' => 'text', 'required' => true, 'name' => __('game.user_id')],
+                        ['data_name' => 'zone_id', 'type' => 'text', 'required' => true, 'name' => __('game.zone_id')],
+                    ];
+                } elseif (isset($gameType) && $gameType === 'bloodstrike') {
+                    $requiredFields = [
+                        ['data_name' => 'user_id_bs', 'type' => 'text', 'required' => true, 'name' => 'User ID'],
+                        ['data_name' => 'server_bs', 'type' => 'select', 'required' => true, 'name' => 'Server', 'options' => [['value' => 'global', 'label' => 'Global']]],
+                    ];
+                } elseif (isset($gameType) && in_array($gameType, ['freefire', 'pubgmobile', 'honorofkings'])) {
+                    $requiredFields = [
+                        ['data_name' => 'player_id', 'type' => 'text', 'required' => true, 'name' => __('game.player_id')],
+                    ];
+                } else {
+                    // Default: User ID only
+                    $requiredFields = [
+                        ['data_name' => 'save_id', 'type' => 'text', 'required' => true, 'name' => 'User ID'],
+                    ];
+                }
+            }
+        @endphp
+
+        @if(!empty($requiredFields) && is_array($requiredFields))
+            @foreach($requiredFields as $field)
+                @php
+                    $fieldName = $field['data_name'] ?? '';
+                    $fieldType = $field['type'] ?? 'text';
+                    $fieldLabel = $field['name'] ?? ucfirst(str_replace('_', ' ', $fieldName));
+                    $isRequired = $field['required'] ?? true;
+                    $fieldOptions = $field['options'] ?? [];
+                    
+                    // Map save_id to user_id for compatibility (they're the same)
+                    $inputName = $fieldName === 'save_id' ? 'save_id' : $fieldName;
+                    $inputId = $fieldName;
+                @endphp
+                
+                <div>
+                    <label for="{{ $inputId }}" class="block text-sm font-medium text-gray-700 mb-2">{{ $fieldLabel }}</label>
+                    
+                    @if($fieldType === 'select' && !empty($fieldOptions))
+                        <select id="{{ $inputId }}" 
+                                name="{{ $inputName }}" 
+                                @if($isRequired) required @endif
+                                class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
+                            @foreach($fieldOptions as $option)
+                                <option value="{{ $option['value'] ?? $option['label'] ?? '' }}"
+                                        @if(isset($option['value']) && ($option['value'] === 'global' || $option['value'] === 'Global')) selected @endif>
+                                    {{ $option['label'] ?? $option['value'] ?? '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    @else
+                        <input type="{{ $fieldType }}" 
+                               id="{{ $inputId }}" 
+                               name="{{ $inputName }}" 
+                               @if($isRequired) required @endif
+                               @if($fieldType === 'text' && in_array($fieldName, ['user_id', 'zone_id', 'player_id', 'user_id_bs'])) pattern="[0-9]+" @endif
+                               class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                               placeholder="Enter your {{ $fieldLabel }}">
+                    @endif
+                </div>
+            @endforeach
+        @else
+            {{-- Fallback: If no required_fields, show a default User ID field to prevent form from being empty --}}
             <div>
-                <label for="user_id_bs" class="block text-sm font-medium text-gray-700 mb-2">User ID</label>
+                <label for="save_id" class="block text-sm font-medium text-gray-700 mb-2">User ID</label>
                 <input type="text" 
-                       id="user_id_bs" 
-                       name="user_id_bs" 
+                       id="save_id" 
+                       name="save_id" 
                        required
-                       pattern="[0-9]+"
                        class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
                        placeholder="Enter your User ID">
-            </div>
-            
-            <!-- Server Selection (Blood Strike) -->
-            <div>
-                <label for="server_bs" class="block text-sm font-medium text-gray-700 mb-2">Server</label>
-                <select id="server_bs" 
-                        name="server_bs" 
-                        required
-                        class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
-                    <option value="global" selected>Global</option>
-                </select>
-            </div>
-        @elseif(isset($gameType) && ($gameType === 'freefire' || $gameType === 'pubgmobile' || $gameType === 'honorofkings'))
-            <!-- Player ID (Free Fire / PUBG Mobile / Honor of Kings) -->
-            <div>
-                <label for="player_id" class="block text-sm font-medium text-gray-700 mb-2">{{ __('game.player_id') }}</label>
-                <input type="text" 
-                       id="player_id" 
-                       name="player_id" 
-                       required
-                       pattern="[0-9]+"
-                       class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
-                       placeholder="{{ __('game.enter_player_id') }}">
-            </div>
-        @else
-            <!-- User ID (Mobile Legends) -->
-            <div>
-                <label for="user_id" class="block text-sm font-medium text-gray-700 mb-2">{{ __('game.user_id') }}</label>
-                <input type="text" 
-                       id="user_id" 
-                       name="user_id" 
-                       required
-                       pattern="[0-9]+"
-                       class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
-                       placeholder="{{ __('game.enter_user_id') }}">
-            </div>
-            
-            <!-- Zone ID (Mobile Legends) -->
-            <div>
-                <label for="zone_id" class="block text-sm font-medium text-gray-700 mb-2">{{ __('game.zone_id') }}</label>
-                <input type="text" 
-                       id="zone_id" 
-                       name="zone_id" 
-                       required
-                       pattern="[0-9]+"
-                       class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
-                       placeholder="{{ __('game.enter_zone_id') }}">
             </div>
         @endif
         

@@ -43,4 +43,10 @@ return [
     'lightning_fast_desc' => 'Obtenez votre monnaie de jeu instantanément après confirmation du paiement. Pas d\'attente, pas de retards - juste du pur plaisir de jeu!',
     'secure_transactions' => 'Transactions 100% sécurisées',
     'secure_transactions_desc' => 'Vos informations de paiement sont protégées par un cryptage standard de l\'industrie. Achetez en toute confiance!',
+    
+    // Homepage Product Sections
+    'top_selling_products' => 'Meilleurs produits',
+    'new_products' => 'Nouveaux produits',
+    'gift_cards' => 'Cartes cadeaux',
+    'no_games_available' => 'Aucun jeu disponible pour le moment.',
 ];

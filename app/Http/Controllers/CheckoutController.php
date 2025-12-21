@@ -65,6 +65,108 @@ class CheckoutController extends Controller
             ->where('is_active', true)
             ->get()
             ->map(function ($pack) {
+                // Get game information
+                $gameType = $pack->game_type ?? 'mobilelegends';
+                $game = \App\Models\Game::where('game_type', $gameType)
+                    ->where('is_active', true)
+                    ->first();
+                
+                // Get game display name
+                $gameDisplayName = null;
+                if ($game) {
+                    $gameName = $game->name;
+                    if (strpos($gameName, ' - ') !== false) {
+                        $gameDisplayName = explode(' - ', $gameName)[0];
+                    } elseif (preg_match('/^\d+/', $gameName) || preg_match('/\d+\s*\+?\s*\d+/', $gameName)) {
+                        // Use helper to get display name
+                        $gameNames = [
+                            'mobilelegends' => 'Mobile Legends',
+                            'freefire' => 'Free Fire',
+                            'pubgmobile' => 'PUBG Mobile',
+                            'honorofkings' => 'Honor of Kings',
+                            'bloodstrike' => 'Blood Strike',
+                        ];
+                        $gameDisplayName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+                    } else {
+                        $gameDisplayName = $gameName;
+                    }
+                } else {
+                    // Fallback
+                    $gameNames = [
+                        'mobilelegends' => 'Mobile Legends',
+                        'freefire' => 'Free Fire',
+                        'pubgmobile' => 'PUBG Mobile',
+                        'honorofkings' => 'Honor of Kings',
+                        'bloodstrike' => 'Blood Strike',
+                    ];
+                    $gameDisplayName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+                }
+                
+                // Get game image using HomeController's findGameImage method via reflection
+                $gameImagePath = null;
+                try {
+                    $homeController = new \App\Http\Controllers\HomeController();
+                    $reflection = new \ReflectionClass($homeController);
+                    $method = $reflection->getMethod('findGameImage');
+                    $method->setAccessible(true);
+                    $gameImagePath = $method->invoke($homeController, $gameType, $game ? $game->name : $gameDisplayName);
+                } catch (\Exception $e) {
+                    // Fallback: Try to find image using basic patterns
+                    $top4gamersDir = public_path('storage/top4gamers_images');
+                    if (!is_dir($top4gamersDir)) {
+                        $top4gamersDir = storage_path('app/public/top4gamers_images');
+                    }
+                    if (is_dir($top4gamersDir)) {
+                        $gameTypeLower = strtolower($gameType);
+                        $extensions = ['.webp', '.jpg', '.jpeg', '.png'];
+                        
+                        // Try numbered prefix patterns (e.g., 02_mobile-legends.webp)
+                        try {
+                            $files = scandir($top4gamersDir);
+                            $gameTypeVariations = [];
+                            if ($gameTypeLower === 'freefire') {
+                                $gameTypeVariations = ['free-fire', 'free_fire'];
+                            } elseif ($gameTypeLower === 'mobilelegends') {
+                                $gameTypeVariations = ['mobile-legends', 'mobile_legends'];
+                            } elseif ($gameTypeLower === 'pubgmobile') {
+                                $gameTypeVariations = ['pubg-mobile', 'pubg_mobile'];
+                            } elseif ($gameTypeLower === 'honorofkings') {
+                                $gameTypeVariations = ['honor-of-kings', 'honor_of_kings'];
+                            } elseif ($gameTypeLower === 'bloodstrike') {
+                                $gameTypeVariations = ['blood-strike', 'blood_strike'];
+                            }
+                            $gameTypeVariations[] = $gameTypeLower;
+                            
+                            foreach ($files as $file) {
+                                if ($file === '.' || $file === '..' || is_dir($top4gamersDir . '/' . $file)) continue;
+                                $fileLower = strtolower($file);
+                                if (preg_match('/^\d{2}_/', $fileLower)) {
+                                    $fileWithoutPrefix = preg_replace('/^\d{2}_/', '', $fileLower);
+                                    foreach ($gameTypeVariations as $variation) {
+                                        if (strpos($fileWithoutPrefix, $variation) === 0) {
+                                            $gameImagePath = 'storage/top4gamers_images/' . $file;
+                                            break 2;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (\Exception $scanError) {
+                            // Continue to simple extension check
+                        }
+                        
+                        // Try simple game_type.ext pattern if not found yet
+                        if (!$gameImagePath) {
+                            foreach ($extensions as $ext) {
+                                $testPath = $top4gamersDir . '/' . $gameTypeLower . $ext;
+                                if (file_exists($testPath)) {
+                                    $gameImagePath = 'storage/top4gamers_images/' . $gameTypeLower . $ext;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                
                 return [
                     'id' => $pack->id,
                     'diamonds' => $pack->diamonds,
@@ -73,9 +175,11 @@ class CheckoutController extends Controller
                     'price_usd' => (float) ($pack->price_usd ?? $pack->price),
                     'price_dzd' => (float) ($pack->price_dzd ?? ($pack->price * 260)),
                     'discount' => (float) $pack->discount_percentage,
-                    'game_type' => $pack->game_type ?? 'mobilelegends',
+                    'game_type' => $gameType,
                     'name' => $pack->name ?? null,
                     'sort_order' => $pack->sort_order ?? 0,
+                    'game_display_name' => $gameDisplayName,
+                    'game_image' => $gameImagePath,
                 ];
             })
             ->keyBy('id');
@@ -152,64 +256,86 @@ class CheckoutController extends Controller
                 continue;
             }
 
-            $code = $pack->code;
-            if (!$code) {
-                $errors[] = [
-                    'index' => $index,
-                    'pack_id' => $packId,
-                    'code' => null,
-                    'reason' => 'Pack missing product code',
-                ];
-                continue;
-            }
-
-            // Check product availability
-            $productData = $digiflazzService->checkProductAvailability($code);
-
-            if (!$productData) {
-                // API call failed - consider unavailable
-                $unavailableItems[] = [
-                    'pack_id' => $packId,
-                    'code' => $code,
-                    'quantity' => $quantity,
-                    'product_name' => $pack->name,
-                    'reason' => 'Unable to verify product availability. Please try again in a moment.',
-                    'can_retry' => true,
-                ];
-                continue;
-            }
-
-            // Check if product is available
-            if (!$productData['available']) {
-                $reason = 'This product is not currently available';
-                if (!$productData['buyer_product_status']) {
-                    $reason = 'Product temporarily unavailable" (can retry in 5 min)';
-                } elseif (!$productData['seller_product_status']) {
-                    $reason = 'Product temporarily unavailable (can retry in 5 minutes)';
+            // Get game type
+            $gameType = $pack->game_type ?? 'mobilelegends';
+            
+            // Only check Digiflazz availability for Mobile Legends, Free Fire, and PUBG Mobile
+            $gamesUsingDigiflazz = ['mobilelegends', 'freefire', 'pubgmobile'];
+            
+            if (in_array($gameType, $gamesUsingDigiflazz)) {
+                // For these games, check Digiflazz availability
+                $code = $pack->code;
+                if (!$code) {
+                    $errors[] = [
+                        'index' => $index,
+                        'pack_id' => $packId,
+                        'code' => null,
+                        'reason' => 'Pack missing product code',
+                    ];
+                    continue;
                 }
 
-                $unavailableItems[] = [
-                    'pack_id' => $packId,
-                    'code' => $code,
-                    'quantity' => $quantity,
-                    'product_name' => $productData['product_name'] ?? $pack->name,
-                    'reason' => $reason,
-                    'can_retry' => $productData['seller_product_status'] ?? false, // Can retry if seller status might change
-                ];
-                continue;
-            }
+                // Check product availability via Digiflazz API
+                $productData = $digiflazzService->checkProductAvailability($code);
 
-            // Check if quantity > 1 but multi is false
-            if ($quantity > 1 && !$productData['multi']) {
-                $unavailableItems[] = [
-                    'pack_id' => $packId,
-                    'code' => $code,
-                    'quantity' => $quantity,
-                    'product_name' => $productData['product_name'] ?? $pack->name,
-                    'reason' => "This product doesn't support multiple quantities. You selected {$quantity}, but maximum is 1. Please remove it or reduce quantity to 1.",
-                    'can_retry' => false,
-                ];
-                continue;
+                if (!$productData) {
+                    // API call failed - consider unavailable
+                    $unavailableItems[] = [
+                        'pack_id' => $packId,
+                        'code' => $code,
+                        'quantity' => $quantity,
+                        'product_name' => $pack->name,
+                        'reason' => 'Unable to verify product availability. Please try again in a moment.',
+                        'can_retry' => true,
+                    ];
+                    continue;
+                }
+
+                // Check if product is available
+                if (!$productData['available']) {
+                    $reason = 'This product is not currently available';
+                    if (!$productData['buyer_product_status']) {
+                        $reason = 'Product temporarily unavailable" (can retry in 5 min)';
+                    } elseif (!$productData['seller_product_status']) {
+                        $reason = 'Product temporarily unavailable (can retry in 5 minutes)';
+                    }
+
+                    $unavailableItems[] = [
+                        'pack_id' => $packId,
+                        'code' => $code,
+                        'quantity' => $quantity,
+                        'product_name' => $productData['product_name'] ?? $pack->name,
+                        'reason' => $reason,
+                        'can_retry' => $productData['seller_product_status'] ?? false, // Can retry if seller status might change
+                    ];
+                    continue;
+                }
+
+                // Check if quantity > 1 but multi is false
+                if ($quantity > 1 && !$productData['multi']) {
+                    $unavailableItems[] = [
+                        'pack_id' => $packId,
+                        'code' => $code,
+                        'quantity' => $quantity,
+                        'product_name' => $productData['product_name'] ?? $pack->name,
+                        'reason' => "This product doesn't support multiple quantities. You selected {$quantity}, but maximum is 1. Please remove it or reduce quantity to 1.",
+                        'can_retry' => false,
+                    ];
+                    continue;
+                }
+            } else {
+                // For other games, just check if pack is active (no Digiflazz API call)
+                if (!$pack->is_active) {
+                    $unavailableItems[] = [
+                        'pack_id' => $packId,
+                        'code' => $pack->code ?? null,
+                        'quantity' => $quantity,
+                        'product_name' => $pack->name,
+                        'reason' => 'This product is not currently available.',
+                        'can_retry' => false,
+                    ];
+                    continue;
+                }
             }
         }
 
@@ -297,7 +423,7 @@ class CheckoutController extends Controller
                 'name' => 'Cryptocurrency',
                 'icon' => 'cryptocurrency.webp',
                 'description' => 'Pay with crypto (USD)',
-                'coming_soon' => true
+                'coming_soon' => false
             ],
             [
                 'id' => 'flexy',
@@ -311,6 +437,64 @@ class CheckoutController extends Controller
         return view('pages.select-payment', [
             'paymentMethods' => $paymentMethods,
         ]);
+    }
+    
+    /**
+     * API endpoint to convert cart total from DZD to USD for cryptocurrency payment
+     */
+    public function convertCartToUsd(Request $request)
+    {
+        try {
+            $request->validate([
+                'cart_items' => 'required|array|min:1',
+                'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
+                'cart_items.*.quantity' => 'nullable|integer|min:1|max:20',
+            ]);
+            
+            $cartItems = $request->input('cart_items');
+            $totalAmountDzd = 0;
+            
+            // Calculate total in DZD from cart items (backend validation)
+            foreach ($cartItems as $item) {
+                $pack = \App\Models\DiamondPack::find($item['pack_id']);
+                if (!$pack || !$pack->is_active) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Pack ID {$item['pack_id']} not found or inactive"
+                    ], 404);
+                }
+                
+                $quantity = max(1, min(20, (int)($item['quantity'] ?? 1)));
+                $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                $discountPercentage = $pack->discount_percentage ?? 0;
+                
+                $subtotalDzd = $unitPriceDzd * $quantity;
+                $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                $itemTotalDzd = $subtotalDzd - $discountAmount;
+                
+                $totalAmountDzd += $itemTotalDzd;
+            }
+            
+            // Convert DZD to USD (divide by 260)
+            $totalAmountUsd = round($totalAmountDzd / 260, 2);
+            
+            return response()->json([
+                'success' => true,
+                'total_dzd' => round($totalAmountDzd, 2),
+                'total_usd' => $totalAmountUsd,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Convert cart to USD error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to convert price. Please try again.',
+            ], 500);
+        }
     }
     
     /**
@@ -372,6 +556,7 @@ class CheckoutController extends Controller
                 'cart_items.*.user_id_bs' => 'nullable|string',
                 'cart_items.*.server_bs' => 'nullable|string',
                 'cart_items.*.server' => 'nullable|string',
+                'cart_items.*.save_id' => 'nullable|string', // User ID for new games (same as user_id)
                 'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency,coupon_free',
             ]);
             
@@ -415,9 +600,16 @@ class CheckoutController extends Controller
             $player_id_hok = null;
             $user_id_bs = null;
             $server_bs = null;
+            $save_id = null; // For new games (same as user_id)
+            $server = null; // Generic server field for games like Genshin Impact
             
             // Get IDs from first item (all items should have same game type)
             $firstItem = $cartItems[0];
+            
+            // Try to get required_fields from game to validate dynamically
+            $game = \App\Models\Game::where('game_type', $gameType)->first();
+            $requiredFields = $game ? $game->required_fields : null;
+            
             if ($gameType === 'mobilelegends') {
                 $user_id_ml = $firstItem['user_id'] ?? null;
                 $zone_id_ml = $firstItem['zone_id'] ?? null;
@@ -460,6 +652,40 @@ class CheckoutController extends Controller
                             'message' => 'User ID and Server are required for Blood Strike'
                         ], 422);
                     }
+            } elseif ($requiredFields && is_array($requiredFields)) {
+                // Dynamic validation based on required_fields from JSON
+                foreach ($requiredFields as $field) {
+                    $fieldName = $field['data_name'] ?? '';
+                    $isRequired = $field['required'] ?? true;
+                    $value = $firstItem[$fieldName] ?? null;
+                    
+                    if ($isRequired && empty($value)) {
+                        $fieldLabel = $field['name'] ?? $fieldName;
+                        return response()->json([
+                            'success' => false,
+                            'message' => "{$fieldLabel} is required"
+                        ], 422);
+                    }
+                    
+                    // Store values for later use
+                    if ($fieldName === 'save_id') {
+                        $save_id = $value;
+                    } elseif ($fieldName === 'server') {
+                        $server = $value;
+                    }
+                }
+            } else {
+                // Fallback: Default validation for games without required_fields defined
+                // Check for save_id (treat as user_id for new games)
+                $save_id = $firstItem['save_id'] ?? $firstItem['user_id'] ?? null;
+                $server = $firstItem['server'] ?? null;
+                
+                if (empty($save_id)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User ID is required'
+                    ], 422);
+                }
             }
             
             // Determine status based on payment method
@@ -495,6 +721,8 @@ class CheckoutController extends Controller
                     'player_id_hok' => $player_id_hok,
                     'user_id_bs' => $user_id_bs,
                     'server_bs' => $server_bs,
+                    'save_id' => $save_id,
+                    'server' => $server,
                 ]);
                 
                 // Create order_items and calculate totals
@@ -1554,18 +1782,111 @@ class CheckoutController extends Controller
             // Get game type
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             
-            // Only process Mobile Legends and Free Fire orders
-            if (!in_array($gameType, ['mobilelegends', 'freefire'])) {
-                Log::info('Chargily recharge skipped: Unsupported game type', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'game_type' => $gameType,
-                ]);
-                return [
-                    'success' => false,
-                    'message' => 'Recharge only supported for Mobile Legends and Free Fire orders',
-                ];
+            // Determine which provider to use
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubgmobile'];
+            $useDigiflazz = in_array($gameType, $digiflazzGames);
+            
+            // For non-Digiflazz games, use Item4Gamer
+            if (!$useDigiflazz) {
+                // Use Item4Gamer for other games
+                if (!config('services.item4gamer.api_key') && !env('ITEM4GAMER_API_KEY')) {
+                    Log::error('Chargily recharge: Item4Gamer not configured', ['order_id' => $order->id]);
+                    return ['success' => false, 'message' => 'Item4Gamer not configured'];
+                }
+
+                $order->load('orderItems.diamondPack', 'user');
+                
+                return DB::transaction(function () use ($order) {
+                    $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                    if (!$orderLocked) {
+                        Log::error('Chargily recharge: Failed to lock order for Item4Gamer', ['order_id' => $order->id]);
+                        return ['success' => false, 'message' => 'Failed to lock order'];
+                    }
+
+                    $orderLocked->load('orderItems.diamondPack', 'user');
+
+                    // Submit top-ups for each order_item using Item4Gamer
+                    $item4gamerService = app(\App\Services\Item4GamerService::class);
+                    $allSuccessful = true;
+                    $lastError = null;
+
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        // Check if Item4Gamer order already exists for this order_item
+                        $existingOrder = \App\Models\Item4GamerOrder::where('order_item_id', $orderItem->id)->first();
+                        if ($existingOrder) {
+                            Log::info('Chargily recharge: Item4Gamer order already exists for order_item', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'item4gamer_order_id' => $existingOrder->item4gamer_order_id,
+                            ]);
+                            continue;
+                        }
+
+                        $pack = $orderItem->diamondPack;
+                        $quantity = max(1, (int)$orderItem->quantity);
+
+                        // Extract player/user ID based on game type
+                        $playerId = $this->extractPlayerIdForGame($orderLocked, $pack->game_type);
+                        if (empty($playerId)) {
+                            Log::error('Chargily recharge: Player ID not found for Item4Gamer', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'game_type' => $pack->game_type,
+                            ]);
+                            $allSuccessful = false;
+                            $lastError = 'Player ID not found for game type: ' . $pack->game_type;
+                            continue;
+                        }
+
+                        // Call Item4Gamer API to place order
+                        $result = $item4gamerService->placeOrder($pack, $orderLocked, $quantity, $playerId);
+
+                        if ($result['success'] && $result['order_id']) {
+                            // Create Item4GamerOrder record
+                            \App\Models\Item4GamerOrder::create([
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'diamond_pack_id' => $pack->id,
+                                'item4gamer_order_id' => $result['order_id'],
+                                'status' => 'pending',
+                                'quantity' => $quantity,
+                                'total' => $result['total'],
+                                'currency' => $result['currency'] ?? 'USD',
+                                'player_id' => $playerId,
+                                'additional_data' => $result['full_response'] ?? $result,
+                            ]);
+
+                            Log::info('Chargily recharge: Item4Gamer order placed successfully', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'item4gamer_order_id' => $result['order_id'],
+                                'quantity' => $quantity,
+                            ]);
+                        } else {
+                            Log::error('Chargily recharge: Item4Gamer order placement failed', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'error' => $result['message'] ?? 'Unknown error',
+                            ]);
+                            $allSuccessful = false;
+                            $lastError = $result['message'] ?? 'Failed to place Item4Gamer order';
+                        }
+                    }
+
+                    $order = $orderLocked;
+                    if ($allSuccessful) {
+                        $order->status = 'sending';
+                        $order->save();
+                    }
+                    
+                    return [
+                        'success' => $allSuccessful,
+                        'message' => $allSuccessful ? 'Item4Gamer orders placed successfully' : ($lastError ?? 'Some orders failed'),
+                    ];
+                });
             }
+            
+            // Continue with Digiflazz processing for ML, FF, PUBG
 
             $vipReseller = app(VipResellerService::class);
             $packageCode = $order->diamondPack->code ?? null;
@@ -2877,64 +3198,123 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
         
-        $order = Order::with('diamondPack')->find($orderId);
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
         
         if (!$order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
         }
         
-        // Calculate order amount
-        $unitPrice = $order->diamondPack->price;
-        $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
-        $discountAmount = ($unitPrice * $discountPercentage) / 100;
-        $totalAmount = $unitPrice - $discountAmount;
+        // Calculate order total amount in DZD (backend calculation - prevents client manipulation)
+        $totalAmountDzd = 0;
+        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
         
-        // Initialize MixPay service
-        $mixPayService = new MixPayService();
-        $mixPayConfigured = $mixPayService->hasCredentials();
+        if ($hasOrderItems) {
+            // Multi-item order: sum from order items
+            $totalAmountDzd = $order->orderItems->sum('total_dzd');
+            
+            // SECURITY: Re-calculate to validate stored prices match current pack prices
+            $order->load('orderItems.diamondPack');
+            $recalculatedTotalDzd = 0;
+            foreach ($order->orderItems as $orderItem) {
+                $pack = $orderItem->diamondPack;
+                if (!$pack) {
+                    Log::error('NOWPayments: Order item missing pack', [
+                        'order_id' => $order->id,
+                        'order_item_id' => $orderItem->id,
+                    ]);
+                    return redirect()->route('select-payment')->with('error', 'Order data error. Please try again.');
+                }
+                
+                // Re-calculate from current pack prices
+                $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                $discountPercentage = $pack->discount_percentage ?? 0;
+                $quantity = max(1, (int)$orderItem->quantity);
+                
+                $subtotalDzd = $unitPriceDzd * $quantity;
+                $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                $itemTotalDzd = $subtotalDzd - $discountAmount;
+                
+                $recalculatedTotalDzd += $itemTotalDzd;
+            }
+            
+            // Validate stored total matches recalculated (within 1 DZD tolerance)
+            if (abs($totalAmountDzd - $recalculatedTotalDzd) > 1.0) {
+                Log::error('NOWPayments: Price validation failed', [
+                    'order_id' => $order->id,
+                    'stored_total_dzd' => $totalAmountDzd,
+                    'recalculated_total_dzd' => $recalculatedTotalDzd,
+                ]);
+                return redirect()->route('select-payment')->with('error', 'Price validation failed. Please refresh and try again.');
+            }
+        } else {
+            // Legacy single-pack order
+            if (!$order->diamondPack) {
+                return redirect()->route('select-payment')->with('error', 'Order data error. Please try again.');
+            }
+            
+            $unitPriceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
+            $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
+            $quantity = (int)($order->quantity ?? 1);
+            
+            $subtotalDzd = $unitPriceDzd * $quantity;
+            $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+            $totalAmountDzd = $subtotalDzd - $discountAmount;
+        }
         
-        if (!$mixPayConfigured) {
+        // SECURITY: Convert DZD to USD on backend (divide by 260)
+        // This ensures conversion happens server-side and prevents manipulation
+        $totalAmountUsd = $totalAmountDzd / 260;
+        
+        // Round to 2 decimal places for payment
+        $totalAmountUsd = round($totalAmountUsd, 2);
+        
+        Log::info('NOWPayments: Creating payment', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'total_amount_dzd' => $totalAmountDzd,
+            'total_amount_usd' => $totalAmountUsd,
+            'has_order_items' => $hasOrderItems,
+        ]);
+        
+        // Initialize NOWPayments service
+        $nowPaymentsService = new NowPaymentsService();
+        
+        if (!$nowPaymentsService->hasCredentials()) {
+            Log::error('NOWPayments: API key not configured', ['order_id' => $order->id]);
             return redirect()->route('select-payment')->with('error', 'Cryptocurrency payment is not configured. Please contact support.');
         }
         
-        // Prepare order data for MixPay
-        // orderId must be 6-36 chars, unique, containing only letters, numbers, dashes and underscores
-        $orderIdForMixPay = preg_replace('/[^a-zA-Z0-9_-]/', '_', $order->order_number) . '_' . time();
-        // Ensure it's between 6-36 characters
-        if (strlen($orderIdForMixPay) > 36) {
-            $orderIdForMixPay = substr($orderIdForMixPay, 0, 36);
-        }
-        if (strlen($orderIdForMixPay) < 6) {
-            $orderIdForMixPay = str_pad($orderIdForMixPay, 6, '0', STR_PAD_RIGHT);
+        // Build order description
+        if ($hasOrderItems) {
+            $itemDescriptions = [];
+            foreach ($order->orderItems as $orderItem) {
+                $pack = $orderItem->diamondPack;
+                $itemDescriptions[] = $pack->name . ' x' . $orderItem->quantity;
+            }
+            $orderDescription = 'DiasZone Order: ' . implode(', ', $itemDescriptions);
+        } else {
+            $pack = $order->diamondPack;
+            $orderDescription = 'DiasZone - ' . $pack->name;
         }
         
-        // Check if we're on localhost/testing (MixPay requires HTTPS for callback)
-        $isLocalhost = in_array(config('app.env'), ['local', 'testing']) || 
-                       str_contains(request()->getHost(), 'localhost') ||
-                       str_contains(request()->getHost(), '127.0.0.1');
-        
+        // Prepare order data for NOWPayments
         $orderData = [
-            'order_id' => $orderIdForMixPay,
-            'quote_amount' => number_format($totalAmount, 2, '.', ''), // Amount in USD
-            'quote_asset_id' => 'usd', // Quote currency is USD
-            'settlement_asset_id' => '4d8c508b-91c5-375b-92b0-ee702ed2dac5', // USDT ERC20
-            'payment_asset_id' => '4d8c508b-91c5-375b-92b0-ee702ed2dac5', // USDT ERC20 - restrict to only this
-            'return_to' => route('crypto-payment-success', ['encrypted_order_id' => $encryptedOrderId]),
-            'failed_return_to' => route('select-payment'),
-            'remark' => 'DiasZone - Payment Crypto: ' . $order->diamondPack->diamonds . ' Diamonds + ' . $order->diamondPack->bonus_diamonds . ' Bonus',
+            'order_id' => $order->order_number,
+            'amount' => number_format($totalAmountUsd, 2, '.', ''),
+            'price_currency' => 'usd',
+            'pay_currency' => 'usdt', // USDT - user can choose network on NOWPayments page
+            'goods_name' => $orderDescription,
+            'return_url' => route('crypto-payment-success', ['encrypted_order_id' => $encryptedOrderId]),
+            'cancel_url' => route('select-payment'),
+            'ipn_callback_url' => route('nowpayments.webhook'),
         ];
         
-        // Only set callback URL if not on localhost (MixPay requires HTTPS)
-        if (!$isLocalhost) {
-            $orderData['callback_url'] = route('mixpay.webhook');
-        }
-        
-        // Create MixPay payment
-        $paymentResponse = $mixPayService->createOneTimePayment($orderData);
+        // Create NOWPayments invoice (returns invoice_url for payment page)
+        $paymentResponse = $nowPaymentsService->createInvoice($orderData);
         
         if (!$paymentResponse['success']) {
-            Log::error('MixPay Payment Creation Failed', [
-                'order_id' => $orderId,
+            Log::error('NOWPayments Payment Creation Failed', [
+                'order_id' => $order->id,
                 'error' => $paymentResponse['error'] ?? 'Unknown error',
                 'response' => $paymentResponse['response_data'] ?? [],
             ]);
@@ -2942,14 +3322,29 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Failed to create payment. Please try again or contact support.');
         }
         
-        // Store payment code in order for reference
-        $order->nowpayments_payment_id = $paymentResponse['data']['code'] ?? null;
+        // Extract payment ID from response
+        $paymentId = $paymentResponse['data']['payment_id'] ?? $paymentResponse['data']['invoice_id'] ?? null;
+        $paymentUrl = $paymentResponse['data']['invoice_url'] ?? $paymentResponse['data']['payment_url'] ?? null;
+        
+        if (!$paymentId) {
+            Log::error('NOWPayments: Payment ID not returned', [
+                'order_id' => $order->id,
+                'response' => $paymentResponse['data'] ?? [],
+            ]);
+            return redirect()->route('select-payment')->with('error', 'Payment creation failed. Please try again.');
+        }
+        
+        // Store payment ID in order
+        $order->nowpayments_payment_id = $paymentId;
         $order->status = 'pending_cryptopay';
         $order->save();
         
-        // Redirect to MixPay payment URL
-        $paymentUrl = $paymentResponse['data']['payment_url'] ?? null;
+        Log::info('NOWPayments: Payment created successfully', [
+            'order_id' => $order->id,
+            'payment_id' => $paymentId,
+        ]);
         
+        // Redirect to NOWPayments payment URL
         if ($paymentUrl) {
             return redirect($paymentUrl);
         }
@@ -3250,41 +3645,479 @@ class CheckoutController extends Controller
     /**
      * Handle NOWPayments IPN (Instant Payment Notification)
      * This is called by NOWPayments when payment status changes
-     * Note: IPN is optional - we primarily use API polling for status checks
+     * SECURITY: Validates HMAC signature, payment amount, and status before processing
      */
     public function nowPaymentsWebhook(Request $request)
     {
-        // Handle NOWPayments IPN (Instant Payment Notification)
-        // This will be called by NOWPayments when payment status changes
-        
-        $paymentData = $request->all();
-        
-        // Log IPN for debugging
-        Log::info('NOWPayments IPN Received', $paymentData);
-        
-        // Extract payment_id from IPN data
-        $paymentId = $paymentData['payment_id'] ?? null;
-        
-        if ($paymentId) {
-            // Find order by payment_id
-            $order = Order::where('nowpayments_payment_id', $paymentId)->first();
+        try {
+            $paymentData = $request->all();
+            $requestBody = $request->getContent();
             
-            if ($order) {
-                // Update order status based on payment status
-                $paymentStatus = $paymentData['payment_status'] ?? 'waiting';
+            // Log IPN for debugging
+            Log::info('NOWPayments IPN Received', [
+                'payment_data' => $paymentData,
+                'headers' => $request->headers->all(),
+            ]);
+            
+            // SECURITY: Verify HMAC signature
+            $ipnSecret = config('services.nowpayments.ipn_secret') ?? env('NOWPAYMENTS_IPN_SECRET');
+            $signature = $request->header('x-nowpayments-sig');
+            
+            if ($ipnSecret && $signature) {
+                // Compute HMAC SHA-512 signature
+                $computedSignature = hash_hmac('sha512', $requestBody, $ipnSecret);
                 
-                // NOWPayments statuses: waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
-                if ($paymentStatus === 'finished' || $paymentStatus === 'confirmed') {
-                    $order->status = 'completed';
-                    $order->save();
-                } elseif ($paymentStatus === 'failed' || $paymentStatus === 'expired') {
-                    // Keep as pending or mark as failed based on your business logic
-                    // $order->status = 'failed';
+                if (!hash_equals($computedSignature, $signature)) {
+                    Log::error('NOWPayments IPN: Invalid signature', [
+                        'received_sig' => substr($signature, 0, 20) . '...',
+                        'computed_sig' => substr($computedSignature, 0, 20) . '...',
+                    ]);
+                    return response()->json(['error' => 'Invalid signature'], 401);
+                }
+            } else {
+                // If IPN secret is not configured, log warning but continue (for development)
+                if (config('app.env') !== 'local') {
+                    Log::warning('NOWPayments IPN: IPN secret not configured - signature verification skipped');
                 }
             }
+            
+            // Extract payment data
+            $paymentId = $paymentData['payment_id'] ?? null;
+            $paymentStatus = $paymentData['payment_status'] ?? 'waiting';
+            $priceAmount = isset($paymentData['price_amount']) ? (float)$paymentData['price_amount'] : null;
+            $priceCurrency = $paymentData['price_currency'] ?? null;
+            $orderId = $paymentData['order_id'] ?? null;
+            
+            if (!$paymentId) {
+                Log::warning('NOWPayments IPN: Missing payment_id', ['data' => $paymentData]);
+                return response()->json(['error' => 'Missing payment_id'], 400);
+            }
+            
+            // Find order by payment_id
+            $order = Order::where('nowpayments_payment_id', $paymentId)
+                         ->with(['orderItems.diamondPack', 'diamondPack'])
+                         ->first();
+            
+            if (!$order) {
+                Log::warning('NOWPayments IPN: Order not found', [
+                    'payment_id' => $paymentId,
+                    'order_id' => $orderId,
+                ]);
+                return response()->json(['error' => 'Order not found'], 404);
+            }
+            
+            // SECURITY: Validate payment amount matches order amount (USD)
+            if ($priceAmount !== null && $priceCurrency === 'usd') {
+                // Calculate expected USD amount from order
+                $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+                $expectedTotalDzd = 0;
+                
+                if ($hasOrderItems) {
+                    $expectedTotalDzd = $order->orderItems->sum('total_dzd');
+                } else {
+                    // Legacy single-pack order
+                    if ($order->diamondPack) {
+                        $unitPriceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
+                        $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
+                        $quantity = (int)($order->quantity ?? 1);
+                        
+                        $subtotalDzd = $unitPriceDzd * $quantity;
+                        $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                        $expectedTotalDzd = $subtotalDzd - $discountAmount;
+                    }
+                }
+                
+                // Convert DZD to USD (divide by 260)
+                $expectedTotalUsd = round($expectedTotalDzd / 260, 2);
+                
+                // Allow 0.01 USD tolerance for rounding differences
+                $amountDiff = abs($priceAmount - $expectedTotalUsd);
+                if ($amountDiff > 0.01) {
+                    Log::error('NOWPayments IPN: Amount mismatch', [
+                        'order_id' => $order->id,
+                        'payment_id' => $paymentId,
+                        'expected_usd' => $expectedTotalUsd,
+                        'received_usd' => $priceAmount,
+                        'difference' => $amountDiff,
+                    ]);
+                    return response()->json(['error' => 'Amount mismatch'], 400);
+                }
+            }
+            
+            // Only process if status is 'finished' or 'confirmed'
+            // Other statuses: waiting, confirming, sending, partially_paid, failed, refunded, expired
+            if ($paymentStatus === 'finished' || $paymentStatus === 'confirmed') {
+                $oldOrderStatus = $order->status;
+                
+                // Prevent double processing
+                if ($oldOrderStatus === 'completed' || $oldOrderStatus === 'sending' || $oldOrderStatus === 'processing') {
+                    Log::info('NOWPayments IPN: Order already processed', [
+                        'order_id' => $order->id,
+                        'payment_id' => $paymentId,
+                        'current_status' => $oldOrderStatus,
+                    ]);
+                    return response()->json(['status' => 'ok', 'message' => 'Already processed'], 200);
+                }
+                
+                // Set status to 'sending' (payment confirmed, processing top-up)
+                $order->status = 'sending';
+                $order->save();
+                
+                Log::info('NOWPayments IPN: Payment confirmed - Processing top-up', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_id' => $paymentId,
+                    'payment_status' => $paymentStatus,
+                    'old_status' => $oldOrderStatus,
+                    'new_status' => 'sending',
+                ]);
+                
+                // Update Telegram message
+                try {
+                    $order->load('user', 'seller');
+                    $updatedMessage = TelegramService::formatOrderMessage($order);
+                    $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Crypto Payment Confirmed - Processing Recharge</b>', $updatedMessage);
+                    
+                    if ($order->tlg_message_id) {
+                        TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                    } else {
+                        $messageId = TelegramService::sendMessage($updatedMessage);
+                        if ($messageId) {
+                            $order->tlg_message_id = $messageId;
+                            $order->save();
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error('NOWPayments IPN: Telegram notification failed', [
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                
+                // Trigger top-up processing
+                $rechargeResult = $this->processNowPaymentsRecharge($order);
+                
+                if ($rechargeResult['success']) {
+                    Log::info('NOWPayments IPN: Top-up processed successfully', [
+                        'order_id' => $order->id,
+                        'payment_id' => $paymentId,
+                        'trxid' => $rechargeResult['trxid'] ?? null,
+                        'order_status' => $order->fresh()->status,
+                    ]);
+                } else {
+                    Log::warning('NOWPayments IPN: Top-up processing failed', [
+                        'order_id' => $order->id,
+                        'payment_id' => $paymentId,
+                        'error' => $rechargeResult['message'] ?? 'Unknown error',
+                    ]);
+                }
+                
+            } elseif (in_array($paymentStatus, ['failed', 'expired', 'refunded'])) {
+                // Payment failed/expired/refunded
+                if (!in_array($order->status, ['cancelled', 'failed'])) {
+                    $order->status = 'cancelled';
+                    $order->save();
+                    
+                    Log::info('NOWPayments IPN: Payment failed/expired/refunded', [
+                        'order_id' => $order->id,
+                        'payment_id' => $paymentId,
+                        'payment_status' => $paymentStatus,
+                    ]);
+                }
+            }
+            
+            return response()->json(['status' => 'ok'], 200);
+            
+        } catch (\Exception $e) {
+            Log::error('NOWPayments IPN: Exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['error' => 'Internal server error'], 500);
         }
-        
-        return response()->json(['status' => 'ok'], 200);
+    }
+    
+    /**
+     * Process recharge/top-up after NOWPayments payment confirmation
+     * Similar to processChargilyRecharge but for crypto payments
+     */
+    private function processNowPaymentsRecharge(Order $order)
+    {
+        try {
+            $order->load('orderItems.diamondPack', 'diamondPack');
+            $gameType = $order->game_type ?? ($order->diamondPack->game_type ?? null);
+            
+            if (!$gameType) {
+                Log::error('NOWPayments recharge: Game type not found', ['order_id' => $order->id]);
+                return ['success' => false, 'message' => 'Game type not found'];
+            }
+            
+            // Determine which provider to use
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubgmobile'];
+            $useDigiflazz = in_array($gameType, $digiflazzGames);
+            
+            if ($useDigiflazz) {
+                // Use Digiflazz for ML, FF, PUBG
+                if (!config('services.digiflazz.username') && !env('DIGIFLAZZ_USERNAME')) {
+                    Log::error('NOWPayments recharge: Digiflazz not configured', ['order_id' => $order->id]);
+                    return ['success' => false, 'message' => 'Digiflazz not configured'];
+                }
+                
+                // Process similar to Chargily recharge
+                return DB::transaction(function () use ($order) {
+                    $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                    if (!$orderLocked) {
+                        Log::error('NOWPayments recharge: Failed to lock order', ['order_id' => $order->id]);
+                        return ['success' => false, 'message' => 'Failed to lock order'];
+                    }
+                    
+                    $orderLocked->load('orderItems.diamondPack');
+                    
+                    // Validate prices before top-up
+                    $priceValidationErrors = [];
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        $pack = $orderItem->diamondPack;
+                        $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                        $discountPercentage = $pack->discount_percentage ?? 0;
+                        $quantity = max(1, (int)$orderItem->quantity);
+                        
+                        $subtotalDzd = $unitPriceDzd * $quantity;
+                        $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                        $totalDzd = $subtotalDzd - $discountAmount;
+                        
+                        $storedTotal = (float)$orderItem->total_dzd;
+                        $calculatedTotal = (float)$totalDzd;
+                        $priceDiff = abs($storedTotal - $calculatedTotal);
+                        
+                        if ($priceDiff > 1.0) {
+                            $priceValidationErrors[] = [
+                                'order_item_id' => $orderItem->id,
+                                'pack_id' => $pack->id,
+                                'stored_price' => $storedTotal,
+                                'calculated_price' => $calculatedTotal,
+                            ];
+                        }
+                    }
+                    
+                    if (!empty($priceValidationErrors)) {
+                        Log::error('NOWPayments recharge: Price validation failed', [
+                            'order_id' => $orderLocked->id,
+                            'errors' => $priceValidationErrors,
+                        ]);
+                        return ['success' => false, 'message' => 'Price validation failed'];
+                    }
+                    
+                    // Submit top-ups for each order_item
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+                    
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        $submitted = $orderItem->digiflazzStatuses()
+                            ->where(function ($q) {
+                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                                  ->orWhere('event', 'create');
+                            })->count();
+                        
+                        $remaining = max(0, $orderItem->quantity - $submitted);
+                        
+                        for ($i = 0; $i < $remaining; $i++) {
+                            $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . Str::random(8);
+                            
+                            $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                                $orderItem->diamondPack,
+                                $orderLocked,
+                                $refId,
+                                $orderItem->id
+                            );
+                            
+                            Log::info('NOWPayments recharge: Digiflazz placeOrder', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'ref_id' => $refId,
+                                'result' => $lastResult,
+                            ]);
+                            
+                            usleep(100000); // 0.1 second delay
+                        }
+                    }
+                    
+                    $order = $orderLocked;
+                    return ['success' => $lastResult['result'] ?? false, 'trxid' => $lastResult['data']['trxid'] ?? null, 'message' => $lastResult['message'] ?? ''];
+                });
+                
+            } else {
+                // Use Item4Gamer for other games (non-Digiflazz games)
+                if (!config('services.item4gamer.api_key') && !env('ITEM4GAMER_API_KEY')) {
+                    Log::error('NOWPayments recharge: Item4Gamer not configured', ['order_id' => $order->id]);
+                    return ['success' => false, 'message' => 'Item4Gamer not configured'];
+                }
+
+                return DB::transaction(function () use ($order) {
+                    $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                    if (!$orderLocked) {
+                        Log::error('NOWPayments recharge: Failed to lock order for Item4Gamer', ['order_id' => $order->id]);
+                        return ['success' => false, 'message' => 'Failed to lock order'];
+                    }
+
+                    $orderLocked->load('orderItems.diamondPack', 'user');
+
+                    // Validate prices before top-up (same as Digiflazz flow)
+                    $priceValidationErrors = [];
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        $pack = $orderItem->diamondPack;
+                        $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                        $discountPercentage = $pack->discount_percentage ?? 0;
+                        $quantity = max(1, (int)$orderItem->quantity);
+
+                        $subtotalDzd = $unitPriceDzd * $quantity;
+                        $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                        $totalDzd = $subtotalDzd - $discountAmount;
+
+                        $storedTotal = (float)$orderItem->total_dzd;
+                        $calculatedTotal = (float)$totalDzd;
+                        $priceDiff = abs($storedTotal - $calculatedTotal);
+
+                        if ($priceDiff > 1.0) {
+                            $priceValidationErrors[] = [
+                                'order_item_id' => $orderItem->id,
+                                'pack_id' => $pack->id,
+                                'stored_price' => $storedTotal,
+                                'calculated_price' => $calculatedTotal,
+                            ];
+                        }
+                    }
+
+                    if (!empty($priceValidationErrors)) {
+                        Log::error('NOWPayments recharge: Price validation failed (Item4Gamer)', [
+                            'order_id' => $orderLocked->id,
+                            'errors' => $priceValidationErrors,
+                        ]);
+                        return ['success' => false, 'message' => 'Price validation failed'];
+                    }
+
+                    // Submit top-ups for each order_item using Item4Gamer
+                    $item4gamerService = app(\App\Services\Item4GamerService::class);
+                    $allSuccessful = true;
+                    $lastError = null;
+
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        // Check if Item4Gamer order already exists for this order_item
+                        $existingOrder = \App\Models\Item4GamerOrder::where('order_item_id', $orderItem->id)->first();
+                        if ($existingOrder) {
+                            Log::info('NOWPayments recharge: Item4Gamer order already exists for order_item', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'item4gamer_order_id' => $existingOrder->item4gamer_order_id,
+                            ]);
+                            continue;
+                        }
+
+                        $pack = $orderItem->diamondPack;
+                        $quantity = max(1, (int)$orderItem->quantity);
+
+                        // Extract player/user ID based on game type
+                        $playerId = $this->extractPlayerIdForGame($orderLocked, $pack->game_type);
+                        if (empty($playerId)) {
+                            Log::error('NOWPayments recharge: Player ID not found for Item4Gamer', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'game_type' => $pack->game_type,
+                            ]);
+                            $allSuccessful = false;
+                            $lastError = 'Player ID not found for game type: ' . $pack->game_type;
+                            continue;
+                        }
+
+                        // Call Item4Gamer API to place order
+                        $result = $item4gamerService->placeOrder($pack, $orderLocked, $quantity, $playerId);
+
+                        if ($result['success'] && $result['order_id']) {
+                            // Create Item4GamerOrder record
+                            \App\Models\Item4GamerOrder::create([
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'diamond_pack_id' => $pack->id,
+                                'item4gamer_order_id' => $result['order_id'],
+                                'status' => 'pending',
+                                'quantity' => $quantity,
+                                'total' => $result['total'],
+                                'currency' => $result['currency'] ?? 'USD',
+                                'player_id' => $playerId,
+                                'additional_data' => $result['full_response'] ?? $result,
+                            ]);
+
+                            Log::info('NOWPayments recharge: Item4Gamer order placed successfully', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'item4gamer_order_id' => $result['order_id'],
+                                'quantity' => $quantity,
+                            ]);
+                        } else {
+                            Log::error('NOWPayments recharge: Item4Gamer order placement failed', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'error' => $result['message'] ?? 'Unknown error',
+                            ]);
+                            $allSuccessful = false;
+                            $lastError = $result['message'] ?? 'Failed to place Item4Gamer order';
+                        }
+                    }
+
+                    $order = $orderLocked;
+                    return [
+                        'success' => $allSuccessful,
+                        'message' => $allSuccessful ? 'Item4Gamer orders placed successfully' : ($lastError ?? 'Some orders failed'),
+                    ];
+                });
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('NOWPayments recharge: Exception', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Extract player/user ID from order based on game type
+     * Used for Item4Gamer orders
+     * 
+     * @param \App\Models\Order $order
+     * @param string $gameType
+     * @return string|null
+     */
+    private function extractPlayerIdForGame(Order $order, string $gameType): ?string
+    {
+        switch ($gameType) {
+            case 'mobilelegends':
+                // For ML, Item4Gamer likely expects user_id (zone_id may not be needed for Item4Gamer)
+                return $order->user_id_ml ?? null;
+            
+            case 'freefire':
+                return $order->player_id_ff ?? null;
+            
+            case 'pubgmobile':
+                return $order->player_id_pubg ?? null;
+            
+            case 'honorofkings':
+                return $order->player_id_hok ?? null;
+            
+            case 'bloodstrike':
+                return $order->user_id_bs ?? null;
+            
+            default:
+                // For other games, try to find any player/user ID field
+                // save_id is same as user_id for new games (Genshin Impact, etc.)
+                return $order->save_id
+                    ?? $order->user_id_ml 
+                    ?? $order->player_id_ff 
+                    ?? $order->player_id_pubg 
+                    ?? $order->player_id_hok 
+                    ?? $order->user_id_bs 
+                    ?? null;
+        }
     }
     
     /**

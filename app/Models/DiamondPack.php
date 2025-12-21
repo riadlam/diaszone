@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class DiamondPack extends Model
 {
     protected $fillable = [
+        'game_id',
         'game_type',
         'name',
         'code',
@@ -30,6 +31,7 @@ class DiamondPack extends Model
         'discount_percentage' => 'decimal:2',
         'is_active' => 'boolean',
         'special_quantity' => 'integer',
+        'game_id' => 'integer',
     ];
 
     public function getTotalDiamondsAttribute(): int
@@ -51,5 +53,13 @@ class DiamondPack extends Model
     public function flexies(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Flexy::class);
+    }
+
+    /**
+     * Get the game that owns this diamond pack.
+     */
+    public function game(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Game::class);
     }
 }

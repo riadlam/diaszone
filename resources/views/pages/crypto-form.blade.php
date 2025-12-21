@@ -7,7 +7,7 @@
     <div class="container mx-auto px-4 max-w-3xl">
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('checkout.pay_with') }} {{ __('payment.crypto') }}</h1>
-            <p class="text-sm text-gray-600">Review your order and proceed to payment</p>
+            <p class="text-sm text-gray-600">{{ __('checkout.review_order_subtitle') }}</p>
         </div>
 
         @if(session('error'))
@@ -19,14 +19,14 @@
         <!-- Order Summary Card -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
             <button id="order-summary-toggle" class="w-full flex items-center justify-between text-left mb-4">
-                <h2 class="text-lg font-semibold text-gray-800">Order Summary</h2>
+                <h2 class="text-lg font-semibold text-gray-800">{{ __('checkout.order_summary') }}</h2>
                 <svg id="order-summary-icon" class="w-5 h-5 text-gray-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
             </button>
             <div id="order-summary-content" class="space-y-3 hidden">
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Order Number</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.order_number') }}</span>
                     <span class="text-sm font-semibold text-gray-900">{{ $order->order_number }}</span>
                 </div>
                 @php
@@ -53,44 +53,44 @@
                     $bonusText = $bonus > 0 ? ' + ' . $bonus . ' Bonus ' . $currencyText : '';
                 @endphp
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Game</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.game') }}</span>
                     <span class="text-sm font-semibold text-gray-900">{{ $gameName }}</span>
                 </div>
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Pack</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.pack') }}</span>
                     <span class="text-sm font-semibold text-purple-600">{{ $packDisplayName }}{{ $bonusText }}</span>
                 </div>
                 @if($gameType === 'bloodstrike')
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">User ID</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.user_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_bs }}</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Server</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.server') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->server_bs ?? 'Global' }}</span>
                     </div>
                 @elseif($gameType === 'freefire')
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Player ID</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.player_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_ff }}</span>
                     </div>
                 @elseif($gameType === 'pubgmobile')
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Player ID</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.player_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_pubg }}</span>
                     </div>
                 @elseif($gameType === 'honorofkings')
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Player ID</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.player_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_hok }}</span>
                     </div>
                 @else
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">User ID</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.user_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_ml }}</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Zone ID</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.zone_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->zone_id_ml }}</span>
                     </div>
                 @endif
@@ -99,7 +99,7 @@
 
         <!-- Price Breakdown Card -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('checkout.price_breakdown') }}</h2>
             <div class="space-y-3">
                 @php
                     $unitPriceUsd = (float) ($order->diamondPack->price_usd ?? $unit_price);
@@ -110,7 +110,7 @@
                     $totalAmountDzd = $unitPriceDzd - $discountAmountDzd;
                 @endphp
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Unit Price</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.unit_price') }}</span>
                     <span class="text-sm font-semibold text-gray-900" 
                           id="crypto-unit-price"
                           data-price-usd="{{ $unitPriceUsd }}"
@@ -120,7 +120,7 @@
                 </div>
                 @if($discount_percentage > 0)
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Discount ({{ $discount_percentage }}%)</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.discount') }} ({{ $discount_percentage }}%)</span>
                         <span class="text-sm font-semibold text-red-500" 
                               id="crypto-discount"
                               data-discount-usd="{{ $discountAmountUsd }}"
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Disable button to prevent double clicks
             changePaymentBtn.disabled = true;
-            changePaymentBtn.textContent = 'Processing...';
+            changePaymentBtn.textContent = {!! json_encode(__('common.processing_dots')) !!};
             
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +29,11 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->make('path.lang') !== base_path('lang')) {
         $this->app->useLangPath(base_path('lang'));
         }
+        
+        // Use custom pagination view
+        Paginator::defaultView('components.pagination');
+        Paginator::defaultSimpleView('components.pagination');
+        
         // storage_public_url helper is declared in global namespace
         // Register console commands (reconcile digiflazz statuses)
         if ($this->app->runningInConsole()) {

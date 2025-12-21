@@ -126,13 +126,13 @@
                         $discountAmountUsd = $discountAmountDzd / 260;
                     } else {
                         // Legacy single-pack order: calculate from pack
-                        $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
-                        $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
-                        $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-                        $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
-                        $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
-                        $finalUsdPrice = $usdPrice - $discountAmountUsd;
-                        $finalDzdPrice = $dzdPrice - $discountAmountDzd;
+                    $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
+                    $dzdPrice = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
+                    $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+                    $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
+                    $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
+                    $finalUsdPrice = $usdPrice - $discountAmountUsd;
+                    $finalDzdPrice = $dzdPrice - $discountAmountDzd;
                     }
                     
                     $flexyFee = 50; // 50 DZD processing fee (added to final price)

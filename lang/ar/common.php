@@ -31,6 +31,7 @@ return [
     // Status and States
     'loading' => 'جاري التحميل',
     'processing' => 'جاري المعالجة',
+    'processing_dots' => 'جاري المعالجة...',
     'success' => 'نجح',
     'error' => 'خطأ',
     'warning' => 'تحذير',
@@ -71,4 +72,6 @@ return [
     'last_week' => 'الأسبوع الماضي',
     'last_month' => 'الشهر الماضي',
     'effective_date' => 'ساري من',
+    'try_again' => 'حاول مرة أخرى',
+    'seconds' => 'ثانية',
 ];

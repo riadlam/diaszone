@@ -199,13 +199,13 @@
                             
                             <!-- Discount -->
                             <div class="flex justify-between items-center mb-2" id="discount-row" style="display: none;">
-                                <span class="text-xs font-semibold text-gray-600">Discount</span>
+                                <span class="text-xs font-semibold text-gray-600">{{ __('checkout.discount') }}</span>
                                 <span class="text-xs font-medium text-red-500" id="discount-amount">- USD 0.00</span>
                             </div>
                             
                             <!-- Flexy Fee -->
                             <div class="flex justify-between items-center mb-2" id="flexy-fee-row" style="display: none;">
-                                <span class="text-xs font-semibold text-gray-600">Flexy Processing Fee</span>
+                                <span class="text-xs font-semibold text-gray-600">{{ __('checkout.flexy_processing_fee') }}</span>
                                 <span class="text-xs font-medium text-gray-700" id="flexy-fee-amount">0 DZD</span>
                             </div>
                             
@@ -223,7 +223,7 @@
                             <!-- Pay with (dynamic based on selection) -->
                             <div class="mb-3 bg-purple-50 rounded-lg p-2 border border-purple-100">
                                 <label class="block text-xs font-semibold text-purple-700 mb-1">{{ __('checkout.pay_with') }}</label>
-                                <div class="text-xs font-bold text-purple-600" id="pay-with-text">Cryptocurrency (USD)</div>
+                                <div class="text-xs font-bold text-purple-600" id="pay-with-text">{{ __('checkout.cryptocurrency_usd') }}</div>
                             </div>
                             
                             <!-- Pay Now Total -->
@@ -368,6 +368,13 @@ document.addEventListener('DOMContentLoaded', function() {
         async function loadPaymentInfo() {
         const skeleton = document.getElementById('payment-info-skeleton');
         const content = document.getElementById('payment-info-content');
+        const submitBtn = document.getElementById('pay-submit-btn');
+        
+        // Disable pay button during price calculation
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
         
         try {
             const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
@@ -412,28 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Display all cart items (multi-item support)
                 let orderItemsHTML = '';
                 
-                // Get game type from first pack (all packs should be same game)
-                const firstItem = cart[0];
-                const firstPack = packsMap[firstItem?.pack_id];
-                const gameType = firstPack?.game_type || 'mobilelegends';
-                
-                    let currencyText = 'Diamonds';
-                    let gameName = 'Mobile Legends';
-                    
-                    if (gameType === 'freefire') {
-                        currencyText = 'Diamonds';
-                        gameName = 'Free Fire';
-                    } else if (gameType === 'pubgmobile') {
-                        currencyText = 'UC';
-                        gameName = 'PUBG Mobile';
-                    } else if (gameType === 'honorofkings') {
-                        currencyText = 'Tokens';
-                        gameName = 'Honor of Kings';
-                    } else if (gameType === 'bloodstrike') {
-                        currencyText = 'Golds';
-                        gameName = 'Blood Strike';
-                    }
-                
                 // Display each cart item
                 cart.forEach((item, index) => {
                     const pack = packsMap[item.pack_id];
@@ -441,12 +426,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     const quantity = parseInt(item.quantity) || 1;
                     
+                    // Get game type for this specific pack
+                    const itemGameType = pack.game_type || 'mobilelegends';
+                    
+                    // Determine currency for this pack
+                    let itemCurrencyText = 'Diamonds';
+                    if (itemGameType === 'freefire') {
+                        itemCurrencyText = 'Diamonds';
+                    } else if (itemGameType === 'pubgmobile') {
+                        itemCurrencyText = 'UC';
+                    } else if (itemGameType === 'honorofkings') {
+                        itemCurrencyText = 'Tokens';
+                    } else if (itemGameType === 'bloodstrike') {
+                        itemCurrencyText = 'Golds';
+                    }
+                    
                     // Determine pack display name
                     let packDisplayName = '';
                     if (pack.name) {
                         packDisplayName = pack.name;
                     } else {
-                        packDisplayName = `${pack.diamonds} ${currencyText}`;
+                        packDisplayName = `${pack.diamonds} ${itemCurrencyText}`;
                     }
                     
                     // Bonus display
@@ -454,35 +454,46 @@ document.addEventListener('DOMContentLoaded', function() {
                     const bonusText = bonus > 0 ? ` + ${bonus} ${tBonus}` : '';
                     const packDisplayText = packDisplayName + bonusText;
                     
-                    // Determine order information fields based on game type (only show once)
+                    // Determine order information fields based on game type (show for each item)
                     let orderFieldsHTML = '';
-                    if (index === 0) { // Only show fields for first item
-                    if (gameType === 'bloodstrike') {
+                    if (itemGameType === 'bloodstrike') {
                         const userIdBs = item.user_id_bs || '';
                         const serverBs = item.server_bs || 'Global';
-                        orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userIdBs}</p>
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tServer}:</span> ${serverBs}</p>
-                        `;
-                    } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                        if (userIdBs) {
+                            orderFieldsHTML = `
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userIdBs}</p>
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tServer}:</span> ${serverBs}</p>
+                            `;
+                        }
+                    } else if (itemGameType === 'freefire' || itemGameType === 'pubgmobile' || itemGameType === 'honorofkings') {
                         const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || '';
-                        orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tPlayerId}:</span> ${playerId}</p>
-                        `;
-                    } else {
-                        // Mobile Legends
+                        if (playerId) {
+                            orderFieldsHTML = `
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tPlayerId}:</span> ${playerId}</p>
+                            `;
+                        }
+                    } else if (itemGameType === 'mobilelegends') {
+                        // Mobile Legends: User ID and Zone ID
                         const userId = item.user_id || '';
                         const zoneId = item.zone_id || '';
-                        orderFieldsHTML = `
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userId}</p>
-                            <p class="text-gray-600"><span class="font-medium text-gray-700">${tZoneId}:</span> ${zoneId}</p>
-                        `;
-                    }
+                        if (userId || zoneId) {
+                            orderFieldsHTML = `
+                                ${userId ? `<p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userId}</p>` : ''}
+                                ${zoneId ? `<p class="text-gray-600"><span class="font-medium text-gray-700">${tZoneId}:</span> ${zoneId}</p>` : ''}
+                            `;
+                        }
+                    } else {
+                        // Other games (Aether Gazer, Heroes Evolved, etc.): User ID only (save_id)
+                        const userId = item.save_id || item.user_id || '';
+                        if (userId) {
+                            orderFieldsHTML = `
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">${tUserId}:</span> ${userId}</p>
+                            `;
+                        }
                     }
                     
                     orderItemsHTML += `
                         <div class="${index > 0 ? 'mt-3 pt-3 border-t border-gray-200' : ''}">
-                            ${index === 0 ? `<p class="text-gray-800 font-medium">${gameName}</p>` : ''}
                             <p class="text-purple-600 font-semibold">${packDisplayText}${quantity > 1 ? ` × ${quantity}` : ''}</p>
                         ${orderFieldsHTML}
                         </div>
@@ -514,11 +525,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (paymentInfoSection) paymentInfoSection.style.display = 'block';
             }
             
-            // Get selected currency
-            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
-            
             // Get selected payment method
             const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value || '';
+            
+            // Skip price calculation if cryptocurrency is selected (handled separately)
+            if (selectedPaymentMethod === 'cryptocurrency') {
+                // Prices will be updated via updatePricesForCrypto() when method is selected
+                // Re-enable button before returning (crypto conversion will handle its own button state)
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                return;
+            }
+            
+            // Get selected currency (only for non-crypto payments)
+            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
             
             // Calculate totals
             let totalBeforeDiscount = 0;
@@ -614,14 +636,26 @@ document.addEventListener('DOMContentLoaded', function() {
             if (skeleton) skeleton.style.display = 'none';
             if (content) content.style.display = 'block';
             
+            // Re-enable pay button after price calculation completes
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            
         } catch (error) {
             console.error('Error loading payment info:', error);
             // Show error but don't redirect
+            
+            // Re-enable pay button on error
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
         }
         }
         
         // Load payment information
-        loadPaymentInfo();
+        await loadPaymentInfo();
         
         // Payment method selection logic
         const paymentMethods = {
@@ -630,24 +664,198 @@ document.addEventListener('DOMContentLoaded', function() {
             'flexy': 'Flexy'
         };
         
+        // Function to update prices when cryptocurrency is selected
+        async function updatePricesForCrypto() {
+            // Get DOM elements at the start (accessible in all blocks)
+            const totalAmountEl = document.getElementById('total-amount');
+            const payNowAmountEl = document.getElementById('pay-now-amount');
+            const submitBtn = document.getElementById('pay-submit-btn');
+            
+            try {
+                const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
+                if (cart.length === 0) return;
+                
+                // Show spinner and disable pay button
+                const spinnerHtml = '<span class="inline-block animate-spin rounded-full h-3 w-3 border-2 border-purple-600 border-t-transparent ml-2"></span>';
+                
+                if (totalAmountEl) {
+                    totalAmountEl.innerHTML = '<span class="text-gray-400">Converting...</span>' + spinnerHtml;
+                }
+                
+                if (payNowAmountEl) {
+                    payNowAmountEl.innerHTML = '<span class="text-gray-400">Converting...</span>' + spinnerHtml;
+                }
+                
+                // Disable pay button
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+                
+                // Prepare cart items for API
+                const cartItems = cart.map(item => ({
+                    pack_id: item.pack_id,
+                    quantity: item.quantity || 1,
+                }));
+                
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const response = await fetch('/api/cart/convert-to-usd', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        cart_items: cartItems
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const totalUsd = data.total_usd;
+                    
+                    // Format as USD
+                    const formatUsdPrice = (price) => '$' + parseFloat(price).toFixed(2) + ' USD';
+                    
+                    // Update all price displays to USD (remove spinner)
+                    if (totalAmountEl) {
+                        totalAmountEl.textContent = formatUsdPrice(totalUsd);
+                        totalAmountEl.setAttribute('data-value', totalUsd);
+                        totalAmountEl.setAttribute('data-currency', 'USD');
+                    }
+                    
+                    if (payNowAmountEl) {
+                        payNowAmountEl.textContent = formatUsdPrice(totalUsd);
+                        payNowAmountEl.setAttribute('data-value', totalUsd);
+                        payNowAmountEl.setAttribute('data-currency', 'USD');
+                    }
+                    
+                    // Re-enable pay button
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                    
+                    // Update total before discount if visible
+                    const totalBeforeDiscountEl = document.getElementById('total-before-discount');
+                    if (totalBeforeDiscountEl && totalBeforeDiscountEl.parentElement.style.display !== 'none') {
+                        const beforeDiscountDzd = parseFloat(totalBeforeDiscountEl.getAttribute('data-value') || 0);
+                        const beforeDiscountUsd = round(beforeDiscountDzd / 260, 2);
+                        totalBeforeDiscountEl.textContent = formatUsdPrice(beforeDiscountUsd);
+                        totalBeforeDiscountEl.setAttribute('data-value', beforeDiscountUsd);
+                        totalBeforeDiscountEl.setAttribute('data-currency', 'USD');
+                    }
+                    
+                    // Update discount amount if visible
+                    const discountAmountEl = document.getElementById('discount-amount');
+                    if (discountAmountEl && discountAmountEl.parentElement.parentElement.style.display !== 'none') {
+                        const discountDzd = parseFloat(discountAmountEl.getAttribute('data-value') || 0);
+                        const discountUsd = round(discountDzd / 260, 2);
+                        discountAmountEl.textContent = '- ' + formatUsdPrice(discountUsd);
+                        discountAmountEl.setAttribute('data-value', discountUsd);
+                        discountAmountEl.setAttribute('data-currency', 'USD');
+                    }
+                    
+                    // Hide Flexy fee row if visible (not applicable for crypto)
+                    const flexyFeeRow = document.getElementById('flexy-fee-row');
+                    if (flexyFeeRow) {
+                        flexyFeeRow.style.display = 'none';
+                    }
+                } else {
+                    console.error('Failed to convert to USD:', data.message);
+                    
+                    // Show error message and restore original prices
+                    const formatPrice = (price) => Math.round(price).toLocaleString() + ' DZD';
+                    
+                    if (totalAmountEl) {
+                        const originalValue = totalAmountEl.getAttribute('data-value') || '0';
+                        totalAmountEl.textContent = formatPrice(parseFloat(originalValue));
+                    }
+                    
+                    if (payNowAmountEl) {
+                        const originalValue = payNowAmountEl.getAttribute('data-value') || '0';
+                        payNowAmountEl.textContent = formatPrice(parseFloat(originalValue));
+                    }
+                    
+                    // Re-enable pay button
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                }
+            } catch (error) {
+                console.error('Error converting prices to USD:', error);
+                
+                // Show error and restore original prices
+                const formatPrice = (price) => Math.round(price).toLocaleString() + ' DZD';
+                
+                if (totalAmountEl) {
+                    const originalValue = totalAmountEl.getAttribute('data-value') || '0';
+                    totalAmountEl.textContent = formatPrice(parseFloat(originalValue));
+                }
+                
+                if (payNowAmountEl) {
+                    const originalValue = payNowAmountEl.getAttribute('data-value') || '0';
+                    payNowAmountEl.textContent = formatPrice(parseFloat(originalValue));
+                }
+                
+                // Re-enable pay button
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+        
         const paymentRadios = document.querySelectorAll('input[name="payment_method"]');
         const payWithText = document.getElementById('pay-with-text');
         
         paymentRadios.forEach(radio => {
-            radio.addEventListener('change', function() {
+            radio.addEventListener('change', async function() {
                 if (this.checked) {
                     const methodName = paymentMethods[this.value] || this.value;
                     payWithText.textContent = methodName;
+                    
+                    // Get button reference
+                    const submitBtn = document.getElementById('pay-submit-btn');
+                    
+                    // If cryptocurrency is selected, convert prices to USD
+                    if (this.value === 'cryptocurrency') {
+                        await updatePricesForCrypto();
+                    } else {
+                        // For other payment methods, ensure button is enabled first, then recalculate
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                        // Then recalculate with normal currency (will disable/enable during calculation)
+                        await loadPaymentInfo();
+                    }
                 }
             });
         });
         
-        // Set initial value
+        // Set initial value and update prices if cryptocurrency is pre-selected
         const checkedRadio = document.querySelector('input[name="payment_method"]:checked');
         if (checkedRadio) {
             const methodName = paymentMethods[checkedRadio.value] || checkedRadio.value;
-            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
-            payWithText.textContent = `${methodName} (${currency})`;
+            payWithText.textContent = methodName;
+            
+            // If cryptocurrency is selected, convert prices to USD (with delay to ensure DOM is ready)
+            if (checkedRadio.value === 'cryptocurrency') {
+                // Button state will be handled by updatePricesForCrypto()
+                setTimeout(() => {
+                    updatePricesForCrypto();
+                }, 100);
+            } else {
+                // Ensure button is enabled for non-crypto methods on initial load
+                const submitBtn = document.getElementById('pay-submit-btn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
         }
         
         // ==================== COUPON SYSTEM ====================
@@ -811,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Remove coupon function
-        function removeCoupon() {
+        async function removeCoupon() {
             appliedCoupon = null;
             
             if (couponInputContainer) couponInputContainer.classList.remove('hidden');
@@ -828,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Reload original prices
-            loadPaymentInfo();
+            await loadPaymentInfo();
         }
         
         // Show coupon error
@@ -882,29 +1090,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // ==================== END COUPON SYSTEM ====================
         
+        // Helper function to round to 2 decimals
+        function round(value, decimals) {
+            return Number(Math.round(value + 'e' + decimals) + 'e-' + decimals);
+        }
+        
         // Function to update prices when currency or payment method changes
-        function updatePaymentPrices() {
+        async function updatePaymentPrices() {
             // Reload payment info to recalculate with new currency and payment method
-            loadPaymentInfo();
+            await loadPaymentInfo();
         }
         
         // Listen for currency changes
-        window.addEventListener('currencyChanged', function(e) {
-            updatePaymentPrices();
+        window.addEventListener('currencyChanged', async function(e) {
+            await updatePaymentPrices();
         });
         
-        // Update payment method text when selection changes
-        paymentRadios.forEach(radio => {
-            radio.addEventListener('change', function() {
-                if (this.checked) {
-                    const methodName = paymentMethods[this.value] || this.value;
-                    const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
-                    payWithText.textContent = `${methodName} (${currency})`;
-                    // Recalculate prices when payment method changes (to add/remove Flexy fee)
-                    updatePaymentPrices();
-                }
-            });
-        });
+        // Note: Payment method change handling is done above (lines 640-655)
         
         // Handle submit button
         const submitBtn = document.getElementById('pay-submit-btn');
@@ -949,6 +1151,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
                             if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
                             if (item.server_bs) cartItem.server_bs = item.server_bs;
+                            if (item.save_id) cartItem.save_id = item.save_id; // User ID for new games
+                            if (item.server) cartItem.server = item.server; // Generic server for new games
                             return cartItem;
                         });
                         
@@ -1036,6 +1240,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
                         if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
                         if (item.server_bs) cartItem.server_bs = item.server_bs;
+                        if (item.save_id) cartItem.save_id = item.save_id; // User ID for new games
+                        if (item.server) cartItem.server = item.server; // Generic server for new games
                         
                         return cartItem;
                     });
@@ -1134,16 +1340,76 @@ document.addEventListener('DOMContentLoaded', function() {
                     submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
                 }
                 } else if (paymentMethod === 'cryptocurrency') {
-                    // Cryptocurrency is coming soon - prevent selection
-                    alert({!! json_encode(__('seller.crypto_payment_coming_soon')) !!});
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
+                    // Cryptocurrency payment - create order and navigate to crypto payment
+                    isProcessing = true;
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = {!! json_encode(__('common.processing_dots')) !!};
+                    
+                    try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                        
+                        // Prepare cart items for API
+                        // Cart items already have all game-specific IDs set when added to cart
+                        const cartItems = cart.map(item => {
+                            const cartItem = { 
+                                pack_id: item.pack_id,
+                                quantity: item.quantity || 1,
+                            };
+                            
+                            // Copy all game-specific IDs from cart item (already set correctly)
+                            if (item.user_id !== undefined) cartItem.user_id = item.user_id;
+                            if (item.zone_id !== undefined) cartItem.zone_id = item.zone_id;
+                            if (item.player_id_ff !== undefined) cartItem.player_id_ff = item.player_id_ff;
+                            if (item.player_id_pubg !== undefined) cartItem.player_id_pubg = item.player_id_pubg;
+                            if (item.player_id_hok !== undefined) cartItem.player_id_hok = item.player_id_hok;
+                            if (item.user_id_bs !== undefined) cartItem.user_id_bs = item.user_id_bs;
+                            if (item.server_bs !== undefined) cartItem.server_bs = item.server_bs;
+                            if (item.save_id !== undefined) cartItem.save_id = item.save_id; // User ID for new games
+                            if (item.server !== undefined) cartItem.server = item.server; // Generic server for new games
+                            // Fallback for games that use generic player_id
+                            if (item.player_id !== undefined && !cartItem.user_id && !cartItem.player_id_ff && !cartItem.player_id_pubg && !cartItem.player_id_hok && !cartItem.user_id_bs) {
+                                cartItem.user_id = item.player_id;
+                            }
+                            
+                            return cartItem;
+                        });
+                        
+                        const response = await fetch('/api/orders/create', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                            },
+                            body: JSON.stringify({
+                                cart_items: cartItems,
+                                payment_method: 'cryptocurrency'
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success && data.encrypted_order_id) {
+                            // Redirect to crypto payment page
+                            window.location.href = `/select/crypto/${encodeURIComponent(data.encrypted_order_id)}`;
+                        } else {
+                            alert(data.message || 'Failed to create order. Please try again.');
+                            isProcessing = false;
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
+                        }
+                    } catch (error) {
+                        console.error('Crypto payment error:', error);
+                        alert('An error occurred. Please try again.');
+                        isProcessing = false;
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
+                    }
                     return;
                 } else if (paymentMethod === 'baridimob') {
                     // If Baridimob is selected, create order and navigate to baridimob payment page
                     isProcessing = true;
                     submitBtn.disabled = true;
-                    submitBtn.textContent = 'Processing...';
+                    submitBtn.textContent = {!! json_encode(__('common.processing_dots')) !!};
                     
                     try {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -1163,6 +1429,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
                         if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
                         if (item.server_bs) cartItem.server_bs = item.server_bs;
+                        if (item.save_id) cartItem.save_id = item.save_id; // User ID for new games
+                        if (item.server) cartItem.server = item.server; // Generic server for new games
                         
                         return cartItem;
                     });

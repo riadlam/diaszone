@@ -63,13 +63,15 @@
                         </div>
                     </div>
 
-                    <!-- reCAPTCHA -->
+                    <!-- reCAPTCHA - Disabled for testing -->
+                    {{--
                     <div class="flex justify-center">
                         <div class="g-recaptcha" data-sitekey="{{ config('recaptcha.site_key') }}"></div>
                     </div>
                     @error('recaptcha')
                         <p class="text-red-500 text-sm text-center">{{ $message }}</p>
                     @enderror
+                    --}}
 
                     <button type="submit" 
                             class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md hover:shadow-lg">
@@ -90,7 +92,7 @@
 @endsection
 
 @push('scripts')
-<!-- Google reCAPTCHA v2 -->
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<!-- Google reCAPTCHA v2 - Disabled for testing -->
+{{-- <script src="https://www.google.com/recaptcha/api.js" async defer></script> --}}
 @endpush
 

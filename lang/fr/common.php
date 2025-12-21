@@ -31,6 +31,7 @@ return [
     // Status and States
     'loading' => 'Chargement',
     'processing' => 'Traitement',
+    'processing_dots' => 'Traitement...',
     'success' => 'Succès',
     'error' => 'Erreur',
     'warning' => 'Avertissement',
@@ -71,4 +72,6 @@ return [
     'last_week' => 'La semaine dernière',
     'last_month' => 'Le mois dernier',
     'effective_date' => 'En vigueur',
+    'try_again' => 'Réessayer',
+    'seconds' => 'secondes',
 ];

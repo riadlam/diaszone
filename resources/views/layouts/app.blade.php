@@ -20,7 +20,7 @@
     
     @stack('styles')
 </head>
-<body class="font-sans antialiased {{ request()->routeIs('dashboard*') ? 'dashboard-page' : '' }} {{ app()->getLocale() == 'ar' ? 'overflow-x-hidden' : '' }}">
+<body class="font-sans antialiased {{ request()->routeIs('dashboard*') ? 'dashboard-page' : '' }} {{ app()->getLocale() == 'ar' ? 'overflow-x-hidden' : '' }}" style="background-color: #ffffff;">
     <div id="app" class="{{ app()->getLocale() == 'ar' ? 'overflow-x-hidden' : '' }}" style="position: relative !important;">
         <!-- Header -->
         @include('components.header')

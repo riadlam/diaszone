@@ -13,3 +13,9 @@ Schedule::command('digiflazz:sync-prices')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Schedule Item4Gamer order status check every 3 minutes
+Schedule::command('item4gamer:check-status')
+    ->everyThreeMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

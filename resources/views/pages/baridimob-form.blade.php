@@ -7,7 +7,7 @@
     <div class="container mx-auto px-4 max-w-3xl">
         <div class="mb-6">
             <h1 class="text-2xl font-bold text-gray-900 mb-1">{{ __('checkout.pay_with') }} {{ __('payment.baridimob') }}</h1>
-            <p class="text-sm text-gray-600">Review your order and proceed to payment</p>
+            <p class="text-sm text-gray-600">{{ __('checkout.review_order_subtitle') }}</p>
         </div>
 
         @if(session('error'))
@@ -19,14 +19,14 @@
         <!-- Order Summary Card -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
             <button id="toggle-order-summary" class="flex justify-between items-center w-full text-lg font-semibold text-gray-800 mb-4 focus:outline-none">
-                <span>Order Summary</span>
+                <span>{{ __('checkout.order_summary') }}</span>
                 <svg id="order-summary-chevron" class="w-5 h-5 text-gray-500 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
             </button>
             <div id="order-summary-content" class="space-y-3 hidden">
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Order Number</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.order_number') }}</span>
                     <span class="text-sm font-semibold text-gray-900">{{ $order->order_number }}</span>
                 </div>
                 
@@ -61,7 +61,7 @@
                 @endphp
                 
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Game</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.game') }}</span>
                     <span class="text-sm font-semibold text-gray-900">{{ $gameName }}</span>
                 </div>
                 
@@ -118,7 +118,7 @@
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_bs ?? 'N/A' }}</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Server</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.server') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->server_bs ?? 'Global' }}</span>
                     </div>
                 @elseif($gameType === 'freefire')
@@ -143,7 +143,7 @@
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_ml ?? 'N/A' }}</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600">Zone ID</span>
+                        <span class="text-sm text-gray-600">{{ __('checkout.zone_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->zone_id_ml ?? 'N/A' }}</span>
                     </div>
                 @endif
@@ -152,7 +152,7 @@
 
         <!-- Price Breakdown Card -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6 mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Breakdown</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('checkout.price_breakdown') }}</h2>
             <div class="space-y-3">
                 @php
                     // Use final_price from order if available (supports multi-item orders with quantities)
@@ -180,7 +180,7 @@
                 @endphp
                 @if($discountPercentage > 0)
                 <div class="flex justify-between items-center">
-                    <span class="text-sm text-gray-600">Discount</span>
+                    <span class="text-sm text-gray-600">{{ __('checkout.discount') }}</span>
                     <span class="text-sm font-semibold text-green-600">-{{ $discountPercentage }}%</span>
                 </div>
                 @endif
@@ -204,7 +204,7 @@
                 <!-- Proceed Button -->
                 <button id="proceed-btn" 
                         class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
-                    Proceed with Baridimob
+                    {{ __('checkout.proceed_with_baridimob') }}
                 </button>
                 
                 <!-- Change Payment Method Button -->
@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Disable button
             proceedBtn.disabled = true;
-            proceedBtn.textContent = 'Processing...';
+            proceedBtn.textContent = {!! json_encode(__('common.processing_dots')) !!};
             
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -295,9 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ? 'عذراً، خدمة الدفع غير متوفرة حالياً. يرجى إعادة المحاولة خلال 10 دقائق. شكراً لصبرك.'
                         : {!! json_encode(__('seller.payment_service_unavailable')) !!};
 
-                    let shortMessage = isArabic 
-                        ? 'خدمة الدفع غير متوفرة مؤقتاً'
-                        : 'Payment Service Unavailable';
+                    let shortMessage = {!! json_encode(__('checkout.payment_service_unavailable')) !!};
 
                     // If the backend returned a 400/404 about invalid or expired order, show a clearer message
                     const serverMsg = (data && data.message) ? data.message : '';
@@ -335,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </button>
                                 <button onclick="location.reload();" 
                                         class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                                    ${tTryAgain}
+                                    {!! json_encode(__('common.try_again')) !!}
                                 </button>
                             </div>
                         </div>
@@ -343,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.body.appendChild(errorModal);
                     
                     proceedBtn.disabled = false;
-                    proceedBtn.textContent = 'Proceed with Baridimob';
+                    proceedBtn.textContent = {!! json_encode(__('checkout.proceed_with_baridimob')) !!};
                 }
             } catch (error) {
                 console.error('Error processing payment:', error);
@@ -390,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.body.appendChild(errorModal);
                 
                 proceedBtn.disabled = false;
-                proceedBtn.textContent = 'Proceed with Baridimob';
+                    proceedBtn.textContent = {!! json_encode(__('checkout.proceed_with_baridimob')) !!};
             }
         });
     }
@@ -408,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Disable button to prevent double clicks
             changePaymentBtn.disabled = true;
-            changePaymentBtn.textContent = 'Processing...';
+            changePaymentBtn.textContent = {!! json_encode(__('common.processing_dots')) !!};
             
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -621,12 +619,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
-                    <p class="text-gray-600 mb-6">Your payment has been processed successfully. Your order will be completed shortly.</p>
-                    <p class="text-sm text-gray-500 mb-4">Redirecting to your orders in <span id="redirect-countdown">5</span> seconds...</p>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">{!! json_encode(__('checkout.payment_successful_title')) !!}</h2>
+                    <p class="text-gray-600 mb-6">{!! json_encode(__('checkout.payment_successful_message')) !!}</p>
+                    <p class="text-sm text-gray-500 mb-4">{!! json_encode(__('checkout.redirecting_to_orders')) !!} <span id="redirect-countdown">5</span> {!! json_encode(__('common.seconds')) !!}...</p>
                     <button onclick="window.location.href='{{ route('dashboard.orders') }}'" 
                             class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                        View My Orders
+                        {!! json_encode(__('checkout.go_to_my_orders')) !!}
                     </button>
                 </div>
             `;
@@ -659,16 +657,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-2">Payment Failed</h2>
-                    <p class="text-gray-600 mb-6">Your payment could not be processed. Please try again or choose a different payment method.</p>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">{!! json_encode(__('checkout.payment_failed_title')) !!}</h2>
+                    <p class="text-gray-600 mb-6">{!! json_encode(__('checkout.payment_failed_message')) !!}</p>
                     <div class="flex gap-3">
                         <button onclick="this.closest('.fixed').remove(); window.history.replaceState({}, document.title, window.location.pathname);" 
                                 class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg transition-colors">
-                            Close
+                            {!! json_encode(__('common.close')) !!}
                         </button>
                         <button onclick="window.location.href='{{ route('select-payment') }}'" 
                                 class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                            Try Again
+                            {!! json_encode(__('common.try_again')) !!}
                         </button>
                     </div>
                 </div>

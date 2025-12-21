@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (packId && !uniquePackIds.has(packId)) {
                 uniquePackIds.add(packId);
                 checkedPacks.push(checkbox);
-            }
+        }
         });
         
         const totalPrice = document.getElementById('total-price');
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const mobileInput = document.querySelector(`.mobile-quantity-input[data-pack-id="${packId}"]`);
             if (mobileInput) {
                 mobileInput.value = quantity;
-            }
+        }
         });
         
         const packsHTML = checkedPacks.map(checkbox => {
@@ -279,9 +279,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (checkedPacks.length === 0) {
                 selectedPackInfo.classList.add('hidden');
             } else {
-                selectedPackInfo.classList.remove('hidden');
-            }
+            selectedPackInfo.classList.remove('hidden');
         }
+    }
     }
     
     // Make updateOrderForm globally available
@@ -452,21 +452,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
             } else {
                 // Add new item
-                const cartItem = {
+            const cartItem = {
                     id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
                     pack_id: item.pack_id,
                     quantity: quantity,
-                    user_id: item.user_id || null,
-                    zone_id: item.zone_id || null,
-                    player_id: item.player_id || null,
-                    player_id_ff: item.player_id_ff || null,
-                    player_id_pubg: item.player_id_pubg || null,
-                    player_id_hok: item.player_id_hok || null,
-                    user_id_bs: item.user_id_bs || null,
-                    server_bs: item.server_bs || null,
-                    server: item.server || null,
-                    timestamp: new Date().toISOString()
-                };
+                user_id: item.user_id || null,
+                zone_id: item.zone_id || null,
+                player_id: item.player_id || null,
+                player_id_ff: item.player_id_ff || null,
+                player_id_pubg: item.player_id_pubg || null,
+                player_id_hok: item.player_id_hok || null,
+                user_id_bs: item.user_id_bs || null,
+                server_bs: item.server_bs || null,
+                server: item.server || null,
+                timestamp: new Date().toISOString()
+            };
                 cart.push(cartItem);
             }
             
@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return cart;
         },
-
+        
         removeFromCart: function(itemId) {
             const cart = this.getCart();
             const filtered = cart.filter(item => item.id !== itemId);
@@ -764,10 +764,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 packDisplayName = translations.twilightPass || 'Twilight Pass';
             } else {
                 // Regular pack display
-                if (selectedPack.bonus > 0) {
+            if (selectedPack.bonus > 0) {
                     packDisplayName = `${selectedPack.diamonds} ${currencyText} + ${selectedPack.bonus} ${bonusText}`;
-                } else {
-                    packDisplayName = `${selectedPack.diamonds} ${currencyText}`;
+            } else {
+                packDisplayName = `${selectedPack.diamonds} ${currencyText}`;
                 }
             }
             
@@ -941,15 +941,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Store player_id for all selected packs
                 selectedPacks.forEach(pack => {
                     pack.player_id = playerId;
-                    
-                    // Store in game-specific field for clarity
-                    if (gameType === 'freefire') {
+                
+                // Store in game-specific field for clarity
+                if (gameType === 'freefire') {
                         pack.player_id_ff = playerId;
-                    } else if (gameType === 'pubgmobile') {
+                } else if (gameType === 'pubgmobile') {
                         pack.player_id_pubg = playerId;
-                    } else if (gameType === 'honorofkings') {
+                } else if (gameType === 'honorofkings') {
                         pack.player_id_hok = playerId;
-                    }
+                }
                 });
                 
                 // Clear form
@@ -1075,6 +1075,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // Verify save worked
                                 const verifyCart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
                                 console.log('Cart updated with user_id and zone_id:', verifyCart);
+                            } else {
+                                console.warn('No cart items were updated. Selected pack IDs:', selectedPackIds, 'Cart items:', cart.map(item => item.pack_id));
                             }
                             
                             // Update CartManager's internal state and UI
@@ -1088,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             // Redirect to cart immediately
                             window.location.href = '/cart';
+                            
                         });
                     } else {
                         // Validation failed - result is false
@@ -1110,8 +1113,85 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 return; // Stop here - don't proceed to cart addition below
             } else {
-                // Other games (fallback) - proceed directly without validation
-                console.warn('Unknown game type:', gameType, '- proceeding without validation');
+                // New games (honkai_star_rail, genshin_impact, etc.) - Dynamically handle save_id and server fields
+                // Try multiple possible field IDs since fields are dynamically generated
+                // First try by ID, then by name, then by searching all form inputs
+                let saveIdField = document.getElementById('save_id');
+                if (!saveIdField) {
+                    saveIdField = document.querySelector('#order-form input[name="save_id"]');
+                }
+                if (!saveIdField) {
+                    // Try to find any text input in the form (likely the User ID field)
+                    const formInputs = Array.from(document.querySelectorAll('#order-form input[type="text"]'));
+                    if (formInputs.length > 0) {
+                        saveIdField = formInputs[0]; // Take the first text input as User ID
+                    }
+                }
+                
+                let serverField = document.getElementById('server');
+                if (!serverField) {
+                    serverField = document.querySelector('#order-form select[name="server"]');
+                }
+                
+                if (!saveIdField) {
+                    console.error('User ID field not found. Available form fields:', Array.from(document.querySelectorAll('#order-form input, #order-form select')).map(f => ({ id: f.id, name: f.name, type: f.type, placeholder: f.placeholder })));
+                    alert('User ID field not found. Please refresh the page.');
+                    return;
+                }
+                
+                const saveId = saveIdField.value ? String(saveIdField.value).trim() : '';
+                const server = serverField && serverField.value ? String(serverField.value).trim() : null;
+                
+                if (!saveId) {
+                    alert('Please enter your User ID');
+                    return;
+                }
+                
+                // Store save_id and server (if exists) for all selected packs
+                selectedPacks.forEach(pack => {
+                    pack.save_id = saveId;
+                    pack.user_id = saveId; // Also store as user_id for compatibility
+                    if (server) {
+                        pack.server = server;
+                    }
+                });
+                
+                // DIRECTLY update localStorage - get fresh cart, update all matching items, save immediately
+                const cartJson = localStorage.getItem('diaszone_cart');
+                const cart = cartJson ? JSON.parse(cartJson) : [];
+                
+                // Get pack IDs from selected packs
+                const selectedPackIds = selectedPacks.map(pack => pack.pack_id);
+                const trimmedSaveId = String(saveId).trim();
+                const trimmedServer = server ? String(server).trim() : null;
+                
+                // Update ALL cart items that match selected pack IDs
+                let updated = false;
+                cart.forEach(cartItem => {
+                    if (selectedPackIds.includes(cartItem.pack_id)) {
+                        cartItem.save_id = trimmedSaveId;
+                        cartItem.user_id = trimmedSaveId;
+                        if (trimmedServer) {
+                            cartItem.server = trimmedServer;
+                        }
+                        updated = true;
+                    }
+                });
+                
+                // Save updated cart to localStorage IMMEDIATELY
+                if (updated) {
+                    localStorage.setItem('diaszone_cart', JSON.stringify(cart));
+                }
+                
+                // Clear form
+                saveIdField.value = '';
+                if (serverField) {
+                    serverField.value = serverField.options && serverField.options.length > 0 ? serverField.options[0].value : '';
+                }
+                
+                // Redirect to cart page
+                window.location.href = '/cart';
+                return; // Stop here, don't proceed to cart addition below
             }
             
             // Only add to cart if we're NOT validating (Mobile Legends validation happens async)
@@ -1134,6 +1214,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         cartItem.server_bs = pack.server_bs;
                         cartItem.server = pack.server;
                     }
+                    // IMPORTANT: Always set save_id, server, and user_id for other games (Honkai Star Rail, Genshin Impact, etc.)
+                    // Check if save_id exists on pack object (set earlier in the form submission)
+                    if (pack.save_id !== undefined && pack.save_id !== null) {
+                        cartItem.save_id = String(pack.save_id).trim();
+                        cartItem.user_id = pack.user_id || pack.save_id;
+                    }
+                    // Handle server field for games that require it (e.g., Honkai Star Rail, Genshin Impact)
+                    if (pack.server !== undefined && pack.server !== null && pack.server !== '') {
+                        cartItem.server = String(pack.server).trim();
+                    }
+                    console.log('Adding to cart with save_id/user_id:', { save_id: cartItem.save_id, user_id: cartItem.user_id, pack_id: cartItem.pack_id, pack: pack, cartItem: cartItem });
                     CartManager.addToCart(cartItem, pack.quantity);
                 });
                 

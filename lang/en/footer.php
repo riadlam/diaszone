@@ -2,7 +2,8 @@
 
 return [
     'about_section' => 'DiasZone',
-    'about_description' => 'Your trusted partner for Mobile Legends diamond top-ups. Fast, secure, and reliable.',
+    'about_description' => 'Your trusted partner for 
+     top-ups. Fast, secure, and reliable.',
     'quick_links' => 'Quick Links',
     'support' => 'Support',
     'contact_us' => 'Contact Us',

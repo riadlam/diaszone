@@ -1,7 +1,7 @@
 @php $isRtl = app()->getLocale() == 'ar'; @endphp
-<header class="bg-white shadow-sm lg:sticky lg:top-0 z-50">
-    <div class="container mx-auto px-4 max-w-full overflow-x-hidden">
-        <nav class="flex items-center justify-between h-16">
+<header class="bg-white shadow-sm lg:sticky lg:top-0 z-50" style="height: 64px; overflow: visible !important; position: relative; z-index: 99999 !important;">
+    <div class="container mx-auto px-4 max-w-full h-full" style="overflow: visible !important;">
+        <nav class="flex items-center justify-between h-full" style="overflow: visible; height: 64px; position: relative; z-index: 999999 !important;">
             <!-- Left: Mobile Menu Button (mobile only) -->
             <button id="mobile-menu-btn" class="lg:hidden p-2 text-gray-700 hover:text-purple-600 transition-colors">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,23 +30,40 @@
             
             <!-- Search Bar (desktop only) -->
             <div class="hidden lg:flex flex-1 max-w-md mx-8">
-                <div class="relative w-full">
-                          <input type="text" 
+                <div class="relative w-full" id="navbar-search-wrapper" style="z-index: 10000;">
+                    <input type="text" 
+                           id="navbar-search-input"
                            placeholder="{{ __('nav.search_placeholder') }}" 
-                              class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm search-input">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none header-left-icon">
+                           class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                           autocomplete="off">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
+                    </div>
+                    <button type="button" id="navbar-search-clear" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-purple-600 transition-colors hidden">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                    <div id="navbar-search-loading" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden">
+                        <svg class="animate-spin h-4 w-4 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    <!-- Search Results Dropdown -->
+                    <div id="navbar-search-results" class="hidden bg-white border-2 border-purple-200 rounded-xl shadow-2xl overflow-hidden" style="z-index: 10000 !important;">
+                        <div id="navbar-search-results-content" class="overflow-y-auto p-4" style="max-height: 400px;"></div>
                     </div>
                 </div>
             </div>
             
             <!-- Right Side: Language (mobile compact), Cart, Language/Profile (desktop) -->
-            <div class="flex items-center space-x-2 lg:space-x-4">
+            <div class="flex items-center space-x-2 lg:space-x-4" style="position: relative; z-index: 999999 !important;">
                 <!-- Language Switcher (mobile compact) -->
                 <div class="lg:hidden relative language-dropdown">
-                    <button type="button" aria-haspopup="listbox" aria-expanded="false" class="language-dropdown-toggle flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors rounded-lg hover:bg-gray-100">
+                    <button type="button" aria-haspopup="listbox" onclick="this.nextElementSibling.classList.toggle('hidden'); event.stopPropagation();" class="language-dropdown-toggle flex items-center justify-center p-2 text-gray-700 hover:text-purple-600 transition-colors rounded-lg hover:bg-gray-100">
                         @php
                             $currentLocale = app()->getLocale();
                             $localeFlags = ['en' => '🇬🇧', 'ar' => '🇩🇿', 'fr' => '🇫🇷'];
@@ -54,7 +71,7 @@
                         @endphp
                         <span class="text-xl leading-none" style="font-size: 1.25rem;">{{ $currentFlag }}</span>
                     </button>
-                    <div class="language-dropdown-menu fixed right-4 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-[9999] overflow-hidden" style="top: auto;">
+                    <div class="language-dropdown-menu fixed right-4 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 hidden" style="top: auto; display: none !important; z-index: 999999 !important; position: fixed;">
                         <div class="px-3 py-2 border-b border-gray-100">
                             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('language.title') }}</span>
                         </div>
@@ -132,13 +149,13 @@
                 
                 <!-- Currency Dropdown -->
                 <div class="relative currency-dropdown">
-                    <button id="currency-dropdown-btn" class="currency-dropdown-btn flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+                    <button type="button" id="currency-dropdown-btn" onclick="event.stopPropagation(); var menu = document.getElementById('currency-dropdown-menu'); if (menu) { if (menu.classList.contains('hidden')) { menu.classList.remove('hidden'); menu.style.display = ''; } else { menu.classList.add('hidden'); menu.style.display = 'none'; } }" class="currency-dropdown-btn flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
                         <span class="text-sm font-semibold text-gray-800 currency-symbol">USD</span>
                         <svg class="w-4 h-4 text-gray-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
-                    <div class="currency-dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
+                    <div id="currency-dropdown-menu" class="currency-dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 hidden" style="display: none !important; z-index: 999999 !important; position: absolute;">
                         <div class="px-3 py-2 border-b border-gray-100">
                             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('currency.title') }}</span>
                         </div>
@@ -160,8 +177,8 @@
                 </div>
                 
                 <!-- Language Dropdown -->
-                <div class="relative language-dropdown">
-                    <button type="button" aria-haspopup="listbox" aria-expanded="false" class="language-dropdown-toggle flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
+                <div class="relative language-dropdown" style="z-index: 999999 !important; position: relative;">
+                    <button type="button" aria-haspopup="listbox" onclick="event.stopPropagation(); var menu = this.nextElementSibling; if (menu) { if (menu.classList.contains('hidden')) { menu.classList.remove('hidden'); menu.style.display = ''; } else { menu.classList.add('hidden'); menu.style.display = 'none'; } }" class="language-dropdown-toggle flex items-center space-x-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:border-purple-500 hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm">
                         @php
                             $currentLocale = app()->getLocale();
                             $localeData = [
@@ -177,7 +194,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
-                    <div class="language-dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-[9999] overflow-hidden">
+                    <div class="language-dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 hidden" style="display: none !important; z-index: 999999 !important; position: absolute;">
                         <div class="px-3 py-2 border-b border-gray-100">
                             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('language.title') }}</span>
                         </div>
@@ -209,8 +226,8 @@
                 </div>
                 
                 <!-- Profile Dropdown -->
-                <div class="relative profile-dropdown">
-                    <button class="profile-dropdown-btn w-10 h-10 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 shadow-md hover:shadow-lg">
+                <div class="relative profile-dropdown" id="profile-dropdown-container" style="z-index: 999999 !important; position: relative;">
+                    <button type="button" id="profile-dropdown-btn" onclick="event.preventDefault(); event.stopPropagation(); var menu = document.getElementById('profile-dropdown-menu'); if (menu) { if (menu.classList.contains('hidden')) { menu.classList.remove('hidden'); menu.style.display = ''; } else { menu.classList.add('hidden'); menu.style.display = 'none'; } }" class="profile-dropdown-btn w-10 h-10 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 shadow-md hover:shadow-lg" style="cursor: pointer;">
                         @auth
                             <!-- Show user initial if logged in -->
                             <span class="text-white font-semibold text-sm">{{ strtoupper(substr(Auth::user()->name ?? Auth::user()->email, 0, 1)) }}</span>
@@ -221,25 +238,22 @@
                             </svg>
                         @endauth
                     </button>
-                    <div class="profile-dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible transition-all duration-300 z-50 overflow-hidden">
+                    <div id="profile-dropdown-menu" class="profile-dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 hidden overflow-hidden" style="display: none !important; z-index: 999999 !important; position: absolute;">
                         @auth
-                            <!-- Logged In: Show User Info and Menu -->
-                            <div class="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-purple-100">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <span class="text-white font-semibold text-sm">{{ strtoupper(substr(Auth::user()->name ?? Auth::user()->email, 0, 1)) }}</span>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-semibold text-gray-900 truncate">{{ Auth::user()->name ?? 'User' }}</p>
-                                        <p class="text-xs text-gray-600 truncate">{{ Auth::user()->email }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <a href="{{ route('dashboard.myaccount') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
+                            <!-- Logged In: Show My Orders -->
+                            <a href="{{ route('dashboard.orders') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
                                 <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                                 </svg>
-                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.my_account') }}</span>
+                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.my_orders') }}</span>
+                            </a>
+                        @else
+                            <!-- Not Logged In: Show Login and My Orders -->
+                            <a href="{{ route('login') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
+                                <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                                </svg>
+                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.login') }}</span>
                             </a>
                             <a href="{{ route('dashboard.orders') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
                                 <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,35 +261,6 @@
                                 </svg>
                                 <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.my_orders') }}</span>
                             </a>
-                            <a href="{{ route('dashboard.notifications') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
-                                <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                                </svg>
-                                <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.notifications') }}</span>
-                            </a>
-                            <div class="border-t border-gray-100 my-1"></div>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <button type="submit" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
-                                    <svg class="w-5 h-5 text-gray-600 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                                    </svg>
-                                    <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.logout') }}</span>
-                                </button>
-                            </form>
-                        @else
-                            <!-- Not Logged In: Show Login/Signup Buttons -->
-                            <div class="px-4 py-3 border-b border-gray-100">
-                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('profile.account') }}</span>
-                            </div>
-                            <div class="px-4 py-3 space-y-2">
-                                <a href="{{ route('login') }}" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg text-center transition-colors duration-200 shadow-md hover:shadow-lg">
-                                    {{ __('profile.login') }}
-                                </a>
-                                <a href="{{ route('signup') }}" class="block w-full bg-white border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-semibold py-2.5 px-4 rounded-lg text-center transition-colors duration-200">
-                                    {{ __('profile.signup') }}
-                                </a>
-                            </div>
                         @endauth
                     </div>
                 </div>
@@ -300,14 +285,31 @@
         <!-- Drawer Content -->
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
             <!-- Search Bar -->
-            <div class="relative">
+            <div class="relative" id="mobile-search-wrapper" style="z-index: 10000;">
                 <input type="text" 
+                       id="mobile-search-input"
                        placeholder="{{ __('nav.search_placeholder') }}" 
-                       class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none header-left-icon">
+                       class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all text-sm"
+                       autocomplete="off">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
+                </div>
+                <button type="button" id="mobile-search-clear" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-purple-600 transition-colors hidden">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <div id="mobile-search-loading" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden">
+                    <svg class="animate-spin h-4 w-4 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <!-- Search Results Dropdown -->
+                <div id="mobile-search-results" class="hidden bg-white border-2 border-purple-200 rounded-xl shadow-2xl overflow-hidden" style="z-index: 10000 !important;">
+                    <div id="mobile-search-results-content" class="overflow-y-auto p-4" style="max-height: 300px;"></div>
                 </div>
             </div>
             
@@ -520,60 +522,12 @@
         // Also check periodically (for same-tab updates)
         setInterval(updateMyOrdersButton, 1000);
         
-        // Currency Dropdown
-        const currencyDropdown = document.querySelector('.currency-dropdown');
-        const currencyButton = document.getElementById('currency-dropdown-btn');
-        const currencyMenu = document.querySelector('.currency-dropdown-menu');
-        
-        // Get other dropdown elements (handle all language dropdowns)
-        const languageDropdowns = document.querySelectorAll('.language-dropdown');
-        let languageButtons = [];
-        let languageMenus = [];
-        languageDropdowns.forEach(ld => {
-            // Try multiple selectors to find the button
-            const btn = ld.querySelector('.language-dropdown-toggle') || ld.querySelector('button[aria-haspopup="listbox"]') || ld.querySelector('button');
-            const menu = ld.querySelector('.language-dropdown-menu');
-            if (btn && menu) {
-                languageButtons.push(btn);
-                languageMenus.push({ btn, menu, container: ld });
-            }
-        });
-        const profileDropdown = document.querySelector('.profile-dropdown');
-        const profileMenu = profileDropdown ? profileDropdown.querySelector('.profile-dropdown-menu') : null;
-        
         // Initialize currency from localStorage or default to DZD
         const savedCurrency = localStorage.getItem('diaszone_currency') || 'DZD';
         updateCurrencyDisplay(savedCurrency);
         
-        // Currency dropdown toggle
-        if (currencyButton && currencyMenu) {
-            currencyButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isOpen = currencyMenu.classList.contains('opacity-100');
-                
-                // Close other dropdowns (all language dropdowns)
-                languageMenus.forEach(({ btn, menu }) => {
-                    menu.classList.remove('opacity-100', 'visible');
-                    menu.classList.add('opacity-0', 'invisible');
-                    btn.classList.remove('dropdown-open');
-                });
-                if (profileMenu) {
-                    profileMenu.classList.remove('opacity-100', 'visible');
-                    profileMenu.classList.add('opacity-0', 'invisible');
-                }
-                
-                // Toggle currency dropdown
-                if (isOpen) {
-                    currencyMenu.classList.remove('opacity-100', 'visible');
-                    currencyMenu.classList.add('opacity-0', 'invisible');
-                } else {
-                    currencyMenu.classList.remove('opacity-0', 'invisible');
-                    currencyMenu.classList.add('opacity-100', 'visible');
-                }
-            });
-        }
-        
         // Handle currency selection
+        const currencyMenu = document.getElementById('currency-dropdown-menu');
         if (currencyMenu) {
             currencyMenu.querySelectorAll('.currency-option').forEach(option => {
                 option.addEventListener('click', (e) => {
@@ -581,9 +535,9 @@
                     const currency = option.getAttribute('data-currency');
                     localStorage.setItem('diaszone_currency', currency);
                     updateCurrencyDisplay(currency);
-                    updateMobileCurrencyDisplay(currency); // Also update mobile display
-                    currencyMenu.classList.remove('opacity-100', 'visible');
-                    currencyMenu.classList.add('opacity-0', 'invisible');
+                    updateMobileCurrencyDisplay(currency);
+                    currencyMenu.classList.add('hidden');
+                    currencyMenu.style.display = 'none';
                     
                     // Trigger currency change event
                     window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency } }));
@@ -598,6 +552,7 @@
         
         // Update currency display
         function updateCurrencyDisplay(currency) {
+            const currencyButton = document.getElementById('currency-dropdown-btn');
             if (currencyButton) {
                 const currencySymbol = currencyButton.querySelector('.currency-symbol');
                 if (currencySymbol) {
@@ -606,8 +561,9 @@
             }
             
             // Update badges
-            if (currencyMenu) {
-                currencyMenu.querySelectorAll('.currency-badge').forEach(badge => {
+            const currencyMenuEl = document.getElementById('currency-dropdown-menu');
+            if (currencyMenuEl) {
+                currencyMenuEl.querySelectorAll('.currency-badge').forEach(badge => {
                     const option = badge.closest('.currency-option');
                     if (option && option.getAttribute('data-currency') === currency) {
                         badge.classList.remove('text-gray-600', 'bg-gray-100');
@@ -620,134 +576,33 @@
             }
         }
         
-        // Language dropdown toggle (handle all language dropdowns)
-        if (languageMenus.length > 0) {
-            languageMenus.forEach(({ btn, menu, container }) => {
-                if (!btn || !menu) return;
-                
-                function toggleLanguageMenu(e) {
-                    if (e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        e.stopImmediatePropagation();
-                    }
-                    
-                    const isOpen = menu.classList.contains('opacity-100') || menu.classList.contains('visible');
-                    
-                    // Close all other dropdowns first
-                    if (currencyMenu) {
-                        currencyMenu.classList.remove('opacity-100', 'visible');
-                        currencyMenu.classList.add('opacity-0', 'invisible');
-                    }
-                    if (profileMenu) {
-                        profileMenu.classList.remove('opacity-100', 'visible');
-                        profileMenu.classList.add('opacity-0', 'invisible');
-                    }
-                    languageMenus.forEach(({ btn: otherBtn, menu: otherMenu }) => {
-                        if (otherMenu !== menu && otherMenu) {
-                            otherMenu.classList.remove('opacity-100', 'visible');
-                            otherMenu.classList.add('opacity-0', 'invisible');
-                            if (otherBtn) otherBtn.classList.remove('dropdown-open');
-                        }
-                    });
-                    
-                    // Toggle current language dropdown
-                    if (isOpen) {
-                        menu.classList.remove('opacity-100', 'visible');
-                        menu.classList.add('opacity-0', 'invisible');
-                        menu.style.pointerEvents = 'none';
-                        btn.classList.remove('dropdown-open');
-                        btn.setAttribute('aria-expanded', 'false');
-                    } else {
-                        // Position menu on mobile - calculate position relative to button
-                        const isMobile = window.innerWidth < 1024;
-                        const isRtl = document.documentElement.dir === 'rtl';
-                        if (isMobile) {
-                            const rect = btn.getBoundingClientRect();
-                            menu.style.position = 'fixed';
-                            menu.style.top = (rect.bottom + 8) + 'px';
-                            if (isRtl) {
-                                menu.style.left = '1rem';
-                                menu.style.right = 'auto';
-                            } else {
-                                menu.style.right = '1rem';
-                                menu.style.left = 'auto';
-                            }
-                            menu.style.width = '14rem';
-                            menu.style.maxWidth = 'calc(100vw - 2rem)';
-                        } else {
-                            menu.style.position = '';
-                            menu.style.top = '';
-                            menu.style.right = '';
-                            menu.style.left = '';
-                            menu.style.width = '';
-                            menu.style.maxWidth = '';
-                        }
-                        
-                        menu.style.display = 'block';
-                        menu.style.visibility = 'visible';
-                        menu.style.pointerEvents = 'auto';
-                        menu.style.opacity = '1';
-                        menu.classList.remove('opacity-0', 'invisible');
-                        menu.classList.add('opacity-100', 'visible');
-                        btn.classList.add('dropdown-open');
-                        btn.setAttribute('aria-expanded', 'true');
-                    }
-                }
-                
-                // Add both click and touchstart for mobile compatibility
-                btn.addEventListener('click', toggleLanguageMenu, { passive: false });
-                btn.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                    toggleLanguageMenu(e);
-                }, { passive: false });
-            });
-        }
-        
-        // Close language dropdowns when clicking outside (attach once, check all)
-        if (languageMenus.length > 0) {
-            document.addEventListener('click', function(e) {
-                // Small delay to allow toggle click to process first
-                setTimeout(() => {
-                    let clickedInsideLanguage = false;
-                    languageMenus.forEach(({ container, btn }) => {
-                        if (container && container.contains(e.target)) {
-                            clickedInsideLanguage = true;
-                        }
-                        // Also check if button is the target (shouldn't close if clicking the button itself)
-                        if (btn && (btn === e.target || btn.contains(e.target))) {
-                            clickedInsideLanguage = true;
-                        }
-                    });
-                    
-                    if (!clickedInsideLanguage) {
-                        languageMenus.forEach(({ btn, menu }) => {
-                            if (menu) {
-                                menu.classList.remove('opacity-100', 'visible');
-                                menu.classList.add('opacity-0', 'invisible');
-                                menu.style.pointerEvents = 'none';
-                            }
-                            if (btn) {
-                                btn.classList.remove('dropdown-open');
-                                btn.setAttribute('aria-expanded', 'false');
-                            }
-                        });
-                    }
-                }, 10);
-            });
-        }
-        
-        // Close currency dropdown when clicking outside (if not already handled by app.js)
-        if (currencyDropdown) {
-            document.addEventListener('click', (e) => {
-                if (!currencyDropdown.contains(e.target)) {
-                    if (currencyMenu) {
-                        currencyMenu.classList.remove('opacity-100', 'visible');
-                        currencyMenu.classList.add('opacity-0', 'invisible');
-                    }
+        // Close all dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            // Currency dropdown
+            const currencyDropdown = document.querySelector('.currency-dropdown');
+            const currencyMenuEl = document.getElementById('currency-dropdown-menu');
+            if (currencyDropdown && currencyMenuEl && !currencyDropdown.contains(e.target)) {
+                currencyMenuEl.classList.add('hidden');
+                currencyMenuEl.style.display = 'none';
+            }
+            
+            // Language dropdowns
+            document.querySelectorAll('.language-dropdown').forEach(container => {
+                const menu = container.querySelector('.language-dropdown-menu');
+                if (menu && !container.contains(e.target)) {
+                    menu.classList.add('hidden');
+                    menu.style.display = 'none';
                 }
             });
-        }
+            
+            // Profile dropdown
+            const profileDropdownContainer = document.getElementById('profile-dropdown-container');
+            const profileDropdownMenu = document.getElementById('profile-dropdown-menu');
+            if (profileDropdownContainer && profileDropdownMenu && !profileDropdownContainer.contains(e.target)) {
+                profileDropdownMenu.classList.add('hidden');
+                profileDropdownMenu.style.display = 'none';
+            }
+        });
         
         // Mobile currency selector
         const mobileCurrencyOptions = document.querySelectorAll('.mobile-currency-option');
@@ -800,5 +655,251 @@
             });
         });
     });
+    
+    // Navbar AJAX Search Functionality
+    (function() {
+        // Translations
+        const searchTranslations = {
+            topSeller: {!! json_encode(__('shop.top_seller')) !!},
+            new: {!! json_encode(__('shop.new')) !!},
+            giftCards: {!! json_encode(__('shop.gift_cards')) !!},
+            noProducts: {!! json_encode(__('shop.no_products')) !!}
+        };
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        // Initialize search for an input
+        function initSearch(searchInput, searchResults, searchResultsContent, searchClear, searchLoading, isMobile = false) {
+            let searchTimeout = null;
+            let currentSearchRequest = null;
+            
+            // Position the dropdown using fixed positioning
+            function positionDropdown() {
+                const rect = searchInput.getBoundingClientRect();
+                searchResults.style.position = 'fixed';
+                searchResults.style.top = (rect.bottom + 8) + 'px';
+                searchResults.style.left = rect.left + 'px';
+                searchResults.style.width = Math.min(rect.width, window.innerWidth - rect.left - 16) + 'px';
+                searchResults.style.maxWidth = 'calc(100vw - 32px)';
+            }
+            
+            // Show/hide clear button
+            function updateClearButton() {
+                if (searchInput.value.trim().length > 0) {
+                    searchClear.classList.remove('hidden');
+                } else {
+                    searchClear.classList.add('hidden');
+                    hideResults();
+                }
+            }
+            
+            // Clear search
+            searchClear.addEventListener('click', function() {
+                searchInput.value = '';
+                updateClearButton();
+                hideResults();
+                window.location.href = '{{ route("shop") }}';
+            });
+            
+            // Hide results dropdown
+            function hideResults() {
+                searchResults.classList.add('hidden');
+                searchResultsContent.innerHTML = '';
+            }
+            
+            // Show results dropdown
+            function showResults() {
+                positionDropdown();
+                searchResults.classList.remove('hidden');
+            }
+            
+            // Perform AJAX search
+            function performSearch(query) {
+                if (query.trim().length < 2) {
+                    hideResults();
+                    return;
+                }
+                
+                // Cancel previous request if any
+                if (currentSearchRequest) {
+                    currentSearchRequest.abort();
+                }
+                
+                // Show loading
+                searchLoading.classList.remove('hidden');
+                showResults();
+                
+                // Create new request
+                const url = new URL('{{ route("api.search") }}', window.location.origin);
+                url.searchParams.set('q', query);
+                url.searchParams.set('limit', '8');
+                
+                currentSearchRequest = fetch(url.toString(), {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    currentSearchRequest = null;
+                    searchLoading.classList.add('hidden');
+                    
+                    if (data.success && data.results.length > 0) {
+                        renderResults(data.results);
+                    } else {
+                        renderNoResults();
+                    }
+                })
+                .catch(error => {
+                    currentSearchRequest = null;
+                    searchLoading.classList.add('hidden');
+                    if (error.name !== 'AbortError') {
+                        console.error('Search error:', error);
+                        renderNoResults();
+                    }
+                });
+            }
+            
+            // Render search results
+            function renderResults(results) {
+                const imageBaseUrl = '{{ asset("") }}';
+                let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+                
+                results.forEach(function(result) {
+                    const imageSrc = result.image_path ? imageBaseUrl + result.image_path : '';
+                    const imageTag = imageSrc 
+                        ? `<img src="${imageSrc}" alt="${escapeHtml(result.name)}" style="width: 50px; height: 50px; object-fit: contain; border-radius: 8px; background: #ffffff; padding: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); flex-shrink: 0;">`
+                        : `<div style="width: 50px; height: 50px; background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.25rem; flex-shrink: 0;">${result.name.charAt(0).toUpperCase()}</div>`;
+                    
+                    let badges = '';
+                    if (result.is_topseller) {
+                        badges += '<span style="font-size: 0.7rem; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-weight: 600; text-transform: uppercase; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #78350f;">' + escapeHtml(searchTranslations.topSeller) + '</span>';
+                    }
+                    if (result.is_newproduct) {
+                        badges += '<span style="font-size: 0.7rem; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-weight: 600; text-transform: uppercase; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; margin-left: 0.5rem;">' + escapeHtml(searchTranslations.new) + '</span>';
+                    }
+                    if (result.is_giftcard) {
+                        badges += '<span style="font-size: 0.7rem; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-weight: 600; text-transform: uppercase; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; margin-left: 0.5rem;">' + escapeHtml(searchTranslations.giftCards) + '</span>';
+                    }
+                    
+                    html += `
+                        <a href="${result.route}" class="navbar-search-result-card" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-radius: 0.75rem; transition: all 0.2s ease; cursor: pointer; text-decoration: none; color: inherit;">
+                            ${imageTag}
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; font-size: 0.9rem; color: #111827; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(result.name)}</div>
+                                ${badges ? `<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">${badges}</div>` : ''}
+                            </div>
+                        </a>
+                    `;
+                });
+                
+                html += '</div>';
+                searchResultsContent.innerHTML = html;
+                showResults();
+            }
+            
+            // Render no results message
+            function renderNoResults() {
+                searchResultsContent.innerHTML = `
+                    <div style="padding: 2rem; text-align: center; color: #6b7280;">
+                        <p>${escapeHtml(searchTranslations.noProducts)}</p>
+                    </div>
+                `;
+                showResults();
+            }
+            
+            // Input event with debouncing
+            searchInput.addEventListener('input', function() {
+                updateClearButton();
+                const query = this.value.trim();
+                
+                // Clear previous timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+                
+                // Set new timeout for debouncing (300ms)
+                searchTimeout = setTimeout(function() {
+                    performSearch(query);
+                }, 300);
+            });
+            
+            // Focus event
+            searchInput.addEventListener('focus', function() {
+                if (this.value.trim().length >= 2) {
+                    performSearch(this.value.trim());
+                }
+            });
+            
+            // Hide dropdown on scroll
+            window.addEventListener('scroll', function() {
+                if (!searchResults.classList.contains('hidden')) {
+                    hideResults();
+                }
+            }, { passive: true });
+            
+            // Reposition on resize
+            window.addEventListener('resize', function() {
+                if (!searchResults.classList.contains('hidden')) {
+                    positionDropdown();
+                }
+            }, { passive: true });
+            
+            // Hide results when clicking outside
+            document.addEventListener('click', function(event) {
+                const wrapper = searchInput.closest('[id$="-search-wrapper"]');
+                if (!wrapper.contains(event.target) && !searchResults.contains(event.target)) {
+                    hideResults();
+                }
+            });
+            
+            // Initialize clear button state
+            updateClearButton();
+        }
+        
+        // Initialize desktop search
+        const navbarSearchInput = document.getElementById('navbar-search-input');
+        const navbarSearchResults = document.getElementById('navbar-search-results');
+        const navbarSearchResultsContent = document.getElementById('navbar-search-results-content');
+        const navbarSearchClear = document.getElementById('navbar-search-clear');
+        const navbarSearchLoading = document.getElementById('navbar-search-loading');
+        
+        if (navbarSearchInput) {
+            initSearch(navbarSearchInput, navbarSearchResults, navbarSearchResultsContent, navbarSearchClear, navbarSearchLoading, false);
+        }
+        
+        // Initialize mobile search
+        const mobileSearchInput = document.getElementById('mobile-search-input');
+        const mobileSearchResults = document.getElementById('mobile-search-results');
+        const mobileSearchResultsContent = document.getElementById('mobile-search-results-content');
+        const mobileSearchClear = document.getElementById('mobile-search-clear');
+        const mobileSearchLoading = document.getElementById('mobile-search-loading');
+        
+        if (mobileSearchInput) {
+            initSearch(mobileSearchInput, mobileSearchResults, mobileSearchResultsContent, mobileSearchClear, mobileSearchLoading, true);
+        }
+        
+        // Add hover styles for result cards
+        const style = document.createElement('style');
+        style.textContent = `
+            .navbar-search-result-card:hover {
+                background-color: #f3f4f6;
+                transform: translateX(4px);
+            }
+        `;
+        document.head.appendChild(style);
+    })();
 </script>
 

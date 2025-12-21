@@ -2,7 +2,7 @@
 
 return [
     'title' => 'About DiasZone',
-    'subtitle' => 'Your trusted partner for Mobile Legends diamond recharges in Algeria',
+    'subtitle' => 'Your trusted partner for recharges in Algeria',
     'who_we_are' => 'Who We Are',
     'company_name' => 'DiasZone - Algeria\'s Premier Gaming Recharge Platform',
     'description_1' => 'DiasZone is a leading digital gaming services provider based in Algeria, specializing in Mobile Legends diamond recharges. We are committed to providing fast, secure, and reliable recharge services to gamers across Algeria and beyond.',

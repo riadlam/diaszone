@@ -259,6 +259,7 @@ return [
     'cart_items_missing_userid_server' => 'Some cart items are missing required information (User ID or Server). Please check your cart.',
     'cart_items_missing_player_id' => 'Some cart items are missing required information (Player ID). Please check your cart.',
     'cart_items_missing_userid_zone_id' => 'Some cart items are missing required information (User ID or Zone ID). Please check your cart.',
+    'cart_items_missing_user_id' => 'Some cart items are missing required information (User ID). Please check your cart.',
     'topup_completed' => 'Top-up completed — Order #:order',
     'transaction_history' => 'Transaction History',
     'recent_wallet_activity' => 'Recent wallet activity and balance changes',

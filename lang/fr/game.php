@@ -80,4 +80,13 @@ return [
     'honor_point_value_pack' => 'Pack de valeur de points d\'honneur',
     'premium_purchase_rebate_pack' => 'Pack de remboursement d\'achat premium',
     'special_pack' => 'Pack spécial',
+    
+    // Product Features
+    'instant' => 'Instantané',
+    'validity_guarantee' => 'Garantie de validité',
+    'reviews' => 'Avis',
+    'topup' => 'Recharge',
+    'delivery_type' => 'Type de livraison',
+    'delivery_time' => '1~30 Min',
+    'delivery_time_text' => 'Délai de livraison',
 ];

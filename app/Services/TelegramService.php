@@ -304,7 +304,7 @@ class TelegramService
         
         // Load order items if available (multi-item orders)
         if (!$order->relationLoaded('orderItems')) {
-            $order->load('orderItems.diamondPack');
+            $order->load('orderItems.diamondPack', 'orderItems.item4gamerOrders');
         }
         $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
         
@@ -360,19 +360,63 @@ class TelegramService
         if ($hasOrderItems) {
             $totalRequired = $order->orderItems->sum('quantity');
             $totalCompleted = 0;
+            $totalItem4GamerCompleted = 0;
+            $hasItem4Gamer = false;
+            
             foreach ($order->orderItems as $item) {
-                $totalCompleted += $item->successfulTopupsCount();
+                // Check for Digiflazz (for ML, FF, PUBG)
+                $digiflazzCompleted = $item->successfulTopupsCount();
+                $totalCompleted += $digiflazzCompleted;
+                
+                // Check for Item4Gamer (for other games)
+                if (method_exists($item, 'item4gamerOrders')) {
+                    $item4gamerOrder = $item->item4gamerOrders->first();
+                    if ($item4gamerOrder) {
+                        $hasItem4Gamer = true;
+                        if (in_array(strtolower($item4gamerOrder->status ?? ''), ['completed', 'success'])) {
+                            $totalItem4GamerCompleted++;
+                        }
+                    }
+                }
             }
-            $message .= "🔁 <b>Top-ups Progress:</b> {$totalCompleted}/{$totalRequired} completed\n";
+            
+            // Show overall progress
+            $overallCompleted = $totalCompleted + $totalItem4GamerCompleted;
+            $message .= "🔁 <b>Top-ups Progress:</b> {$overallCompleted}/{$totalRequired} completed\n";
             
             // Show progress per pack
             foreach ($order->orderItems as $item) {
                 $itemPack = $item->diamondPack;
+                $itemGameType = $itemPack->game_type ?? 'mobilelegends';
                 $itemName = $itemPack->name ?? ($itemPack->diamonds . ' ' . $currencyText);
-                $completed = $item->successfulTopupsCount();
                 $required = $item->quantity;
-                $progressIcons = str_repeat('✅', $completed) . str_repeat('⏳', max(0, $required - $completed));
-                $message .= "   • {$escape($itemName)}: {$completed}/{$required} {$progressIcons}\n";
+                
+                // Check if this item uses Digiflazz or Item4Gamer
+                $digiflazzGames = ['mobilelegends', 'freefire', 'pubgmobile'];
+                $usesDigiflazz = in_array($itemGameType, $digiflazzGames);
+                
+                $completed = 0;
+                $providerInfo = '';
+                
+                if ($usesDigiflazz) {
+                    $completed = $item->successfulTopupsCount();
+                    $providerInfo = ' (Digiflazz)';
+                } else {
+                    // Item4Gamer
+                    if (method_exists($item, 'item4gamerOrders')) {
+                        $item4gamerOrder = $item->item4gamerOrders->first();
+                        if ($item4gamerOrder) {
+                            $status = strtolower($item4gamerOrder->status ?? '');
+                            if (in_array($status, ['completed', 'success'])) {
+                                $completed = $required; // Item4Gamer handles quantity in one call
+                            }
+                            $providerInfo = " (Item4Gamer #{$item4gamerOrder->item4gamer_order_id})";
+                        }
+                    }
+                }
+                
+                $progressIcons = str_repeat('✅', min($completed, $required)) . str_repeat('⏳', max(0, $required - $completed));
+                $message .= "   • {$escape($itemName)}: {$completed}/{$required} {$progressIcons}{$providerInfo}\n";
             }
         } elseif (!empty($order->quantity) && $order->quantity > 1) {
             $succeeded = method_exists($order, 'successfulDigiflazzTopupsCount') ? $order->successfulDigiflazzTopupsCount() : 0;
@@ -413,6 +457,14 @@ class TelegramService
             if ($order->server_bs) {
                 $message .= "🖥️ <b>Server:</b> {$escape($order->server_bs)}\n";
             }
+        } else {
+            // For new games (Genshin Impact, etc.) - use save_id and server
+            if ($order->save_id) {
+                $message .= "🆔 <b>User ID:</b> {$escape($order->save_id)}\n";
+            }
+            if ($order->server) {
+                $message .= "🖥️ <b>Server:</b> {$escape($order->server)}\n";
+            }
         }
         
         // Add provider balance if available: prefer VipResellerStatus, fall back to DigiflazzStatus
@@ -439,6 +491,22 @@ class TelegramService
 
         if ($balance !== null) {
             $message .= "\n💳 <b>Provider Balance:</b> " . number_format($balance, 0) . " IDR";
+        }
+        
+        // Add Item4Gamer order IDs if present
+        if ($hasOrderItems) {
+            $item4gamerOrderIds = [];
+            foreach ($order->orderItems as $item) {
+                if (method_exists($item, 'item4gamerOrders')) {
+                    $item4gamerOrder = $item->item4gamerOrders->first();
+                    if ($item4gamerOrder && $item4gamerOrder->item4gamer_order_id) {
+                        $item4gamerOrderIds[] = $item4gamerOrder->item4gamer_order_id;
+                    }
+                }
+            }
+            if (!empty($item4gamerOrderIds)) {
+                $message .= "\n🎮 <b>Item4Gamer Order IDs:</b> " . implode(', ', $item4gamerOrderIds);
+            }
         }
         
         // Format date in Algeria timezone (Africa/Algiers - UTC+1)

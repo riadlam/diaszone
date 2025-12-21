@@ -48,6 +48,15 @@ return [
     'note_mobilelegends' => 'This Top Up service is available for all regions.',
     'note_freefire' => 'This Top Up service not applicable to Indonesia, Vietnam, and India users.',
     'note_pubgmobile' => 'This Top Up service is available for all regions.',
+    
+    // Product Features
+    'instant' => 'Instant',
+    'validity_guarantee' => 'Validity Guarantee',
+    'reviews' => 'Reviews',
+    'topup' => 'Topup',
+    'delivery_type' => 'Delivery Type',
+    'delivery_time' => '1~30 Min',
+    'delivery_time_text' => 'Delivery Time',
     'note_honorofkings' => 'This Top Up service is available for all regions.',
     'note_bloodstrike' => 'This Top Up service is available for all regions.',
     

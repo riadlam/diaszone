@@ -28,6 +28,9 @@ class AdminController extends Controller
             ->with('diamondPack')
             ->get()
             ->sum(function ($order) {
+                if (!$order->diamondPack) {
+                    return 0;
+                }
                 $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
                 $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
                 $discountAmount = ($priceDzd * $discountPercentage) / 100;
@@ -39,6 +42,9 @@ class AdminController extends Controller
             ->with('diamondPack')
             ->get()
             ->sum(function ($order) {
+                if (!$order->diamondPack) {
+                    return 0;
+                }
                 $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
                 $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
                 $discountAmount = ($priceDzd * $discountPercentage) / 100;
@@ -51,6 +57,9 @@ class AdminController extends Controller
             ->with('diamondPack')
             ->get()
             ->sum(function ($order) {
+                if (!$order->diamondPack) {
+                    return 0;
+                }
                 $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
                 $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
                 $discountAmount = ($priceDzd * $discountPercentage) / 100;
@@ -77,34 +86,43 @@ class AdminController extends Controller
             ->take(5)
             ->get()
             ->map(function ($order) {
-                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                $gameType = 'mobilelegends';
                 $currencyText = 'Diamonds';
                 $gameName = 'Mobile Legends';
 
-                if ($gameType === 'freefire') {
-                    $currencyText = 'Diamonds';
-                    $gameName = 'Free Fire';
-                } elseif ($gameType === 'pubgmobile') {
-                    $currencyText = 'UC';
-                    $gameName = 'PUBG Mobile';
-                } elseif ($gameType === 'honorofkings') {
-                    $currencyText = 'Tokens';
-                    $gameName = 'Honor of Kings';
-                } elseif ($gameType === 'bloodstrike') {
-                    $currencyText = 'Golds';
-                    $gameName = 'Blood Strike';
+                if ($order->diamondPack) {
+                    $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                    if ($gameType === 'freefire') {
+                        $currencyText = 'Diamonds';
+                        $gameName = 'Free Fire';
+                    } elseif ($gameType === 'pubgmobile') {
+                        $currencyText = 'UC';
+                        $gameName = 'PUBG Mobile';
+                    } elseif ($gameType === 'honorofkings') {
+                        $currencyText = 'Tokens';
+                        $gameName = 'Honor of Kings';
+                    } elseif ($gameType === 'bloodstrike') {
+                        $currencyText = 'Golds';
+                        $gameName = 'Blood Strike';
+                    }
                 }
 
-                $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
-                if ($order->diamondPack->bonus_diamonds > 0) {
-                    $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
+                $packName = 'N/A';
+                if ($order->diamondPack) {
+                    $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
+                    if ($order->diamondPack->bonus_diamonds > 0) {
+                        $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
+                    }
                 }
 
                 // Calculate amount from price_dzd with discount
-                $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
-                $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
-                $discountAmount = ($priceDzd * $discountPercentage) / 100;
-                $amount = $priceDzd - $discountAmount;
+                $amount = 0;
+                if ($order->diamondPack) {
+                    $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
+                    $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
+                    $discountAmount = ($priceDzd * $discountPercentage) / 100;
+                    $amount = $priceDzd - $discountAmount;
+                }
 
                 return [
                     'id' => $order->order_number,
@@ -116,7 +134,7 @@ class AdminController extends Controller
                 ];
             });
 
-        return view('admin.dashboard', compact('stats', 'recentUsers', 'recentOrders', 'revenueChart'));
+        return view('admin.dashboard', compact('stats', 'recentUsers', 'recentOrders'));
     }
 
     /**
@@ -209,24 +227,30 @@ class AdminController extends Controller
         
         // Transform orders for DataTables
         $data = $orders->map(function ($order) {
-            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            $gameType = 'mobilelegends';
             $gameName = 'Mobile Legends';
             
-            if ($gameType === 'freefire') {
-                $gameName = 'Free Fire';
-            } elseif ($gameType === 'pubgmobile') {
-                $gameName = 'PUBG Mobile';
-            } elseif ($gameType === 'honorofkings') {
-                $gameName = 'Honor of Kings';
-            } elseif ($gameType === 'bloodstrike') {
-                $gameName = 'Blood Strike';
+            if ($order->diamondPack) {
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                if ($gameType === 'freefire') {
+                    $gameName = 'Free Fire';
+                } elseif ($gameType === 'pubgmobile') {
+                    $gameName = 'PUBG Mobile';
+                } elseif ($gameType === 'honorofkings') {
+                    $gameName = 'Honor of Kings';
+                } elseif ($gameType === 'bloodstrike') {
+                    $gameName = 'Blood Strike';
+                }
             }
             
             // Calculate amount from price_dzd with discount
-            $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
-            $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
-            $discountAmount = ($priceDzd * $discountPercentage) / 100;
-            $amount = $priceDzd - $discountAmount;
+            $amount = 0;
+            if ($order->diamondPack) {
+                $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
+                $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
+                $discountAmount = ($priceDzd * $discountPercentage) / 100;
+                $amount = $priceDzd - $discountAmount;
+            }
             
             // Status class
             $status = $order->status;
@@ -323,34 +347,42 @@ class AdminController extends Controller
             ->where('order_number', $orderNumber)
             ->firstOrFail();
 
-        $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+        $gameType = 'mobilelegends';
         $currencyText = 'Diamonds';
         $gameName = 'Mobile Legends';
         
-        if ($gameType === 'freefire') {
-            $currencyText = 'Diamonds';
-            $gameName = 'Free Fire';
-        } elseif ($gameType === 'pubgmobile') {
-            $currencyText = 'UC';
-            $gameName = 'PUBG Mobile';
-        } elseif ($gameType === 'honorofkings') {
-            $currencyText = 'Tokens';
-            $gameName = 'Honor of Kings';
-        } elseif ($gameType === 'bloodstrike') {
-            $currencyText = 'Golds';
-            $gameName = 'Blood Strike';
-        }
-        
-        $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
-        if ($order->diamondPack->bonus_diamonds > 0) {
-            $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
+        if ($order->diamondPack) {
+            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            if ($gameType === 'freefire') {
+                $currencyText = 'Diamonds';
+                $gameName = 'Free Fire';
+            } elseif ($gameType === 'pubgmobile') {
+                $currencyText = 'UC';
+                $gameName = 'PUBG Mobile';
+            } elseif ($gameType === 'honorofkings') {
+                $currencyText = 'Tokens';
+                $gameName = 'Honor of Kings';
+            } elseif ($gameType === 'bloodstrike') {
+                $currencyText = 'Golds';
+                $gameName = 'Blood Strike';
+            }
+            
+            $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
+            if ($order->diamondPack->bonus_diamonds > 0) {
+                $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
+            }
+        } else {
+            $packName = 'N/A';
         }
         
         // Calculate amount from price_dzd with discount
-        $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
-        $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
-        $discountAmount = ($priceDzd * $discountPercentage) / 100;
-        $amount = $priceDzd - $discountAmount;
+        $amount = 0;
+        if ($order->diamondPack) {
+            $priceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
+            $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
+            $discountAmount = ($priceDzd * $discountPercentage) / 100;
+            $amount = $priceDzd - $discountAmount;
+        }
 
         // Prepare payment information
         $paymentInfo = [];
@@ -677,10 +709,11 @@ class AdminController extends Controller
             if ($hasOrderItems) {
                 // Multi-item order: get game type from first order item
                 $order->load('orderItems.diamondPack');
-                $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
+                $firstItem = $order->orderItems->first();
+                $gameType = ($firstItem && $firstItem->diamondPack) ? ($firstItem->diamondPack->game_type ?? 'mobilelegends') : 'mobilelegends';
             } elseif ($order->diamondPack) {
                 // Legacy single-pack order
-            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             } else {
                 Log::error('Recharge aborted: No diamond pack or order items found', [
                     'order_id' => $order->id,
@@ -755,7 +788,7 @@ class AdminController extends Controller
             ]);
 
             // Get package code from diamond_packs
-            $packageCode = $order->diamondPack->code ?? null;
+            $packageCode = $order->diamondPack ? ($order->diamondPack->code ?? null) : null;
             
             if (empty($packageCode)) {
                 Log::warning('Recharge skipped: Missing package code', [
@@ -1286,7 +1319,7 @@ class AdminController extends Controller
                     'price' => null,
                     'additional_data' => [
                         'exception' => $e->getMessage(),
-                        'service' => $order->diamondPack->code ?? null,
+                        'service' => $order->diamondPack ? ($order->diamondPack->code ?? null) : null,
                     ],
                 ]);
             } catch (\Exception $saveException) {
@@ -2010,8 +2043,14 @@ class AdminController extends Controller
                     
                     // Send receipt photo
                     $caption = "📄 <b>Receipt for Order:</b> {$order->order_number}\n";
-                    $caption .= "📦 <b>Pack:</b> " . ($order->diamondPack->name ?? 'N/A') . "\n";
-                    $caption .= "💰 <b>Amount:</b> " . number_format(($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260)), 0) . " DZD";
+                    $packName = 'N/A';
+                    $amount = 0;
+                    if ($order->diamondPack) {
+                        $packName = $order->diamondPack->name ?? 'N/A';
+                        $amount = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
+                    }
+                    $caption .= "📦 <b>Pack:</b> " . $packName . "\n";
+                    $caption .= "💰 <b>Amount:</b> " . number_format($amount, 0) . " DZD";
                     
                     TelegramService::sendPhoto($receiptUrl, $caption);
                     
