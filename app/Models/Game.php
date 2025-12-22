@@ -14,6 +14,7 @@ class Game extends Model
         'is_giftcard',
         'is_newproduct',
         'required_fields',
+        'sort_order',
     ];
 
     protected $casts = [

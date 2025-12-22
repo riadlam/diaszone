@@ -47,6 +47,8 @@ class HomeController extends Controller
             ->where('is_active', true)
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
+            ->orderBy('sort_order')
+            ->orderBy('name')
             ->get()
             ->map(function($game) {
                 $imagePath = $this->findGameImage($game->game_type, $game->name);
@@ -83,6 +85,8 @@ class HomeController extends Controller
             ->where('is_active', true)
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
+            ->orderBy('sort_order')
+            ->orderBy('name')
             ->get()
             ->map(function($game) {
                 $imagePath = $this->findGameImage($game->game_type, $game->name);
@@ -119,6 +123,8 @@ class HomeController extends Controller
             ->where('is_active', true)
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
+            ->orderBy('sort_order')
+            ->orderBy('name')
             ->get()
             ->map(function($game) {
                 $imagePath = $this->findGameImage($game->game_type, $game->name);
@@ -180,7 +186,13 @@ class HomeController extends Controller
         }
         
         // Get paginated games (16 per page) with review counts and avg ratings
-        $games = $query->withCount('reviews')->withAvg('reviews', 'rating')->orderBy('name')->paginate(16)->appends($request->query());
+        // Sort by category groups first (topseller, newproduct, giftcard), then by sort_order within each group, then by name
+        $games = $query->withCount('reviews')
+            ->withAvg('reviews', 'rating')
+            ->orderByRaw('is_topseller DESC, is_newproduct DESC, is_giftcard DESC')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->paginate(16)->appends($request->query());
         
         // Transform games with image paths and routes
         $games->getCollection()->transform(function($game) {
@@ -244,7 +256,12 @@ class HomeController extends Controller
         });
         
         // Get games (limit to 10-20 for performance)
-        $games = $query->orderBy('name')->limit($limit)->get();
+        // Sort by category groups first, then by sort_order, then by name
+        $games = $query->orderByRaw('is_topseller DESC, is_newproduct DESC, is_giftcard DESC')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->limit($limit)
+            ->get();
         
         // Transform games
         $results = $games->map(function($game) {
