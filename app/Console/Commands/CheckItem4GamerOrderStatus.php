@@ -90,10 +90,10 @@ class CheckItem4GamerOrderStatus extends Command
                         ]);
                     }
 
-                    // Check if parent order should be updated
+                    // Check if parent order should be updated (pass statusChanged flag)
                     $order = $item4gamerOrder->order;
                     if ($order) {
-                        $this->checkAndUpdateOrderStatus($order);
+                        $this->checkAndUpdateOrderStatus($order, $newStatus !== $oldStatus);
                     }
                 } catch (\Exception $e) {
                     $this->error("Error checking Item4Gamer order {$item4gamerOrder->item4gamer_order_id}: {$e->getMessage()}");
@@ -121,8 +121,11 @@ class CheckItem4GamerOrderStatus extends Command
 
     /**
      * Check if all order items are completed and update order status accordingly
+     * 
+     * @param Order $order
+     * @param bool $itemStatusChanged Whether an Item4GamerOrder status changed (used to determine if telegram should update)
      */
-    private function checkAndUpdateOrderStatus(Order $order): void
+    private function checkAndUpdateOrderStatus(Order $order, bool $itemStatusChanged = false): void
     {
         $order->load('orderItems.item4gamerOrders');
 
@@ -176,46 +179,47 @@ class CheckItem4GamerOrderStatus extends Command
         }
 
         // Update order status if changed
-        if ($newOrderStatus !== $order->status) {
-            $oldStatus = $order->status;
+        $orderStatusChanged = ($newOrderStatus !== $order->status);
+        if ($orderStatusChanged) {
+            $oldOrderStatus = $order->status;
             $order->status = $newOrderStatus;
             $order->save();
 
-            $this->info("Updated order {$order->order_number} status: {$oldStatus} -> {$newOrderStatus} (Items: {$completedItems}/{$totalItems} completed)");
+            $this->info("Updated order {$order->order_number} status: {$oldOrderStatus} -> {$newOrderStatus} (Items: {$completedItems}/{$totalItems} completed)");
 
             Log::info('Item4Gamer status check: Order status updated', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
-                'old_status' => $oldStatus,
+                'old_status' => $oldOrderStatus,
                 'new_status' => $newOrderStatus,
                 'completed_items' => $completedItems,
                 'total_items' => $totalItems,
                 'failed_items' => $failedItems,
                 'pending_items' => $pendingItems,
             ]);
+        }
 
-            // Update Telegram message if exists
-            if ($order->tlg_message_id) {
-                try {
-                    $order->load('orderItems.diamondPack', 'user', 'seller');
-                    $updatedMessage = TelegramService::formatOrderMessage($order);
-                    
-                    if ($newOrderStatus === 'completed') {
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Completed</b>', $updatedMessage);
-                    } elseif ($newOrderStatus === 'cancelled') {
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '❌ <b>Order Cancelled</b>', $updatedMessage);
-                    } else {
-                        // Show progress like "2/4 completed"
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', "⏳ <b>Order Processing ({$completedItems}/{$totalItems} completed)</b>", $updatedMessage);
-                    }
-                    
-                    TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
-                } catch (\Exception $e) {
-                    Log::error('Item4Gamer status check: Failed to update Telegram message', [
-                        'order_id' => $order->id,
-                        'error' => $e->getMessage(),
-                    ]);
+        // Update Telegram message if order status changed OR if an item status changed (to show progress updates)
+        if (($orderStatusChanged || $itemStatusChanged) && $order->tlg_message_id) {
+            try {
+                $order->load('orderItems.diamondPack', 'orderItems.item4gamerOrders', 'user', 'seller');
+                $updatedMessage = TelegramService::formatOrderMessage($order);
+                
+                if ($newOrderStatus === 'completed') {
+                    $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Completed</b>', $updatedMessage);
+                } elseif ($newOrderStatus === 'cancelled') {
+                    $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '❌ <b>Order Cancelled</b>', $updatedMessage);
+                } else {
+                    // Show progress like "2/4 completed"
+                    $updatedMessage = str_replace('🆕 <b>New Order Created</b>', "⏳ <b>Order Processing ({$completedItems}/{$totalItems} completed)</b>", $updatedMessage);
                 }
+                
+                TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+            } catch (\Exception $e) {
+                Log::error('Item4Gamer status check: Failed to update Telegram message', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }
