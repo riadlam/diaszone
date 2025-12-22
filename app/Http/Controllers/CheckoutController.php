@@ -863,14 +863,53 @@ class CheckoutController extends Controller
         
         try {
             $orderId = Crypt::decryptString($request->input('encrypted_order_id'));
-            $order = Order::with('diamondPack', 'flexy')->findOrFail($orderId);
+            $order = Order::with('diamondPack', 'orderItems.diamondPack', 'flexy')->findOrFail($orderId);
+            
+            // Get game type from first pack (for multi-item orders, use first item's game_type)
+            $gameType = null;
+            if ($order->orderItems && $order->orderItems->count() > 0) {
+                $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
+            } else {
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            }
+            
+            // Get game name from Game model
+            $gameModel = \App\Models\Game::where('game_type', $gameType)->where('is_active', true)->first();
+            $gameName = null;
+            if ($gameModel) {
+                $gameNameFromModel = $gameModel->name;
+                if (strpos($gameNameFromModel, ' - ') !== false) {
+                    $gameName = explode(' - ', $gameNameFromModel)[0];
+                } elseif (preg_match('/^\d+/', $gameNameFromModel) || preg_match('/\d+\s*\+?\s*\d+/', $gameNameFromModel)) {
+                    $gameNames = [
+                        'mobilelegends' => 'Mobile Legends',
+                        'freefire' => 'Free Fire',
+                        'pubgmobile' => 'PUBG Mobile',
+                        'honorofkings' => 'Honor of Kings',
+                        'bloodstrike' => 'Blood Strike',
+                    ];
+                    $gameName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+                } else {
+                    $gameName = $gameNameFromModel;
+                }
+            } else {
+                // Fallback
+                $gameNames = [
+                    'mobilelegends' => 'Mobile Legends',
+                    'freefire' => 'Free Fire',
+                    'pubgmobile' => 'PUBG Mobile',
+                    'honorofkings' => 'Honor of Kings',
+                    'bloodstrike' => 'Blood Strike',
+                ];
+                $gameName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+            }
             
             // Format order data for frontend
             $orderData = [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
                 'status' => $order->status,
-                'flexy_id' => $order->flexy_id, // Include flexy_id to check if payment receipt is uploaded
+                'flexy_id' => $order->flexy_id,
                 'user_id_ml' => $order->user_id_ml,
                 'zone_id_ml' => $order->zone_id_ml,
                 'player_id_ff' => $order->player_id_ff,
@@ -878,10 +917,14 @@ class CheckoutController extends Controller
                 'player_id_hok' => $order->player_id_hok,
                 'user_id_bs' => $order->user_id_bs,
                 'server_bs' => $order->server_bs,
+                'save_id' => $order->save_id, // For new games
+                'server' => $order->server, // For new games
                 'notes' => $order->notes,
                 'created_at' => $order->created_at->format('Y-m-d H:i:s'),
                 'updated_at' => $order->updated_at->format('Y-m-d H:i:s'),
-                'diamond_pack' => [
+                'game_type' => $gameType,
+                'game_name' => $gameName,
+                'diamond_pack' => $order->diamondPack ? [
                     'id' => $order->diamondPack->id,
                     'diamonds' => $order->diamondPack->diamonds,
                     'bonus_diamonds' => $order->diamondPack->bonus_diamonds,
@@ -891,14 +934,39 @@ class CheckoutController extends Controller
                     'discount_percentage' => (float) $order->diamondPack->discount_percentage,
                     'game_type' => $order->diamondPack->game_type ?? 'mobilelegends',
                     'name' => $order->diamondPack->name ?? null,
-                ],
+                ] : null,
+                'order_items' => $order->orderItems ? $order->orderItems->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'quantity' => $item->quantity,
+                        'diamond_pack' => [
+                            'id' => $item->diamondPack->id,
+                            'diamonds' => $item->diamondPack->diamonds,
+                            'bonus_diamonds' => $item->diamondPack->bonus_diamonds,
+                            'price' => (float) $item->diamondPack->price,
+                            'price_usd' => (float) ($item->diamondPack->price_usd ?? $item->diamondPack->price),
+                            'price_dzd' => (float) ($item->diamondPack->price_dzd ?? ($item->diamondPack->price * 260)),
+                            'discount_percentage' => (float) $item->diamondPack->discount_percentage,
+                            'game_type' => $item->diamondPack->game_type ?? 'mobilelegends',
+                            'name' => $item->diamondPack->name ?? null,
+                        ],
+                    ];
+                })->toArray() : [],
             ];
             
-            // Calculate amount
-            $unitPrice = $orderData['diamond_pack']['price'];
-            $discountPercentage = $orderData['diamond_pack']['discount_percentage'] ?? 0;
-            $discountAmount = ($unitPrice * $discountPercentage) / 100;
-            $orderData['amount'] = $unitPrice - $discountAmount;
+            // Calculate amount (use final_price if available, otherwise calculate)
+            if ($order->final_price && $order->final_price > 0) {
+                $orderData['amount'] = (float) $order->final_price;
+            } elseif ($order->orderItems && $order->orderItems->count() > 0) {
+                $orderData['amount'] = (float) $order->orderItems->sum('total_dzd');
+            } elseif ($order->diamondPack) {
+                $unitPrice = $orderData['diamond_pack']['price'];
+                $discountPercentage = $orderData['diamond_pack']['discount_percentage'] ?? 0;
+                $discountAmount = ($unitPrice * $discountPercentage) / 100;
+                $orderData['amount'] = $unitPrice - $discountAmount;
+            } else {
+                $orderData['amount'] = 0;
+            }
             
             return response()->json([
                 'success' => true,

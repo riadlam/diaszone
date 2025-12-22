@@ -339,11 +339,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const statusColor = statusColors[order.status] || 'bg-gray-100 text-gray-800';
             
-            // Determine game type and currency
-            // First try to get from diamond_pack, otherwise infer from order fields
-            let gameType = order.diamond_pack?.game_type;
+            // Get game type and name from API response (already calculated on backend)
+            let gameType = order.game_type || order.diamond_pack?.game_type;
             
-            // Fallback: determine game type from order fields if not in diamond_pack
+            // Fallback: determine game type from order fields if not provided
             if (!gameType) {
                 if (order.user_id_bs && order.server_bs) {
                     gameType = 'bloodstrike';
@@ -358,21 +357,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            let currencyText = 'Diamonds';
-            let gameName = 'Mobile Legends';
+            // Use game name from API response (from Game model), fallback to hardcoded names
+            let gameName = order.game_name || 'Mobile Legends';
+            if (!order.game_name) {
+                if (gameType === 'freefire') {
+                    gameName = 'Free Fire';
+                } else if (gameType === 'pubgmobile') {
+                    gameName = 'PUBG Mobile';
+                } else if (gameType === 'honorofkings') {
+                    gameName = 'Honor of Kings';
+                } else if (gameType === 'bloodstrike') {
+                    gameName = 'Blood Strike';
+                }
+            }
             
-            if (gameType === 'freefire') {
-                currencyText = 'Diamonds';
-                gameName = 'Free Fire';
-            } else if (gameType === 'pubgmobile') {
+            let currencyText = 'Diamonds';
+            if (gameType === 'pubgmobile') {
                 currencyText = 'UC';
-                gameName = 'PUBG Mobile';
             } else if (gameType === 'honorofkings') {
                 currencyText = 'Tokens';
-                gameName = 'Honor of Kings';
             } else if (gameType === 'bloodstrike') {
                 currencyText = 'Golds';
-                gameName = 'Blood Strike';
             }
             
             // Determine pack display name
@@ -388,47 +393,48 @@ document.addEventListener('DOMContentLoaded', function() {
             const bonusText = bonus > 0 ? ` + ${bonus} Bonus ${currencyText}` : '';
             const packDisplayText = packDisplayName + bonusText;
             
-            // Determine game type and display appropriate fields
-            let gameInfo = '';
+            // Determine game type and display appropriate fields (only show if values exist)
+            let gameInfo = `<p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>`;
+            
             if (gameType === 'bloodstrike') {
                 // Blood Strike: User ID and Server
-                const userIdBs = order.user_id_bs || '';
-                const serverBs = order.server_bs || 'Global';
-                gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${userIdBs}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.server}:</span> ${serverBs}</p>
-                `;
+                if (order.user_id_bs) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${order.user_id_bs}</p>`;
+                }
+                if (order.server_bs) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.server}:</span> ${order.server_bs}</p>`;
+                }
             } else if (gameType === 'freefire') {
                 // Free Fire: Player ID
-                const playerId = order.player_id_ff || '';
-                gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${playerId}</p>
-                `;
+                if (order.player_id_ff) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${order.player_id_ff}</p>`;
+                }
             } else if (gameType === 'pubgmobile') {
                 // PUBG Mobile: Player ID
-                const playerId = order.player_id_pubg || '';
-                gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${playerId}</p>
-                `;
+                if (order.player_id_pubg) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${order.player_id_pubg}</p>`;
+                }
             } else if (gameType === 'honorofkings') {
                 // Honor of Kings: Player ID
-                const playerId = order.player_id_hok || '';
-                gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${playerId}</p>
-                `;
+                if (order.player_id_hok) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.player_id}:</span> ${order.player_id_hok}</p>`;
+                }
+            } else if (gameType === 'mobilelegends') {
+                // Mobile Legends: User ID and Zone ID
+                if (order.user_id_ml) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${order.user_id_ml}</p>`;
+                }
+                if (order.zone_id_ml) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.zone_id}:</span> ${order.zone_id_ml}</p>`;
+                }
             } else {
-                // Mobile Legends (default): User ID and Zone ID
-                const userId = order.user_id_ml || '';
-                const zoneId = order.zone_id_ml || '';
-                gameInfo = `
-                    <p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${userId}</p>
-                    <p class="text-sm text-gray-600"><span class="font-medium">${translations.zone_id}:</span> ${zoneId}</p>
-                `;
+                // New games: save_id (User ID) and optionally server
+                if (order.save_id) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${order.save_id}</p>`;
+                }
+                if (order.server) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.server}:</span> ${order.server}</p>`;
+                }
             }
             
             // Continue Payment button (show based on pending status)
