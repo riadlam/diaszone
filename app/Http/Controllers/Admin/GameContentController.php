@@ -94,7 +94,7 @@ class GameContentController extends Controller
 
         GameImage::create([
             'game_id' => $game->id,
-            'image_path' => 'storage/' . $imagePath,
+            'image_path' => 'storage_public/' . $imagePath,
             'image_type' => $request->image_type,
             'display_order' => $request->display_order ?? 0,
             'alt_text' => $request->alt_text,
@@ -111,8 +111,12 @@ class GameContentController extends Controller
     public function deleteImage(Game $game, GameImage $image)
     {
         // Delete file from storage
-        if ($image->image_path && Storage::disk('public')->exists(str_replace('storage/', '', $image->image_path))) {
-            Storage::disk('public')->delete(str_replace('storage/', '', $image->image_path));
+        if ($image->image_path) {
+            // Remove 'storage/' or 'storage_public/' prefix to get relative path
+            $relativePath = str_replace(['storage/', 'storage_public/'], '', $image->image_path);
+            if (Storage::disk('public')->exists($relativePath)) {
+                Storage::disk('public')->delete($relativePath);
+            }
         }
 
         $image->delete();
