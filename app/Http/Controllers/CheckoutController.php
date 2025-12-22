@@ -703,7 +703,7 @@ class CheckoutController extends Controller
             // Create single order with multiple order_items
             return DB::transaction(function () use (
                 $userId, $gameType, $user_id_ml, $zone_id_ml, $player_id_ff, $player_id_pubg,
-                $player_id_hok, $user_id_bs, $server_bs, $cartItems, $packs, $orderStatus, $paymentMethod
+                $player_id_hok, $user_id_bs, $server_bs, $save_id, $server, $cartItems, $packs, $orderStatus, $paymentMethod
             ) {
                 // Determine which pack to use as primary (first pack)
                 $primaryPack = reset($packs);
