@@ -31,21 +31,41 @@
                 </div>
                 @php
                     $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
-                    $currencyText = 'Diamonds';
-                    $gameName = 'Mobile Legends';
                     
-                    if ($gameType === 'freefire') {
-                        $currencyText = 'Diamonds';
-                        $gameName = 'Free Fire';
-                    } elseif ($gameType === 'pubgmobile') {
+                    // Get game name from Game model
+                    $gameModel = \App\Models\Game::where('game_type', $gameType)->where('is_active', true)->first();
+                    if ($gameModel) {
+                        $gameName = $gameModel->name;
+                        if (strpos($gameName, ' - ') !== false) {
+                            $gameName = explode(' - ', $gameName)[0];
+                        } elseif (preg_match('/^\d+/', $gameName) || preg_match('/\d+\s*\+?\s*\d+/', $gameName)) {
+                            $gameNames = [
+                                'mobilelegends' => 'Mobile Legends',
+                                'freefire' => 'Free Fire',
+                                'pubgmobile' => 'PUBG Mobile',
+                                'honorofkings' => 'Honor of Kings',
+                                'bloodstrike' => 'Blood Strike',
+                            ];
+                            $gameName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+                        }
+                    } else {
+                        $gameNames = [
+                            'mobilelegends' => 'Mobile Legends',
+                            'freefire' => 'Free Fire',
+                            'pubgmobile' => 'PUBG Mobile',
+                            'honorofkings' => 'Honor of Kings',
+                            'bloodstrike' => 'Blood Strike',
+                        ];
+                        $gameName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+                    }
+                    
+                    $currencyText = 'Diamonds';
+                    if ($gameType === 'pubgmobile') {
                         $currencyText = 'UC';
-                        $gameName = 'PUBG Mobile';
                     } elseif ($gameType === 'honorofkings') {
                         $currencyText = 'Tokens';
-                        $gameName = 'Honor of Kings';
                     } elseif ($gameType === 'bloodstrike') {
                         $currencyText = 'Golds';
-                        $gameName = 'Blood Strike';
                     }
                     
                     $packDisplayName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
@@ -61,38 +81,66 @@
                     <span class="text-sm font-semibold text-purple-600">{{ $packDisplayName }}{{ $bonusText }}</span>
                 </div>
                 @if($gameType === 'bloodstrike')
+                    @if($order->user_id_bs)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.user_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_bs }}</span>
                     </div>
+                    @endif
+                    @if($order->server_bs)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.server') }}</span>
-                        <span class="text-sm font-mono text-gray-900">{{ $order->server_bs ?? 'Global' }}</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->server_bs }}</span>
                     </div>
+                    @endif
                 @elseif($gameType === 'freefire')
+                    @if($order->player_id_ff)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.player_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_ff }}</span>
                     </div>
+                    @endif
                 @elseif($gameType === 'pubgmobile')
+                    @if($order->player_id_pubg)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.player_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_pubg }}</span>
                     </div>
+                    @endif
                 @elseif($gameType === 'honorofkings')
+                    @if($order->player_id_hok)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.player_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_hok }}</span>
                     </div>
-                @else
+                    @endif
+                @elseif($gameType === 'mobilelegends')
+                    @if($order->user_id_ml)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.user_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->user_id_ml }}</span>
                     </div>
+                    @endif
+                    @if($order->zone_id_ml)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.zone_id') }}</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->zone_id_ml }}</span>
                     </div>
+                    @endif
+                @else
+                    {{-- New games: save_id (User ID) and optionally server --}}
+                    @if($order->save_id)
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">{{ __('checkout.user_id') }}</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->save_id }}</span>
+                    </div>
+                    @endif
+                    @if($order->server)
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">{{ __('checkout.server') }}</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->server }}</span>
+                    </div>
+                    @endif
                 @endif
             </div>
         </div>
