@@ -71,12 +71,25 @@ class Item4GamerService
         ];
 
         try {
+            // Log the request details for debugging
+            Log::info('Item4Gamer placeOrder request', [
+                'url' => $this->baseUrl . '/order/add-order',
+                'payload' => $payload,
+                'api_key_preview' => substr($this->apiKey, 0, 10) . '...' . substr($this->apiKey, -5),
+                'api_key_length' => strlen($this->apiKey),
+            ]);
+            
+            // Item4Gamer API - match exact curl format that works
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
                 'api-key' => $this->apiKey,
+                'User-Agent' => 'PostmanRuntime/7.39.0',
             ])->post($this->baseUrl . '/order/add-order', $payload);
 
+            $statusCode = $response->status();
             $json = $response->json();
+            $body = $response->body();
 
             // Check if response is successful
             if ($response->successful() && isset($json['data']['status']) && $json['data']['status'] == 200) {
@@ -91,7 +104,20 @@ class Item4GamerService
                     'full_response' => $json,
                 ];
             } else {
-                $errorMessage = $json['message'] ?? ($json['data']['message'] ?? 'Unknown error from Item4Gamer API');
+                // Handle different error scenarios
+                $errorMessage = 'Unknown error from Item4Gamer API';
+                
+                if ($statusCode === 403) {
+                    $errorMessage = 'Item4Gamer API: Access forbidden. Please check your API key.';
+                } elseif ($statusCode === 401) {
+                    $errorMessage = 'Item4Gamer API: Unauthorized. Invalid API key.';
+                } elseif ($json) {
+                    $errorMessage = $json['message'] ?? ($json['data']['message'] ?? ($json['error'] ?? 'Unknown error from Item4Gamer API'));
+                } elseif ($body) {
+                    $errorMessage = "Item4Gamer API error (HTTP {$statusCode}): " . substr($body, 0, 200);
+                } else {
+                    $errorMessage = "Item4Gamer API error (HTTP {$statusCode}): No response body";
+                }
                 
                 Log::error('Item4Gamer placeOrder failed', [
                     'order_id' => $order->id,
@@ -99,8 +125,10 @@ class Item4GamerService
                     'variation_id' => $pack->code,
                     'player_id' => $playerId,
                     'quantity' => $quantity,
-                    'response' => $json,
-                    'status_code' => $response->status(),
+                    'status_code' => $statusCode,
+                    'response_body' => $body,
+                    'response_json' => $json,
+                    'api_key_preview' => substr($this->apiKey, 0, 10) . '...' . substr($this->apiKey, -5),
                 ]);
 
                 return [
@@ -109,7 +137,7 @@ class Item4GamerService
                     'order_id' => null,
                     'total' => null,
                     'currency' => null,
-                    'full_response' => $json,
+                    'full_response' => $json ?? ['raw_body' => $body],
                 ];
             }
         } catch (\Exception $e) {
@@ -150,14 +178,18 @@ class Item4GamerService
         }
 
         try {
+            // Match exact curl format that works
             $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
                 'api-key' => $this->apiKey,
+                'User-Agent' => 'PostmanRuntime/7.39.0',
             ])->get($this->baseUrl . '/order/get-order', [
                 'order_id' => $orderId,
             ]);
 
+            $statusCode = $response->status();
             $json = $response->json();
+            $body = $response->body();
 
             // Check if response is successful
             if ($response->successful() && isset($json['data']['status']) && $json['data']['status'] == 200) {
@@ -172,12 +204,26 @@ class Item4GamerService
                     'full_response' => $json,
                 ];
             } else {
-                $errorMessage = $json['message'] ?? ($json['data']['message'] ?? 'Unknown error from Item4Gamer API');
+                // Handle different error scenarios
+                $errorMessage = 'Unknown error from Item4Gamer API';
+                
+                if ($statusCode === 403) {
+                    $errorMessage = 'Item4Gamer API: Access forbidden. Please check your API key.';
+                } elseif ($statusCode === 401) {
+                    $errorMessage = 'Item4Gamer API: Unauthorized. Invalid API key.';
+                } elseif ($json) {
+                    $errorMessage = $json['message'] ?? ($json['data']['message'] ?? ($json['error'] ?? 'Unknown error from Item4Gamer API'));
+                } elseif ($body) {
+                    $errorMessage = "Item4Gamer API error (HTTP {$statusCode}): " . substr($body, 0, 200);
+                } else {
+                    $errorMessage = "Item4Gamer API error (HTTP {$statusCode}): No response body";
+                }
                 
                 Log::warning('Item4Gamer getOrderStatus failed', [
                     'item4gamer_order_id' => $orderId,
-                    'response' => $json,
-                    'status_code' => $response->status(),
+                    'status_code' => $statusCode,
+                    'response_body' => $body,
+                    'response_json' => $json,
                 ]);
 
                 return [
@@ -185,7 +231,7 @@ class Item4GamerService
                     'message' => $errorMessage,
                     'status' => null,
                     'order_data' => null,
-                    'full_response' => $json,
+                    'full_response' => $json ?? ['raw_body' => $body],
                 ];
             }
         } catch (\Exception $e) {
