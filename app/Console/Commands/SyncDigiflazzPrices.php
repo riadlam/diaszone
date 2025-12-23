@@ -53,6 +53,8 @@ class SyncDigiflazzPrices extends Command
             $sign = md5($username . $apiKey . 'pricelist');
 
             $products = [];
+            $globalApiSucceeded = false;
+            $genshinApiSucceeded = false;
 
             // Call 1: Fetch Global type products (mobilelegends, freefire, pubg_mobile)
             $responseGlobal = Http::timeout(30)
@@ -65,18 +67,20 @@ class SyncDigiflazzPrices extends Command
                 ]);
 
             if (!$responseGlobal->successful()) {
-                $this->error('Failed to fetch Global products from Digiflazz');
-                Log::error('Digiflazz sync: Global API call failed', [
+                $this->warn('Failed to fetch Global products from Digiflazz (continuing with other API calls)');
+                Log::warning('Digiflazz sync: Global API call failed', [
                     'status' => $responseGlobal->status(),
                     'response' => $responseGlobal->body(),
                 ]);
-                return 1;
+            } else {
+                $dataGlobal = $responseGlobal->json();
+                $globalProducts = $dataGlobal['data'] ?? [];
+                if (!empty($globalProducts)) {
+                    $products = array_merge($products, $globalProducts);
+                    $globalApiSucceeded = true;
+                    $this->info('Fetched ' . count($globalProducts) . ' Global products from Digiflazz');
+                }
             }
-
-            $dataGlobal = $responseGlobal->json();
-            $globalProducts = $dataGlobal['data'] ?? [];
-            $products = array_merge($products, $globalProducts);
-            $this->info('Fetched ' . count($globalProducts) . ' Global products from Digiflazz');
 
             // Call 2: Fetch Genshin Impact products (uses brand instead of type)
             $responseGenshin = Http::timeout(30)
@@ -89,7 +93,7 @@ class SyncDigiflazzPrices extends Command
                 ]);
 
             if (!$responseGenshin->successful()) {
-                $this->warn('Failed to fetch Genshin Impact products from Digiflazz (continuing with Global products only)');
+                $this->warn('Failed to fetch Genshin Impact products from Digiflazz (continuing with other products)');
                 Log::warning('Digiflazz sync: Genshin Impact API call failed', [
                     'status' => $responseGenshin->status(),
                     'response' => $responseGenshin->body(),
@@ -97,8 +101,11 @@ class SyncDigiflazzPrices extends Command
             } else {
                 $dataGenshin = $responseGenshin->json();
                 $genshinProducts = $dataGenshin['data'] ?? [];
-                $products = array_merge($products, $genshinProducts);
-                $this->info('Fetched ' . count($genshinProducts) . ' Genshin Impact products from Digiflazz');
+                if (!empty($genshinProducts)) {
+                    $products = array_merge($products, $genshinProducts);
+                    $genshinApiSucceeded = true;
+                    $this->info('Fetched ' . count($genshinProducts) . ' Genshin Impact products from Digiflazz');
+                }
             }
 
             if (empty($products)) {
@@ -162,6 +169,7 @@ class SyncDigiflazzPrices extends Command
             $deactivatedPacks = []; // Format: ['name' => 'Pack Name', 'reason' => 'Reason text']
             $activatedPacks = []; // Format: ['name' => 'Pack Name', 'reason' => 'Reason text']
             $updatedPackIds = []; // Track pack IDs that were updated to exclude from deactivation
+            $gameTypesInSync = []; // Track which game_types have products in this sync batch
 
             DB::beginTransaction();
             try {
@@ -230,6 +238,11 @@ class SyncDigiflazzPrices extends Command
 
                         // Track this pack ID to exclude from deactivation check
                         $updatedPackIds[] = $pack->id;
+                        
+                        // Track game_type that has products in this sync batch
+                        if ($pack->game_type && !in_array($pack->game_type, $gameTypesInSync)) {
+                            $gameTypesInSync[] = $pack->game_type;
+                        }
 
                         $updatedCount++;
 
@@ -281,12 +294,36 @@ class SyncDigiflazzPrices extends Command
                 // Deactivate packs that:
                 // 1. Don't have active sellers in Digiflazz (not in activeSkuCodes)
                 // 2. Have prices exceeding their price_limit
-                // Only process mobilelegends, freefire, pubg_mobile, and genshin_impact game types
+                // Only process game_types that have products in this sync batch
                 // Exclude packs that were just updated in the update loop above
+                // This prevents deactivating packs from game_types whose API calls failed or returned empty
+                
+                // Determine which game_types to check based on API call success and matched packs
+                $gameTypesToCheck = [];
+                if (!empty($gameTypesInSync)) {
+                    // Use game_types from matched packs (most accurate)
+                    $gameTypesToCheck = $gameTypesInSync;
+                } else {
+                    // Fallback: if no packs matched but API calls succeeded, check those game_types
+                    // This handles edge cases where products exist but don't match any packs yet
+                    if ($globalApiSucceeded) {
+                        $gameTypesToCheck = array_merge($gameTypesToCheck, ['mobilelegends', 'freefire', 'pubg_mobile']);
+                    }
+                    if ($genshinApiSucceeded) {
+                        $gameTypesToCheck[] = 'genshin_impact';
+                    }
+                }
+                
                 $packsToDeactivate = DiamondPack::where('is_active', true)
                     ->whereNotNull('code')
                     ->where('code', '!=', '')
-                    ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact'])
+                    ->when(!empty($gameTypesToCheck), function ($query) use ($gameTypesToCheck) {
+                        // Only check packs from game_types that have products in this sync
+                        return $query->whereIn('game_type', array_unique($gameTypesToCheck));
+                    }, function ($query) {
+                        // If no game_types to check, don't deactivate anything (safety fallback)
+                        return $query->whereRaw('1 = 0');
+                    })
                     ->when(!empty($updatedPackIds), function ($query) use ($updatedPackIds) {
                         return $query->whereNotIn('id', $updatedPackIds);
                     })
