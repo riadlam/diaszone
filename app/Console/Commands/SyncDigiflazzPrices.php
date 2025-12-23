@@ -52,8 +52,10 @@ class SyncDigiflazzPrices extends Command
             // Note: Digiflazz uses "pricelist" as the constant string for price-list endpoint
             $sign = md5($username . $apiKey . 'pricelist');
 
-            // Call Digiflazz price-list API
-            $response = Http::timeout(30)
+            $products = [];
+
+            // Call 1: Fetch Global type products (mobilelegends, freefire, pubg_mobile)
+            $responseGlobal = Http::timeout(30)
                 ->post($baseUrl . '/price-list', [
                     'cmd' => 'prepaid',
                     'username' => $username,
@@ -62,17 +64,42 @@ class SyncDigiflazzPrices extends Command
                     'category' => 'Games',
                 ]);
 
-            if (!$response->successful()) {
-                $this->error('Failed to fetch price list from Digiflazz');
-                Log::error('Digiflazz sync: API call failed', [
-                    'status' => $response->status(),
-                    'response' => $response->body(),
+            if (!$responseGlobal->successful()) {
+                $this->error('Failed to fetch Global products from Digiflazz');
+                Log::error('Digiflazz sync: Global API call failed', [
+                    'status' => $responseGlobal->status(),
+                    'response' => $responseGlobal->body(),
                 ]);
                 return 1;
             }
 
-            $data = $response->json();
-            $products = $data['data'] ?? [];
+            $dataGlobal = $responseGlobal->json();
+            $globalProducts = $dataGlobal['data'] ?? [];
+            $products = array_merge($products, $globalProducts);
+            $this->info('Fetched ' . count($globalProducts) . ' Global products from Digiflazz');
+
+            // Call 2: Fetch Genshin Impact products (uses brand instead of type)
+            $responseGenshin = Http::timeout(30)
+                ->post($baseUrl . '/price-list', [
+                    'cmd' => 'prepaid',
+                    'username' => $username,
+                    'sign' => $sign,
+                    'brand' => 'Genshin Impact',
+                    'category' => 'Games',
+                ]);
+
+            if (!$responseGenshin->successful()) {
+                $this->warn('Failed to fetch Genshin Impact products from Digiflazz (continuing with Global products only)');
+                Log::warning('Digiflazz sync: Genshin Impact API call failed', [
+                    'status' => $responseGenshin->status(),
+                    'response' => $responseGenshin->body(),
+                ]);
+            } else {
+                $dataGenshin = $responseGenshin->json();
+                $genshinProducts = $dataGenshin['data'] ?? [];
+                $products = array_merge($products, $genshinProducts);
+                $this->info('Fetched ' . count($genshinProducts) . ' Genshin Impact products from Digiflazz');
+            }
 
             if (empty($products)) {
                 $this->warn('No products returned from Digiflazz API');
@@ -80,7 +107,7 @@ class SyncDigiflazzPrices extends Command
                 return 0;
             }
 
-            $this->info('Fetched ' . count($products) . ' products from Digiflazz');
+            $this->info('Total products fetched: ' . count($products));
 
             // Filter active products
             $activeProducts = array_filter($products, function ($product) {
@@ -134,6 +161,7 @@ class SyncDigiflazzPrices extends Command
             $deactivatedCount = 0;
             $deactivatedPacks = []; // Format: ['name' => 'Pack Name', 'reason' => 'Reason text']
             $activatedPacks = []; // Format: ['name' => 'Pack Name', 'reason' => 'Reason text']
+            $updatedPackIds = []; // Track pack IDs that were updated to exclude from deactivation
 
             DB::beginTransaction();
             try {
@@ -200,6 +228,9 @@ class SyncDigiflazzPrices extends Command
                         $pack->is_active = true;
                         $pack->save();
 
+                        // Track this pack ID to exclude from deactivation check
+                        $updatedPackIds[] = $pack->id;
+
                         $updatedCount++;
 
                         if ($wasInactive) {
@@ -251,29 +282,35 @@ class SyncDigiflazzPrices extends Command
                 // 1. Don't have active sellers in Digiflazz (not in activeSkuCodes)
                 // 2. Have prices exceeding their price_limit
                 // Only process mobilelegends, freefire, pubg_mobile, and genshin_impact game types
+                // Exclude packs that were just updated in the update loop above
                 $packsToDeactivate = DiamondPack::where('is_active', true)
                     ->whereNotNull('code')
                     ->where('code', '!=', '')
                     ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact'])
+                    ->when(!empty($updatedPackIds), function ($query) use ($updatedPackIds) {
+                        return $query->whereNotIn('id', $updatedPackIds);
+                    })
                     ->get();
 
                 foreach ($packsToDeactivate as $pack) {
                     $shouldDeactivate = false;
                     $reason = '';
 
-                    // Check if pack has active sellers
-                    if (!in_array($pack->code, $activeSkuCodes)) {
-                        // No active sellers - deactivate
+                    // Check if pack has active sellers by matching normalized name
+                    $packNormalizedName = $this->normalizeProductName($pack->name);
+                    $productData = $groupedProducts[$packNormalizedName] ?? null;
+                    
+                    if (!$productData) {
+                        // Pack not found in grouped products (no active sellers) - deactivate
                         $shouldDeactivate = true;
                         $reason = 'No active sellers available on Digiflazz';
                     } else {
                         // Pack has sellers - check if price exceeds limit
-                        $productData = collect($groupedProducts)->firstWhere('buyer_sku_code', $pack->code);
-                        if ($productData && $pack->price_limit !== null) {
-                            if ($productData['price'] > $pack->price_limit) {
+                        if ($pack->price_limit !== null) {
+                            if ($productData['cheapest_price'] > $pack->price_limit) {
                                 // Price exceeds limit - deactivate
                                 $shouldDeactivate = true;
-                                $reason = "Price exceeds limit: {$productData['price']} > {$pack->price_limit}";
+                                $reason = "Price exceeds limit: {$productData['cheapest_price']} > {$pack->price_limit}";
                             }
                         }
                     }
