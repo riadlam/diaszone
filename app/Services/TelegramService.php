@@ -392,7 +392,7 @@ class TelegramService
                 $required = $item->quantity;
                 
                 // Check if this item uses Digiflazz or Item4Gamer
-                $digiflazzGames = ['mobilelegends', 'freefire', 'pubgmobile'];
+                $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile'];
                 $usesDigiflazz = in_array($itemGameType, $digiflazzGames);
                 
                 $completed = 0;

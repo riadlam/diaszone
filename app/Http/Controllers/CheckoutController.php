@@ -260,7 +260,7 @@ class CheckoutController extends Controller
             $gameType = $pack->game_type ?? 'mobilelegends';
             
             // Only check Digiflazz availability for Mobile Legends, Free Fire, and PUBG Mobile
-            $gamesUsingDigiflazz = ['mobilelegends', 'freefire', 'pubgmobile'];
+            $gamesUsingDigiflazz = ['mobilelegends', 'freefire', 'pubg_mobile'];
             
             if (in_array($gameType, $gamesUsingDigiflazz)) {
                 // For these games, check Digiflazz availability
@@ -1851,7 +1851,7 @@ class CheckoutController extends Controller
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubgmobile'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             // For non-Digiflazz games, use Item4Gamer
@@ -3921,7 +3921,7 @@ class CheckoutController extends Controller
             }
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubgmobile'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             if ($useDigiflazz) {
