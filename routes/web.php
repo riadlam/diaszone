@@ -312,6 +312,15 @@ Route::get('/{gameType}', function($gameType) {
         abort(404);
     }
     
+    // Normalize Genshin Impact variants to 'genshin_impact'
+    // If the URL is a genshin_impact variant (e.g., genshin_impact_genesis_crystals),
+    // normalize it to genshin_impact for consistent routing
+    $normalizedGameType = $gameType;
+    if (strpos($gameType, 'genshin_impact') === 0 && $gameType !== 'genshin_impact') {
+        // Redirect genshin_impact variants to the base /genshin_impact route
+        return redirect('/genshin_impact', 301);
+    }
+    
     // Check if game type has packs in database
     $hasPacks = \App\Models\DiamondPack::where('game_type', $gameType)->exists();
     if (!$hasPacks) {

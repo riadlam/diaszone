@@ -35,9 +35,7 @@ class HomeController extends Controller
                 return [
                     'game_type' => $pack->game_type,
                     'name' => $gameName ?: ucfirst(str_replace('_', ' ', $pack->game_type)),
-                    'route' => in_array($pack->game_type, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike']) 
-                        ? route($pack->game_type)
-                        : url('/' . $pack->game_type),
+                    'route' => $this->getGameRoute($pack->game_type),
                     'image_path' => $imagePath,
                 ];
             });
@@ -52,9 +50,7 @@ class HomeController extends Controller
             ->get()
             ->map(function($game) {
                 $imagePath = $this->findGameImage($game->game_type, $game->name);
-                $route = in_array($game->game_type, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike']) 
-                    ? route($game->game_type)
-                    : url('/' . $game->game_type);
+                $route = $this->getGameRoute($game->game_type);
                 
                 // Extract game name - if name contains " - " or digits, extract the game name part
                 $displayName = $game->name;
@@ -90,9 +86,7 @@ class HomeController extends Controller
             ->get()
             ->map(function($game) {
                 $imagePath = $this->findGameImage($game->game_type, $game->name);
-                $route = in_array($game->game_type, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike']) 
-                    ? route($game->game_type)
-                    : url('/' . $game->game_type);
+                $route = $this->getGameRoute($game->game_type);
                 
                 // Extract game name - if name contains " - " or digits, extract the game name part
                 $displayName = $game->name;
@@ -128,9 +122,7 @@ class HomeController extends Controller
             ->get()
             ->map(function($game) {
                 $imagePath = $this->findGameImage($game->game_type, $game->name);
-                $route = in_array($game->game_type, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike']) 
-                    ? route($game->game_type)
-                    : url('/' . $game->game_type);
+                $route = $this->getGameRoute($game->game_type);
                 
                 // Extract game name - if name contains " - " or digits, extract the game name part
                 $displayName = $game->name;
@@ -197,9 +189,7 @@ class HomeController extends Controller
         // Transform games with image paths and routes
         $games->getCollection()->transform(function($game) {
             $imagePath = $this->findGameImage($game->game_type, $game->name);
-            $route = in_array($game->game_type, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike']) 
-                ? route($game->game_type)
-                : url('/' . $game->game_type);
+            $route = $this->getGameRoute($game->game_type);
             
             // Extract game name - if name contains " - " or digits, extract the game name part
             $displayName = $game->name;
@@ -266,9 +256,7 @@ class HomeController extends Controller
         // Transform games
         $results = $games->map(function($game) {
             $imagePath = $this->findGameImage($game->game_type, $game->name);
-            $route = in_array($game->game_type, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike']) 
-                ? route($game->game_type)
-                : url('/' . $game->game_type);
+            $route = $this->getGameRoute($game->game_type);
             
             // Extract game name
             $displayName = $game->name;
@@ -311,6 +299,25 @@ class HomeController extends Controller
         ];
         
         return $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+    }
+    
+    /**
+     * Get route for game type
+     */
+    private function getGameRoute($gameType)
+    {
+        // Standard games with named routes
+        if (in_array($gameType, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike'])) {
+            return route($gameType);
+        }
+        
+        // Special case: Genshin Impact - route to /genshin_impact regardless of variant
+        if (strpos($gameType, 'genshin_impact') === 0) {
+            return url('/genshin_impact');
+        }
+        
+        // Default: use game_type as URL path
+        return url('/' . $gameType);
     }
     
     /**
@@ -576,15 +583,32 @@ class HomeController extends Controller
     public function gameTopUp($gameType)
     {
         // Reusable game top-up page
-        $packs = DiamondPack::where('game_type', $gameType)
-            ->where('is_active', true)
-            ->orderBy('sort_order')
+        // For genshin_impact, load all variants (e.g., genshin_impact, genshin_impact_genesis_crystals)
+        $packQuery = DiamondPack::where('is_active', true);
+        if ($gameType === 'genshin_impact') {
+            $packQuery->where(function($query) {
+                $query->where('game_type', 'genshin_impact')
+                      ->orWhere('game_type', 'like', 'genshin_impact%');
+            });
+        } else {
+            $packQuery->where('game_type', $gameType);
+        }
+        $packs = $packQuery->orderBy('sort_order')
             ->orderBy('price')
             ->get();
 
         // Try to get game info from games table with content and images
-        $game = Game::where('game_type', $gameType)
-            ->where('is_active', true)
+        // For genshin_impact, try exact match first, then any variant
+        $gameQuery = Game::where('is_active', true);
+        if ($gameType === 'genshin_impact') {
+            $gameQuery->where(function($query) {
+                $query->where('game_type', 'genshin_impact')
+                      ->orWhere('game_type', 'like', 'genshin_impact%');
+            })->orderByRaw("CASE WHEN game_type = 'genshin_impact' THEN 0 ELSE 1 END");
+        } else {
+            $gameQuery->where('game_type', $gameType);
+        }
+        $game = $gameQuery
             ->with(['content', 'images' => function($query) {
                 $query->orderBy('display_order');
             }])
