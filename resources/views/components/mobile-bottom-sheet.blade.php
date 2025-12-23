@@ -73,7 +73,7 @@
                     data-pack-bonus="{{ $pack->bonus_diamonds }}"
                     data-pack-price="{{ $pack->price }}"
                     data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
-                    data-pack-price-dzd="{{ $pack->price_dzd ?? 0 }}"
+                    data-pack-price-dzd="{{ $pack->price_dzd }}"
                     data-pack-name="{{ $pack->name }}"
                     data-pack-discount="{{ $pack->discount_percentage }}"
                     data-pack-currency="{{ $currencyName }}">
@@ -220,17 +220,17 @@
                         <div class="flex items-center justify-between">
                                 @if($pack->discount_percentage > 0)
                                 @php
-                                    $priceDzd = $pack->price_dzd ?? 0;
+                                    $priceDzd = $pack->price_dzd; // Use price_dzd directly from database
                                 @endphp
-                                <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * ($packQuantity), 0) }} DZD</span>
+                                <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ $priceDzd ? number_format($priceDzd * ($packQuantity), 0) : '0' }} DZD</span>
                                 @else
                                 <span class="text-xs text-gray-500">{{ __('game.best_value') }}</span>
                                 @endif
                             <div class="flex items-baseline gap-1">
                                 @php
-                                    $priceDzd = $pack->price_dzd ?? 0;
+                                    $priceDzd = $pack->price_dzd; // Use price_dzd directly from database
                                     $discountPercentage = $pack->discount_percentage ?? 0;
-                                    $priceAfterDiscountDzd = $priceDzd * (1 - $discountPercentage / 100);
+                                    $priceAfterDiscountDzd = $priceDzd ? ($priceDzd * (1 - $discountPercentage / 100)) : 0;
                                 @endphp
                                 <span class="text-lg font-bold text-purple-600 mobile-pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discountPercentage }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceAfterDiscountDzd * ($packQuantity), 0) }} DZD</span>
                             </div>

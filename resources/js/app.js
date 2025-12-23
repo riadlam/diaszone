@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Get pack data from checkbox data attributes
             const priceUsd = parseFloat(checkbox.dataset.packPriceUsd) || parseFloat(checkbox.dataset.packPrice) || 0;
-            const priceDzd = parseFloat(checkbox.dataset.packPriceDzd) || (parseFloat(checkbox.dataset.packPrice) * 260) || 0;
+            const priceDzd = parseFloat(checkbox.dataset.packPriceDzd) || 0;
             const discount = parseFloat(checkbox.dataset.packDiscount) || 0;
             const diamonds = parseInt(checkbox.dataset.packDiamonds) || 0;
             const bonus = parseInt(checkbox.dataset.packBonus) || 0;

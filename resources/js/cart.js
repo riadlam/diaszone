@@ -230,7 +230,7 @@ const CartManager = {
                     
                     // Get price based on currency
                     const priceUsd = parseFloat(packInfo.price_usd || packInfo.price || 0);
-                    const priceDzd = parseFloat(packInfo.price_dzd || (packInfo.price * 260) || 0);
+                    const priceDzd = parseFloat(packInfo.price_dzd || 0);
                     const discount = parseFloat(packInfo.discount || packInfo.discount_percentage || 0);
                     
                     let price = currency === 'DZD' ? priceDzd : priceUsd;

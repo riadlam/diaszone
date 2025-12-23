@@ -173,7 +173,7 @@ class CheckoutController extends Controller
                     'bonus' => $pack->bonus_diamonds,
                     'price' => (float) $pack->price,
                     'price_usd' => (float) ($pack->price_usd ?? $pack->price),
-                    'price_dzd' => (float) ($pack->price_dzd ?? 0),
+                    'price_dzd' => $pack->price_dzd ? (float) $pack->price_dzd : null,
                     'discount' => (float) $pack->discount_percentage,
                     'game_type' => $gameType,
                     'name' => $pack->name ?? null,

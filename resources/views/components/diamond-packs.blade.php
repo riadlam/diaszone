@@ -47,7 +47,7 @@
                        data-pack-bonus="{{ $pack->bonus_diamonds }}"
                        data-pack-price="{{ $pack->price }}"
                        data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
-                       data-pack-price-dzd="{{ $pack->price_dzd ?? 0 }}"
+                       data-pack-price-dzd="{{ $pack->price_dzd }}"
                        data-pack-name="{{ $pack->name }}"
                        data-pack-discount="{{ $pack->discount_percentage }}"
                        data-pack-currency="{{ $currencyName }}"
@@ -157,15 +157,15 @@
                             <div class="flex items-center justify-between">
                                 @php
                                     $priceUsd = $pack->price_usd ?? $pack->price;
-                                    $priceDzd = $pack->price_dzd ?? 0;
+                                    $priceDzd = $pack->price_dzd; // Use price_dzd directly from database
                                     $discount = $pack->discount_percentage ?? 0;
                                     $finalPriceUsd = $priceUsd * (1 - $discount / 100);
-                                    $finalPriceDzd = $priceDzd * (1 - $discount / 100);
+                                    $finalPriceDzd = $priceDzd ? ($priceDzd * (1 - $discount / 100)) : 0;
                                 @endphp
                                 @if($pack->discount_percentage > 0)
-                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * $packQuantity, 0) }} DZD</span>
+                                    <span class="text-xs text-gray-400 line-through pack-original-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd ?? 0 }}" data-pack-quantity="{{ $packQuantity }}">{{ $priceDzd ? number_format($priceDzd * $packQuantity, 0) : '0' }} DZD</span>
                                 @endif
-                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($finalPriceDzd * ($packQuantity), 0) }} DZD</span>
+                                <span class="text-sm font-bold text-purple-600 pack-final-price" data-price-usd="{{ $priceUsd }}" data-price-dzd="{{ $priceDzd ?? 0 }}" data-discount="{{ $discount }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($finalPriceDzd * ($packQuantity), 0) }} DZD</span>
                         </div>
                     </div>
                 </div>
