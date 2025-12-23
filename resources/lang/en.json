@@ -1,0 +1,259 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About Us",
+    "contact": "Contact Us",
+    "cart": "Cart",
+    "my_orders": "My Orders",
+    "search_placeholder": "Search products...",
+    "menu": "Menu",
+    "open_navigation": "Open navigation menu",
+    "close_navigation": "Close navigation menu"
+  },
+  "currency": {
+    "title": "Select Currency",
+    "usd": "US Dollar",
+    "dzd": "Algerian Dinar"
+  },
+  "language": {
+    "title": "Select Language",
+    "en": "English",
+    "ar": "Arabic",
+    "fr": "French"
+  },
+  "profile": {
+    "account": "Account",
+    "my_account": "My Account",
+    "my_orders": "My Orders",
+    "notifications": "Notification",
+    "logout": "Logout",
+    "login": "Login",
+    "signup": "Sign Up"
+  },
+    "auth": {
+      "login_required_message": "Please log in to view your account information."
+    },
+  "cart_dropdown": {
+    "title": "Shopping Cart",
+    "empty": "Your cart is empty",
+    "view_cart": "View Cart"
+  },
+  "home": {
+    "hero_title": "Get Your Diamonds & Game Credits Instantly!",
+    "hero_subtitle": "Fast, secure, and reliable top-up service for Mobile Legends, Free Fire, PUBG Mobile and more!",
+    "shop_now": "Shop Now",
+    "learn_more": "Learn More",
+    "featured_products": "Featured Products",
+    "popular_games": "Popular Games",
+    "view_all": "View All"
+  },
+  "recharge": {
+    "payment_options_title": "Flexible Payment Options",
+    "checkout_select_method": "Check out and select your payment method",
+    "secure_payment_methods": "Secure payment methods"
+  },
+  "uploader": {
+    "click_to_upload_or_drag": "Click to upload or drag and drop",
+    "click_to_upload": "Click to upload",
+    "click_number_to_copy_or_call": "Click the number to copy or call directly",
+    "call_directly": "call directly"
+  },
+  "product": {
+    "buy_now": "Buy Now",
+    "add_to_cart": "Add to Cart",
+    "diamonds": "Diamonds",
+    "uc": "UC",
+    "tokens": "Tokens",
+    "golds": "Golds",
+    "instant_delivery": "Instant Delivery",
+    "secure_payment": "Secure Payment",
+    "24_7_support": "24/7 Support"
+  },
+  "checkout": {
+    "choose_payment": "Choose a payment method",
+    "subtitle": "Choose a secure payment method to complete your order, including Baridimob and Flexy.",
+    "title": "Checkout",
+    "user_info": "User Information",
+    "user_id": "User ID",
+    "zone_id": "Zone ID",
+    "email": "Email Address",
+    "email_optional": "Email (Optional)",
+    "order_summary": "Order Summary",
+    "product": "Product",
+    "quantity": "Quantity",
+    "price": "Price",
+    "total": "Total",
+    "continue": "Continue to Payment",
+    "processing": "Processing...",
+    "select_payment": "Select Payment Method",
+    "payment_method": "Payment Method",
+    "confirm_order": "Confirm Order",
+    "order_created": "Order Created Successfully",
+    "order_number": "Order Number"
+    ,
+    "total_before_discounts": "Total Before Discounts",
+    "pay_with": "Pay with",
+    "pay_now": "Pay Now",
+    "player_id": "Player ID",
+    "server": "Server"
+  },
+  "payment": {
+    "flexy": "Flexy (Algeria)",
+    "crypto": "Cryptocurrency",
+    "baridimob": "BaridiMob (Algeria)",
+    "credit_card": "Credit Card",
+    "select_method": "Please select your preferred payment method",
+    "payment": "Payment",
+    "payment_address": "Payment Address",
+    "pay_with_nowpayments": "Pay with NOWPayments",
+    "payment_unavailable": "Payment Unavailable",
+    "click_to_open_payment_page": "Click to open payment page",
+    "waiting_for_payment": "Waiting for payment...",
+    "processing": "Processing Payment...",
+    "success": "Payment Successful",
+    "failed": "Payment Failed",
+    "pending": "Payment Pending",
+    "amount_to_pay": "Amount to Pay",
+    "scan_qr_code_to_pay": "Scan QR code to pay",
+    "network": "Network",
+    "payment_id": "Payment ID",
+    "opens_nowpayments_info": "Opens NOWPayments payment page which will open your wallet app"
+    ,
+    "instructions": "Payment instructions",
+    "change_gateway": "Change Payment Gateway",
+    "url_not_available": "Payment URL not available"
+    ,
+    "check_status": "Check Payment Status",
+    "open_in_wallet": "Open in Wallet"
+    ,
+    "proceed_with_baridimob": "Proceed with Baridimob"
+    ,
+    "confirmed_redirect": "Payment confirmed! Redirecting...",
+    "not_detected": "Payment not detected yet. Please try again in a few moments.",
+    "error_checking": "Error checking payment status. Please try again."
+  },
+  "order": {
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "details": "Order Details",
+    "history": "Order History",
+    "track": "Track Order",
+    "cancel": "Cancel Order"
+    ,
+    "diamonds_sent_successfully": "Your diamonds are being delivered...",
+    "view_my_orders": "View My Orders",
+    "redirecting_to_orders_in_seconds": "Redirecting to your orders in :seconds seconds..."
+  },
+  "about": {
+    "title": "About Us",
+    "welcome": "Welcome to DiasZone",
+    "description": "Your trusted partner for game top-ups and digital products",
+    "mission_title": "Our Mission",
+    "mission_text": "To provide fast, secure, and affordable gaming top-up services to gamers worldwide.",
+    "why_choose_title": "Why Choose Us?",
+    "reason_1_title": "Instant Delivery",
+    "reason_1_text": "Get your diamonds and credits instantly after payment confirmation.",
+    "reason_2_title": "Secure Payments",
+    "reason_2_text": "We use industry-standard encryption to protect your transactions.",
+    "reason_3_title": "24/7 Support",
+    "reason_3_text": "Our dedicated support team is always ready to help you.",
+    "reason_4_title": "Best Prices",
+    "reason_4_text": "Competitive prices with frequent promotions and discounts."
+  },
+  "contact": {
+    "title": "Contact Us",
+    "get_in_touch": "Get in Touch",
+    "description": "Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.",
+    "name": "Your Name",
+    "email": "Your Email",
+    "subject": "Subject",
+    "message": "Message",
+    "send": "Send Message",
+    "sending": "Sending...",
+    "success": "Message sent successfully!",
+    "error": "Failed to send message. Please try again.",
+    "info_title": "Contact Information",
+    "email_label": "Email",
+    "phone_label": "Phone",
+    "address_label": "Address"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "my_account": "My Account",
+    "orders": "Orders",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "recent_orders": "Recent Orders",
+    "order_statistics": "Order Statistics",
+    "total_orders": "Total Orders",
+    "pending_orders": "Pending Orders",
+    "completed_orders": "Completed Orders"
+  },
+  "footer": {
+    "about_title": "About DiasZone",
+    "about_text": "Your trusted partner for instant game top-ups and digital products. Fast, secure, and reliable service.",
+    "quick_links": "Quick Links",
+    "support": "Support",
+    "legal": "Legal",
+    "terms": "Terms of Use",
+    "privacy": "Privacy Policy",
+    "faq": "FAQ",
+    "all_rights_reserved": "All rights reserved",
+    "follow_us": "Follow Us"
+  },
+  "settings": {
+    "settings_panel_coming_soon": "Settings Panel Coming Soon"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "select": "Select",
+    "optional": "Optional",
+    "required": "Required"
+    ,
+    "try_again": "Try Again"
+  },
+  "errors": {
+    "404_title": "Page Not Found",
+    "404_message": "Sorry, the page you are looking for could not be found.",
+    "500_title": "Server Error",
+    "500_message": "Something went wrong on our end. Please try again later.",
+    "go_home": "Go to Homepage",
+    "generic_error": "An error occurred. Please try again."
+  },
+  "games": {
+    "mobile_legends": "Mobile Legends",
+    "free_fire": "Free Fire",
+    "pubg_mobile": "PUBG Mobile",
+    "honor_of_kings": "Honor of Kings",
+    "blood_strike": "Blood Strike"
+  }
+  ,
+  "misc": {
+    "coming_soon": "Coming Soon"
+  }
+}
