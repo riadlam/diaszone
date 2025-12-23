@@ -23,7 +23,7 @@ class SyncDigiflazzPrices extends Command
      *
      * @var string
      */
-    protected $description = 'Sync diamond pack prices from Digiflazz API (mobilelegends, freefire, and pubg_mobile)';
+    protected $description = 'Sync diamond pack prices from Digiflazz API (mobilelegends, freefire, pubg_mobile, and genshin_impact)';
 
     /**
      * Execute the console command.
@@ -148,10 +148,10 @@ class SyncDigiflazzPrices extends Command
                     $normalizedPackName = $this->normalizeProductName($productData['product_name']);
                     $pack = null;
                     
-                    // Get all packs and match by normalized name (mobilelegends, freefire, and pubg_mobile)
+                    // Get all packs and match by normalized name (mobilelegends, freefire, pubg_mobile, and genshin_impact)
                     $allPacks = DiamondPack::whereNotNull('name')
                         ->where('name', '!=', '')
-                        ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile'])
+                        ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact'])
                         ->get();
                     
                     foreach ($allPacks as $candidatePack) {
@@ -250,11 +250,11 @@ class SyncDigiflazzPrices extends Command
                 // Deactivate packs that:
                 // 1. Don't have active sellers in Digiflazz (not in activeSkuCodes)
                 // 2. Have prices exceeding their price_limit
-                // Only process mobilelegends, freefire, and pubg_mobile game types
+                // Only process mobilelegends, freefire, pubg_mobile, and genshin_impact game types
                 $packsToDeactivate = DiamondPack::where('is_active', true)
                     ->whereNotNull('code')
                     ->where('code', '!=', '')
-                    ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile'])
+                    ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact'])
                     ->get();
 
                 foreach ($packsToDeactivate as $pack) {
