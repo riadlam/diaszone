@@ -29,7 +29,7 @@
             @php
                 $discountAmount = ($pack->price * $pack->discount_percentage) / 100;
                 $priceAfterDiscount = $pack->price - $discountAmount;
-                $packQuantity = $pack->special_quantity ?? 1;
+                $packQuantity = ($pack->special_quantity > 0) ? $pack->special_quantity : 1;
                 
                 // Extract currency name from pack name
                 $currencyName = 'Diamonds'; // default
@@ -138,7 +138,7 @@
                     
                     <!-- Pack Info -->
                     @php 
-                        $packQuantity = $pack->special_quantity ?? 1;
+                        $packQuantity = ($pack->special_quantity > 0) ? $pack->special_quantity : 1;
                         
                         // Extract currency name from pack name (e.g., "60 + 6 Bonds" -> "Bonds")
                         $currencyName = 'Diamonds'; // default

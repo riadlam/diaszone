@@ -42,7 +42,7 @@
                        value="{{ $pack->id }}" 
                        class="hidden pack-checkbox"
                        data-pack-id="{{ $pack->id }}"
-                       data-pack-quantity="{{ $pack->special_quantity ?? 1 }}"
+                       data-pack-quantity="{{ ($pack->special_quantity > 0) ? $pack->special_quantity : 1 }}"
                        data-pack-diamonds="{{ $pack->diamonds }}"
                        data-pack-bonus="{{ $pack->bonus_diamonds }}"
                        data-pack-price="{{ $pack->price }}"
@@ -109,7 +109,7 @@
                         @endif
                         
                         <!-- Pack Info -->
-                        @php $packQuantity = $pack->special_quantity ?? 1; @endphp
+                        @php $packQuantity = ($pack->special_quantity > 0) ? $pack->special_quantity : 1; @endphp
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1">
                                 <h3 class="text-sm font-semibold text-gray-900">
