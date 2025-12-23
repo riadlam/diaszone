@@ -157,7 +157,7 @@
                             <div class="flex items-center justify-between">
                                 @php
                                     $priceUsd = $pack->price_usd ?? $pack->price;
-                                    $priceDzd = $pack->price_dzd; // Use price_dzd directly from database
+                                    $priceDzd = $pack->price_dzd ?? $pack->price; // Fallback to price if price_dzd is null
                                     $discount = $pack->discount_percentage ?? 0;
                                     $finalPriceUsd = $priceUsd * (1 - $discount / 100);
                                     $finalPriceDzd = $priceDzd ? ($priceDzd * (1 - $discount / 100)) : 0;

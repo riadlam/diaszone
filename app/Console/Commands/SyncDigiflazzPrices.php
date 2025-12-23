@@ -199,6 +199,9 @@ class SyncDigiflazzPrices extends Command
                         $codeChanged = $oldCode !== $cheapestSkuCode;
                         $pack->code = $cheapestSkuCode;
                         $pack->price = $price;
+                        // Also update price_dzd with the same value (Digiflazz returns prices in the format we need)
+                        // This ensures the view can display prices correctly
+                        $pack->price_dzd = $price;
                         $pack->is_active = true;
                         $pack->save();
 

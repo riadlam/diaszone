@@ -220,7 +220,7 @@
                         <div class="flex items-center justify-between">
                                 @if($pack->discount_percentage > 0)
                                 @php
-                                    $priceDzd = $pack->price_dzd; // Use price_dzd directly from database
+                                    $priceDzd = $pack->price_dzd ?? $pack->price; // Fallback to price if price_dzd is null
                                 @endphp
                                 <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ $priceDzd ? number_format($priceDzd * ($packQuantity), 0) : '0' }} DZD</span>
                                 @else
@@ -228,7 +228,7 @@
                                 @endif
                             <div class="flex items-baseline gap-1">
                                 @php
-                                    $priceDzd = $pack->price_dzd; // Use price_dzd directly from database
+                                    $priceDzd = $pack->price_dzd ?? $pack->price; // Fallback to price if price_dzd is null
                                     $discountPercentage = $pack->discount_percentage ?? 0;
                                     $priceAfterDiscountDzd = $priceDzd ? ($priceDzd * (1 - $discountPercentage / 100)) : 0;
                                 @endphp
