@@ -1851,7 +1851,7 @@ class CheckoutController extends Controller
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             // For non-Digiflazz games, use Item4Gamer
@@ -3921,7 +3921,7 @@ class CheckoutController extends Controller
             }
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             if ($useDigiflazz) {

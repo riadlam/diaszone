@@ -55,6 +55,9 @@ class DigiflazzService
         $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs ?? null;
         if ($pack->game_type === 'freefire' && $order->player_id_ff) {
             $customerNo = $order->player_id_ff;
+        } elseif ($pack->game_type === 'bloodstrike' && $order->user_id_bs) {
+            // Blood Strike: use user_id_bs only (no server concatenation)
+            $customerNo = $order->user_id_bs;
         } elseif (!empty($order->user_id_ml) && !empty($order->zone_id_ml)) {
             // Digiflazz expects a single customer_no numeric string for ML: concatenate user id + zone
             // e.g., user_id=205762973 and zone=4048 => customer_no=2057629734048
