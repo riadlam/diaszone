@@ -151,7 +151,7 @@
             <div class="space-y-3">
                 @php
                     $unitPriceUsd = (float) ($order->diamondPack->price_usd ?? $unit_price);
-                    $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($unit_price * 260));
+                    $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? 0);
                     $discountAmountUsd = ($unitPriceUsd * $discount_percentage) / 100;
                     $discountAmountDzd = ($unitPriceDzd * $discount_percentage) / 100;
                     $totalAmountUsd = $unitPriceUsd - $discountAmountUsd;

@@ -73,7 +73,7 @@
                     data-pack-bonus="{{ $pack->bonus_diamonds }}"
                     data-pack-price="{{ $pack->price }}"
                     data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
-                    data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
+                    data-pack-price-dzd="{{ $pack->price_dzd ?? 0 }}"
                     data-pack-name="{{ $pack->name }}"
                     data-pack-discount="{{ $pack->discount_percentage }}"
                     data-pack-currency="{{ $currencyName }}">
@@ -220,7 +220,7 @@
                         <div class="flex items-center justify-between">
                                 @if($pack->discount_percentage > 0)
                                 @php
-                                    $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                                    $priceDzd = $pack->price_dzd ?? 0;
                                 @endphp
                                 <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceDzd * ($packQuantity), 0) }} DZD</span>
                                 @else
@@ -228,7 +228,7 @@
                                 @endif
                             <div class="flex items-baseline gap-1">
                                 @php
-                                    $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                                    $priceDzd = $pack->price_dzd ?? 0;
                                     $discountPercentage = $pack->discount_percentage ?? 0;
                                     $priceAfterDiscountDzd = $priceDzd * (1 - $discountPercentage / 100);
                                 @endphp

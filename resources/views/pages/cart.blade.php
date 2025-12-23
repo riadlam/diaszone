@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const quantity = item.quantity || 1;
                 // Use price_usd or price_dzd based on selected currency
                 const unitPriceBase = currency === 'DZD' 
-                    ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
+                    ? (parseFloat(pack.price_dzd) || 0)
                     : (parseFloat(pack.price_usd) || parseFloat(pack.price));
                 const discountPercentage = parseFloat(pack.discount) || 0;
                 const discountAmount = (unitPriceBase * discountPercentage) / 100;
@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="text-base font-semibold text-purple-600 cart-item-price" 
                              data-price-usd="${pack.price_usd || pack.price}" 
-                             data-price-dzd="${pack.price_dzd || (pack.price * 260)}" 
+                             data-price-dzd="${pack.price_dzd || 0}" 
                              data-discount="${discountPercentage}">
                             ${currency === 'DZD' 
                                 ? Math.round(unitPriceBase).toLocaleString() + ' DZD'
@@ -573,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         const quantity = item.quantity || 1; // Use actual item quantity
                         const unitPriceBase = currency === 'DZD' 
-                            ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
+                            ? (parseFloat(pack.price_dzd) || 0)
                             : (parseFloat(pack.price_usd) || parseFloat(pack.price));
                         const discountPercentage = parseFloat(pack.discount) || 0;
                         const discountAmount = (unitPriceBase * discountPercentage) / 100;

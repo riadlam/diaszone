@@ -558,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Use price_usd or price_dzd based on selected currency
                 const unitPrice = currency === 'DZD' 
-                    ? (parseFloat(pack.price_dzd) || parseFloat(pack.price) * 260)
+                    ? (parseFloat(pack.price_dzd) || 0)
                     : (parseFloat(pack.price_usd) || parseFloat(pack.price));
                 const discountPercentage = parseFloat(pack.discount) || 0;
                 const discountAmount = (unitPrice * discountPercentage) / 100;

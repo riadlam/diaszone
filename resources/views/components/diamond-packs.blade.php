@@ -47,7 +47,7 @@
                        data-pack-bonus="{{ $pack->bonus_diamonds }}"
                        data-pack-price="{{ $pack->price }}"
                        data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
-                       data-pack-price-dzd="{{ $pack->price_dzd ?? ($pack->price * 260) }}"
+                       data-pack-price-dzd="{{ $pack->price_dzd ?? 0 }}"
                        data-pack-name="{{ $pack->name }}"
                        data-pack-discount="{{ $pack->discount_percentage }}"
                        data-pack-currency="{{ $currencyName }}"
@@ -157,7 +157,7 @@
                             <div class="flex items-center justify-between">
                                 @php
                                     $priceUsd = $pack->price_usd ?? $pack->price;
-                                    $priceDzd = $pack->price_dzd ?? ($pack->price * 260);
+                                    $priceDzd = $pack->price_dzd ?? 0;
                                     $discount = $pack->discount_percentage ?? 0;
                                     $finalPriceUsd = $priceUsd * (1 - $discount / 100);
                                     $finalPriceDzd = $priceDzd * (1 - $discount / 100);

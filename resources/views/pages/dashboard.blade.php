@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // For other orders, use selected currency
                 const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
                 const priceUsd = parseFloat(order.diamond_pack?.price_usd || order.amount);
-                const priceDzd = parseFloat(order.diamond_pack?.price_dzd || (order.amount * 260));
+                const priceDzd = parseFloat(order.diamond_pack?.price_dzd || 0);
                 const discountPercentage = parseFloat(order.diamond_pack?.discount_percentage || 0);
                 
                 let finalPrice = currency === 'DZD' ? priceDzd : priceUsd;
