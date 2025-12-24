@@ -665,10 +665,12 @@ class HomeController extends Controller
             ->orderBy('price')
             ->get();
 
-        // For Steam Gift Cards, get available regions for filtering
+        // For Steam Gift Cards, get available regions for filtering (only EU, USA, and Global)
         $availableRegions = collect([]);
         if ($gameType === 'steam_giftcard' && $packs->isNotEmpty()) {
+            $allowedRegions = ['eu', 'us', 'free']; // Only Europe, USA, and Global
             $availableRegions = $packs->whereNotNull('region')
+                ->whereIn('region', $allowedRegions)
                 ->groupBy('region')
                 ->keys()
                 ->map(function($regionCode) {
@@ -678,7 +680,11 @@ class HomeController extends Controller
                         'flag' => $this->getRegionFlag($regionCode)
                     ];
                 })
-                ->sortBy('name')
+                ->sortBy(function($region) {
+                    // Sort: Global first, then USA, then Europe
+                    $order = ['free' => 0, 'us' => 1, 'eu' => 2];
+                    return $order[$region['code']] ?? 99;
+                })
                 ->values();
         }
 
