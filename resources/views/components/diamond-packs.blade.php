@@ -1,32 +1,6 @@
 <div class="space-y-4" id="diamond-packs-wrapper">
     <h2 class="text-2xl font-bold text-gray-900 mb-6 hidden lg:block">{{ $gameTitle ?? __('game.diamond_packs') }}</h2>
     
-    <!-- Region Filter (Steam Gift Cards) -->
-    @if(isset($availableRegions) && $availableRegions->isNotEmpty())
-        <div class="mb-6 hidden lg:block bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
-            <div class="flex flex-wrap gap-2 items-center">
-                <span class="text-sm font-semibold text-gray-800 mr-3 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Filter by Region:
-                </span>
-                <button type="button" 
-                        class="region-filter-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-purple-600 text-white hover:bg-purple-700 hover:shadow-lg active:scale-95 shadow-md border-2 border-purple-700" 
-                        data-region="all">
-                    All Regions
-                </button>
-                @foreach($availableRegions as $region)
-                    <button type="button" 
-                            class="region-filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md active:scale-95 border-2 border-gray-300 hover:border-purple-400" 
-                            data-region="{{ $region['code'] }}">
-                        {{ $region['name'] }}
-                    </button>
-                @endforeach
-            </div>
-        </div>
-    @endif
-    
     <!-- Desktop: Grid Layout (hidden on mobile) -->
     <div class="hidden lg:block" id="desktop-grid-wrapper">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="desktop-packs-grid">
@@ -139,7 +113,10 @@
                         @php $packQuantity = ($pack->special_quantity > 0) ? $pack->special_quantity : 1; @endphp
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1">
-                                <h3 class="text-sm font-semibold text-gray-900">
+                                <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                    @if(($gameType ?? '') === 'steam_giftcard' && $regionFlag)
+                                        <span class="text-lg" title="{{ $regionName }}">{{ $regionFlag }}</span>
+                                    @endif
                                     @if(($gameType ?? 'mobilelegends') === 'honorofkings')
                                         @if($pack->diamonds == 0)
                                             @if($pack->price == 0.32 && $pack->sort_order == 130)
@@ -177,6 +154,9 @@
                                             @endif
                                         @endif
                                     @endif
+                                    @if(($gameType ?? '') === 'steam_giftcard' && $regionFlag)
+                                        <span class="text-xs text-gray-500 font-normal">({{ $regionName }})</span>
+                                    @endif
                                 </h3>
                                 @if($pack->discount_percentage > 0)
                                     <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% {{ __('game.off') }}</span>
@@ -208,89 +188,6 @@
     </div>
 </div>
 
-@if(isset($availableRegions) && $availableRegions->isNotEmpty())
-<script>
-(function() {
-    // Region filtering for Steam Gift Cards
-    document.addEventListener('DOMContentLoaded', function() {
-        const regionButtons = document.querySelectorAll('.region-filter-btn');
-        const packWrappers = document.querySelectorAll('.diamond-pack-item-wrapper[data-pack-region]');
-        const packsGrid = document.getElementById('desktop-packs-grid');
-        
-        if (regionButtons.length === 0 || packWrappers.length === 0) return;
-        
-        // Set initial state - show all packs
-        let activeRegion = 'all';
-        
-        function filterPacks(region) {
-            activeRegion = region;
-            let visibleCount = 0;
-            
-            // Update button styles
-            regionButtons.forEach(btn => {
-                const btnRegion = btn.getAttribute('data-region');
-                if (btnRegion === region) {
-                    btn.classList.remove('bg-white', 'bg-gray-200', 'text-gray-700', 'hover:bg-gray-50', 'hover:bg-gray-300', 'border-gray-300', 'hover:border-purple-400', 'shadow-sm');
-                    btn.classList.add('bg-purple-600', 'text-white', 'hover:bg-purple-700', 'shadow-md', 'border-purple-700');
-                } else {
-                    btn.classList.remove('bg-purple-600', 'text-white', 'hover:bg-purple-700', 'shadow-md', 'border-purple-700');
-                    btn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border-gray-300', 'hover:border-purple-400', 'shadow-sm');
-                }
-            });
-            
-            // Show/hide packs with smooth animation
-            packWrappers.forEach(wrapper => {
-                const packRegion = wrapper.getAttribute('data-pack-region');
-                const shouldShow = region === 'all' || packRegion === region;
-                
-                if (shouldShow) {
-                    wrapper.style.display = 'block';
-                    wrapper.style.opacity = '0';
-                    setTimeout(() => {
-                        wrapper.style.transition = 'opacity 0.3s ease-in-out';
-                        wrapper.style.opacity = '1';
-                    }, 10);
-                    visibleCount++;
-                } else {
-                    wrapper.style.transition = 'opacity 0.3s ease-in-out';
-                    wrapper.style.opacity = '0';
-                    setTimeout(() => {
-                        wrapper.style.display = 'none';
-                    }, 300);
-                }
-            });
-            
-            // Show message if no packs for selected region
-            if (visibleCount === 0) {
-                if (!document.getElementById('no-packs-message')) {
-                    const message = document.createElement('div');
-                    message.id = 'no-packs-message';
-                    message.className = 'col-span-2 text-center py-12 text-gray-500';
-                    message.textContent = 'No packs available for this region.';
-                    packsGrid.appendChild(message);
-                }
-            } else {
-                const message = document.getElementById('no-packs-message');
-                if (message) {
-                    message.remove();
-                }
-            }
-        }
-        
-        // Add click handlers
-        regionButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const region = this.getAttribute('data-region');
-                filterPacks(region);
-            });
-        });
-        
-        // Initialize - show all packs
-        filterPacks('all');
-    });
-})();
-</script>
-@endif
 
 <script>
 // Translation variables for JavaScript

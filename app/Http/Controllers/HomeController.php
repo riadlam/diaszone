@@ -597,46 +597,9 @@ class HomeController extends Controller
             ->orderBy('price')
             ->get();
 
-        // For Steam Gift Cards, get available regions for filtering
-        $availableRegions = collect([]);
-        if ($gameType === 'steam_giftcard' && $packs->isNotEmpty()) {
-            $availableRegions = $packs->whereNotNull('region')
-                ->groupBy('region')
-                ->keys()
-                ->map(function($regionCode) {
-                    $regionNames = [
-                        'free' => 'Global',
-                        'us' => 'United States',
-                        'br' => 'Brazil',
-                        'cn' => 'China',
-                        'eu' => 'Europe',
-                        'gb' => 'United Kingdom',
-                        'ae' => 'United Arab Emirates',
-                        'hk' => 'Hong Kong',
-                        'tw' => 'Taiwan',
-                        'vn' => 'Vietnam',
-                        'th' => 'Thailand',
-                        'ph' => 'Philippines',
-                        'sg' => 'Singapore',
-                        'id' => 'Indonesia',
-                        'in' => 'India',
-                        'kw' => 'Kuwait',
-                        'qa' => 'Qatar',
-                        'sa' => 'Saudi Arabia',
-                        'za' => 'South Africa',
-                        'ua' => 'Ukraine',
-                        'tr' => 'Turkey',
-                        'cr' => 'Costa Rica',
-                        'pe' => 'Peru',
-                        'uy' => 'Uruguay',
-                    ];
-                    return [
-                        'code' => $regionCode,
-                        'name' => $regionNames[$regionCode] ?? ucfirst(str_replace('_', ' ', $regionCode))
-                    ];
-                })
-                ->sortBy('name')
-                ->values();
+        // For Steam Gift Cards, filter by USA region by default
+        if ($gameType === 'steam_giftcard') {
+            $packs = $packs->where('region', 'us');
         }
 
         // Try to get game info from games table with content and images
@@ -707,7 +670,7 @@ class HomeController extends Controller
             }
         }
 
-        return view('pages.game-topup', compact('packs', 'gameType', 'gameTitle', 'gameImage', 'game', 'reviews', 'averageRating', 'totalReviews', 'availableRegions'));
+        return view('pages.game-topup', compact('packs', 'gameType', 'gameTitle', 'gameImage', 'game', 'reviews', 'averageRating', 'totalReviews'));
     }
 
     public function mobileLegends()

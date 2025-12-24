@@ -18,28 +18,6 @@
         </button>
     </div>
     
-    <!-- Region Filter (Steam Gift Cards) - Mobile -->
-    @if(isset($availableRegions) && $availableRegions->isNotEmpty())
-        <div class="px-4 pt-3 pb-3 border-b border-gray-200 sticky top-0 bg-gradient-to-r from-purple-50 to-pink-50 z-10 shadow-sm">
-            <div class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1" style="scrollbar-width: none; -ms-overflow-style: none;">
-                <button type="button" 
-                        class="mobile-region-filter-btn flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 bg-purple-600 text-white hover:bg-purple-700 active:scale-95 shadow-md border-2 border-purple-700" 
-                        data-region="all">
-                    All
-                </button>
-                @foreach($availableRegions as $region)
-                    <button type="button" 
-                            class="mobile-region-filter-btn flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 bg-white text-gray-700 hover:bg-gray-50 active:scale-95 shadow-sm border-2 border-gray-300 hover:border-purple-400" 
-                            data-region="{{ $region['code'] }}">
-                        {{ $region['name'] }}
-                    </button>
-                @endforeach
-            </div>
-            <style>
-                .overflow-x-auto::-webkit-scrollbar { display: none; }
-            </style>
-        </div>
-    @endif
     
     <!-- Bottom Sheet Content (Scrollable) -->
     <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3" style="overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background-color: #ffffff !important; min-height: 200px;" id="mobile-packs-container">
@@ -85,8 +63,66 @@
                     }
                 }
             @endphp
-                @php $packQuantity = $pack->special_quantity ?? 1; @endphp
-                <div class="mobile-pack-item-wrapper relative" data-pack-region="{{ $pack->region ?? '' }}">
+                @php 
+                    $packQuantity = $pack->special_quantity ?? 1;
+                    // Region flag mapping
+                    $regionFlags = [
+                        'free' => '🌍',
+                        'us' => '🇺🇸',
+                        'br' => '🇧🇷',
+                        'cn' => '🇨🇳',
+                        'eu' => '🇪🇺',
+                        'gb' => '🇬🇧',
+                        'ae' => '🇦🇪',
+                        'hk' => '🇭🇰',
+                        'tw' => '🇹🇼',
+                        'vn' => '🇻🇳',
+                        'th' => '🇹🇭',
+                        'ph' => '🇵🇭',
+                        'sg' => '🇸🇬',
+                        'id' => '🇮🇩',
+                        'in' => '🇮🇳',
+                        'kw' => '🇰🇼',
+                        'qa' => '🇶🇦',
+                        'sa' => '🇸🇦',
+                        'za' => '🇿🇦',
+                        'ua' => '🇺🇦',
+                        'tr' => '🇹🇷',
+                        'cr' => '🇨🇷',
+                        'pe' => '🇵🇪',
+                        'uy' => '🇺🇾',
+                    ];
+                    $regionNames = [
+                        'free' => 'Global',
+                        'us' => 'United States',
+                        'br' => 'Brazil',
+                        'cn' => 'China',
+                        'eu' => 'Europe',
+                        'gb' => 'United Kingdom',
+                        'ae' => 'United Arab Emirates',
+                        'hk' => 'Hong Kong',
+                        'tw' => 'Taiwan',
+                        'vn' => 'Vietnam',
+                        'th' => 'Thailand',
+                        'ph' => 'Philippines',
+                        'sg' => 'Singapore',
+                        'id' => 'Indonesia',
+                        'in' => 'India',
+                        'kw' => 'Kuwait',
+                        'qa' => 'Qatar',
+                        'sa' => 'Saudi Arabia',
+                        'za' => 'South Africa',
+                        'ua' => 'Ukraine',
+                        'tr' => 'Turkey',
+                        'cr' => 'Costa Rica',
+                        'pe' => 'Peru',
+                        'uy' => 'Uruguay',
+                    ];
+                    $packRegion = $pack->region ?? null;
+                    $regionFlag = $packRegion ? ($regionFlags[$packRegion] ?? '🌍') : '';
+                    $regionName = $packRegion ? ($regionNames[$packRegion] ?? ucfirst(str_replace('_', ' ', $packRegion))) : '';
+                @endphp
+                <div class="mobile-pack-item-wrapper relative">
                     <input type="checkbox" 
                            class="hidden mobile-pack-checkbox" 
                            id="mobile-pack-checkbox-{{ $pack->id }}"
@@ -197,6 +233,9 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between mb-1.5">
                             <div class="flex items-center gap-2">
+                                @if(($gameType ?? '') === 'steam_giftcard' && isset($regionFlag) && $regionFlag)
+                                    <span class="text-base" title="{{ $regionName ?? '' }}">{{ $regionFlag }}</span>
+                                @endif
                                 @if(($gameType ?? 'mobilelegends') === 'honorofkings')
                                     @if($pack->diamonds == 0)
                                         @if($pack->price == 0.32 && $pack->sort_order == 130)
@@ -225,10 +264,10 @@
                                         <h3 class="text-base font-bold text-gray-900">{{ __('game.twilight_pass') }}</h3>
                                     @else
                                         @if($pack->diamonds == 0 && $pack->membership_name)
-                                            <h3 class="text-base font-bold text-gray-900">{{ $pack->membership_name }}</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ $pack->membership_name }}@if(($gameType ?? '') === 'steam_giftcard' && isset($regionName) && $regionName) <span class="text-xs text-gray-500 font-normal">({{ $regionName }})</span>@endif</h3>
                                         @else
                                             <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                            <span class="text-sm font-medium text-gray-600">{{ $currencyName }}</span>
+                                            <span class="text-sm font-medium text-gray-600">{{ $currencyName }}@if(($gameType ?? '') === 'steam_giftcard' && isset($regionName) && $regionName) <span class="text-xs text-gray-500">({{ $regionName }})</span>@endif</span>
                                         @endif
                                     @endif
                                 @endif
@@ -281,88 +320,6 @@
     </div>
 </div>
 
-@if(isset($availableRegions) && $availableRegions->isNotEmpty())
-<script>
-(function() {
-    // Mobile region filtering for Steam Gift Cards
-    document.addEventListener('DOMContentLoaded', function() {
-        const regionButtons = document.querySelectorAll('.mobile-region-filter-btn');
-        const packWrappers = document.querySelectorAll('.mobile-pack-item-wrapper[data-pack-region]');
-        const packsContainer = document.getElementById('mobile-packs-container');
-        
-        if (regionButtons.length === 0 || packWrappers.length === 0) return;
-        
-        let activeRegion = 'all';
-        
-        function filterPacks(region) {
-            activeRegion = region;
-            let visibleCount = 0;
-            
-            // Update button styles
-            regionButtons.forEach(btn => {
-                const btnRegion = btn.getAttribute('data-region');
-                if (btnRegion === region) {
-                    btn.classList.remove('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border-gray-300', 'hover:border-purple-400', 'shadow-sm');
-                    btn.classList.add('bg-purple-600', 'text-white', 'hover:bg-purple-700', 'shadow-md', 'border-purple-700');
-                } else {
-                    btn.classList.remove('bg-purple-600', 'text-white', 'hover:bg-purple-700', 'shadow-md', 'border-purple-700');
-                    btn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border-gray-300', 'hover:border-purple-400', 'shadow-sm');
-                }
-            });
-            
-            // Show/hide packs with smooth animation
-            packWrappers.forEach(wrapper => {
-                const packRegion = wrapper.getAttribute('data-pack-region');
-                const shouldShow = region === 'all' || packRegion === region;
-                
-                if (shouldShow) {
-                    wrapper.style.display = 'block';
-                    wrapper.style.opacity = '0';
-                    setTimeout(() => {
-                        wrapper.style.transition = 'opacity 0.3s ease-in-out';
-                        wrapper.style.opacity = '1';
-                    }, 10);
-                    visibleCount++;
-                } else {
-                    wrapper.style.transition = 'opacity 0.3s ease-in-out';
-                    wrapper.style.opacity = '0';
-                    setTimeout(() => {
-                        wrapper.style.display = 'none';
-                    }, 300);
-                }
-            });
-            
-            // Show message if no packs for selected region
-            if (visibleCount === 0) {
-                if (!document.getElementById('mobile-no-packs-message')) {
-                    const message = document.createElement('div');
-                    message.id = 'mobile-no-packs-message';
-                    message.className = 'text-center py-12 text-gray-500';
-                    message.textContent = 'No packs available for this region.';
-                    packsContainer.appendChild(message);
-                }
-            } else {
-                const message = document.getElementById('mobile-no-packs-message');
-                if (message) {
-                    message.remove();
-                }
-            }
-        }
-        
-        // Add click handlers
-        regionButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                const region = this.getAttribute('data-region');
-                filterPacks(region);
-            });
-        });
-        
-        // Initialize - show all packs
-        filterPacks('all');
-    });
-})();
-</script>
-@endif
 
 <!-- Bottom Sheet Overlay -->
 <div id="bottom-sheet-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden lg:hidden" style="display: none; z-index: 9998;"></div>
