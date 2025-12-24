@@ -63,65 +63,7 @@
                     }
                 }
             @endphp
-                @php 
-                    $packQuantity = $pack->special_quantity ?? 1;
-                    // Region flag mapping
-                    $regionFlags = [
-                        'free' => '🌍',
-                        'us' => '🇺🇸',
-                        'br' => '🇧🇷',
-                        'cn' => '🇨🇳',
-                        'eu' => '🇪🇺',
-                        'gb' => '🇬🇧',
-                        'ae' => '🇦🇪',
-                        'hk' => '🇭🇰',
-                        'tw' => '🇹🇼',
-                        'vn' => '🇻🇳',
-                        'th' => '🇹🇭',
-                        'ph' => '🇵🇭',
-                        'sg' => '🇸🇬',
-                        'id' => '🇮🇩',
-                        'in' => '🇮🇳',
-                        'kw' => '🇰🇼',
-                        'qa' => '🇶🇦',
-                        'sa' => '🇸🇦',
-                        'za' => '🇿🇦',
-                        'ua' => '🇺🇦',
-                        'tr' => '🇹🇷',
-                        'cr' => '🇨🇷',
-                        'pe' => '🇵🇪',
-                        'uy' => '🇺🇾',
-                    ];
-                    $regionNames = [
-                        'free' => 'Global',
-                        'us' => 'United States',
-                        'br' => 'Brazil',
-                        'cn' => 'China',
-                        'eu' => 'Europe',
-                        'gb' => 'United Kingdom',
-                        'ae' => 'United Arab Emirates',
-                        'hk' => 'Hong Kong',
-                        'tw' => 'Taiwan',
-                        'vn' => 'Vietnam',
-                        'th' => 'Thailand',
-                        'ph' => 'Philippines',
-                        'sg' => 'Singapore',
-                        'id' => 'Indonesia',
-                        'in' => 'India',
-                        'kw' => 'Kuwait',
-                        'qa' => 'Qatar',
-                        'sa' => 'Saudi Arabia',
-                        'za' => 'South Africa',
-                        'ua' => 'Ukraine',
-                        'tr' => 'Turkey',
-                        'cr' => 'Costa Rica',
-                        'pe' => 'Peru',
-                        'uy' => 'Uruguay',
-                    ];
-                    $packRegion = $pack->region ?? null;
-                    $regionFlag = $packRegion ? ($regionFlags[$packRegion] ?? '🌍') : '';
-                    $regionName = $packRegion ? ($regionNames[$packRegion] ?? ucfirst(str_replace('_', ' ', $packRegion))) : '';
-                @endphp
+                @php $packQuantity = $pack->special_quantity ?? 1; @endphp
                 <div class="mobile-pack-item-wrapper relative">
                     <input type="checkbox" 
                            class="hidden mobile-pack-checkbox" 
@@ -233,9 +175,6 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between mb-1.5">
                             <div class="flex items-center gap-2">
-                                @if(($gameType ?? '') === 'steam_giftcard' && isset($regionFlag) && $regionFlag)
-                                    <span class="text-base" title="{{ $regionName ?? '' }}">{{ $regionFlag }}</span>
-                                @endif
                                 @if(($gameType ?? 'mobilelegends') === 'honorofkings')
                                     @if($pack->diamonds == 0)
                                         @if($pack->price == 0.32 && $pack->sort_order == 130)
@@ -263,11 +202,21 @@
                                     @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                         <h3 class="text-base font-bold text-gray-900">{{ __('game.twilight_pass') }}</h3>
                                     @else
+                                        @php
+                                            $regionFlags = [
+                                                'free' => '🌍', 'us' => '🇺🇸', 'br' => '🇧🇷', 'cn' => '🇨🇳', 'eu' => '🇪🇺',
+                                                'gb' => '🇬🇧', 'ae' => '🇦🇪', 'hk' => '🇭🇰', 'tw' => '🇹🇼', 'vn' => '🇻🇳',
+                                                'th' => '🇹🇭', 'ph' => '🇵🇭', 'sg' => '🇸🇬', 'id' => '🇮🇩', 'in' => '🇮🇳',
+                                                'kw' => '🇰🇼', 'qa' => '🇶🇦', 'sa' => '🇸🇦', 'za' => '🇿🇦', 'ua' => '🇺🇦',
+                                                'tr' => '🇹🇷', 'cr' => '🇨🇷', 'pe' => '🇵🇪', 'uy' => '🇺🇾',
+                                            ];
+                                            $flag = (($gameType ?? '') === 'steam_giftcard' && !empty($pack->region)) ? ($regionFlags[$pack->region] ?? '') : '';
+                                        @endphp
                                         @if($pack->diamonds == 0 && $pack->membership_name)
-                                            <h3 class="text-base font-bold text-gray-900">{{ $pack->membership_name }}@if(($gameType ?? '') === 'steam_giftcard' && isset($regionName) && $regionName) <span class="text-xs text-gray-500 font-normal">({{ $regionName }})</span>@endif</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ $flag }} {{ $pack->membership_name }}</h3>
                                         @else
-                                            <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                            <span class="text-sm font-medium text-gray-600">{{ $currencyName }}@if(($gameType ?? '') === 'steam_giftcard' && isset($regionName) && $regionName) <span class="text-xs text-gray-500">({{ $regionName }})</span>@endif</span>
+                                            <h3 class="text-base font-bold text-gray-900">{{ $flag }} {{ number_format($pack->diamonds) }}</h3>
+                                            <span class="text-sm font-medium text-gray-600">{{ $currencyName }}</span>
                                         @endif
                                     @endif
                                 @endif

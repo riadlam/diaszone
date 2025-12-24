@@ -580,6 +580,74 @@ class HomeController extends Controller
         return null;
     }
 
+    /**
+     * Get flag emoji for region code
+     */
+    private function getRegionFlag($regionCode)
+    {
+        $flags = [
+            'free' => '🌍',
+            'us' => '🇺🇸',
+            'br' => '🇧🇷',
+            'cn' => '🇨🇳',
+            'eu' => '🇪🇺',
+            'gb' => '🇬🇧',
+            'ae' => '🇦🇪',
+            'hk' => '🇭🇰',
+            'tw' => '🇹🇼',
+            'vn' => '🇻🇳',
+            'th' => '🇹🇭',
+            'ph' => '🇵🇭',
+            'sg' => '🇸🇬',
+            'id' => '🇮🇩',
+            'in' => '🇮🇳',
+            'kw' => '🇰🇼',
+            'qa' => '🇶🇦',
+            'sa' => '🇸🇦',
+            'za' => '🇿🇦',
+            'ua' => '🇺🇦',
+            'tr' => '🇹🇷',
+            'cr' => '🇨🇷',
+            'pe' => '🇵🇪',
+            'uy' => '🇺🇾',
+        ];
+        return $flags[$regionCode] ?? '🌍';
+    }
+
+    /**
+     * Get region name for region code
+     */
+    private function getRegionName($regionCode)
+    {
+        $names = [
+            'free' => 'Global',
+            'us' => 'United States',
+            'br' => 'Brazil',
+            'cn' => 'China',
+            'eu' => 'Europe',
+            'gb' => 'United Kingdom',
+            'ae' => 'United Arab Emirates',
+            'hk' => 'Hong Kong',
+            'tw' => 'Taiwan',
+            'vn' => 'Vietnam',
+            'th' => 'Thailand',
+            'ph' => 'Philippines',
+            'sg' => 'Singapore',
+            'id' => 'Indonesia',
+            'in' => 'India',
+            'kw' => 'Kuwait',
+            'qa' => 'Qatar',
+            'sa' => 'Saudi Arabia',
+            'za' => 'South Africa',
+            'ua' => 'Ukraine',
+            'tr' => 'Turkey',
+            'cr' => 'Costa Rica',
+            'pe' => 'Peru',
+            'uy' => 'Uruguay',
+        ];
+        return $names[$regionCode] ?? ucfirst(str_replace('_', ' ', $regionCode));
+    }
+
     public function gameTopUp($gameType)
     {
         // Reusable game top-up page
@@ -670,6 +738,10 @@ class HomeController extends Controller
             }
         }
 
+        // Pass helper functions to view for region flags/names
+        view()->share('getRegionFlag', [$this, 'getRegionFlag']);
+        view()->share('getRegionName', [$this, 'getRegionName']);
+        
         return view('pages.game-topup', compact('packs', 'gameType', 'gameTitle', 'gameImage', 'game', 'reviews', 'averageRating', 'totalReviews'));
     }
 

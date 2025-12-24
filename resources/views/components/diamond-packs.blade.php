@@ -35,65 +35,8 @@
                         $currencyName = 'Golds';
                     }
                 }
-                
-                // Region flag mapping for Steam Gift Cards
-                $regionFlags = [
-                    'free' => '🌍',
-                    'us' => '🇺🇸',
-                    'br' => '🇧🇷',
-                    'cn' => '🇨🇳',
-                    'eu' => '🇪🇺',
-                    'gb' => '🇬🇧',
-                    'ae' => '🇦🇪',
-                    'hk' => '🇭🇰',
-                    'tw' => '🇹🇼',
-                    'vn' => '🇻🇳',
-                    'th' => '🇹🇭',
-                    'ph' => '🇵🇭',
-                    'sg' => '🇸🇬',
-                    'id' => '🇮🇩',
-                    'in' => '🇮🇳',
-                    'kw' => '🇰🇼',
-                    'qa' => '🇶🇦',
-                    'sa' => '🇸🇦',
-                    'za' => '🇿🇦',
-                    'ua' => '🇺🇦',
-                    'tr' => '🇹🇷',
-                    'cr' => '🇨🇷',
-                    'pe' => '🇵🇪',
-                    'uy' => '🇺🇾',
-                ];
-                $regionNames = [
-                    'free' => 'Global',
-                    'us' => 'United States',
-                    'br' => 'Brazil',
-                    'cn' => 'China',
-                    'eu' => 'Europe',
-                    'gb' => 'United Kingdom',
-                    'ae' => 'United Arab Emirates',
-                    'hk' => 'Hong Kong',
-                    'tw' => 'Taiwan',
-                    'vn' => 'Vietnam',
-                    'th' => 'Thailand',
-                    'ph' => 'Philippines',
-                    'sg' => 'Singapore',
-                    'id' => 'Indonesia',
-                    'in' => 'India',
-                    'kw' => 'Kuwait',
-                    'qa' => 'Qatar',
-                    'sa' => 'Saudi Arabia',
-                    'za' => 'South Africa',
-                    'ua' => 'Ukraine',
-                    'tr' => 'Turkey',
-                    'cr' => 'Costa Rica',
-                    'pe' => 'Peru',
-                    'uy' => 'Uruguay',
-                ];
-                $packRegion = $pack->region ?? null;
-                $regionFlag = $packRegion ? ($regionFlags[$packRegion] ?? '🌍') : '';
-                $regionName = $packRegion ? ($regionNames[$packRegion] ?? ucfirst(str_replace('_', ' ', $packRegion))) : '';
             @endphp
-            <div class="diamond-pack-item-wrapper">
+            <div class="diamond-pack-item-wrapper" data-pack-region="{{ $pack->region ?? '' }}">
                   <input type="checkbox" 
                        name="diamond_pack[]" 
                        value="{{ $pack->id }}" 
@@ -170,10 +113,7 @@
                         @php $packQuantity = ($pack->special_quantity > 0) ? $pack->special_quantity : 1; @endphp
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between mb-1">
-                                <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                    @if(($gameType ?? '') === 'steam_giftcard' && $regionFlag)
-                                        <span class="text-lg" title="{{ $regionName }}">{{ $regionFlag }}</span>
-                                    @endif
+                                <h3 class="text-sm font-semibold text-gray-900">
                                     @if(($gameType ?? 'mobilelegends') === 'honorofkings')
                                         @if($pack->diamonds == 0)
                                             @if($pack->price == 0.32 && $pack->sort_order == 130)
@@ -204,15 +144,22 @@
                                         @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                             {{ __('game.twilight_pass') }}
                                         @else
+                                            @php
+                                                $regionFlags = [
+                                                    'free' => '🌍', 'us' => '🇺🇸', 'br' => '🇧🇷', 'cn' => '🇨🇳', 'eu' => '🇪🇺',
+                                                    'gb' => '🇬🇧', 'ae' => '🇦🇪', 'hk' => '🇭🇰', 'tw' => '🇹🇼', 'vn' => '🇻🇳',
+                                                    'th' => '🇹🇭', 'ph' => '🇵🇭', 'sg' => '🇸🇬', 'id' => '🇮🇩', 'in' => '🇮🇳',
+                                                    'kw' => '🇰🇼', 'qa' => '🇶🇦', 'sa' => '🇸🇦', 'za' => '🇿🇦', 'ua' => '🇺🇦',
+                                                    'tr' => '🇹🇷', 'cr' => '🇨🇷', 'pe' => '🇵🇪', 'uy' => '🇺🇾',
+                                                ];
+                                                $flag = (($gameType ?? '') === 'steam_giftcard' && !empty($pack->region)) ? ($regionFlags[$pack->region] ?? '') : '';
+                                            @endphp
                                             @if($pack->diamonds == 0 && $pack->membership_name)
-                                                {{ $pack->membership_name }}
+                                                {{ $flag }} {{ $pack->membership_name }}
                                             @else
-                                                {{ $pack->diamonds }} {{ $currencyName }}
+                                                {{ $flag }} {{ $pack->diamonds }} {{ $currencyName }}
                                             @endif
                                         @endif
-                                    @endif
-                                    @if(($gameType ?? '') === 'steam_giftcard' && $regionFlag)
-                                        <span class="text-xs text-gray-500 font-normal">({{ $regionName }})</span>
                                     @endif
                                 </h3>
                                 @if($pack->discount_percentage > 0)
@@ -244,7 +191,6 @@
             </div>
     </div>
 </div>
-
 
 <script>
 // Translation variables for JavaScript
