@@ -23,7 +23,7 @@ class SyncDigiflazzPrices extends Command
      *
      * @var string
      */
-    protected $description = 'Sync diamond pack prices from Digiflazz API (mobilelegends, freefire, pubg_mobile, genshin_impact, and bloodstrike)';
+    protected $description = 'Sync diamond pack prices from Digiflazz API (mobilelegends, freefire, pubg_mobile, genshin_impact, bloodstrike, and honorofkings)';
 
     /**
      * Execute the console command.
@@ -53,7 +53,7 @@ class SyncDigiflazzPrices extends Command
             $sign = md5($username . $apiKey . 'pricelist');
 
             // Single API call to fetch all Games category products
-            // We'll filter to only process products that match our packs for mobilelegends, freefire, pubg_mobile, genshin_impact, and bloodstrike
+            // We'll filter to only process products that match our packs for mobilelegends, freefire, pubg_mobile, genshin_impact, bloodstrike, and honorofkings
             $response = Http::timeout(30)
                 ->post($baseUrl . '/price-list', [
                     'cmd' => 'prepaid',
@@ -267,7 +267,7 @@ class SyncDigiflazzPrices extends Command
                 $packsToDeactivate = DiamondPack::where('is_active', true)
                     ->whereNotNull('code')
                     ->where('code', '!=', '')
-                    ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike'])
+                    ->whereIn('game_type', ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings'])
                     ->when(!empty($gameTypesInSync), function ($query) use ($gameTypesInSync) {
                         // Only check packs from game_types that had products matched in this sync
                         return $query->whereIn('game_type', $gameTypesInSync);
