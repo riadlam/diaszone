@@ -665,9 +665,21 @@ class HomeController extends Controller
             ->orderBy('price')
             ->get();
 
-        // For Steam Gift Cards, filter by USA region by default
-        if ($gameType === 'steam_giftcard') {
-            $packs = $packs->where('region', 'us');
+        // For Steam Gift Cards, get available regions for filtering
+        $availableRegions = collect([]);
+        if ($gameType === 'steam_giftcard' && $packs->isNotEmpty()) {
+            $availableRegions = $packs->whereNotNull('region')
+                ->groupBy('region')
+                ->keys()
+                ->map(function($regionCode) {
+                    return [
+                        'code' => $regionCode,
+                        'name' => $this->getRegionName($regionCode),
+                        'flag' => $this->getRegionFlag($regionCode)
+                    ];
+                })
+                ->sortBy('name')
+                ->values();
         }
 
         // Try to get game info from games table with content and images
@@ -742,7 +754,7 @@ class HomeController extends Controller
         view()->share('getRegionFlag', [$this, 'getRegionFlag']);
         view()->share('getRegionName', [$this, 'getRegionName']);
         
-        return view('pages.game-topup', compact('packs', 'gameType', 'gameTitle', 'gameImage', 'game', 'reviews', 'averageRating', 'totalReviews'));
+        return view('pages.game-topup', compact('packs', 'gameType', 'gameTitle', 'gameImage', 'game', 'reviews', 'averageRating', 'totalReviews', 'availableRegions'));
     }
 
     public function mobileLegends()

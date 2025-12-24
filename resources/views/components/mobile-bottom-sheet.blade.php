@@ -18,6 +18,24 @@
         </button>
     </div>
     
+    <!-- Region Filter (Steam Gift Cards) - Mobile -->
+    @if(isset($availableRegions) && $availableRegions->isNotEmpty())
+        <div class="px-4 pt-3 pb-3 border-b border-gray-200 sticky top-0 bg-gradient-to-r from-purple-50 to-pink-50 z-10 shadow-sm">
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1" style="scrollbar-width: none; -ms-overflow-style: none;">
+                @foreach($availableRegions as $region)
+                    <button type="button" 
+                            class="mobile-region-filter-btn flex-shrink-0 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 {{ $region['code'] === 'us' ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md border-2 border-purple-700 font-semibold' : 'bg-white text-gray-700 hover:bg-gray-50 shadow-sm border-2 border-gray-300 hover:border-purple-400' }} active:scale-95" 
+                            data-region="{{ $region['code'] }}">
+                        <span class="mr-1">{{ $region['flag'] }}</span>
+                        {{ $region['name'] }}
+                    </button>
+                @endforeach
+            </div>
+            <style>
+                .overflow-x-auto::-webkit-scrollbar { display: none; }
+            </style>
+        </div>
+    @endif
     
     <!-- Bottom Sheet Content (Scrollable) -->
     <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3" style="overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background-color: #ffffff !important; min-height: 200px;" id="mobile-packs-container">
@@ -64,7 +82,7 @@
                 }
             @endphp
                 @php $packQuantity = $pack->special_quantity ?? 1; @endphp
-                <div class="mobile-pack-item-wrapper relative">
+                <div class="mobile-pack-item-wrapper relative" data-pack-region="{{ $pack->region ?? '' }}">
                     <input type="checkbox" 
                            class="hidden mobile-pack-checkbox" 
                            id="mobile-pack-checkbox-{{ $pack->id }}"
@@ -202,20 +220,10 @@
                                     @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                         <h3 class="text-base font-bold text-gray-900">{{ __('game.twilight_pass') }}</h3>
                                     @else
-                                        @php
-                                            $regionFlags = [
-                                                'free' => '🌍', 'us' => '🇺🇸', 'br' => '🇧🇷', 'cn' => '🇨🇳', 'eu' => '🇪🇺',
-                                                'gb' => '🇬🇧', 'ae' => '🇦🇪', 'hk' => '🇭🇰', 'tw' => '🇹🇼', 'vn' => '🇻🇳',
-                                                'th' => '🇹🇭', 'ph' => '🇵🇭', 'sg' => '🇸🇬', 'id' => '🇮🇩', 'in' => '🇮🇳',
-                                                'kw' => '🇰🇼', 'qa' => '🇶🇦', 'sa' => '🇸🇦', 'za' => '🇿🇦', 'ua' => '🇺🇦',
-                                                'tr' => '🇹🇷', 'cr' => '🇨🇷', 'pe' => '🇵🇪', 'uy' => '🇺🇾',
-                                            ];
-                                            $flag = (($gameType ?? '') === 'steam_giftcard' && !empty($pack->region)) ? ($regionFlags[$pack->region] ?? '') : '';
-                                        @endphp
                                         @if($pack->diamonds == 0 && $pack->membership_name)
-                                            <h3 class="text-base font-bold text-gray-900">{{ $flag }} {{ $pack->membership_name }}</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ $pack->membership_name }}</h3>
                                         @else
-                                            <h3 class="text-base font-bold text-gray-900">{{ $flag }} {{ number_format($pack->diamonds) }}</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
                                             <span class="text-sm font-medium text-gray-600">{{ $currencyName }}</span>
                                         @endif
                                     @endif
@@ -269,6 +277,88 @@
     </div>
 </div>
 
+@if(isset($availableRegions) && $availableRegions->isNotEmpty())
+<script>
+(function() {
+    // Mobile region filtering for Steam Gift Cards
+    document.addEventListener('DOMContentLoaded', function() {
+        const regionButtons = document.querySelectorAll('.mobile-region-filter-btn');
+        const packWrappers = document.querySelectorAll('.mobile-pack-item-wrapper[data-pack-region]');
+        const packsContainer = document.getElementById('mobile-packs-container');
+        
+        if (regionButtons.length === 0 || packWrappers.length === 0) return;
+        
+        let activeRegion = 'us';
+        
+        function filterPacks(region) {
+            activeRegion = region;
+            let visibleCount = 0;
+            
+            // Update button styles
+            regionButtons.forEach(btn => {
+                const btnRegion = btn.getAttribute('data-region');
+                if (btnRegion === region) {
+                    btn.classList.remove('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border-gray-300', 'hover:border-purple-400', 'shadow-sm');
+                    btn.classList.add('bg-purple-600', 'text-white', 'hover:bg-purple-700', 'shadow-md', 'border-purple-700', 'font-semibold');
+                } else {
+                    btn.classList.remove('bg-purple-600', 'text-white', 'hover:bg-purple-700', 'shadow-md', 'border-purple-700', 'font-semibold');
+                    btn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border-gray-300', 'hover:border-purple-400', 'shadow-sm');
+                }
+            });
+            
+            // Show/hide packs with smooth animation
+            packWrappers.forEach(wrapper => {
+                const packRegion = wrapper.getAttribute('data-pack-region');
+                const shouldShow = packRegion === region;
+                
+                if (shouldShow) {
+                    wrapper.style.display = 'block';
+                    wrapper.style.opacity = '0';
+                    setTimeout(() => {
+                        wrapper.style.transition = 'opacity 0.3s ease-in-out';
+                        wrapper.style.opacity = '1';
+                    }, 10);
+                    visibleCount++;
+                } else {
+                    wrapper.style.transition = 'opacity 0.3s ease-in-out';
+                    wrapper.style.opacity = '0';
+                    setTimeout(() => {
+                        wrapper.style.display = 'none';
+                    }, 300);
+                }
+            });
+            
+            // Show message if no packs for selected region
+            if (visibleCount === 0) {
+                if (!document.getElementById('mobile-no-packs-message')) {
+                    const message = document.createElement('div');
+                    message.id = 'mobile-no-packs-message';
+                    message.className = 'text-center py-12 text-gray-500';
+                    message.textContent = 'No packs available for this region.';
+                    packsContainer.appendChild(message);
+                }
+            } else {
+                const message = document.getElementById('mobile-no-packs-message');
+                if (message) {
+                    message.remove();
+                }
+            }
+        }
+        
+        // Add click handlers
+        regionButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const region = this.getAttribute('data-region');
+                filterPacks(region);
+            });
+        });
+        
+        // Initialize - show US packs by default
+        filterPacks('us');
+    });
+})();
+</script>
+@endif
 
 <!-- Bottom Sheet Overlay -->
 <div id="bottom-sheet-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden lg:hidden" style="display: none; z-index: 9998;"></div>
