@@ -63,10 +63,6 @@
                         {{ $regionNames[$regionCode] ?? ucfirst(str_replace('_', ' ', $regionCode)) }}
                     </h3>
                     @foreach($regionPacks as $index => $pack)
-        @else
-            {{-- Normal packs (not grouped) --}}
-            @foreach($packs as $index => $pack)
-        @endif
             @php
                 $discountAmount = ($pack->price * $pack->discount_percentage) / 100;
                 $priceAfterDiscount = $pack->price - $discountAmount;
@@ -295,10 +291,116 @@
                     </label>
                 </div>
                     @endforeach
-                    @if($isGroupedByRegion)
                     </div>
-                    @endif
-        @endforeach
+                </div>
+            @endforeach
+        @else
+            {{-- Normal packs (not grouped) --}}
+            @foreach($packs as $index => $pack)
+                @php
+                    $discountAmount = ($pack->price * $pack->discount_percentage) / 100;
+                    $priceAfterDiscount = $pack->price - $discountAmount;
+                    $packQuantity = ($pack->special_quantity > 0) ? $pack->special_quantity : 1;
+                    
+                    // Extract currency name from pack name
+                    $currencyName = 'Diamonds'; // default
+                    $packNameLower = strtolower($pack->name ?? '');
+                    
+                    // Common currency keywords to look for in pack name
+                    if (preg_match('/\b(tokens?|diamonds?|coins?|crystals?|golds?|bonds?|points?|flowers?|uc|conquer points?)\b/i', $packNameLower, $matches)) {
+                        $currencyName = ucfirst(rtrim($matches[1], 's')); // Remove plural 's' and capitalize
+                        // Handle special cases
+                        if (stripos($currencyName, 'token') !== false) $currencyName = 'Tokens';
+                        elseif (stripos($currencyName, 'diamond') !== false) $currencyName = 'Diamonds';
+                        elseif (stripos($currencyName, 'coin') !== false) $currencyName = 'Coins';
+                        elseif (stripos($currencyName, 'crystal') !== false) $currencyName = 'Crystals';
+                        elseif (stripos($currencyName, 'gold') !== false) $currencyName = 'Gold';
+                        elseif (stripos($currencyName, 'bond') !== false) $currencyName = 'Bonds';
+                        elseif (stripos($currencyName, 'point') !== false) $currencyName = 'Points';
+                        elseif (stripos($currencyName, 'flower') !== false) $currencyName = 'Flowers';
+                        elseif (stripos($currencyName, 'uc') !== false) $currencyName = 'UC';
+                    }
+                    
+                    // Fallback to game type defaults
+                    if ($currencyName === 'Diamonds') {
+                        if (($gameType ?? 'mobilelegends') === 'pubgmobile') {
+                            $currencyName = 'UC';
+                        } elseif (($gameType ?? 'mobilelegends') === 'honorofkings') {
+                            $currencyName = 'Tokens';
+                        } elseif (($gameType ?? 'mobilelegends') === 'bloodstrike') {
+                            $currencyName = 'Golds';
+                        }
+                    }
+                @endphp
+                <div class="mobile-pack-item" data-pack-id="{{ $pack->id }}">
+                    <input type="checkbox" 
+                         name="diamond_pack[]" 
+                         value="{{ $pack->id }}" 
+                         class="hidden mobile-pack-checkbox"
+                         data-pack-id="{{ $pack->id }}"
+                         data-pack-quantity="{{ $packQuantity }}"
+                         data-pack-diamonds="{{ $pack->diamonds }}"
+                         data-pack-bonus="{{ $pack->bonus_diamonds }}"
+                         data-pack-price="{{ $pack->price }}"
+                         data-pack-price-usd="{{ $pack->price_usd ?? $pack->price }}"
+                         data-pack-price-dzd="{{ $pack->price_dzd ?? $pack->price }}"
+                         data-pack-name="{{ $pack->name }}"
+                         data-pack-membership-name="{{ $pack->membership_name }}"
+                         data-pack-discount="{{ $pack->discount_percentage }}"
+                         data-pack-currency="{{ $currencyName }}"
+                         id="mobile-pack-checkbox-{{ $pack->id }}">
+                    
+                    <label for="mobile-pack-checkbox-{{ $pack->id }}" class="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-gray-200 hover:border-purple-500 transition-all cursor-pointer">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1">
+                                <h4 class="text-sm font-semibold text-gray-900">
+                                    @if($pack->diamonds == 0 && $pack->membership_name)
+                                        {{ $pack->membership_name }}
+                                    @else
+                                        @if(stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false)
+                                            {{ __('game.weekly_diamond_pass') }}
+                                        @elseif(stripos($pack->name, 'Twilight Pass') !== false)
+                                            {{ __('game.twilight_pass') }}
+                                        @else
+                                            {{ $pack->diamonds }} {{ $currencyName }}
+                                        @endif
+                                    @endif
+                                </h4>
+                                @if($pack->discount_percentage > 0)
+                                    <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">{{ $pack->discount_percentage }}% {{ __('game.off') }}</span>
+                                @endif
+                            </div>
+                            @if($pack->bonus_diamonds > 0)
+                                <div class="flex items-center text-xs text-purple-600 mb-1">
+                                    <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                                    </svg>
+                                    <p class="text-sm text-gray-600 font-medium">+ {{ number_format($pack->bonus_diamonds) }} {{ __('game.bonus') }} {{ $currencyName }}</p>
+                                </div>
+                            @endif
+                            <div class="flex items-center justify-between">
+                                @if($pack->discount_percentage > 0)
+                                    @php
+                                        $priceDzd = $pack->price_dzd ?? $pack->price; // Fallback to price if price_dzd is null
+                                    @endphp
+                                    <span class="text-xs text-gray-400 line-through font-medium mobile-pack-original-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $priceDzd }}" data-pack-quantity="{{ $packQuantity }}">{{ $priceDzd ? number_format($priceDzd * ($packQuantity), 0) : '0' }} DZD</span>
+                                @else
+                                    <span class="text-xs text-gray-500">{{ __('game.best_value') }}</span>
+                                @endif
+                                <span class="text-sm font-bold text-purple-600 mobile-pack-final-price" data-price-usd="{{ $pack->price_usd ?? $pack->price }}" data-price-dzd="{{ $pack->price_dzd ?? $pack->price }}" data-discount="{{ $pack->discount_percentage }}" data-pack-quantity="{{ $packQuantity }}">{{ number_format($priceAfterDiscount * ($packQuantity), 2) }} DZD</span>
+                            </div>
+                        </div>
+                        <!-- Selection Indicator -->
+                        <div class="flex-shrink-0">
+                            <div class="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center transition-colors mobile-pack-indicator">
+                                <svg class="w-4 h-4 text-white hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            @endforeach
         @endif
     </div>
 </div>
