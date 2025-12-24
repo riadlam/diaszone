@@ -35,8 +35,65 @@
                         $currencyName = 'Golds';
                     }
                 }
+                
+                // Region flag mapping for Steam Gift Cards
+                $regionFlags = [
+                    'free' => '🌍',
+                    'us' => '🇺🇸',
+                    'br' => '🇧🇷',
+                    'cn' => '🇨🇳',
+                    'eu' => '🇪🇺',
+                    'gb' => '🇬🇧',
+                    'ae' => '🇦🇪',
+                    'hk' => '🇭🇰',
+                    'tw' => '🇹🇼',
+                    'vn' => '🇻🇳',
+                    'th' => '🇹🇭',
+                    'ph' => '🇵🇭',
+                    'sg' => '🇸🇬',
+                    'id' => '🇮🇩',
+                    'in' => '🇮🇳',
+                    'kw' => '🇰🇼',
+                    'qa' => '🇶🇦',
+                    'sa' => '🇸🇦',
+                    'za' => '🇿🇦',
+                    'ua' => '🇺🇦',
+                    'tr' => '🇹🇷',
+                    'cr' => '🇨🇷',
+                    'pe' => '🇵🇪',
+                    'uy' => '🇺🇾',
+                ];
+                $regionNames = [
+                    'free' => 'Global',
+                    'us' => 'United States',
+                    'br' => 'Brazil',
+                    'cn' => 'China',
+                    'eu' => 'Europe',
+                    'gb' => 'United Kingdom',
+                    'ae' => 'United Arab Emirates',
+                    'hk' => 'Hong Kong',
+                    'tw' => 'Taiwan',
+                    'vn' => 'Vietnam',
+                    'th' => 'Thailand',
+                    'ph' => 'Philippines',
+                    'sg' => 'Singapore',
+                    'id' => 'Indonesia',
+                    'in' => 'India',
+                    'kw' => 'Kuwait',
+                    'qa' => 'Qatar',
+                    'sa' => 'Saudi Arabia',
+                    'za' => 'South Africa',
+                    'ua' => 'Ukraine',
+                    'tr' => 'Turkey',
+                    'cr' => 'Costa Rica',
+                    'pe' => 'Peru',
+                    'uy' => 'Uruguay',
+                ];
+                $packRegion = $pack->region ?? null;
+                $regionFlag = $packRegion ? ($regionFlags[$packRegion] ?? '🌍') : '';
+                $regionName = $packRegion ? ($regionNames[$packRegion] ?? ucfirst(str_replace('_', ' ', $packRegion))) : '';
             @endphp
-            <div class="diamond-pack-item-wrapper" data-pack-region="{{ $pack->region ?? '' }}">
+            <div class="diamond-pack-item-wrapper">
                   <input type="checkbox" 
                        name="diamond_pack[]" 
                        value="{{ $pack->id }}" 
