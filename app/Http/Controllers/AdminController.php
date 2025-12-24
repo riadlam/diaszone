@@ -2148,6 +2148,102 @@ class AdminController extends Controller
                     }
                 }
                 
+                // Handle /topseller command
+                if ($text === '/topseller' || strtolower($text) === 'topseller') {
+                    try {
+                        // Get top 5 best-selling diamond packs
+                        // Aggregate quantities from both order_items (multi-item orders) and orders (single-item orders)
+                        // Only count orders with status 'completed'
+                        
+                        // 1. Get quantities from order_items for multi-item orders
+                        // Count orders with status 'completed' or 'success' (successful orders)
+                        $orderItemsStats = \DB::table('order_items')
+                            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                            ->whereIn('orders.status', ['completed', 'success'])
+                            ->select('order_items.diamond_pack_id', \DB::raw('SUM(order_items.quantity) as total_sold'))
+                            ->groupBy('order_items.diamond_pack_id')
+                            ->get()
+                            ->keyBy('diamond_pack_id');
+                        
+                        // 2. Get quantities from orders table for single-item orders (orders without order_items)
+                        $singleItemOrdersStats = \DB::table('orders')
+                            ->leftJoin('order_items', function($join) {
+                                $join->on('orders.id', '=', 'order_items.order_id');
+                            })
+                            ->whereIn('orders.status', ['completed', 'success'])
+                            ->whereNull('order_items.id') // Orders without order_items
+                            ->whereNotNull('orders.diamond_pack_id')
+                            ->select('orders.diamond_pack_id', \DB::raw('SUM(COALESCE(orders.quantity, 1)) as total_sold'))
+                            ->groupBy('orders.diamond_pack_id')
+                            ->get()
+                            ->keyBy('diamond_pack_id');
+                        
+                        // 3. Merge and aggregate totals by diamond_pack_id
+                        $totals = [];
+                        foreach ($orderItemsStats as $packId => $stat) {
+                            $totals[$packId] = ($totals[$packId] ?? 0) + (int)$stat->total_sold;
+                        }
+                        foreach ($singleItemOrdersStats as $packId => $stat) {
+                            $totals[$packId] = ($totals[$packId] ?? 0) + (int)$stat->total_sold;
+                        }
+                        
+                        // 4. Sort by total sold (descending) and get top 5
+                        arsort($totals);
+                        $top5PackIds = array_slice(array_keys($totals), 0, 5, true);
+                        
+                        if (empty($top5PackIds)) {
+                            TelegramService::sendMessage('📊 <b>Top Sellers</b>\n\n❌ No sales data available yet.');
+                            return response()->json(['ok' => true]);
+                        }
+                        
+                        // 5. Fetch diamond pack details
+                        $diamondPacks = \App\Models\DiamondPack::whereIn('id', $top5PackIds)
+                            ->get()
+                            ->keyBy('id');
+                        
+                        // 6. Format message
+                        $message = "🏆 <b>Top 5 Best Sellers</b>\n\n";
+                        
+                        $rank = 1;
+                        foreach ($top5PackIds as $packId) {
+                            $pack = $diamondPacks->get($packId);
+                            if (!$pack) continue;
+                            
+                            $totalSold = $totals[$packId];
+                            $packName = $pack->name ?? 'Unknown Pack';
+                            
+                            // Add medal emoji for top 3
+                            $medal = '';
+                            if ($rank === 1) $medal = '🥇';
+                            elseif ($rank === 2) $medal = '🥈';
+                            elseif ($rank === 3) $medal = '🥉';
+                            else $medal = $rank . '.';
+                            
+                            $message .= "{$medal} <b>{$packName}</b>\n";
+                            $message .= "   📦 Sold: <b>{$totalSold}</b> " . ($totalSold === 1 ? 'unit' : 'units') . "\n\n";
+                            
+                            $rank++;
+                        }
+                        
+                        TelegramService::sendMessage($message);
+                        
+                        Log::info('Telegram: Top sellers retrieved via /topseller command', [
+                            'top_5_pack_ids' => $top5PackIds,
+                            'totals' => array_intersect_key($totals, array_flip($top5PackIds)),
+                        ]);
+                        
+                        return response()->json(['ok' => true]);
+                    } catch (\Exception $e) {
+                        Log::error('Telegram: Error getting top sellers from /topseller command', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                        
+                        TelegramService::sendMessage('❌ Error retrieving top sellers. Please try again.');
+                        return response()->json(['ok' => true]);
+                    }
+                }
+                
                 // ==================== COUPON COMMANDS ====================
                 
                 // /coupon help - Show available commands
