@@ -3,8 +3,51 @@
     
     <!-- Desktop: Grid Layout (hidden on mobile) -->
     <div class="hidden lg:block" id="desktop-grid-wrapper">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        @foreach($packs as $index => $pack)
+        @php
+            // Check if packs are grouped by region (for Steam Gift Cards)
+            $isGroupedByRegion = $packs->isNotEmpty() && $packs->first() instanceof \Illuminate\Support\Collection;
+            $regionNames = [
+                'free' => 'Global',
+                'us' => 'United States',
+                'br' => 'Brazil',
+                'cn' => 'China',
+                'eu' => 'Europe',
+                'gb' => 'United Kingdom',
+                'ae' => 'United Arab Emirates',
+                'hk' => 'Hong Kong',
+                'tw' => 'Taiwan',
+                'vn' => 'Vietnam',
+                'th' => 'Thailand',
+                'ph' => 'Philippines',
+                'sg' => 'Singapore',
+                'id' => 'Indonesia',
+                'in' => 'India',
+                'kw' => 'Kuwait',
+                'qa' => 'Qatar',
+                'sa' => 'Saudi Arabia',
+                'za' => 'South Africa',
+                'ua' => 'Ukraine',
+                'tr' => 'Turkey',
+                'cr' => 'Costa Rica',
+                'pe' => 'Peru',
+                'uy' => 'Uruguay',
+            ];
+        @endphp
+        
+        @if($isGroupedByRegion)
+            {{-- Grouped by region (Steam Gift Cards) --}}
+            @foreach($packs as $regionCode => $regionPacks)
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 border-b-2 border-purple-500 pb-2">
+                        {{ $regionNames[$regionCode] ?? ucfirst(str_replace('_', ' ', $regionCode)) }}
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        @foreach($regionPacks as $index => $pack)
+        @else
+            {{-- Normal packs (not grouped) --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @foreach($packs as $index => $pack)
+        @endif
             @php
                 // Extract currency name from pack name (e.g., "60 + 6 Bonds" -> "Bonds")
                 $currencyName = 'Diamonds'; // default
@@ -177,8 +220,15 @@
             </label>
                 </div>
             </div>
+                @endforeach
+                @if($isGroupedByRegion)
+                    </div>
+                </div>
+                @endif
         @endforeach
-        </div>
+        @if(!$isGroupedByRegion)
+            </div>
+        @endif
     </div>
 </div>
 

@@ -67,6 +67,10 @@ Route::get('/blood-strike-golds-top-up-global', function() {
     $controller = app(HomeController::class);
     return $controller->gameTopUp('bloodstrike');
 })->name('bloodstrike');
+Route::get('/steam-gift-cards', function() {
+    $controller = app(HomeController::class);
+    return $controller->gameTopUp('steam_giftcard');
+})->name('steam_giftcard');
 Route::get('/shop', [HomeController::class, 'shop'])->name('shop');
 Route::get('/api/search', [HomeController::class, 'searchAjax'])->name('api.search');
 Route::get('/about', [HomeController::class, 'about'])->name('about');

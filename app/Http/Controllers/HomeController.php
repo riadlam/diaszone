@@ -307,7 +307,7 @@ class HomeController extends Controller
     private function getGameRoute($gameType)
     {
         // Standard games with named routes
-        if (in_array($gameType, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike'])) {
+        if (in_array($gameType, ['mobilelegends', 'freefire', 'pubgmobile', 'honorofkings', 'bloodstrike', 'steam_giftcard'])) {
             return route($gameType);
         }
         
@@ -597,6 +597,11 @@ class HomeController extends Controller
             ->orderBy('price')
             ->get();
 
+        // For Steam Gift Cards, group by region
+        if ($gameType === 'steam_giftcard' && $packs->isNotEmpty()) {
+            $packs = $packs->groupBy('region');
+        }
+
         // Try to get game info from games table with content and images
         // For genshin_impact, try exact match first, then any variant
         $gameQuery = Game::where('is_active', true);
@@ -635,6 +640,7 @@ class HomeController extends Controller
             'pubgmobile' => 'PUBG Mobile',
             'honorofkings' => 'Honor of Kings',
             'bloodstrike' => 'Blood Strike',
+            'steam_giftcard' => 'Steam Gift Cards',
         ];
 
             if ($packs->isNotEmpty() && $packs->first()->game_type) {

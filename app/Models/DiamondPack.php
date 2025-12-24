@@ -11,6 +11,7 @@ class DiamondPack extends Model
         'game_type',
         'name',
         'membership_name',
+        'region',
         'code',
         'diamonds',
         'special_quantity',

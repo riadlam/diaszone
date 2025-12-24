@@ -20,12 +20,53 @@
     
     <!-- Bottom Sheet Content (Scrollable) -->
     <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3" style="overflow-y: auto !important; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background-color: #ffffff !important; min-height: 200px;">
+        @php
+            // Check if packs are grouped by region (for Steam Gift Cards)
+            $isGroupedByRegion = !empty($packs) && $packs->isNotEmpty() && $packs->first() instanceof \Illuminate\Support\Collection;
+            $regionNames = [
+                'free' => 'Global',
+                'us' => 'United States',
+                'br' => 'Brazil',
+                'cn' => 'China',
+                'eu' => 'Europe',
+                'gb' => 'United Kingdom',
+                'ae' => 'United Arab Emirates',
+                'hk' => 'Hong Kong',
+                'tw' => 'Taiwan',
+                'vn' => 'Vietnam',
+                'th' => 'Thailand',
+                'ph' => 'Philippines',
+                'sg' => 'Singapore',
+                'id' => 'Indonesia',
+                'in' => 'India',
+                'kw' => 'Kuwait',
+                'qa' => 'Qatar',
+                'sa' => 'Saudi Arabia',
+                'za' => 'South Africa',
+                'ua' => 'Ukraine',
+                'tr' => 'Turkey',
+                'cr' => 'Costa Rica',
+                'pe' => 'Peru',
+                'uy' => 'Uruguay',
+            ];
+        @endphp
+        
         @if(empty($packs) || count($packs) === 0)
             <div class="text-center py-8">
                 <p class="text-gray-500">{{ __('game.no_packs_available') }}</p>
             </div>
+        @elseif($isGroupedByRegion)
+            {{-- Grouped by region (Steam Gift Cards) --}}
+            @foreach($packs as $regionCode => $regionPacks)
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3 border-b border-purple-500 pb-2">
+                        {{ $regionNames[$regionCode] ?? ucfirst(str_replace('_', ' ', $regionCode)) }}
+                    </h3>
+                    @foreach($regionPacks as $index => $pack)
         @else
-        @foreach($packs as $index => $pack)
+            {{-- Normal packs (not grouped) --}}
+            @foreach($packs as $index => $pack)
+        @endif
             @php
                 $discountAmount = ($pack->price * $pack->discount_percentage) / 100;
                 $priceAfterDiscount = $pack->price - $discountAmount;
@@ -253,6 +294,10 @@
                 </div>
                     </label>
                 </div>
+                    @endforeach
+                    @if($isGroupedByRegion)
+                    </div>
+                    @endif
         @endforeach
         @endif
     </div>
