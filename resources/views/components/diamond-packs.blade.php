@@ -36,7 +36,7 @@
                     }
                 }
             @endphp
-            <div class="diamond-pack-item-wrapper" data-pack-region="{{ $pack->region ?? '' }}">
+            <div class="diamond-pack-item-wrapper">
                   <input type="checkbox" 
                        name="diamond_pack[]" 
                        value="{{ $pack->id }}" 
