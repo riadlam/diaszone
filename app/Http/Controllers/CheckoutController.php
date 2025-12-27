@@ -2081,6 +2081,7 @@ class CheckoutController extends Controller
                         $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                         if (!$orderLocked) {
                             Log::error('Chargily: Failed to lock order for Digiflazz submission', ['order_id' => $order->id]);
+                            $result = ['result' => false, 'message' => 'Failed to lock order'];
                             return;
                         }
 
@@ -2321,6 +2322,11 @@ class CheckoutController extends Controller
                 $playerId = $order->user_id_ml;
                 $zoneId = $order->zone_id_ml;
                 
+                // Initialize result if not set (safety check)
+                if (!isset($result)) {
+                    $result = ['result' => false, 'message' => 'No result from transaction'];
+                }
+                
             } elseif ($gameType === 'freefire') {
                 // Check if player_id_ff is set
                 if (empty($order->player_id_ff)) {
@@ -2397,6 +2403,7 @@ class CheckoutController extends Controller
                         $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                         if (!$orderLocked) {
                             Log::error('Chargily: Failed to lock order for Digiflazz submission (Free Fire)', ['order_id' => $order->id]);
+                            $result = ['result' => false, 'message' => 'Failed to lock order'];
                             return;
                         }
 
@@ -2596,6 +2603,20 @@ class CheckoutController extends Controller
                 
                 $playerId = $order->player_id_ff;
                 $zoneId = null; // Free Fire doesn't use zone_id
+                
+                // Initialize result if not set (safety check)
+                if (!isset($result)) {
+                    $result = ['result' => false, 'message' => 'No result from transaction'];
+                }
+            } else {
+                // Unhandled game type - initialize result with error
+                Log::error('Chargily recharge: Unhandled game type', [
+                    'order_id' => $order->id,
+                    'game_type' => $gameType,
+                ]);
+                $result = ['result' => false, 'message' => 'Unhandled game type: ' . $gameType];
+                $playerId = null;
+                $zoneId = null;
             }
 
             // STEP 3: Save response to provider status table
