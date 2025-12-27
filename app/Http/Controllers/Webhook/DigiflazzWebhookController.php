@@ -667,22 +667,12 @@ class DigiflazzWebhookController extends Controller
                 $updatedMessage = \App\Services\TelegramService::formatOrderMessage($orderLocked);
 
                 if ($orderLocked->tlg_message_id) {
-                    $editResult = \App\Services\TelegramService::editMessageText($orderLocked->tlg_message_id, $updatedMessage);
-                    Log::info('Digiflazz webhook: Telegram message updated', [
-                        'order_id' => $orderLocked->id,
-                        'order_status' => $orderLocked->status,
-                        'message_id' => $orderLocked->tlg_message_id,
-                        'edit_success' => $editResult !== false,
-                    ]);
+                    \App\Services\TelegramService::editMessageText($orderLocked->tlg_message_id, $updatedMessage);
             } else {
                 $messageId = \App\Services\TelegramService::sendMessage($updatedMessage);
                 if ($messageId) {
                         $orderLocked->tlg_message_id = $messageId;
                         $orderLocked->save();
-                        Log::info('Digiflazz webhook: Telegram message sent (no existing message_id)', [
-                            'order_id' => $orderLocked->id,
-                            'new_message_id' => $messageId,
-                        ]);
                 }
             }
         } catch (\Exception $e) {

@@ -51,13 +51,45 @@ class DigiflazzService
 
         // Determine customer_no: prefer player id / user+zone if available, fall back to order id
         $customerNo = $order->id;
-        // prefer game-specific ids
-        $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs ?? null;
+        // prefer game-specific ids (including save_id for PUBG Mobile)
+        $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->save_id ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs ?? null;
         if ($pack->game_type === 'freefire' && $order->player_id_ff) {
             $customerNo = $order->player_id_ff;
         } elseif ($pack->game_type === 'bloodstrike' && $order->user_id_bs) {
             // Blood Strike: use user_id_bs only (no server concatenation)
             $customerNo = $order->user_id_bs;
+        } elseif (($pack->game_type === 'pubgmobile' || $pack->game_type === 'pubg_mobile')) {
+            // PUBG Mobile: use save_id (player ID is stored in save_id column)
+            if ($order->save_id) {
+                $customerNo = $order->save_id;
+            } elseif ($order->player_id_pubg) {
+                // Fallback to player_id_pubg if save_id is not set
+                $customerNo = $order->player_id_pubg;
+            } else {
+                // Log warning if both save_id and player_id_pubg are missing for PUBG Mobile order
+                \Log::warning('DigiflazzService: PUBG Mobile order missing save_id and player_id_pubg', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                    'pack_id' => $pack->id,
+                    'pack_code' => $pack->code,
+                    'game_type' => $pack->game_type,
+                ]);
+                // Will fall back to order ID, which will cause "Nomor Tujuan Salah" error
+            }
+        } elseif (($pack->game_type === 'honorofkings')) {
+            // Honor of Kings: use player_id_hok
+            if ($order->player_id_hok) {
+                $customerNo = $order->player_id_hok;
+            } else {
+                // Log warning if player_id_hok is missing for Honor of Kings order
+                \Log::warning('DigiflazzService: Honor of Kings order missing player_id_hok', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                    'pack_id' => $pack->id,
+                    'pack_code' => $pack->code,
+                    'game_type' => $pack->game_type,
+                ]);
+            }
         } elseif (!empty($order->user_id_ml) && !empty($order->zone_id_ml)) {
             // Digiflazz expects a single customer_no numeric string for ML: concatenate user id + zone
             // e.g., user_id=205762973 and zone=4048 => customer_no=2057629734048

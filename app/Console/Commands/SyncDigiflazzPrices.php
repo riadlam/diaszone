@@ -161,13 +161,6 @@ class SyncDigiflazzPrices extends Command
                         if ($candidateNormalizedName === $normalizedPackName) {
                             $pack = $candidatePack;
                             $this->info("Matched pack by name: {$pack->name} (DB code: {$pack->code}, Digiflazz codes: " . implode(", ", $allSkuCodes) . ")");
-                            Log::info('Digiflazz sync: Matched pack by normalized product name', [
-                                'pack_id' => $pack->id,
-                                'pack_name' => $pack->name,
-                                'pack_code' => $pack->code,
-                                'digiflazz_codes' => $allSkuCodes,
-                                'normalized_name' => $normalizedPackName,
-                            ]);
                             break;
                         }
                     }

@@ -70,9 +70,6 @@ class TelegramService
             
             if ($response->successful() && isset($responseData['ok']) && $responseData['ok'] === true) {
                 $messageId = $responseData['result']['message_id'] ?? null;
-                Log::info('Telegram: Message sent successfully', [
-                    'message_id' => $messageId,
-                ]);
                 return $messageId ? (int) $messageId : null;
             } else {
                 Log::error('Telegram: Failed to send message', [
@@ -118,12 +115,6 @@ class TelegramService
             
             // Ensure chat_id is a string (Telegram API requirement)
             $chatId = (string) $chatId;
-            
-            Log::info('Telegram Updates: Sending message', [
-                'chat_id' => $chatId,
-                'message_length' => strlen($message),
-                'url' => str_replace($botToken, '***', $url), // Hide token in logs
-            ]);
             
             $payload = [
                 'chat_id' => $chatId,
