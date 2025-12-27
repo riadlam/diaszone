@@ -98,7 +98,9 @@ class DigiflazzService
             $customerNo = $playerId;
         }
 
-        $refId = 'order-' . $order->id . '-' . Str::random(8);
+        // Use the provided refId (already formatted for multi-item orders)
+        // Format: "order-{order_id}-item-{order_item_id}-{random}" for multi-item
+        // Format: "order-{order_id}-{random}" for single-item (from placeOrder method)
 
         $payload = [
             'username' => $this->username,

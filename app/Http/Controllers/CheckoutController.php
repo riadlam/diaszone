@@ -2608,6 +2608,129 @@ class CheckoutController extends Controller
                 if (!isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
                 }
+            } elseif ($gameType === 'pubg_mobile' || $gameType === 'pubgmobile') {
+                // PUBG Mobile: Use save_id as player ID (same flow as Mobile Legends)
+                // Check if save_id is set
+                if (empty($order->save_id)) {
+                    Log::warning('Chargily recharge skipped: Missing save_id for PUBG Mobile', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'save_id' => $order->save_id,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing Player ID (save_id) for PUBG Mobile',
+                    ];
+                }
+
+                Log::info('Chargily: Processing PUBG Mobile recharge via Digiflazz', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'save_id' => $order->save_id,
+                    'package_code' => $packageCode,
+                ]);
+
+                // Multi-item order support: Submit top-ups for each order_item
+                if (!config('services.digiflazz.username') && !env('DIGIFLAZZ_USERNAME')) {
+                    Log::error('Chargily recharge: Digiflazz not configured for PUBG Mobile', ['order_id' => $order->id]);
+                    return ['success' => false, 'message' => 'Digiflazz not configured'];
+                }
+
+                // Atomic multi-quantity submission with proper locking
+                DB::transaction(function () use (&$result, &$order) {
+                    // Lock the order to prevent concurrent modifications
+                    $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                    if (!$orderLocked) {
+                        Log::error('Chargily: Failed to lock order for Digiflazz submission (PUBG Mobile)', ['order_id' => $order->id]);
+                        $result = ['result' => false, 'message' => 'Failed to lock order'];
+                        return;
+                    }
+
+                    $orderLocked->load('orderItems.diamondPack');
+                    
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+
+                    // Submit top-ups for each order_item
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        // Check how many DigiflazzStatus records already exist for this item
+                        $submitted = $orderItem->digiflazzStatuses()
+                            ->where(function ($q) {
+                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                                  ->orWhere('event', 'create');
+                            })->count();
+
+                        $remaining = max(0, $orderItem->quantity - $submitted);
+
+                        // Submit remaining top-ups for this item
+                        for ($i = 0; $i < $remaining; $i++) {
+                            $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . Str::random(8);
+                            
+                            $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                                $orderItem->diamondPack,
+                                $orderLocked,
+                                $refId,
+                                $orderItem->id
+                            );
+                            
+                            Log::info('Chargily: Digiflazz placeOrder attempt (PUBG Mobile)', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'pack_id' => $orderItem->diamond_pack_id,
+                                'quantity' => $orderItem->quantity,
+                                'remaining' => $remaining - ($i + 1),
+                                'ref_id' => $refId,
+                                'result' => $lastResult
+                            ]);
+                            
+                            // Small delay to ensure DigiflazzStatus record is committed
+                            usleep(100000); // 0.1 second
+                        }
+                    }
+
+                    $result = $lastResult;
+                    $order = $orderLocked; // Update order reference
+                });
+
+                // If Digiflazz is used, create a lightweight VipResellerStatus mirror so admin/telegram can show provider info immediately
+                if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                    try {
+                        $apiData = $result['data'] ?? [];
+                        $balance = $apiData['buyer_last_saldo'] ?? $apiData['balance'] ?? null;
+                        $vipData = [
+                            'order_id' => $order->id,
+                            'trxid' => $apiData['trxid'] ?? null,
+                            'data' => $apiData['customer_no'] ?? $order->save_id,
+                            'zone' => null, // PUBG Mobile doesn't use zone
+                            'status' => strtolower(($apiData['status'] ?? $apiData['rc'] ?? 'waiting')) === 'sukses' || ($apiData['rc'] ?? null) === '00' ? 'success' : 'waiting',
+                            'note' => $apiData['message'] ?? null,
+                            'price' => $apiData['price'] ?? null,
+                            'balance' => $balance,
+                            'additional_data' => array_merge($apiData, ['balance' => $balance, 'service' => 'digiflazz']),
+                        ];
+
+                        if (!empty($vipData['trxid'])) {
+                            \App\Models\VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
+                        } else {
+                            \App\Models\VipResellerStatus::create($vipData);
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder (PUBG Mobile)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                    }
+                }
+
+                Log::info('Chargily: provider API response (PUBG Mobile)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'api_result' => $result,
+                ]);
+                
+                $playerId = $order->save_id;
+                $zoneId = null; // PUBG Mobile doesn't use zone_id
+                
+                // Initialize result if not set (safety check)
+                if (!isset($result)) {
+                    $result = ['result' => false, 'message' => 'No result from transaction'];
+                }
             } else {
                 // Unhandled game type - initialize result with error
                 Log::error('Chargily recharge: Unhandled game type', [
