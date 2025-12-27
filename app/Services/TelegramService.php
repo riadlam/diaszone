@@ -76,9 +76,6 @@ class TelegramService
             
             if ($response->successful() && isset($responseData['ok']) && $responseData['ok'] === true) {
                 $messageId = $responseData['result']['message_id'] ?? null;
-                Log::info('Telegram: Message sent successfully', [
-                    'message_id' => $messageId,
-                ]);
                 return $messageId ? (int) $messageId : null;
             } else {
                 Log::error('Telegram: Failed to send message', [
@@ -143,9 +140,6 @@ class TelegramService
             
             if ($response->successful() && isset($responseData['ok']) && $responseData['ok'] === true) {
                 $messageId = $responseData['result']['message_id'] ?? null;
-                Log::info('Telegram Updates: Message sent successfully', [
-                    'message_id' => $messageId,
-                ]);
                 return $messageId ? (int) $messageId : null;
             } else {
                 Log::error('Telegram Updates: Failed to send message', [
