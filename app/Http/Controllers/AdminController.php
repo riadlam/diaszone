@@ -725,70 +725,109 @@ class AdminController extends Controller
                 ];
             }
             
-            if ($gameType !== 'mobilelegends') {
-                Log::info('Recharge skipped: Not a Mobile Legends order', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'game_type' => $gameType,
-                ]);
-                return [
-                    'success' => false,
-                    'message' => 'Recharge only supported for Mobile Legends orders',
-                ];
+            // Determine which provider to use
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings'];
+            $useDigiflazz = in_array($gameType, $digiflazzGames);
+            
+            // For non-Digiflazz games, use Item4Gamer
+            if (!$useDigiflazz) {
+                // Use Item4Gamer for other games
+                if (!config('services.item4gamer.api_key') && !env('ITEM4GAMER_API_KEY')) {
+                    Log::error('Flexy recharge: Item4Gamer not configured', ['order_id' => $order->id]);
+                    return ['success' => false, 'message' => 'Item4Gamer not configured'];
+                }
+                
+                // Item4Gamer implementation would go here
+                return ['success' => false, 'message' => 'Item4Gamer recharge not yet implemented for Flexy'];
             }
 
-            // Check if user_id_ml and zone_id_ml are set
-            if (empty($order->user_id_ml) || empty($order->zone_id_ml)) {
-                Log::warning('Recharge skipped: Missing user_id_ml or zone_id_ml', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'user_id_ml' => $order->user_id_ml,
-                    'zone_id_ml' => $order->zone_id_ml,
-                ]);
-                return [
-                    'success' => false,
-                    'message' => 'Missing User ID or Zone ID for Mobile Legends',
-                ];
-            }
+            // Handle Digiflazz games
+            if ($gameType === 'mobilelegends') {
+                // Check if user_id_ml and zone_id_ml are set
+                if (empty($order->user_id_ml) || empty($order->zone_id_ml)) {
+                    Log::warning('Recharge skipped: Missing user_id_ml or zone_id_ml', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'user_id_ml' => $order->user_id_ml,
+                        'zone_id_ml' => $order->zone_id_ml,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing User ID or Zone ID for Mobile Legends',
+                    ];
+                }
 
-            // STEP 1: Validate nickname BEFORE processing recharge
-            // This ensures the User ID and Zone ID are valid before attempting recharge
-            Log::info('Validating nickname before recharge', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'user_id_ml' => $order->user_id_ml,
-                'zone_id_ml' => $order->zone_id_ml,
-            ]);
-
-            $vipReseller = app(VipResellerService::class);
-            $nicknameValidation = $vipReseller->checkNickname($order->user_id_ml, $order->zone_id_ml);
-
-            if ($nicknameValidation['result'] !== true) {
-                Log::error('Recharge aborted: Nickname validation failed', [
+                // STEP 1: Validate nickname BEFORE processing recharge (Mobile Legends only)
+                Log::info('Validating nickname before recharge', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'user_id_ml' => $order->user_id_ml,
                     'zone_id_ml' => $order->zone_id_ml,
-                    'validation_message' => $nicknameValidation['message'] ?? 'Unknown error',
                 ]);
-                return [
-                    'success' => false,
-                    'message' => 'Nickname validation failed: ' . ($nicknameValidation['message'] ?? 'Invalid User ID or Zone ID'),
-                ];
+
+                $vipReseller = app(VipResellerService::class);
+                $nicknameValidation = $vipReseller->checkNickname($order->user_id_ml, $order->zone_id_ml);
+
+                if ($nicknameValidation['result'] !== true) {
+                    Log::error('Recharge aborted: Nickname validation failed', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'user_id_ml' => $order->user_id_ml,
+                        'zone_id_ml' => $order->zone_id_ml,
+                        'validation_message' => $nicknameValidation['message'] ?? 'Unknown error',
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Nickname validation failed: ' . ($nicknameValidation['message'] ?? 'Invalid User ID or Zone ID'),
+                    ];
+                }
+
+                // Nickname validation successful - log the nickname
+                $nickname = $nicknameValidation['data'] ?? 'Unknown';
+                Log::info('Nickname validation successful - Proceeding with recharge', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'user_id_ml' => $order->user_id_ml,
+                    'zone_id_ml' => $order->zone_id_ml,
+                    'nickname' => $nickname,
+                ]);
+            } elseif ($gameType === 'pubg_mobile' || $gameType === 'pubgmobile') {
+                // PUBG Mobile: Check if save_id is set
+                if (empty($order->save_id)) {
+                    Log::warning('Recharge skipped: Missing save_id for PUBG Mobile', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'save_id' => $order->save_id,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing Player ID (save_id) for PUBG Mobile',
+                    ];
+                }
+                // PUBG Mobile doesn't need nickname validation
+            } elseif ($gameType === 'freefire') {
+                // Free Fire: Check if player_id_ff is set
+                if (empty($order->player_id_ff)) {
+                    Log::warning('Recharge skipped: Missing player_id_ff for Free Fire', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'player_id_ff' => $order->player_id_ff,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing Player ID for Free Fire',
+                    ];
+                }
+                // Free Fire doesn't need nickname validation
             }
 
-            // Nickname validation successful - log the nickname
-            $nickname = $nicknameValidation['data'] ?? 'Unknown';
-            Log::info('Nickname validation successful - Proceeding with recharge', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'user_id_ml' => $order->user_id_ml,
-                'zone_id_ml' => $order->zone_id_ml,
-                'nickname' => $nickname,
-            ]);
-
-            // Get package code from diamond_packs
-            $packageCode = $order->diamondPack ? ($order->diamondPack->code ?? null) : null;
+            // Get package code (for multi-item orders, we'll use first item's code as primary)
+            $packageCode = null;
+            if ($hasOrderItems && $firstItem && $firstItem->diamondPack) {
+                $packageCode = $firstItem->diamondPack->code ?? null;
+            } elseif ($order->diamondPack) {
+                $packageCode = $order->diamondPack->code ?? null;
+            }
             
             if (empty($packageCode)) {
                 Log::warning('Recharge skipped: Missing package code', [
@@ -802,7 +841,7 @@ class AdminController extends Controller
                 ];
             }
 
-            // STEP 2: Call provider API to recharge (nickname already validated)
+            // STEP 2: Call provider API to recharge
             // Multi-item order support with price validation
             if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
                 $result = ['result' => false, 'message' => 'No provider calls made'];
