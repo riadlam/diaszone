@@ -2593,9 +2593,176 @@ class CheckoutController extends Controller
                 
                 $playerId = $order->player_id_ff;
                 $zoneId = null; // Free Fire doesn't use zone_id
+            } elseif (in_array($gameType, ['pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings'])) {
+                // PUBG Mobile, Genshin Impact, Blood Strike, Honor of Kings - Use Digiflazz
+                Log::info('Chargily: Processing order via Digiflazz', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'game_type' => $gameType,
+                    'package_code' => $packageCode,
+                ]);
+
+                // Check for seller wallet deduction if applicable
+                if ($order->seller_id && !$order->wallet_deducted) {
+                    $sellerChargeResult = \App\Http\Controllers\Seller\SellerStorefrontController::processSellerOrder($order);
+                    if ($sellerChargeResult !== true) {
+                        Log::error('Chargily recharge aborted: seller insufficient balance', [
+                            'order_id' => $order->id,
+                            'seller_id' => $order->seller_id,
+                            'seller_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                            'required' => $order->seller_cost,
+                        ]);
+
+                        $vipResellerStatus = VipResellerStatus::create([
+                            'order_id' => $order->id,
+                            'trxid' => null,
+                            'data' => null,
+                            'zone' => null,
+                            'status' => 'error',
+                            'note' => 'Insufficient seller wallet balance',
+                            'price' => null,
+                            'additional_data' => [
+                                'required' => $order->seller_cost,
+                                'wallet_balance' => $order->seller ? $order->seller->wallet_balance : null,
+                                'service' => $packageCode,
+                            ],
+                        ]);
+
+                        return [
+                            'success' => false,
+                            'message' => 'Seller has insufficient wallet balance to process this order.',
+                        ];
+                    }
+                }
+
+                // Process via Digiflazz
+                if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                    DB::transaction(function () use (&$result, &$order) {
+                        $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                        if (!$orderLocked) {
+                            Log::error('Chargily: Failed to lock order for Digiflazz submission', ['order_id' => $order->id]);
+                            return;
+                        }
+
+                        $orderLocked->load('orderItems.diamondPack');
+                        $digiflazzService = app(\App\Services\DigiflazzService::class);
+                        
+                        $order->load('orderItems.diamondPack');
+                        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+                        
+                        if ($hasOrderItems) {
+                            // Multi-item order
+                            $lastResult = ['result' => false, 'message' => 'No items processed'];
+                            
+                            foreach ($order->orderItems as $orderItem) {
+                                $pack = $orderItem->diamondPack;
+                                $quantity = $orderItem->quantity ?? 1;
+                                
+                                for ($i = 0; $i < $quantity; $i++) {
+                                    $refId = 'order-' . $order->id . '-item-' . $orderItem->id . '-' . \Illuminate\Support\Str::random(8);
+                                    $result = $digiflazzService->placeOrderWithRefId($pack, $orderLocked, $refId, $orderItem->id);
+                                    $lastResult = $result;
+                                    
+                                    if (!$result['result']) {
+                                        Log::error('Chargily: Digiflazz placeOrder failed', [
+                                            'order_id' => $orderLocked->id,
+                                            'order_item_id' => $orderItem->id,
+                                            'pack_id' => $pack->id,
+                                            'error' => $result['message'] ?? 'Unknown error',
+                                        ]);
+                                    }
+                                    
+                                    usleep(100000); // 0.1 second delay
+                                }
+                            }
+                            
+                            $result = $lastResult;
+                        } else {
+                            // Single-item order
+                            $quantity = $order->quantity ?? 1;
+                            $pack = $order->diamondPack;
+                            $lastResult = ['result' => false, 'message' => 'No top-ups processed'];
+                            
+                            for ($i = 0; $i < $quantity; $i++) {
+                                $refId = 'order-' . $order->id . '-' . \Illuminate\Support\Str::random(8);
+                                $result = $digiflazzService->placeOrderWithRefId($pack, $orderLocked, $refId);
+                                $lastResult = $result;
+                                
+                                if (!$result['result']) {
+                                    Log::error('Chargily: Digiflazz placeOrder failed', [
+                                        'order_id' => $orderLocked->id,
+                                        'pack_id' => $pack->id,
+                                        'error' => $result['message'] ?? 'Unknown error',
+                                    ]);
+                                }
+                                
+                                usleep(100000); // 0.1 second delay
+                            }
+                            
+                            $result = $lastResult;
+                        }
+                        
+                        $order = $orderLocked;
+                    });
+                } else {
+                    // Fallback: return error if Digiflazz not configured
+                    $result = [
+                        'result' => false,
+                        'message' => 'Digiflazz not configured',
+                        'data' => null,
+                    ];
+                }
+
+                Log::info('Chargily: Digiflazz processing completed', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'api_result' => $result,
+                ]);
+                
+                // Set playerId based on game type
+                if ($gameType === 'pubg_mobile') {
+                    $playerId = $order->player_id_pubg;
+                } elseif ($gameType === 'genshin_impact') {
+                    $playerId = $order->save_id;
+                } elseif ($gameType === 'bloodstrike') {
+                    $playerId = $order->user_id_bs;
+                } elseif ($gameType === 'honorofkings') {
+                    $playerId = $order->player_id_hok;
+                } else {
+                    $playerId = null;
+                }
+                $zoneId = null;
+            } else {
+                // Unknown game type - return error
+                Log::error('Chargily recharge: Unknown game type', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'game_type' => $gameType,
+                ]);
+                
+                $result = [
+                    'result' => false,
+                    'message' => 'Unsupported game type for Chargily recharge',
+                    'data' => null,
+                ];
+                $playerId = null;
+                $zoneId = null;
             }
 
             // STEP 3: Save response to provider status table
+            // Ensure $result is defined before using it
+            if (!isset($result)) {
+                Log::error('Chargily recharge: $result not defined', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'game_type' => $gameType,
+                ]);
+                return [
+                    'success' => false,
+                    'message' => 'Error processing recharge: Internal error',
+                ];
+            }
+            
             $apiData = $result['data'] ?? [];
             $apiStatus = $apiData['status'] ?? 'error';
 
