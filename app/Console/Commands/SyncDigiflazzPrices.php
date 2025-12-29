@@ -23,7 +23,7 @@ class SyncDigiflazzPrices extends Command
      *
      * @var string
      */
-    protected $description = 'Sync diamond pack prices from Digiflazz API (mobilelegends, freefire, pubg_mobile, genshin_impact, bloodstrike, honorofkings, and punishinggrayraven)';
+    protected $description = 'Sync diamond pack prices from Digiflazz API (mobilelegends, freefire, pubg_mobile, genshin_impact, bloodstrike, honorofkings, punishinggrayraven, and wutheringwaves)';
 
     /**
      * Execute the console command.

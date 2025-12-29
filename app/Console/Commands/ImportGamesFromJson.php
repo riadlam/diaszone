@@ -23,7 +23,7 @@ class ImportGamesFromJson extends Command
      *
      * @var string
      */
-    protected $description = 'Import games from JSON files in storage/app/private/games_data_organized/topup and topup_two to diamond_packs table';
+    protected $description = 'Import games from JSON files in storage/app/private/games_data_organized/topup, topup_two, and manual directories to diamond_packs table';
 
     /**
      * Execute the console command.
@@ -32,10 +32,11 @@ class ImportGamesFromJson extends Command
     {
         $this->info('Starting game import from JSON files...');
 
-        // Check both topup and topup_two directories
+        // Check topup, topup_two, and manual directories
         $jsonDirs = [
             storage_path('app/private/games_data_organized/topup'),
             storage_path('app/private/games_data_organized/topup_two'),
+            storage_path('app/private/games_data_organized/manual'),
         ];
 
         $allFiles = [];
