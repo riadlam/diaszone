@@ -526,7 +526,7 @@
                 @endphp
                 
                 @if($reviewsForComponent->count() > 0)
-                <div id="review-list-container" class="space-y-4 max-h-96 overflow-y-auto mb-6">
+                <div id="review-list-container" class="space-y-4 lg:max-h-96 lg:overflow-y-auto mb-6">
                     @foreach($reviewsForComponent as $review)
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 review-item" data-review-id="{{ $review->id }}">
                         <div class="flex items-center gap-2 mb-2">
