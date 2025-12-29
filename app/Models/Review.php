@@ -25,5 +25,61 @@ class Review extends Model
     {
         return $this->belongsTo(Game::class);
     }
+
+    /**
+     * Get the likes and dislikes for this review.
+     */
+    public function likes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ReviewLike::class);
+    }
+
+    /**
+     * Get only likes for this review.
+     */
+    public function likesOnly(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ReviewLike::class)->where('type', 'like');
+    }
+
+    /**
+     * Get only dislikes for this review.
+     */
+    public function dislikesOnly(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ReviewLike::class)->where('type', 'dislike');
+    }
+
+    /**
+     * Get the replies for this review.
+     */
+    public function replies(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ReviewReply::class)->latest();
+    }
+
+    /**
+     * Get the count of likes.
+     */
+    public function getLikesCountAttribute(): int
+    {
+        return $this->likesOnly()->count();
+    }
+
+    /**
+     * Get the count of dislikes.
+     */
+    public function getDislikesCountAttribute(): int
+    {
+        return $this->dislikesOnly()->count();
+    }
+
+    /**
+     * Get the count of replies.
+     */
+    public function getRepliesCountAttribute(): int
+    {
+        return $this->replies()->count();
+    }
 }
 

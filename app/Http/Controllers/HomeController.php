@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\DiamondPack;
 use App\Models\Game;
 use App\Models\Review;
+use App\Models\ReviewLike;
+use App\Models\ReviewReply;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -893,6 +895,10 @@ class HomeController extends Controller
             $totalReviews = $game->reviews()->count();
             $averageRating = $totalReviews > 0 ? round($game->reviews()->avg('rating'), 1) : 5.0;
 
+            // Get user ID and session ID for checking user's likes/dislikes
+            $userId = auth()->check() ? auth()->id() : null;
+            $sessionId = $request->session()->getId();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Review submitted successfully!',
@@ -905,13 +911,32 @@ class HomeController extends Controller
                 ],
                 'averageRating' => $averageRating,
                 'totalReviews' => $totalReviews,
-                'reviews' => $reviews->map(function($r) {
+                'reviews' => $reviews->map(function($r) use ($userId, $sessionId) {
+                    $likesCount = $r->likesOnly()->count();
+                    $dislikesCount = $r->dislikesOnly()->count();
+                    $repliesCount = $r->replies()->count();
+
+                    // Check if current user/session has liked/disliked
+                    $userLike = ReviewLike::where('review_id', $r->id)
+                        ->where(function($query) use ($userId, $sessionId) {
+                            if ($userId) {
+                                $query->where('user_id', $userId);
+                            } else {
+                                $query->where('session_id', $sessionId);
+                            }
+                        })
+                        ->first();
+
                     return [
                         'id' => $r->id,
                         'name' => $r->name,
                         'comment' => $r->comment,
                         'rating' => $r->rating,
                         'created_at' => $r->created_at->diffForHumans(),
+                        'likesCount' => $likesCount,
+                        'dislikesCount' => $dislikesCount,
+                        'repliesCount' => $repliesCount,
+                        'userLike' => $userLike ? $userLike->type : null,
                     ];
                 }),
             ], 201);
@@ -948,17 +973,40 @@ class HomeController extends Controller
             $totalReviews = $game->reviews()->count();
             $averageRating = $totalReviews > 0 ? round($game->reviews()->avg('rating'), 1) : 5.0;
 
+            // Get user ID and session ID for checking user's likes/dislikes
+            $userId = auth()->check() ? auth()->id() : null;
+            $sessionId = $request->session()->getId();
+
             return response()->json([
                 'success' => true,
                 'averageRating' => $averageRating,
                 'totalReviews' => $totalReviews,
-                'reviews' => $reviews->map(function($review) {
+                'reviews' => $reviews->map(function($review) use ($userId, $sessionId) {
+                    $likesCount = $review->likesOnly()->count();
+                    $dislikesCount = $review->dislikesOnly()->count();
+                    $repliesCount = $review->replies()->count();
+
+                    // Check if current user/session has liked/disliked
+                    $userLike = ReviewLike::where('review_id', $review->id)
+                        ->where(function($query) use ($userId, $sessionId) {
+                            if ($userId) {
+                                $query->where('user_id', $userId);
+                            } else {
+                                $query->where('session_id', $sessionId);
+                            }
+                        })
+                        ->first();
+
                     return [
                         'id' => $review->id,
                         'name' => $review->name,
                         'comment' => $review->comment,
                         'rating' => $review->rating,
                         'created_at' => $review->created_at->diffForHumans(),
+                        'likesCount' => $likesCount,
+                        'dislikesCount' => $dislikesCount,
+                        'repliesCount' => $repliesCount,
+                        'userLike' => $userLike ? $userLike->type : null,
                     ];
                 }),
             ]);
@@ -966,6 +1014,225 @@ class HomeController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load reviews.',
+            ], 404);
+        }
+    }
+
+    /**
+     * Toggle like/dislike for a review
+     */
+    public function toggleReviewLike(Request $request, $reviewId)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:like,dislike',
+        ], [
+            'type.required' => 'Type is required.',
+            'type.in' => 'Type must be either like or dislike.',
+        ]);
+
+        try {
+            $review = Review::findOrFail($reviewId);
+            $type = $validated['type'];
+
+            // Get user ID if authenticated, otherwise use session
+            $userId = auth()->check() ? auth()->id() : null;
+            $sessionId = $request->session()->getId();
+            $ipAddress = $request->ip();
+
+            // Check if user/session already liked/disliked this review
+            $existingLike = ReviewLike::where('review_id', $reviewId)
+                ->where(function($query) use ($userId, $sessionId) {
+                    if ($userId) {
+                        $query->where('user_id', $userId);
+                    } else {
+                        $query->where('session_id', $sessionId);
+                    }
+                })
+                ->first();
+
+            if ($existingLike) {
+                // If same type, remove the like/dislike
+                if ($existingLike->type === $type) {
+                    $existingLike->delete();
+                    $action = 'removed';
+                } else {
+                    // If different type, update it
+                    $existingLike->type = $type;
+                    $existingLike->save();
+                    $action = 'updated';
+                }
+            } else {
+                // Create new like/dislike
+                ReviewLike::create([
+                    'review_id' => $reviewId,
+                    'user_id' => $userId,
+                    'session_id' => $userId ? null : $sessionId,
+                    'ip_address' => $ipAddress,
+                    'type' => $type,
+                ]);
+                $action = 'added';
+            }
+
+            // Get updated counts
+            $likesCount = $review->likesOnly()->count();
+            $dislikesCount = $review->dislikesOnly()->count();
+
+            // Check current user's status
+            $userLike = ReviewLike::where('review_id', $reviewId)
+                ->where(function($query) use ($userId, $sessionId) {
+                    if ($userId) {
+                        $query->where('user_id', $userId);
+                    } else {
+                        $query->where('session_id', $sessionId);
+                    }
+                })
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'action' => $action,
+                'likesCount' => $likesCount,
+                'dislikesCount' => $dislikesCount,
+                'userLike' => $userLike ? $userLike->type : null,
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Review not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Toggle review like error', [
+                'error' => $e->getMessage(),
+                'review_id' => $reviewId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Submit a reply to a review
+     */
+    public function submitReviewReply(Request $request, $reviewId)
+    {
+        // Rate limiting: max 5 replies per 10 minutes per user (session-based)
+        $sessionId = $request->session()->getId();
+        $key = 'review-reply-submission:' . $sessionId . ':' . $reviewId;
+
+        $maxAttempts = 5;
+        $decaySeconds = 600; // 10 minutes
+
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            $seconds = RateLimiter::availableIn($key);
+            $minutes = ceil($seconds / 60);
+
+            return response()->json([
+                'success' => false,
+                'message' => "You've submitted too many replies. Please wait {$minutes} minute(s) before submitting another reply.",
+            ], 429);
+        }
+
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[a-zA-Z0-9\s\-_\.]+$/',
+            ],
+            'comment' => [
+                'required',
+                'string',
+                'min:3',
+                'max:500',
+            ],
+        ], [
+            'name.required' => 'Name is required.',
+            'name.max' => 'Name must not exceed 100 characters.',
+            'name.regex' => 'Name contains invalid characters.',
+            'comment.required' => 'Comment is required.',
+            'comment.min' => 'Comment must be at least 3 characters.',
+            'comment.max' => 'Comment must not exceed 500 characters.',
+        ]);
+
+        try {
+            $review = Review::findOrFail($reviewId);
+
+            // Sanitize input
+            $name = strip_tags(trim($validated['name']));
+            $comment = strip_tags(trim($validated['comment']));
+
+            // Get user ID if authenticated
+            $userId = auth()->check() ? auth()->id() : null;
+
+            // Create reply
+            $reply = ReviewReply::create([
+                'review_id' => $reviewId,
+                'user_id' => $userId,
+                'name' => $name,
+                'comment' => $comment,
+            ]);
+
+            // Hit rate limiter
+            RateLimiter::hit($key, $decaySeconds);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reply submitted successfully!',
+                'reply' => [
+                    'id' => $reply->id,
+                    'name' => $reply->name,
+                    'comment' => $reply->comment,
+                    'created_at' => $reply->created_at->diffForHumans(),
+                ],
+            ], 201);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Review not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            \Log::error('Review reply submission error', [
+                'error' => $e->getMessage(),
+                'review_id' => $reviewId,
+                'request_data' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while submitting your reply. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get replies for a review
+     */
+    public function getReviewReplies(Request $request, $reviewId)
+    {
+        try {
+            $review = Review::findOrFail($reviewId);
+            $replies = $review->replies()->latest()->get();
+
+            return response()->json([
+                'success' => true,
+                'replies' => $replies->map(function($reply) {
+                    return [
+                        'id' => $reply->id,
+                        'name' => $reply->name,
+                        'comment' => $reply->comment,
+                        'created_at' => $reply->created_at->diffForHumans(),
+                    ];
+                }),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load replies.',
             ], 404);
         }
     }

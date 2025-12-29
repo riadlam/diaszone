@@ -528,7 +528,7 @@
                 @if($reviewsForComponent->count() > 0)
                 <div id="review-list-container" class="space-y-4 max-h-96 overflow-y-auto mb-6">
                     @foreach($reviewsForComponent as $review)
-                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 review-item" data-review-id="{{ $review->id }}">
                         <div class="flex items-center gap-2 mb-2">
                             <div class="flex">
                                 @for($i = 1; $i <= 5; $i++)
@@ -540,7 +540,57 @@
                             <span class="text-sm font-semibold text-gray-900">{{ e($review->name) }}</span>
                             <span class="text-xs text-gray-500">{{ $review->created_at->diffForHumans() }}</span>
                         </div>
-                        <p class="text-sm text-gray-700">{{ e($review->comment) }}</p>
+                        <p class="text-sm text-gray-700 mb-3">{{ e($review->comment) }}</p>
+                        
+                        <!-- Like/Dislike Buttons -->
+                        <div class="flex items-center gap-4 mb-3">
+                            <button type="button" class="review-like-btn flex items-center gap-1 text-sm text-gray-600 hover:text-green-600 transition-colors" data-review-id="{{ $review->id }}" data-type="like">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path>
+                                </svg>
+                                <span class="review-likes-count">{{ $review->likesOnly()->count() }}</span>
+                            </button>
+                            <button type="button" class="review-dislike-btn flex items-center gap-1 text-sm text-gray-600 hover:text-red-600 transition-colors" data-review-id="{{ $review->id }}" data-type="dislike">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"></path>
+                                </svg>
+                                <span class="review-dislikes-count">{{ $review->dislikesOnly()->count() }}</span>
+                            </button>
+                            <button type="button" class="review-reply-toggle-btn flex items-center gap-1 text-sm text-gray-600 hover:text-purple-600 transition-colors" data-review-id="{{ $review->id }}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                </svg>
+                                <span class="review-replies-count">{{ $review->replies()->count() }}</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Replies Section -->
+                        <div class="review-replies-container hidden mt-3 border-t border-gray-200 pt-3" data-review-id="{{ $review->id }}">
+                            <div class="review-replies-list mb-3 space-y-2"></div>
+                            
+                            <!-- Reply Form -->
+                            <form class="review-reply-form" data-review-id="{{ $review->id }}">
+                                @csrf
+                                <div class="mb-2">
+                                    <input type="text" 
+                                           class="review-reply-name w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm" 
+                                           placeholder="Your name" 
+                                           required 
+                                           maxlength="100">
+                                </div>
+                                <div class="mb-2">
+                                    <textarea class="review-reply-comment w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none" 
+                                              rows="2" 
+                                              placeholder="Write a reply..." 
+                                              required 
+                                              minlength="3" 
+                                              maxlength="500"></textarea>
+                                </div>
+                                <button type="submit" class="review-reply-submit-btn px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                                    Reply
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     @endforeach
                 </div>

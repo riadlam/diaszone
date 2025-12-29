@@ -164,8 +164,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!reviewListContainer) return;
 
         if (reviews && reviews.length > 0) {
-            reviewListContainer.innerHTML = reviews.map(review => `
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            reviewListContainer.innerHTML = reviews.map(review => {
+                const likesCount = review.likesCount || 0;
+                const dislikesCount = review.dislikesCount || 0;
+                const repliesCount = review.repliesCount || 0;
+                const userLike = review.userLike || null;
+                
+                const likeBtnClass = userLike === 'like' ? 'text-green-600' : 'text-gray-600 hover:text-green-600';
+                const dislikeBtnClass = userLike === 'dislike' ? 'text-red-600' : 'text-gray-600 hover:text-red-600';
+                
+                return `
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 review-item" data-review-id="${review.id}">
                     <div class="flex items-center gap-2 mb-2">
                         <div class="flex">
                             ${Array.from({length: 5}, (_, i) => `
@@ -177,10 +186,63 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="text-sm font-semibold text-gray-900">${escapeHtml(review.name)}</span>
                         <span class="text-xs text-gray-500">${review.created_at}</span>
                     </div>
-                    <p class="text-sm text-gray-700">${escapeHtml(review.comment)}</p>
+                    <p class="text-sm text-gray-700 mb-3">${escapeHtml(review.comment)}</p>
+                    
+                    <!-- Like/Dislike Buttons -->
+                    <div class="flex items-center gap-4 mb-3">
+                        <button type="button" class="review-like-btn flex items-center gap-1 text-sm ${likeBtnClass} transition-colors" data-review-id="${review.id}" data-type="like">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path>
+                            </svg>
+                            <span class="review-likes-count">${likesCount}</span>
+                        </button>
+                        <button type="button" class="review-dislike-btn flex items-center gap-1 text-sm ${dislikeBtnClass} transition-colors" data-review-id="${review.id}" data-type="dislike">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"></path>
+                            </svg>
+                            <span class="review-dislikes-count">${dislikesCount}</span>
+                        </button>
+                        <button type="button" class="review-reply-toggle-btn flex items-center gap-1 text-sm text-gray-600 hover:text-purple-600 transition-colors" data-review-id="${review.id}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                            </svg>
+                            <span class="review-replies-count">${repliesCount}</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Replies Section -->
+                    <div class="review-replies-container hidden mt-3 border-t border-gray-200 pt-3" data-review-id="${review.id}">
+                        <div class="review-replies-list mb-3 space-y-2"></div>
+                        
+                        <!-- Reply Form -->
+                        <form class="review-reply-form" data-review-id="${review.id}">
+                            <div class="mb-2">
+                                <input type="text" 
+                                       class="review-reply-name w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm" 
+                                       placeholder="Your name" 
+                                       required 
+                                       maxlength="100">
+                            </div>
+                            <div class="mb-2">
+                                <textarea class="review-reply-comment w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none" 
+                                          rows="2" 
+                                          placeholder="Write a reply..." 
+                                          required 
+                                          minlength="3" 
+                                          maxlength="500"></textarea>
+                            </div>
+                            <button type="submit" class="review-reply-submit-btn px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                                Reply
+                            </button>
+                        </form>
+                    </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
             reviewListContainer.style.display = 'block';
+            
+            // Attach event listeners after rendering
+            attachReviewEventListeners();
         } else {
             reviewListContainer.style.display = 'none';
         }
@@ -287,8 +349,218 @@ document.addEventListener('DOMContentLoaded', function() {
         reviewMessage.classList.remove('hidden');
     }
 
+    // Attach event listeners for likes/dislikes and replies
+    function attachReviewEventListeners() {
+        // Like/Dislike buttons
+        document.querySelectorAll('.review-like-btn, .review-dislike-btn').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const reviewId = this.getAttribute('data-review-id');
+                const type = this.getAttribute('data-type');
+                
+                const btn = this;
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                
+                try {
+                    const response = await fetch(`/api/reviews/${reviewId}/like`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ type: type })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok && data.success) {
+                        // Update counts
+                        const reviewItem = btn.closest('.review-item');
+                        const likesCountEl = reviewItem.querySelector('.review-likes-count');
+                        const dislikesCountEl = reviewItem.querySelector('.review-dislikes-count');
+                        const likeBtn = reviewItem.querySelector('.review-like-btn');
+                        const dislikeBtn = reviewItem.querySelector('.review-dislike-btn');
+                        
+                        if (likesCountEl) likesCountEl.textContent = data.likesCount || 0;
+                        if (dislikesCountEl) dislikesCountEl.textContent = data.dislikesCount || 0;
+                        
+                        // Update button styles based on user's current like status
+                        if (data.userLike === 'like') {
+                            likeBtn.classList.remove('text-gray-600', 'hover:text-green-600');
+                            likeBtn.classList.add('text-green-600');
+                            dislikeBtn.classList.remove('text-red-600');
+                            dislikeBtn.classList.add('text-gray-600', 'hover:text-red-600');
+                        } else if (data.userLike === 'dislike') {
+                            dislikeBtn.classList.remove('text-gray-600', 'hover:text-red-600');
+                            dislikeBtn.classList.add('text-red-600');
+                            likeBtn.classList.remove('text-green-600');
+                            likeBtn.classList.add('text-gray-600', 'hover:text-green-600');
+                        } else {
+                            // No like/dislike
+                            likeBtn.classList.remove('text-green-600');
+                            likeBtn.classList.add('text-gray-600', 'hover:text-green-600');
+                            dislikeBtn.classList.remove('text-red-600');
+                            dislikeBtn.classList.add('text-gray-600', 'hover:text-red-600');
+                        }
+                    } else {
+                        showMessage(data.message || 'An error occurred.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error toggling like:', error);
+                    showMessage('An error occurred. Please try again.', 'error');
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        });
+        
+        // Reply toggle buttons
+        document.querySelectorAll('.review-reply-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const reviewId = this.getAttribute('data-review-id');
+                const repliesContainer = document.querySelector(`.review-replies-container[data-review-id="${reviewId}"]`);
+                
+                if (!repliesContainer) return;
+                
+                if (repliesContainer.classList.contains('hidden')) {
+                    repliesContainer.classList.remove('hidden');
+                    await loadReplies(reviewId);
+                } else {
+                    repliesContainer.classList.add('hidden');
+                }
+            });
+        });
+        
+        // Reply form submissions
+        document.querySelectorAll('.review-reply-form').forEach(form => {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const reviewId = this.getAttribute('data-review-id');
+                const nameInput = this.querySelector('.review-reply-name');
+                const commentInput = this.querySelector('.review-reply-comment');
+                const submitBtn = this.querySelector('.review-reply-submit-btn');
+                
+                if (!nameInput || !commentInput) return;
+                
+                const name = nameInput.value.trim();
+                const comment = commentInput.value.trim();
+                
+                if (!name || !comment) {
+                    showMessage('Please fill in all fields.', 'error');
+                    return;
+                }
+                
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Submitting...';
+                }
+                
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                
+                try {
+                    const response = await fetch(`/api/reviews/${reviewId}/reply`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            name: name,
+                            comment: comment
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok && data.success) {
+                        showMessage(data.message || 'Reply submitted successfully!', 'success');
+                        
+                        // Reset form
+                        nameInput.value = '';
+                        commentInput.value = '';
+                        
+                        // Reload replies
+                        await loadReplies(reviewId);
+                        
+                        // Update replies count
+                        const repliesCountEl = document.querySelector(`.review-reply-toggle-btn[data-review-id="${reviewId}"] .review-replies-count`);
+                        if (repliesCountEl) {
+                            const repliesList = document.querySelector(`.review-replies-list[data-review-id="${reviewId}"]`) || 
+                                               document.querySelector(`.review-replies-container[data-review-id="${reviewId}"] .review-replies-list`);
+                            if (repliesList) {
+                                const count = repliesList.querySelectorAll('.review-reply-item').length + 1;
+                                repliesCountEl.textContent = count;
+                            }
+                        }
+                    } else {
+                        showMessage(data.message || 'An error occurred.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error submitting reply:', error);
+                    showMessage('An error occurred. Please try again.', 'error');
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Reply';
+                    }
+                }
+            });
+        });
+    }
+    
+    // Load replies for a review
+    async function loadReplies(reviewId) {
+        try {
+            const response = await fetch(`/api/reviews/${reviewId}/replies`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) {
+                console.error('Failed to load replies');
+                return;
+            }
+            
+            const data = await response.json();
+            if (data.success && data.replies) {
+                const repliesList = document.querySelector(`.review-replies-container[data-review-id="${reviewId}"] .review-replies-list`);
+                if (repliesList) {
+                    if (data.replies.length > 0) {
+                        repliesList.innerHTML = data.replies.map(reply => `
+                            <div class="review-reply-item bg-white border border-gray-200 rounded-lg p-3">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-sm font-semibold text-gray-900">${escapeHtml(reply.name)}</span>
+                                    <span class="text-xs text-gray-500">${reply.created_at}</span>
+                                </div>
+                                <p class="text-sm text-gray-700">${escapeHtml(reply.comment)}</p>
+                            </div>
+                        `).join('');
+                    } else {
+                        repliesList.innerHTML = '<p class="text-sm text-gray-500">No replies yet.</p>';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading replies:', error);
+        }
+    }
+
     // Load reviews on page load
     loadReviews();
+    
+    // Attach listeners on initial page load (for server-rendered reviews)
+    attachReviewEventListeners();
 });
 </script>
 @endpush
