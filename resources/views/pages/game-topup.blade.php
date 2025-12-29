@@ -212,16 +212,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             </svg>
                             <span class="review-dislikes-count">${dislikesCount}</span>
                         </button>
-                        <button type="button" class="review-reply-toggle-btn flex items-center gap-1 text-sm text-gray-600 hover:text-purple-600 transition-colors" data-review-id="${review.id}">
+                        <div class="flex items-center gap-1 text-sm text-gray-600">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                             </svg>
                             <span class="review-replies-count">${repliesCount}</span>
-                        </button>
+                        </div>
                     </div>
                     
                     <!-- Replies Section -->
-                    <div class="review-replies-container hidden mt-3 border-t border-gray-200 pt-3" data-review-id="${review.id}">
+                    <div class="review-replies-container mt-3 border-t border-gray-200 pt-3" data-review-id="${review.id}">
                         <div class="review-replies-list mb-3 space-y-2"></div>
                         
                         <!-- Reply Form -->
@@ -254,6 +254,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Attach event listeners after rendering
             attachReviewEventListeners();
+            
+            // Load replies for all reviews automatically
+            reviews.forEach(review => {
+                loadReplies(review.id);
+            });
         } else {
             reviewListContainer.style.display = 'none';
         }
@@ -430,22 +435,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Reply toggle buttons
-        document.querySelectorAll('.review-reply-toggle-btn').forEach(btn => {
-            btn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                const reviewId = this.getAttribute('data-review-id');
-                const repliesContainer = document.querySelector(`.review-replies-container[data-review-id="${reviewId}"]`);
-                
-                if (!repliesContainer) return;
-                
-                if (repliesContainer.classList.contains('hidden')) {
-                    repliesContainer.classList.remove('hidden');
-                    await loadReplies(reviewId);
-                } else {
-                    repliesContainer.classList.add('hidden');
-                }
-            });
+        // Load replies for all reviews on page load (for server-rendered reviews)
+        document.querySelectorAll('.review-item').forEach(reviewItem => {
+            const reviewId = reviewItem.getAttribute('data-review-id');
+            if (reviewId) {
+                loadReplies(reviewId);
+            }
         });
         
         // Reply form submissions
@@ -502,10 +497,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         await loadReplies(reviewId);
                         
                         // Update replies count
-                        const repliesCountEl = document.querySelector(`.review-reply-toggle-btn[data-review-id="${reviewId}"] .review-replies-count`);
+                        const repliesCountEl = document.querySelector(`.review-item[data-review-id="${reviewId}"] .review-replies-count`);
                         if (repliesCountEl) {
-                            const repliesList = document.querySelector(`.review-replies-list[data-review-id="${reviewId}"]`) || 
-                                               document.querySelector(`.review-replies-container[data-review-id="${reviewId}"] .review-replies-list`);
+                            const repliesList = document.querySelector(`.review-replies-container[data-review-id="${reviewId}"] .review-replies-list`);
                             if (repliesList) {
                                 const count = repliesList.querySelectorAll('.review-reply-item').length + 1;
                                 repliesCountEl.textContent = count;
@@ -581,6 +575,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Attach listeners on initial page load (for server-rendered reviews)
     attachReviewEventListeners();
+    
+    // Load replies for server-rendered reviews on page load
+    setTimeout(() => {
+        document.querySelectorAll('.review-item').forEach(reviewItem => {
+            const reviewId = reviewItem.getAttribute('data-review-id');
+            if (reviewId) {
+                loadReplies(reviewId);
+            }
+        });
+    }, 100);
 });
 </script>
 @endpush

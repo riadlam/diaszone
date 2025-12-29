@@ -565,17 +565,43 @@
                                 </svg>
                                 <span class="review-dislikes-count">{{ $review->dislikesOnly()->count() }}</span>
                             </button>
-                            <button type="button" class="review-reply-toggle-btn flex items-center gap-1 text-sm text-gray-600 hover:text-purple-600 transition-colors" data-review-id="{{ $review->id }}">
+                            <div class="flex items-center gap-1 text-sm text-gray-600">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                                 </svg>
                                 <span class="review-replies-count">{{ $review->replies()->count() }}</span>
-                            </button>
+                            </div>
                         </div>
                         
                         <!-- Replies Section -->
-                        <div class="review-replies-container hidden mt-3 border-t border-gray-200 pt-3" data-review-id="{{ $review->id }}">
-                            <div class="review-replies-list mb-3 space-y-2"></div>
+                        <div class="review-replies-container mt-3 border-t border-gray-200 pt-3" data-review-id="{{ $review->id }}">
+                            <div class="review-replies-list mb-3 space-y-2">
+                                @php
+                                    $reviewReplies = $review->replies()->with('user')->latest()->get();
+                                @endphp
+                                @if($reviewReplies->count() > 0)
+                                    @foreach($reviewReplies as $reply)
+                                    <div class="review-reply-item bg-white border border-gray-200 rounded-lg p-3">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="text-sm font-semibold text-gray-900">{{ e($reply->name) }}</span>
+                                                @if($reply->user && $reply->user->isAdmin())
+                                                <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white" title="Website Owner">
+                                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                                    </svg>
+                                                </span>
+                                                @endif
+                                            </div>
+                                            <span class="text-xs text-gray-500">{{ $reply->created_at->diffForHumans() }}</span>
+                                        </div>
+                                        <p class="text-sm text-gray-700">{{ e($reply->comment) }}</p>
+                                    </div>
+                                    @endforeach
+                                @else
+                                    <p class="text-sm text-gray-500">No replies yet.</p>
+                                @endif
+                            </div>
                             
                             <!-- Reply Form -->
                             <form class="review-reply-form" data-review-id="{{ $review->id }}">
