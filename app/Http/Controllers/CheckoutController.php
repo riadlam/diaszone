@@ -876,7 +876,7 @@ class CheckoutController extends Controller
                 $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             }
             
-            // Get game name from Game model
+            // Get game name from Game model dynamically
             $gameModel = \App\Models\Game::where('game_type', $gameType)->where('is_active', true)->first();
             $gameName = null;
             if ($gameModel) {
@@ -884,27 +884,14 @@ class CheckoutController extends Controller
                 if (strpos($gameNameFromModel, ' - ') !== false) {
                     $gameName = explode(' - ', $gameNameFromModel)[0];
                 } elseif (preg_match('/^\d+/', $gameNameFromModel) || preg_match('/\d+\s*\+?\s*\d+/', $gameNameFromModel)) {
-                    $gameNames = [
-                        'mobilelegends' => 'Mobile Legends',
-                        'freefire' => 'Free Fire',
-                        'pubgmobile' => 'PUBG Mobile',
-                        'honorofkings' => 'Honor of Kings',
-                        'bloodstrike' => 'Blood Strike',
-                    ];
-                    $gameName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+                    // If name starts with numbers, use generic format
+                    $gameName = ucfirst(str_replace('_', ' ', $gameType));
                 } else {
                     $gameName = $gameNameFromModel;
                 }
             } else {
-                // Fallback
-                $gameNames = [
-                    'mobilelegends' => 'Mobile Legends',
-                    'freefire' => 'Free Fire',
-                    'pubgmobile' => 'PUBG Mobile',
-                    'honorofkings' => 'Honor of Kings',
-                    'bloodstrike' => 'Blood Strike',
-                ];
-                $gameName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
+                // Generic fallback: convert game_type to readable name
+                $gameName = ucfirst(str_replace('_', ' ', $gameType));
             }
             
             // Format order data for frontend

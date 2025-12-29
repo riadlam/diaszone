@@ -343,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let gameType = order.game_type || order.diamond_pack?.game_type;
             
             // Fallback: determine game type from order fields if not provided
+            // This is a last resort - API should always provide game_type
             if (!gameType) {
                 if (order.user_id_bs && order.server_bs) {
                     gameType = 'bloodstrike';
@@ -352,33 +353,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     gameType = 'pubgmobile';
                 } else if (order.player_id_hok) {
                     gameType = 'honorofkings';
+                } else if (order.save_id) {
+                    // New games use save_id - try to get from diamond_pack
+                    gameType = order.diamond_pack?.game_type || order.order_items?.[0]?.diamond_pack?.game_type || 'mobilelegends';
                 } else {
-                    gameType = 'mobilelegends'; // Default
+                    gameType = order.diamond_pack?.game_type || order.order_items?.[0]?.diamond_pack?.game_type || 'mobilelegends'; // Default
                 }
             }
             
-            // Use game name from API response (from Game model), fallback to hardcoded names
-            let gameName = order.game_name || 'Mobile Legends';
-            if (!order.game_name) {
-                if (gameType === 'freefire') {
-                    gameName = 'Free Fire';
-                } else if (gameType === 'pubgmobile') {
-                    gameName = 'PUBG Mobile';
-                } else if (gameType === 'honorofkings') {
-                    gameName = 'Honor of Kings';
-                } else if (gameType === 'bloodstrike') {
-                    gameName = 'Blood Strike';
-                }
-            }
+            // Use game name from API response (from Game model) - always trust the API
+            let gameName = order.game_name || gameType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
             
-            let currencyText = 'Diamonds';
-            if (gameType === 'pubgmobile') {
-                currencyText = 'UC';
-            } else if (gameType === 'honorofkings') {
-                currencyText = 'Tokens';
-            } else if (gameType === 'bloodstrike') {
-                currencyText = 'Golds';
-            }
+            // Determine currency text dynamically based on game type
+            let currencyText = 'Diamonds'; // Default
+            const currencyMap = {
+                'pubgmobile': 'UC',
+                'pubg_mobile': 'UC',
+                'honorofkings': 'Tokens',
+                'bloodstrike': 'Golds',
+                'wutheringwaves': 'Astrite',
+                'punishinggrayraven': 'Black Cards',
+                'devil_may_cry_peak_of_combat': 'Devil Gems',
+            };
+            currencyText = currencyMap[gameType] || 'Diamonds';
             
             // Determine pack display name
             let packDisplayName = '';
