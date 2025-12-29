@@ -537,7 +537,16 @@
                                     </svg>
                                 @endfor
                             </div>
-                            <span class="text-sm font-semibold text-gray-900">{{ e($review->name) }}</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-sm font-semibold text-gray-900">{{ e($review->name) }}</span>
+                                @if($review->user && $review->user->isAdmin())
+                                <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white" title="Website Owner">
+                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                </span>
+                                @endif
+                            </div>
                             <span class="text-xs text-gray-500">{{ $review->created_at->diffForHumans() }}</span>
                         </div>
                         <p class="text-sm text-gray-700 mb-3">{{ e($review->comment) }}</p>
@@ -573,8 +582,9 @@
                                 @csrf
                                 <div class="mb-2">
                                     <input type="text" 
-                                           class="review-reply-name w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm" 
+                                           class="review-reply-name w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm {{ auth()->check() ? 'bg-gray-50' : '' }}" 
                                            placeholder="Your name" 
+                                           value="{{ auth()->check() ? auth()->user()->name : '' }}"
                                            required 
                                            maxlength="100">
                                 </div>
@@ -609,9 +619,10 @@
                             <input type="text" 
                                    id="review-name"
                                    name="name"
+                                   value="{{ auth()->check() ? auth()->user()->name : '' }}"
                                    required
                                    maxlength="100"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm">
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm {{ auth()->check() ? 'bg-gray-50' : '' }}">
                         </div>
                         
                         <div>

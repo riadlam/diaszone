@@ -9,6 +9,7 @@ class Review extends Model
 {
     protected $fillable = [
         'game_id',
+        'user_id',
         'name',
         'comment',
         'rating',
@@ -24,6 +25,14 @@ class Review extends Model
     public function game(): BelongsTo
     {
         return $this->belongsTo(Game::class);
+    }
+
+    /**
+     * Get the user that made this review (if authenticated).
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

@@ -751,7 +751,7 @@ class HomeController extends Controller
         $totalReviews = 0;
         
         if ($game) {
-            $reviews = $game->reviews()->latest()->get();
+            $reviews = $game->reviews()->with('user')->latest()->get();
             $totalReviews = $reviews->count();
             if ($totalReviews > 0) {
                 $averageRating = round($reviews->avg('rating'), 1);
@@ -879,9 +879,13 @@ class HomeController extends Controller
                 ->where('is_active', true)
                 ->firstOrFail();
 
+            // Get user ID if authenticated
+            $userId = auth()->check() ? auth()->id() : null;
+
             // Create review (data will be escaped by Blade when displayed)
             $review = Review::create([
                 'game_id' => $game->id,
+                'user_id' => $userId,
                 'name' => $name,
                 'comment' => $comment,
                 'rating' => (int) $validated['rating'],
@@ -891,13 +895,16 @@ class HomeController extends Controller
             RateLimiter::hit($key, $decaySeconds);
 
             // Get updated reviews and rating for response
-            $reviews = $game->reviews()->latest()->take(3)->get();
+            $reviews = $game->reviews()->with('user')->latest()->take(3)->get();
             $totalReviews = $game->reviews()->count();
             $averageRating = $totalReviews > 0 ? round($game->reviews()->avg('rating'), 1) : 5.0;
 
             // Get user ID and session ID for checking user's likes/dislikes
             $userId = auth()->check() ? auth()->id() : null;
             $sessionId = $request->session()->getId();
+
+            // Reload the review to get the user relationship
+            $review->load('user');
 
             return response()->json([
                 'success' => true,
@@ -908,6 +915,7 @@ class HomeController extends Controller
                     'comment' => $review->comment,
                     'rating' => $review->rating,
                     'created_at' => $review->created_at->diffForHumans(),
+                    'isAdmin' => $review->user && $review->user->isAdmin(),
                 ],
                 'averageRating' => $averageRating,
                 'totalReviews' => $totalReviews,
@@ -927,6 +935,9 @@ class HomeController extends Controller
                         })
                         ->first();
 
+                    // Check if review author is admin
+                    $isAdmin = $r->user && $r->user->isAdmin();
+
                     return [
                         'id' => $r->id,
                         'name' => $r->name,
@@ -937,6 +948,7 @@ class HomeController extends Controller
                         'dislikesCount' => $dislikesCount,
                         'repliesCount' => $repliesCount,
                         'userLike' => $userLike ? $userLike->type : null,
+                        'isAdmin' => $isAdmin,
                     ];
                 }),
             ], 201);
@@ -969,7 +981,7 @@ class HomeController extends Controller
                 ->where('is_active', true)
                 ->firstOrFail();
 
-            $reviews = $game->reviews()->latest()->take(3)->get();
+            $reviews = $game->reviews()->with('user')->latest()->take(3)->get();
             $totalReviews = $game->reviews()->count();
             $averageRating = $totalReviews > 0 ? round($game->reviews()->avg('rating'), 1) : 5.0;
 
@@ -997,6 +1009,9 @@ class HomeController extends Controller
                         })
                         ->first();
 
+                    // Check if review author is admin
+                    $isAdmin = $review->user && $review->user->isAdmin();
+
                     return [
                         'id' => $review->id,
                         'name' => $review->name,
@@ -1007,6 +1022,7 @@ class HomeController extends Controller
                         'dislikesCount' => $dislikesCount,
                         'repliesCount' => $repliesCount,
                         'userLike' => $userLike ? $userLike->type : null,
+                        'isAdmin' => $isAdmin,
                     ];
                 }),
             ]);
@@ -1216,16 +1232,20 @@ class HomeController extends Controller
     {
         try {
             $review = Review::findOrFail($reviewId);
-            $replies = $review->replies()->latest()->get();
+            $replies = $review->replies()->with('user')->latest()->get();
 
             return response()->json([
                 'success' => true,
                 'replies' => $replies->map(function($reply) {
+                    // Check if reply author is admin
+                    $isAdmin = $reply->user && $reply->user->isAdmin();
+                    
                     return [
                         'id' => $reply->id,
                         'name' => $reply->name,
                         'comment' => $reply->comment,
                         'created_at' => $reply->created_at->diffForHumans(),
+                        'isAdmin' => $isAdmin,
                     ];
                 }),
             ]);

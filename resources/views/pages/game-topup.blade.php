@@ -48,6 +48,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const gameId = @json(isset($game) && $game ? $game->id : null);
+    const userName = @json(auth()->check() ? auth()->user()->name : null);
     if (!gameId) return;
 
     // Elements
@@ -183,7 +184,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </svg>
                             `).join('')}
                         </div>
-                        <span class="text-sm font-semibold text-gray-900">${escapeHtml(review.name)}</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sm font-semibold text-gray-900">${escapeHtml(review.name)}</span>
+                            ${review.isAdmin ? `
+                            <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white" title="Website Owner">
+                                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            </span>
+                            ` : ''}
+                        </div>
                         <span class="text-xs text-gray-500">${review.created_at}</span>
                     </div>
                     <p class="text-sm text-gray-700 mb-3">${escapeHtml(review.comment)}</p>
@@ -218,8 +228,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <form class="review-reply-form" data-review-id="${review.id}">
                             <div class="mb-2">
                                 <input type="text" 
-                                       class="review-reply-name w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm" 
+                                       class="review-reply-name w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm ${userName ? 'bg-gray-50' : ''}" 
                                        placeholder="Your name" 
+                                       value="${userName || ''}"
                                        required 
                                        maxlength="100">
                             </div>
@@ -540,7 +551,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         repliesList.innerHTML = data.replies.map(reply => `
                             <div class="review-reply-item bg-white border border-gray-200 rounded-lg p-3">
                                 <div class="flex items-center gap-2 mb-1">
-                                    <span class="text-sm font-semibold text-gray-900">${escapeHtml(reply.name)}</span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-sm font-semibold text-gray-900">${escapeHtml(reply.name)}</span>
+                                        ${reply.isAdmin ? `
+                                        <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white" title="Website Owner">
+                                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </span>
+                                        ` : ''}
+                                    </div>
                                     <span class="text-xs text-gray-500">${reply.created_at}</span>
                                 </div>
                                 <p class="text-sm text-gray-700">${escapeHtml(reply.comment)}</p>
