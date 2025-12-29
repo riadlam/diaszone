@@ -259,8 +259,8 @@ class CheckoutController extends Controller
             // Get game type
             $gameType = $pack->game_type ?? 'mobilelegends';
             
-            // Only check Digiflazz availability for Mobile Legends, Free Fire, PUBG Mobile, Genshin Impact, Blood Strike, and Honor of Kings
-            $gamesUsingDigiflazz = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings'];
+            // Only check Digiflazz availability for Mobile Legends, Free Fire, PUBG Mobile, Genshin Impact, Blood Strike, Honor of Kings, and Punishing Gray Raven
+            $gamesUsingDigiflazz = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven'];
             
             if (in_array($gameType, $gamesUsingDigiflazz)) {
                 // For these games, check Digiflazz availability
@@ -1854,7 +1854,7 @@ class CheckoutController extends Controller
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             // For non-Digiflazz games, use Item4Gamer
@@ -2726,6 +2726,131 @@ class CheckoutController extends Controller
                 
                 $playerId = $order->save_id;
                 $zoneId = null; // PUBG Mobile doesn't use zone_id
+                
+                // Initialize result if not set (safety check)
+                if (!isset($result)) {
+                    $result = ['result' => false, 'message' => 'No result from transaction'];
+                }
+            } elseif ($gameType === 'punishinggrayraven') {
+                // Punishing Gray Raven: Use save_id,server format (same flow as Mobile Legends)
+                // Check if save_id and server are set
+                if (empty($order->save_id) || empty($order->server)) {
+                    Log::warning('Chargily recharge skipped: Missing save_id or server for Punishing Gray Raven', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'save_id' => $order->save_id,
+                        'server' => $order->server,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing User ID (save_id) or Server for Punishing Gray Raven',
+                    ];
+                }
+
+                Log::info('Chargily: Processing Punishing Gray Raven recharge via Digiflazz', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'save_id' => $order->save_id,
+                    'server' => $order->server,
+                    'package_code' => $packageCode,
+                ]);
+
+                // Multi-item order support: Submit top-ups for each order_item
+                if (!config('services.digiflazz.username') && !env('DIGIFLAZZ_USERNAME')) {
+                    Log::error('Chargily recharge: Digiflazz not configured for Punishing Gray Raven', ['order_id' => $order->id]);
+                    return ['success' => false, 'message' => 'Digiflazz not configured'];
+                }
+
+                // Atomic multi-quantity submission with proper locking
+                DB::transaction(function () use (&$result, &$order) {
+                    // Lock the order to prevent concurrent modifications
+                    $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                    if (!$orderLocked) {
+                        Log::error('Chargily: Failed to lock order for Digiflazz submission (Punishing Gray Raven)', ['order_id' => $order->id]);
+                        $result = ['result' => false, 'message' => 'Failed to lock order'];
+                        return;
+                    }
+
+                    $orderLocked->load('orderItems.diamondPack');
+                    
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+
+                    // Submit top-ups for each order_item
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        // Check how many DigiflazzStatus records already exist for this item
+                        $submitted = $orderItem->digiflazzStatuses()
+                            ->where(function ($q) {
+                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                                  ->orWhere('event', 'create');
+                            })->count();
+
+                        $remaining = max(0, $orderItem->quantity - $submitted);
+
+                        // Submit remaining top-ups for this item
+                        for ($i = 0; $i < $remaining; $i++) {
+                            $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . Str::random(8);
+                            
+                            $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                                $orderItem->diamondPack,
+                                $orderLocked,
+                                $refId,
+                                $orderItem->id
+                            );
+                            
+                            Log::info('Chargily: Digiflazz placeOrder attempt (Punishing Gray Raven)', [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'pack_id' => $orderItem->diamond_pack_id,
+                                'quantity' => $orderItem->quantity,
+                                'remaining' => $remaining - ($i + 1),
+                                'ref_id' => $refId,
+                                'result' => $lastResult
+                            ]);
+                            
+                            // Small delay to ensure DigiflazzStatus record is committed
+                            usleep(100000); // 0.1 second
+                        }
+                    }
+
+                    $result = $lastResult;
+                    $order = $orderLocked; // Update order reference
+                });
+
+                // If Digiflazz is used, create a lightweight VipResellerStatus mirror so admin/telegram can show provider info immediately
+                if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                    try {
+                        $apiData = $result['data'] ?? [];
+                        $balance = $apiData['buyer_last_saldo'] ?? $apiData['balance'] ?? null;
+                        $vipData = [
+                            'order_id' => $order->id,
+                            'trxid' => $apiData['trxid'] ?? null,
+                            'data' => $apiData['customer_no'] ?? ($order->save_id . ',' . $order->server),
+                            'zone' => $order->server, // Store server in zone field for display
+                            'status' => strtolower(($apiData['status'] ?? $apiData['rc'] ?? 'waiting')) === 'sukses' || ($apiData['rc'] ?? null) === '00' ? 'success' : 'waiting',
+                            'note' => $apiData['message'] ?? null,
+                            'price' => $apiData['price'] ?? null,
+                            'balance' => $balance,
+                            'additional_data' => array_merge($apiData, ['balance' => $balance, 'service' => 'digiflazz']),
+                        ];
+
+                        if (!empty($vipData['trxid'])) {
+                            \App\Models\VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
+                        } else {
+                            \App\Models\VipResellerStatus::create($vipData);
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder (Punishing Gray Raven)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                    }
+                }
+
+                Log::info('Chargily: provider API response (Punishing Gray Raven)', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'api_result' => $result,
+                ]);
+                
+                $playerId = $order->save_id;
+                $zoneId = $order->server;
                 
                 // Initialize result if not set (safety check)
                 if (!isset($result)) {
@@ -4068,7 +4193,7 @@ class CheckoutController extends Controller
             }
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             if ($useDigiflazz) {

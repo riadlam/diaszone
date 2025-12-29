@@ -90,6 +90,23 @@ class DigiflazzService
                     'game_type' => $pack->game_type,
                 ]);
             }
+        } elseif ($pack->game_type === 'punishinggrayraven') {
+            // Punishing Gray Raven: format is "save_id,server" (e.g., "1234567,5000")
+            if ($order->save_id && $order->server) {
+                $customerNo = (string)$order->save_id . ',' . (string)$order->server;
+            } else {
+                // Log warning if save_id or server is missing
+                \Log::warning('DigiflazzService: Punishing Gray Raven order missing save_id or server', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                    'pack_id' => $pack->id,
+                    'pack_code' => $pack->code,
+                    'game_type' => $pack->game_type,
+                    'save_id' => $order->save_id,
+                    'server' => $order->server,
+                ]);
+                // Will fall back to order ID, which will cause error
+            }
         } elseif (!empty($order->user_id_ml) && !empty($order->zone_id_ml)) {
             // Digiflazz expects a single customer_no numeric string for ML: concatenate user id + zone
             // e.g., user_id=205762973 and zone=4048 => customer_no=2057629734048

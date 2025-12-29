@@ -726,7 +726,7 @@ class AdminController extends Controller
             }
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             // For non-Digiflazz games, use Item4Gamer
@@ -819,6 +819,21 @@ class AdminController extends Controller
                     ];
                 }
                 // Free Fire doesn't need nickname validation
+            } elseif ($gameType === 'punishinggrayraven') {
+                // Punishing Gray Raven: Check if save_id and server are set
+                if (empty($order->save_id) || empty($order->server)) {
+                    Log::warning('Recharge skipped: Missing save_id or server for Punishing Gray Raven', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'save_id' => $order->save_id,
+                        'server' => $order->server,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing User ID (save_id) or Server for Punishing Gray Raven',
+                    ];
+                }
+                // Punishing Gray Raven doesn't need nickname validation
             }
 
             // Get package code (for multi-item orders, we'll use first item's code as primary)
