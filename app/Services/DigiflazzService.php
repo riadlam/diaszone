@@ -91,12 +91,29 @@ class DigiflazzService
                 ]);
             }
         } elseif ($pack->game_type === 'punishinggrayraven') {
-            // Punishing Gray Raven: format is "save_id,server" (e.g., "1234567,5000")
+            // Punishing Gray Raven: format is "save_id,server" (e.g., "1234567,5000" or "1234567,os_asia")
             if ($order->save_id && $order->server) {
                 $customerNo = (string)$order->save_id . ',' . (string)$order->server;
             } else {
                 // Log warning if save_id or server is missing
                 \Log::warning('DigiflazzService: Punishing Gray Raven order missing save_id or server', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                    'pack_id' => $pack->id,
+                    'pack_code' => $pack->code,
+                    'game_type' => $pack->game_type,
+                    'save_id' => $order->save_id,
+                    'server' => $order->server,
+                ]);
+                // Will fall back to order ID, which will cause error
+            }
+        } elseif ($pack->game_type === 'wutheringwaves') {
+            // Wuthering Waves: format is "save_id|server" (e.g., "123456|os_asia")
+            if ($order->save_id && $order->server) {
+                $customerNo = (string)$order->save_id . '|' . (string)$order->server;
+            } else {
+                // Log warning if save_id or server is missing
+                \Log::warning('DigiflazzService: Wuthering Waves order missing save_id or server', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number ?? null,
                     'pack_id' => $pack->id,

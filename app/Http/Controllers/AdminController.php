@@ -726,7 +726,7 @@ class AdminController extends Controller
             }
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven'];
+            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             // For non-Digiflazz games, use Item4Gamer
@@ -834,6 +834,21 @@ class AdminController extends Controller
                     ];
                 }
                 // Punishing Gray Raven doesn't need nickname validation
+            } elseif ($gameType === 'wutheringwaves') {
+                // Wuthering Waves: Check if save_id and server are set
+                if (empty($order->save_id) || empty($order->server)) {
+                    Log::warning('Recharge skipped: Missing save_id or server for Wuthering Waves', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'save_id' => $order->save_id,
+                        'server' => $order->server,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing User ID (save_id) or Server for Wuthering Waves',
+                    ];
+                }
+                // Wuthering Waves doesn't need nickname validation
             }
 
             // Get package code (for multi-item orders, we'll use first item's code as primary)
