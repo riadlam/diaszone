@@ -1152,6 +1152,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
                             if (item.server_bs) cartItem.server_bs = item.server_bs;
                             if (item.save_id) cartItem.save_id = item.save_id; // User ID for new games
+                            if (item.game_user_id) cartItem.game_user_id = item.game_user_id; // User ID for Devil May Cry
                             if (item.server) cartItem.server = item.server; // Generic server for new games
                             return cartItem;
                         });

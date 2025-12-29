@@ -557,6 +557,7 @@ class CheckoutController extends Controller
                 'cart_items.*.server_bs' => 'nullable|string',
                 'cart_items.*.server' => 'nullable|string',
                 'cart_items.*.save_id' => 'nullable|string', // User ID for new games (same as user_id)
+                'cart_items.*.game_user_id' => 'nullable|string', // User ID for games like Devil May Cry
                 'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency,coupon_free',
             ]);
             
@@ -660,7 +661,15 @@ class CheckoutController extends Controller
                 foreach ($requiredFields as $field) {
                     $fieldName = $field['data_name'] ?? '';
                     $isRequired = $field['required'] ?? true;
-                    $value = $firstItem[$fieldName] ?? null;
+                    
+                    // Map game_user_id to save_id for compatibility (they're the same)
+                    $value = null;
+                    if ($fieldName === 'game_user_id') {
+                        // Accept both game_user_id and save_id
+                        $value = $firstItem['game_user_id'] ?? $firstItem['save_id'] ?? null;
+                    } else {
+                        $value = $firstItem[$fieldName] ?? null;
+                    }
                     
                     if ($isRequired && empty($value)) {
                         $fieldLabel = $field['name'] ?? $fieldName;
@@ -671,7 +680,7 @@ class CheckoutController extends Controller
                     }
                     
                     // Store values for later use
-                    if ($fieldName === 'save_id') {
+                    if ($fieldName === 'save_id' || $fieldName === 'game_user_id') {
                         $save_id = $value;
                     } elseif ($fieldName === 'server') {
                         $server = $value;

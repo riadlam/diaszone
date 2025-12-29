@@ -1113,12 +1113,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 return; // Stop here - don't proceed to cart addition below
             } else {
-                // New games (honkai_star_rail, genshin_impact, etc.) - Dynamically handle save_id and server fields
+                // New games (honkai_star_rail, genshin_impact, devil_may_cry_peak_of_combat, etc.) - Dynamically handle save_id and server fields
                 // Try multiple possible field IDs since fields are dynamically generated
                 // First try by ID, then by name, then by searching all form inputs
                 let saveIdField = document.getElementById('save_id');
                 if (!saveIdField) {
                     saveIdField = document.querySelector('#order-form input[name="save_id"]');
+                }
+                if (!saveIdField) {
+                    // Try game_user_id (for Devil May Cry and similar games)
+                    saveIdField = document.getElementById('game_user_id');
+                }
+                if (!saveIdField) {
+                    saveIdField = document.querySelector('#order-form input[name="game_user_id"]');
                 }
                 if (!saveIdField) {
                     // Try to find any text input in the form (likely the User ID field)
@@ -1148,9 +1155,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 // Store save_id and server (if exists) for all selected packs
+                // Also store as game_user_id if the field was game_user_id (for Devil May Cry compatibility)
                 selectedPacks.forEach(pack => {
                     pack.save_id = saveId;
                     pack.user_id = saveId; // Also store as user_id for compatibility
+                    // If the field was game_user_id, also store it as game_user_id for backend compatibility
+                    if (saveIdField.id === 'game_user_id' || saveIdField.name === 'game_user_id') {
+                        pack.game_user_id = saveId;
+                    }
                     if (server) {
                         pack.server = server;
                     }
