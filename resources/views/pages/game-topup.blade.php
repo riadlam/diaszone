@@ -212,12 +212,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             </svg>
                             <span class="review-dislikes-count">${dislikesCount}</span>
                         </button>
-                        <div class="flex items-center gap-1 text-sm text-gray-600">
+                        <button type="button" class="review-reply-toggle-btn flex items-center gap-1 text-sm text-gray-600 hover:text-purple-600 transition-colors cursor-pointer" data-review-id="${review.id}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                             </svg>
                             <span class="review-replies-count">${repliesCount}</span>
-                        </div>
+                        </button>
                     </div>
                     
                     <!-- Replies Section -->
@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="review-replies-list mb-3 space-y-2"></div>
                         
                         <!-- Reply Form -->
-                        <form class="review-reply-form" data-review-id="${review.id}">
+                        <form class="review-reply-form hidden" data-review-id="${review.id}">
                             <div class="mb-2">
                                 <input type="text" 
                                        class="review-reply-name w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm ${userName ? 'bg-gray-50' : ''}" 
@@ -431,6 +431,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     showMessage('An error occurred. Please try again.', 'error');
                 } finally {
                     btn.disabled = false;
+                }
+            });
+        });
+        
+        // Reply toggle buttons - show/hide reply form
+        document.querySelectorAll('.review-reply-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const reviewId = this.getAttribute('data-review-id');
+                const replyForm = document.querySelector(`.review-reply-form[data-review-id="${reviewId}"]`);
+                
+                if (!replyForm) return;
+                
+                // Toggle form visibility
+                if (replyForm.classList.contains('hidden')) {
+                    replyForm.classList.remove('hidden');
+                    // Load replies if not already loaded
+                    const repliesList = document.querySelector(`.review-replies-container[data-review-id="${reviewId}"] .review-replies-list`);
+                    if (repliesList && repliesList.children.length === 0) {
+                        await loadReplies(reviewId);
+                    }
+                } else {
+                    replyForm.classList.add('hidden');
                 }
             });
         });
