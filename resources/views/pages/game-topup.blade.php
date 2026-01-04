@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             `).join('')}
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <span class="text-sm font-semibold text-gray-900">${escapeHtml(review.name)}</span>
+                        <span class="text-sm font-semibold text-gray-900">${escapeHtml(review.name)}</span>
                             ${review.isAdmin ? `
                             <span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-500 text-white" title="Website Owner">
                                 <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">

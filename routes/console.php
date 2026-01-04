@@ -19,3 +19,9 @@ Schedule::command('item4gamer:check-status')
     ->everyThreeMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Schedule Digiflazz order status check every 5 minutes
+Schedule::command('digiflazz:check-order-status')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

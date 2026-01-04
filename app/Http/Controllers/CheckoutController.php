@@ -668,7 +668,7 @@ class CheckoutController extends Controller
                         // Accept both game_user_id and save_id
                         $value = $firstItem['game_user_id'] ?? $firstItem['save_id'] ?? null;
                     } else {
-                        $value = $firstItem[$fieldName] ?? null;
+                    $value = $firstItem[$fieldName] ?? null;
                     }
                     
                     if ($isRequired && empty($value)) {
