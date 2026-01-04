@@ -2172,22 +2172,31 @@ class AdminController extends Controller
                             $totalRevenue += TelegramService::calculateOrderRevenue($order);
                         }
                         
+                        // Convert to EUR (1 EUR = 300 DZD)
+                        $totalProfitEur = $totalProfit / 300;
+                        $totalRevenueEur = $totalRevenue / 300;
+                        
                         // Get date range
                         $firstOrder = $completedOrders->sortBy('created_at')->first();
                         $lastOrder = $completedOrders->sortByDesc('created_at')->first();
                         $firstDate = $firstOrder->created_at->format('Y-m-d');
                         $lastDate = $lastOrder->created_at->format('Y-m-d');
                         
+                        // Calculate days difference
+                        $firstDateObj = $firstOrder->created_at->startOfDay();
+                        $lastDateObj = $lastOrder->created_at->startOfDay();
+                        $daysDifference = $firstDateObj->diffInDays($lastDateObj);
+                        
                         // Format message
                         $profitMessage = "💰 <b>Profit Report</b>\n\n";
-                        $profitMessage .= "💵 <b>Total Profit:</b> " . number_format($totalProfit, 0) . " DZD\n";
-                        $profitMessage .= "📊 <b>Total Revenue:</b> " . number_format($totalRevenue, 0) . " DZD\n";
+                        $profitMessage .= "💵 <b>Total Profit:</b> " . number_format($totalProfit, 0) . " DZD (" . number_format($totalProfitEur, 2) . " EUR)\n";
+                        $profitMessage .= "📊 <b>Total Revenue:</b> " . number_format($totalRevenue, 0) . " DZD (" . number_format($totalRevenueEur, 2) . " EUR)\n";
                         $profitMessage .= "📦 <b>Total Orders:</b> " . $completedOrders->count() . "\n";
                         
                         if ($firstDate === $lastDate) {
-                            $profitMessage .= "📅 <b>Date:</b> " . $firstDate;
+                            $profitMessage .= "📅 <b>Date:</b> " . $firstDate . " (1 day)";
                         } else {
-                            $profitMessage .= "📅 <b>Date Range:</b> " . $firstDate . " to " . $lastDate;
+                            $profitMessage .= "📅 <b>Date Range:</b> " . $firstDate . " to " . $lastDate . " (" . ($daysDifference + 1) . " days)";
                         }
                         
                         // Send profit message
