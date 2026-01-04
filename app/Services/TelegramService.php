@@ -494,11 +494,231 @@ class TelegramService
             }
         }
         
+        // Calculate and show profit
+        $profitSection = self::calculateAndFormatProfit($order, $hasOrderItems);
+        if ($profitSection) {
+            $message .= "\n" . $profitSection;
+        }
+        
         // Format date in Algeria timezone (Africa/Algiers - UTC+1)
         $createdAt = $order->created_at->setTimezone('Africa/Algiers');
         $message .= "\n⏰ <b>Created:</b> " . $createdAt->format('Y-m-d H:i:s') . " (Algeria Time)";
         
         return $message;
+    }
+    
+    /**
+     * Calculate profit for order items and format for Telegram message
+     * 
+     * @param Order $order
+     * @param bool $hasOrderItems
+     * @return string
+     */
+    private static function calculateAndFormatProfit($order, $hasOrderItems): string
+    {
+        // IDR to DZD conversion rate
+        $idrToDzdRate = 64.67;
+        
+        $escape = function ($s) {
+            if (is_null($s)) return '';
+            return htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        };
+        
+        $totalProfit = 0;
+        $profitLines = [];
+        
+        if ($hasOrderItems) {
+            // Multi-item order
+            foreach ($order->orderItems as $item) {
+                $pack = $item->diamondPack;
+                if (!$pack) continue;
+                
+                $quantity = $item->quantity ?? 1;
+                
+                // Buy price: Convert IDR to DZD
+                $priceIdr = $pack->price ?? 0;
+                $buyPriceDzd = $priceIdr / $idrToDzdRate;
+                
+                // Sell price: Already in DZD
+                $sellPriceDzd = $pack->price_dzd ?? 0;
+                
+                // Apply discount if present
+                $discountPercentage = $pack->discount_percentage ?? 0;
+                $sellPriceAfterDiscount = $sellPriceDzd - (($sellPriceDzd * $discountPercentage) / 100);
+                
+                // Calculate profit per unit
+                $profitPerUnit = $sellPriceAfterDiscount - $buyPriceDzd;
+                
+                // Total profit for this item (profit per unit * quantity)
+                $itemProfit = $profitPerUnit * $quantity;
+                $totalProfit += $itemProfit;
+                
+                // Format pack name
+                $itemName = $pack->name ?? ($pack->diamonds . ' Diamonds');
+                if ($pack->bonus_diamonds > 0) {
+                    $itemName .= ' + ' . $pack->bonus_diamonds . ' Bonus';
+                }
+                
+                // Add profit line for this item
+                $profitLines[] = "   • {$quantity}× {$escape($itemName)}: " . number_format($itemProfit, 0) . " DZD";
+            }
+        } else {
+            // Single-item order (legacy)
+            $pack = $order->diamondPack;
+            if (!$pack) return '';
+            
+            $quantity = $order->quantity ?? 1;
+            
+            // Buy price: Convert IDR to DZD
+            $priceIdr = $pack->price ?? 0;
+            $buyPriceDzd = $priceIdr / $idrToDzdRate;
+            
+            // Sell price: Already in DZD
+            $sellPriceDzd = $pack->price_dzd ?? 0;
+            
+            // Apply discount if present
+            $discountPercentage = $pack->discount_percentage ?? 0;
+            $sellPriceAfterDiscount = $sellPriceDzd - (($sellPriceDzd * $discountPercentage) / 100);
+            
+            // Calculate profit per unit
+            $profitPerUnit = $sellPriceAfterDiscount - $buyPriceDzd;
+            
+            // Total profit for this order (profit per unit * quantity)
+            $totalProfit = $profitPerUnit * $quantity;
+            
+            // Format pack name
+            $packName = $pack->name ?? ($pack->diamonds . ' Diamonds');
+            if ($pack->bonus_diamonds > 0) {
+                $packName .= ' + ' . $pack->bonus_diamonds . ' Bonus';
+            }
+            
+            // Add profit line
+            $profitLines[] = "   • {$quantity}× {$escape($packName)}: " . number_format($totalProfit, 0) . " DZD";
+        }
+        
+        if ($totalProfit <= 0 && empty($profitLines)) {
+            return '';
+        }
+        
+        // Format profit section
+        $profitSection = "💵 <b>Profit:</b>\n";
+        foreach ($profitLines as $line) {
+            $profitSection .= $line . "\n";
+        }
+        if ($hasOrderItems && count($profitLines) > 1) {
+            $profitSection .= "   <b>Total Profit:</b> " . number_format($totalProfit, 0) . " DZD";
+        }
+        
+        return $profitSection;
+    }
+    
+    /**
+     * Calculate profit for a single order (returns profit amount in DZD)
+     * 
+     * @param Order $order
+     * @return float
+     */
+    public static function calculateOrderProfit($order): float
+    {
+        // IDR to DZD conversion rate
+        $idrToDzdRate = 64.67;
+        
+        $totalProfit = 0;
+        
+        // Load order items if not loaded
+        if (!$order->relationLoaded('orderItems')) {
+            $order->load('orderItems.diamondPack');
+        }
+        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+        
+        if ($hasOrderItems) {
+            // Multi-item order
+            foreach ($order->orderItems as $item) {
+                $pack = $item->diamondPack;
+                if (!$pack) continue;
+                
+                $quantity = $item->quantity ?? 1;
+                
+                // Buy price: Convert IDR to DZD
+                $priceIdr = $pack->price ?? 0;
+                $buyPriceDzd = $priceIdr / $idrToDzdRate;
+                
+                // Sell price: Already in DZD
+                $sellPriceDzd = $pack->price_dzd ?? 0;
+                
+                // Apply discount if present
+                $discountPercentage = $pack->discount_percentage ?? 0;
+                $sellPriceAfterDiscount = $sellPriceDzd - (($sellPriceDzd * $discountPercentage) / 100);
+                
+                // Calculate profit per unit
+                $profitPerUnit = $sellPriceAfterDiscount - $buyPriceDzd;
+                
+                // Total profit for this item
+                $totalProfit += $profitPerUnit * $quantity;
+            }
+        } else {
+            // Single-item order (legacy)
+            $pack = $order->diamondPack;
+            if (!$pack) return 0;
+            
+            $quantity = $order->quantity ?? 1;
+            
+            // Buy price: Convert IDR to DZD
+            $priceIdr = $pack->price ?? 0;
+            $buyPriceDzd = $priceIdr / $idrToDzdRate;
+            
+            // Sell price: Already in DZD
+            $sellPriceDzd = $pack->price_dzd ?? 0;
+            
+            // Apply discount if present
+            $discountPercentage = $pack->discount_percentage ?? 0;
+            $sellPriceAfterDiscount = $sellPriceDzd - (($sellPriceDzd * $discountPercentage) / 100);
+            
+            // Calculate profit per unit
+            $profitPerUnit = $sellPriceAfterDiscount - $buyPriceDzd;
+            
+            // Total profit for this order
+            $totalProfit = $profitPerUnit * $quantity;
+        }
+        
+        return $totalProfit;
+    }
+    
+    /**
+     * Calculate total revenue (sell price) for a single order
+     * 
+     * @param Order $order
+     * @return float
+     */
+    public static function calculateOrderRevenue($order): float
+    {
+        $totalRevenue = 0;
+        
+        // Load order items if not loaded
+        if (!$order->relationLoaded('orderItems')) {
+            $order->load('orderItems.diamondPack');
+        }
+        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+        
+        if ($hasOrderItems) {
+            // Multi-item order - use total_dzd from order items
+            $totalRevenue = $order->orderItems->sum('total_dzd');
+        } else {
+            // Single-item order (legacy)
+            $pack = $order->diamondPack;
+            if (!$pack) return 0;
+            
+            $quantity = $order->quantity ?? 1;
+            $sellPriceDzd = $pack->price_dzd ?? 0;
+            
+            // Apply discount if present
+            $discountPercentage = $pack->discount_percentage ?? 0;
+            $sellPriceAfterDiscount = $sellPriceDzd - (($sellPriceDzd * $discountPercentage) / 100);
+            
+            $totalRevenue = $sellPriceAfterDiscount * $quantity;
+        }
+        
+        return $totalRevenue;
     }
 }
 
