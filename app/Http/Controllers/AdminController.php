@@ -2176,6 +2176,9 @@ class AdminController extends Controller
                         $totalProfitEur = $totalProfit / 300;
                         $totalRevenueEur = $totalRevenue / 300;
                         
+                        // Calculate profit percentage
+                        $profitPercentage = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100 : 0;
+                        
                         // Get date range
                         $firstOrder = $completedOrders->sortBy('created_at')->first();
                         $lastOrder = $completedOrders->sortByDesc('created_at')->first();
@@ -2191,6 +2194,7 @@ class AdminController extends Controller
                         $profitMessage = "💰 <b>Profit Report</b>\n\n";
                         $profitMessage .= "💵 <b>Total Profit:</b> " . number_format($totalProfit, 0) . " DZD (" . number_format($totalProfitEur, 2) . " EUR)\n";
                         $profitMessage .= "📊 <b>Total Revenue:</b> " . number_format($totalRevenue, 0) . " DZD (" . number_format($totalRevenueEur, 2) . " EUR)\n";
+                        $profitMessage .= "📈 <b>Profit Percentage:</b> " . number_format($profitPercentage, 2) . "%\n";
                         $profitMessage .= "📦 <b>Total Orders:</b> " . $completedOrders->count() . "\n";
                         
                         if ($firstDate === $lastDate) {
