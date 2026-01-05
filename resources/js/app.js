@@ -675,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         
                         return `
-                            <div class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <a href="/cart" class="block px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="flex-1 min-w-0">
                                         <h4 class="text-sm font-semibold text-gray-900 mb-1">
@@ -689,14 +689,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                                data-discount="${discount}">${formattedPrice}</p>
                                         </div>
                                     </div>
-                                    <button onclick="CartManager.removeFromCart('${item.id}')" 
-                                            class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0">
+                                    <button onclick="event.preventDefault(); event.stopPropagation(); CartManager.removeFromCart('${item.id}');" 
+                                            class="text-red-400 hover:text-red-600 transition-colors flex-shrink-0 z-10">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                         </svg>
                                     </button>
                                 </div>
-                            </div>
+                            </a>
                         `;
                     }).join('');
                     if (cartFooter) cartFooter.classList.remove('hidden');

@@ -127,9 +127,9 @@
                             </div>
                         </div>
                         <div id="cart-footer" class="hidden px-4 py-3 border-t border-gray-100 bg-gray-50">
-                            <span class="block w-full bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg text-center cursor-default pointer-events-none opacity-75">
+                            <a href="{{ route('cart') }}" class="block w-full bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg text-center hover:bg-purple-700 transition-colors cursor-pointer">
                                 {{ __('cart_dropdown.view_cart') }}
-                            </span>
+                            </a>
                         </div>
                     </div>
                 </div>
