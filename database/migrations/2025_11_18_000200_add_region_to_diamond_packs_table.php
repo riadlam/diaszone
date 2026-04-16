@@ -6,22 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        if (! Schema::hasTable('diamond_packs') || Schema::hasColumn('diamond_packs', 'region')) {
+            return;
+        }
+
         Schema::table('diamond_packs', function (Blueprint $table) {
             $table->string('region')->nullable()->after('membership_name');
             $table->index('region');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        if (! Schema::hasTable('diamond_packs') || ! Schema::hasColumn('diamond_packs', 'region')) {
+            return;
+        }
+
         Schema::table('diamond_packs', function (Blueprint $table) {
             $table->dropIndex(['region']);
             $table->dropColumn('region');

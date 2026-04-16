@@ -7,7 +7,8 @@ use App\Models\DiamondPack;
 use App\Models\Order;
 use App\Models\Seller;
 use App\Models\SellerGamePrice;
-use App\Services\ChargilyPayV2Service;
+use App\Models\SofizPayCibTransaction;
+use App\Services\SofizPayCibService;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
@@ -437,10 +438,13 @@ class SellerStorefrontController extends Controller
             }
         }
 
+        $qtyForWallet = max(1, (int) $quantity);
+
         // Check seller wallet balance — skip for Flexy transfers because buyer sends receipt
         if (($validated['payment_method'] ?? '') !== 'flexy') {
-            if ($seller->wallet_balance < $baseCost) {
-                Log::info('Seller out of stock for non-Flexy payment', ['seller_id' => $seller->id, 'wallet_balance' => $seller->wallet_balance, 'base_cost' => $baseCost]);
+            $requiredWallet = $baseCost * $qtyForWallet;
+            if ($seller->wallet_balance < $requiredWallet) {
+                Log::info('Seller out of stock for non-Flexy payment', ['seller_id' => $seller->id, 'wallet_balance' => $seller->wallet_balance, 'required_wallet' => $requiredWallet]);
                 if ($request->expectsJson()) {
                     return response()->json(['success' => false, 'message' => 'This seller is currently out of stock'], 400);
                 }
@@ -557,12 +561,14 @@ class SellerStorefrontController extends Controller
                 return redirect(route('seller.payment.success', ['encrypted_order_id' => $encryptedOrderId]));
             }
 
-            // Handle Baridimob payment (original flow)
+            // Handle Baridimob payment (SofizPay CIB — same return URL as main store)
+            $qty = max(1, (int) $quantity);
             $order = Order::create([
                 'order_number' => Order::generateOrderNumber(),
                 'seller_id' => $seller->id,
                 'diamond_pack_id' => $pack->id,
-                'status' => 'pending',
+                'status' => 'pending_bmccp',
+                'quantity' => $qty,
                 // Use pack's game_type (safer) for assigning game-specific identifiers
                 'user_id_ml' => $pack->game_type === 'mobilelegends' ? $validated['player_id'] : null,
                 'zone_id_ml' => $pack->game_type === 'mobilelegends' ? ($validated['zone_id'] ?? null) : null,
@@ -572,90 +578,103 @@ class SellerStorefrontController extends Controller
                 'user_id_bs' => $pack->game_type === 'bloodstrike' ? $validated['player_id'] : null,
                 'server_bs' => $pack->game_type === 'bloodstrike' ? ($validated['zone_id'] ?? null) : null,
                 'wallet_deducted' => false,
-                'seller_cost' => $baseCost,
-                'seller_profit' => $profit,
+                'seller_cost' => $baseCost * $qty,
+                'seller_profit' => $profit * $qty,
                 'is_direct_topup' => false,
-                    'original_price' => $sellingPrice,
-                    'final_price' => $sellingPrice,
+                'original_price' => $sellingPrice * $qty,
+                'final_price' => $sellingPrice * $qty,
                 'payment_method' => 'baridimob',
+                'chargily_status_id' => null,
             ]);
 
-            // Create Chargily payment
-            $encryptedOrderId = Crypt::encryptString($order->id);
-            $successUrl = route('seller.payment.success', ['encrypted_order_id' => $encryptedOrderId]);
-            $failureUrl = route('seller.store.game', ['username' => $seller->username, 'gameType' => $pack->game_type]);
+            $bmccp = \App\Models\Bmccp::create([
+                'diamond_pack_id' => $pack->id,
+                'status' => 'pending',
+                'notes' => "DiasZone Seller — {$seller->username} — Order {$order->order_number}",
+            ]);
+            $order->bmccp_id = $bmccp->id;
+            $order->save();
 
-            $chargilyService = app(ChargilyPayV2Service::class);
-            // Charge the customer the selling price (seller custom price if set)
-            $chargilyAmount = $sellingPrice;
-
-            // Build a structured checkout payload aligned with CheckoutController
-            $checkoutData = [
-                'amount' => (int) round($chargilyAmount),
-                'currency' => 'dzd',
-                'payment_method' => 'edahabia',
-                'success_url' => $successUrl,
-                'failure_url' => $failureUrl,
-                'description' => "Order {$order->order_number} - {$pack->name}",
-                'locale' => 'en',
-            ];
-
-            // Add webhook endpoint when not running locally/testing
-            $isLocalhost = in_array(config('app.env'), ['local', 'testing']) || 
-                          str_contains(request()->getHost(), 'localhost') ||
-                          str_contains(request()->getHost(), '127.0.0.1');
-
-            if (!$isLocalhost) {
-                $checkoutData['webhook_endpoint'] = route('baridimob.webhook');
+            $sofizPay = app(SofizPayCibService::class);
+            if (!config('services.sofizpay.enabled', true) || !$sofizPay->isConfigured()) {
+                throw new \Exception('Baridimob payment is not configured');
             }
 
-            Log::info('Chargily createCheckout request', [
+            $amount = round((float) ($sellingPrice * $qty), 2);
+            if ($amount < 75) {
+                throw new \Exception('Minimum payment amount is 75 DZD');
+            }
+
+            $encryptedOrderId = Crypt::encryptString($order->id);
+            $returnUrl = route('payment.sofizpay.cib.return', [], true) . '?eid=' . rawurlencode($encryptedOrderId);
+
+            $clientName = trim((string) ($validated['nickname'] ?? '')) !== '' ? (string) $validated['nickname'] : 'Customer';
+            $clientEmail = (string) $request->input('email', 'customer@example.com');
+            $clientPhone = (string) $request->input('phone', '+213000000000');
+
+            $query = [
+                'account' => $sofizPay->merchantAccount(),
+                'amount' => number_format($amount, 2, '.', ''),
+                'full_name' => $clientName,
+                'phone' => $clientPhone,
+                'email' => $clientEmail,
+                'return_url' => $returnUrl,
+                'memo' => 'Order ' . $order->order_number,
+                'redirect' => (string) config('services.sofizpay.redirect', 'yes'),
+                'keep_return_url' => (string) config('services.sofizpay.keep_return_url', 'True'),
+            ];
+
+            Log::info('Seller storefront SofizPay CIB create', [
                 'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'checkout_payload' => $checkoutData,
+                'amount' => $query['amount'],
+                'sandbox' => $sofizPay->isSandbox(),
             ]);
 
-            $chargilyResponse = $chargilyService->createCheckout($checkoutData);
+            $create = $sofizPay->createCibTransaction($query);
+            $data = $create['data'] ?? [];
 
-            Log::info('Chargily createCheckout response', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'response' => $chargilyResponse,
-            ]);
-
-            if (!$chargilyResponse || !isset($chargilyResponse['checkout_url'])) {
+            if (!$create['success'] || empty($data['payment_url'])) {
+                Log::error('Seller storefront SofizPay CIB create failed', [
+                    'order_id' => $order->id,
+                    'response' => $data,
+                    'http_status' => $create['http_status'] ?? null,
+                ]);
                 throw new \Exception('Failed to create payment');
             }
 
-            // Save Chargily status
-            $checkoutIdValue = $chargilyResponse['checkout_id'] ?? $chargilyResponse['id'] ?? null;
-
-            if (empty($checkoutIdValue)) {
-                Log::warning('Chargily createCheckout returned empty checkout id', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'response' => $chargilyResponse,
-                ]);
+            $cibOrderNumber = $data['cib_transaction_id'] ?? null;
+            if ($cibOrderNumber !== null && $cibOrderNumber !== '') {
+                $cibOrderNumber = (string) $cibOrderNumber;
             }
 
-            $chargilyStatus = \App\Models\ChargilyStatus::create([
-                'order_id' => $order->id,
-                // Accept either 'checkout_id' or legacy 'id' coming from service
-                'checkout_id' => $checkoutIdValue,
-                'status' => 'pending',
-                // store the actual charged amount
-                'amount' => $chargilyAmount,
-                'currency' => 'DZD',
-                'response_data' => json_encode($chargilyResponse),
-            ]);
+            $cibOrderId = null;
+            if (!empty($data['cib_response']) && is_array($data['cib_response'])) {
+                $cibOrderId = $data['cib_response']['orderId'] ?? null;
+            }
 
-            $order->update(['chargily_status_id' => $chargilyStatus->id]);
+            $spf = SofizPayCibTransaction::updateOrCreate(
+                ['order_id' => $order->id],
+                [
+                    'transaction_id' => isset($data['transaction_id']) ? (string) $data['transaction_id'] : null,
+                    'cib_order_number' => $cibOrderNumber,
+                    'cib_order_id' => $cibOrderId ? (string) $cibOrderId : null,
+                    'amount_expected' => $amount,
+                    'status' => 'pending',
+                    'create_response' => is_array($data) ? $data : [],
+                ]
+            );
 
-            Log::info('Chargily status saved for order', [
-                'order_id' => $order->id,
-                'chargily_status_id' => $chargilyStatus->id,
-                'checkout_id' => $chargilyStatus->checkout_id,
-            ]);
+            $order->update(['sofizpay_cib_transaction_id' => $spf->id]);
+
+            if (!empty($cibOrderNumber)) {
+                $bmccp->invoice_number = $cibOrderNumber;
+                $bmccp->save();
+            }
+
+            $paymentUrl = $data['payment_url'];
+            if (!$paymentUrl || !filter_var($paymentUrl, FILTER_VALIDATE_URL)) {
+                throw new \Exception('Invalid payment URL');
+            }
 
             // Send initial Telegram notification for storefront orders (include seller)
             try {
@@ -679,12 +698,12 @@ class SellerStorefrontController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'checkout_url' => $chargilyResponse['checkout_url'] ?? null,
-                    'checkout_id' => $chargilyResponse['checkout_id'] ?? $chargilyResponse['id'] ?? null,
+                    'checkout_url' => $paymentUrl,
+                    'checkout_id' => $data['transaction_id'] ?? null,
                 ], 200);
             }
 
-            return redirect($chargilyResponse['checkout_url']);
+            return redirect($paymentUrl);
 
         } catch (\Exception $e) {
             DB::rollBack();

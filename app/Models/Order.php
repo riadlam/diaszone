@@ -15,6 +15,7 @@ class Order extends Model
         'flexy_id',
         'bmccp_id',
         'chargily_status_id',
+        'sofizpay_cib_transaction_id',
         'cryptopay_id',
         'nowpayments_payment_id',
         'user_id_ml',
@@ -165,6 +166,11 @@ class Order extends Model
     public function chargilyStatus(): BelongsTo
     {
         return $this->belongsTo(ChargilyStatus::class, 'chargily_status_id');
+    }
+
+    public function sofizpayCibTransaction(): BelongsTo
+    {
+        return $this->belongsTo(SofizPayCibTransaction::class, 'sofizpay_cib_transaction_id');
     }
 
     /**

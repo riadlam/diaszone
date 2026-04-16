@@ -6,22 +6,25 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        if (! Schema::hasTable('games') || Schema::hasColumn('games', 'sort_order')) {
+            return;
+        }
+
         Schema::table('games', function (Blueprint $table) {
-            $table->integer('sort_order')->nullable()->default(0)->after('is_newproduct');
+            $after = Schema::hasColumn('games', 'required_fields') ? 'required_fields' : 'is_newproduct';
+            $table->integer('sort_order')->nullable()->default(0)->after($after);
             $table->index('sort_order');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        if (! Schema::hasTable('games') || ! Schema::hasColumn('games', 'sort_order')) {
+            return;
+        }
+
         Schema::table('games', function (Blueprint $table) {
             $table->dropIndex(['sort_order']);
             $table->dropColumn('sort_order');

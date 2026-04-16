@@ -103,6 +103,9 @@ Route::get('/select/bmccp/{encrypted_order_id}', [CheckoutController::class, 'ba
     ->name('baridimob-form');
 Route::get('/payment/success/{encrypted_order_id}', [CheckoutController::class, 'paymentSuccess'])
     ->name('payment.success');
+Route::get('/payment/sofizpay/cib/return', [CheckoutController::class, 'sofizpayCibReturn'])
+    ->middleware('throttle:30,1')
+    ->name('payment.sofizpay.cib.return');
 Route::post('/api/baridimob/process', [CheckoutController::class, 'processBaridimobPayment'])
     ->name('api.baridimob.process');
 Route::post('/webhook/baridimob', [CheckoutController::class, 'baridimobWebhook'])

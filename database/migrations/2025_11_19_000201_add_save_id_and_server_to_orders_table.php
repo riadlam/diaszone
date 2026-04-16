@@ -6,22 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        if (! Schema::hasTable('orders') || Schema::hasColumn('orders', 'save_id')) {
+            return;
+        }
+
         Schema::table('orders', function (Blueprint $table) {
-            $table->string('save_id')->nullable()->after('server_bs'); // Generic user ID for new games (same as user_id)
-            $table->string('server')->nullable()->after('save_id'); // Generic server field for new games like Genshin Impact
+            $table->string('save_id')->nullable()->after('server_bs');
+            $table->string('server')->nullable()->after('save_id');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        if (! Schema::hasTable('orders') || ! Schema::hasColumn('orders', 'save_id')) {
+            return;
+        }
+
         Schema::table('orders', function (Blueprint $table) {
             $table->dropColumn(['save_id', 'server']);
         });

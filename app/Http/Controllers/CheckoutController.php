@@ -7,16 +7,14 @@ namespace App\Http\Controllers;
 use App\Models\DiamondPack;
 use App\Models\Order;
 use App\Models\Flexy;
-use App\Models\ChargilyStatus;
 use App\Models\VipResellerStatus;
+use App\Models\SofizPayCibTransaction;
 use App\Services\NowPaymentsService;
 use App\Services\MixPayService;
-use App\Services\ChargilyPayV2Service;
+use App\Services\SofizPayCibService;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
 use App\Services\DigiflazzService;
-use TheHocineSaad\LaravelChargilyEPay\Models\Epay_Invoice;
-use TheHocineSaad\LaravelChargilyEPay\Epay_Webhook;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -1099,7 +1097,7 @@ class CheckoutController extends Controller
     }
     
     /**
-     * Handle Baridimob payment (Chargily Pay)
+     * Handle Baridimob payment (SofizPay CIB).
      */
     public function processBaridimobPayment(Request $request)
     {
@@ -1125,7 +1123,7 @@ class CheckoutController extends Controller
         }
         
         // Load order with relationships - support both single-pack and multi-item orders
-        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack', 'coupon'])->find($orderId);
         
         if (!$order) {
             Log::error('Baridimob: Order not found', ['order_id' => $orderId]);
@@ -1143,120 +1141,47 @@ class CheckoutController extends Controller
             'order_items_count' => $order->orderItems ? $order->orderItems->count() : 0,
         ]);
         
-        // Check if this is a multi-item order
-        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
-        
-        // Initialize Chargily Pay v2 service
-        $chargilyService = app(ChargilyPayV2Service::class);
-        
-        if (!$chargilyService->hasCredentials()) {
-            // Check what's actually in the environment
-            $v2Secret = env('CHARGILY_PAY_V2_SECRET');
-            $epaySecret = env('CHARGILY_EPAY_SECRET');
-            
-            Log::error('Chargily Pay v2 credentials not found', [
-                'CHARGILY_PAY_V2_SECRET_exists' => !empty($v2Secret),
-                'CHARGILY_EPAY_SECRET_exists' => !empty($epaySecret),
-                'v2_secret_length' => $v2Secret ? strlen($v2Secret) : 0,
-                'epay_secret_length' => $epaySecret ? strlen($epaySecret) : 0,
-                'v2_secret_preview' => $v2Secret ? (substr($v2Secret, 0, 10) . '...') : 'NOT SET',
-                'epay_secret_preview' => $epaySecret ? (substr($epaySecret, 0, 10) . '...') : 'NOT SET',
-            ]);
-            
+        $sofizPay = app(SofizPayCibService::class);
+        if (!config('services.sofizpay.enabled', true) || !$sofizPay->isConfigured()) {
+            Log::error('SofizPay CIB not configured', ['merchant_set' => $sofizPay->merchantAccount() !== '']);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Baridimob payment is not configured. Please check your .env file and ensure CHARGILY_PAY_V2_SECRET (or CHARGILY_EPAY_SECRET) is set. After updating .env, run: php artisan config:clear'
+                'message' => 'Baridimob payment is not configured. Set SOFIZPAY_MERCHANT_ACCOUNT in .env and run php artisan config:clear',
             ], 500);
         }
-        
-        try {
-            // Calculate amount - use stored final_price if available (most reliable)
-            $amount = (float) ($order->final_price ?? 0);
-            
-            if ($hasOrderItems) {
-                // Multi-item order: sum from order items if final_price not set
-                if (empty($amount)) {
-                    $amount = $order->orderItems->sum('total_dzd');
-                    Log::info('Chargily payment: Multi-item order amount calculated from items', [
-                        'order_id' => $order->id,
-                        'items_count' => $order->orderItems->count(),
-                        'calculated_amount' => $amount,
-                    ]);
-                }
-            } else {
-                // Legacy single-pack order: calculate from pack if final_price not set
-                if (empty($amount) && $order->diamondPack) {
-            $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260));
-            
-            // Fallback: if price_dzd is not set, calculate from price_usd or price
-                    if (!$unitPriceDzd || $unitPriceDzd <= 0) {
-                $priceUsd = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price ?? 0);
-                        $unitPriceDzd = $priceUsd * 260;
-                Log::warning('Chargily payment: price_dzd not found, using fallback calculation', [
-                    'order_id' => $order->id,
-                    'diamond_pack_id' => $order->diamond_pack_id,
-                    'price_usd' => $priceUsd,
-                            'calculated_price_dzd' => $unitPriceDzd,
-                ]);
-            }
-            
-            $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
-            $quantity = (int) ($order->quantity ?? 1);
 
-            $computedTotalBeforeDiscount = $unitPriceDzd * $quantity;
-            $computedDiscount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
-                    $amount = $computedTotalBeforeDiscount - $computedDiscount;
-                    
-                    Log::info('Chargily payment: Legacy order amount calculated', [
-                        'order_id' => $order->id,
-                        'diamond_pack_id' => $order->diamond_pack_id,
-                        'price_dzd' => $unitPriceDzd,
-                        'discount_percentage' => $discountPercentage,
-                        'discount_amount' => $computedDiscount,
-                        'final_amount_dzd' => $amount,
-                    ]);
-                }
-            }
-            
-            // Log the amount calculation for debugging
-            Log::info('Chargily payment amount calculation', [
+        try {
+            $amount = $this->calculateOrderBaridimobAmountDzd($order);
+            $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+
+            Log::info('SofizPay CIB payment amount calculation', [
                 'order_id' => $order->id,
                 'is_multi_item' => $hasOrderItems,
                 'final_amount_dzd' => $amount,
             ]);
-            
-            // Minimum amount is 75 DZD
+
             if ($amount < 75) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Minimum payment amount is 75 DZD'
+                    'message' => 'Minimum payment amount is 75 DZD',
                 ], 400);
             }
-            
-            // Get client info (use order data or default)
-            $clientName = 'Customer';
-            $clientEmail = 'customer@example.com';
-            
-            if (Auth::check()) {
-                $user = Auth::user();
-                $clientName = $user->name ?? 'Customer';
-                $clientEmail = $user->email ?? 'customer@example.com';
-            }
-            
-            // Determine game type for description
-            // For multi-item orders, get game type from first order item
-            // For legacy orders, use diamondPack
+
+            $clientName = Auth::check() ? (Auth::user()->name ?? 'Customer') : 'Customer';
+            $clientEmail = Auth::check() ? (Auth::user()->email ?? 'customer@example.com') : 'customer@example.com';
+            $clientPhone = $request->input('customer_phone', '+213000000000');
+
             if ($hasOrderItems && $order->orderItems->first()) {
                 $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
             } elseif ($order->diamondPack) {
-            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             } else {
                 $gameType = 'mobilelegends';
             }
-            
+
             $gameName = 'Mobile Legends';
             $currencyText = 'Diamonds';
-            
             if ($gameType === 'freefire') {
                 $gameName = 'Free Fire';
                 $currencyText = 'Diamonds';
@@ -1270,136 +1195,119 @@ class CheckoutController extends Controller
                 $gameName = 'Blood Strike';
                 $currencyText = 'Golds';
             }
-            
-            // Build description based on order type
+
             if ($hasOrderItems) {
                 $itemsCount = $order->orderItems->count();
                 $description = "DiasZone - {$gameName} - {$itemsCount} pack(s)";
             } elseif ($order->diamondPack) {
-            $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
-            $description = "DiasZone - {$gameName} - {$packName}";
+                $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
+                $description = "DiasZone - {$gameName} - {$packName}";
             } else {
                 $description = "DiasZone - {$gameName} - Order #{$order->order_number}";
             }
-            
-            // Create invoice in bmccp table first
-            // For multi-item orders, use first pack ID (legacy compatibility) or null
+
             $firstPackId = null;
             if ($hasOrderItems && $order->orderItems->first()) {
                 $firstPackId = $order->orderItems->first()->diamond_pack_id;
             } elseif ($order->diamond_pack_id) {
                 $firstPackId = $order->diamond_pack_id;
             }
-            
+
             $bmccp = \App\Models\Bmccp::create([
                 'diamond_pack_id' => $firstPackId,
                 'status' => 'pending',
                 'notes' => $description,
             ]);
-            
-            // Update order with bmccp_id and status before creating checkout
+
             $order->bmccp_id = $bmccp->id;
             $order->status = 'pending_bmccp';
+            $order->chargily_status_id = null;
             $order->save();
-            
+
             Log::info('Baridimob: BMCCP record created and order updated', [
                 'order_id' => $order->id,
                 'bmccp_id' => $bmccp->id,
                 'amount' => $amount,
             ]);
-            
-            // Prepare checkout data for Chargily Pay v2
-            // Note: Chargily Pay v2 expects amount in DZD (not centimes)
-            $checkoutData = [
-                'amount' => (int) round($amount), // Amount in DZD
-                'currency' => 'dzd',
-                'payment_method' => 'edahabia', // Baridimob uses EDAHABIA
-                'success_url' => route('payment.success', ['encrypted_order_id' => $request->encrypted_order_id]),
-                'failure_url' => route('baridimob-form', ['encrypted_order_id' => $request->encrypted_order_id]) . '?failed=1',
-                'description' => $description,
-                'locale' => 'en', // ar, en, or fr
+
+            $encryptedOrderId = $request->encrypted_order_id;
+            $returnUrl = route('payment.sofizpay.cib.return', [], true) . '?eid=' . rawurlencode((string) $encryptedOrderId);
+
+            $query = [
+                'account' => $sofizPay->merchantAccount(),
+                'amount' => number_format($amount, 2, '.', ''),
+                'full_name' => $clientName,
+                'phone' => $clientPhone,
+                'email' => $clientEmail,
+                'return_url' => $returnUrl,
+                'memo' => 'Order ' . $order->order_number,
+                'redirect' => (string) config('services.sofizpay.redirect', 'yes'),
+                'keep_return_url' => (string) config('services.sofizpay.keep_return_url', 'True'),
             ];
-            
-            // Add webhook endpoint if not on localhost
-            $isLocalhost = in_array(config('app.env'), ['local', 'testing']) || 
-                          str_contains(request()->getHost(), 'localhost') ||
-                          str_contains(request()->getHost(), '127.0.0.1');
-            
-            if (!$isLocalhost) {
-                $checkoutData['webhook_endpoint'] = route('baridimob.webhook');
-            }
-            
-            // Log configuration for debugging
-            $apiSecret = env('CHARGILY_PAY_V2_SECRET') ?? env('CHARGILY_EPAY_SECRET');
-            Log::info('Creating Chargily Pay v2 checkout', [
-                'secret_exists' => !empty($apiSecret),
-                'secret_length' => $apiSecret ? strlen($apiSecret) : 0,
-                'amount' => $amount,
-                'amount_dzd' => (int) round($amount),
-                'payment_method' => 'edahabia',
-                'checkout_data' => $checkoutData,
+
+            Log::info('Creating SofizPay CIB transaction', [
+                'order_id' => $order->id,
+                'amount' => $query['amount'],
+                'sandbox' => $sofizPay->isSandbox(),
             ]);
-            
-            // Create checkout using Chargily Pay v2 API
-            $checkoutResponse = $chargilyService->createCheckout($checkoutData);
-            
-            if (!$checkoutResponse['success']) {
-                Log::error('Chargily Pay v2 checkout creation failed', [
-                    'error' => $checkoutResponse['error'] ?? 'Unknown error',
-                    'response_data' => $checkoutResponse['response_data'] ?? [],
-                    'http_status' => $checkoutResponse['http_status'] ?? null,
+
+            $create = $sofizPay->createCibTransaction($query);
+            $data = $create['data'] ?? [];
+
+            if (!$create['success'] || empty($data['payment_url'])) {
+                Log::error('SofizPay CIB create failed', [
+                    'order_id' => $order->id,
+                    'response' => $data,
+                    'http_status' => $create['http_status'] ?? null,
                 ]);
-                
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to create payment: ' . ($checkoutResponse['error'] ?? 'Unknown error')
+                    'message' => is_array($data) && !empty($data['message']) ? (string) $data['message'] : 'Failed to create payment with SofizPay',
                 ], 500);
             }
-            
-            // Store checkout ID in bmccp record
-            $checkoutId = $checkoutResponse['checkout_id'] ?? null;
-            if ($checkoutId) {
-                $bmccp->invoice_number = $checkoutId; // Store checkout ID as invoice_number for reference
-                $bmccp->save();
-                
-                // Create initial chargily_status record
-                $checkoutResponseData = $checkoutResponse['data'] ?? [];
-                $chargilyStatus = ChargilyStatus::create([
-                    'order_id' => $order->id,
-                    'checkout_id' => $checkoutId,
-                    'event_type' => 'checkout.created',
-                    'status' => $checkoutResponseData['status'] ?? 'pending',
-                    'amount' => $amount,
-                    'fees' => $checkoutResponseData['fees'] ?? null,
-                    'payment_method' => $checkoutResponseData['payment_method'] ?? 'edahabia',
-                    'metadata' => $checkoutResponseData['metadata'] ?? null,
-                    'webhook_data' => $checkoutResponseData,
-                ]);
-                
-                // Link to order
-                $order->chargily_status_id = $chargilyStatus->id;
-                $order->save();
-                
-                Log::info('Chargily status created on checkout', [
-                    'chargily_status_id' => $chargilyStatus->id,
-                    'checkout_id' => $checkoutId,
-                    'order_id' => $order->id,
-                ]);
+
+            $cibOrderNumber = $data['cib_transaction_id'] ?? null;
+            if ($cibOrderNumber !== null && $cibOrderNumber !== '') {
+                $cibOrderNumber = (string) $cibOrderNumber;
             }
-            
-            $checkoutUrl = $checkoutResponse['checkout_url'] ?? null;
-            
-            // If checkout URL is valid, return it
-            if ($checkoutUrl && filter_var($checkoutUrl, FILTER_VALIDATE_URL)) {
+
+            $cibOrderId = null;
+            if (!empty($data['cib_response']) && is_array($data['cib_response'])) {
+                $cibOrderId = $data['cib_response']['orderId'] ?? null;
+            }
+
+            $spf = SofizPayCibTransaction::updateOrCreate(
+                ['order_id' => $order->id],
+                [
+                    'transaction_id' => isset($data['transaction_id']) ? (string) $data['transaction_id'] : null,
+                    'cib_order_number' => $cibOrderNumber,
+                    'cib_order_id' => $cibOrderId ? (string) $cibOrderId : null,
+                    'amount_expected' => round($amount, 2),
+                    'status' => 'pending',
+                    'create_response' => is_array($data) ? $data : [],
+                ]
+            );
+
+            $order->update(['sofizpay_cib_transaction_id' => $spf->id]);
+
+            if (!empty($cibOrderNumber)) {
+                $bmccp->invoice_number = $cibOrderNumber;
+                $bmccp->save();
+            }
+
+            $paymentUrl = $data['payment_url'];
+
+            if ($paymentUrl && filter_var($paymentUrl, FILTER_VALIDATE_URL)) {
                 return response()->json([
                     'success' => true,
-                    'checkout_url' => $checkoutUrl,
+                    'checkout_url' => $paymentUrl,
                 ]);
             }
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create payment. Please try again.'
+                'message' => 'Failed to create payment. Please try again.',
             ], 500);
             
         } catch (\Exception $e) {
@@ -1423,8 +1331,6 @@ class CheckoutController extends Controller
                 || str_contains($errorMessage, '10002 milliseconds');
             
             $is401Error = str_contains($errorMessage, '401') || str_contains($errorMessage, 'Unauthorized');
-            $configKey = config('laravel-chargily-epay.key');
-            $isTestKey = $configKey && str_starts_with($configKey, 'test_');
             
             // Extract error code - simple numeric format for documentation
             // ERR-028 = cURL timeout, ERR-401 = Auth failed, ERR-500 = Server error, ERR-503 = Service unavailable
@@ -1444,7 +1350,6 @@ class CheckoutController extends Controller
                 'order_id' => $orderId ?? 'unknown',
                 'is_401_error' => $is401Error,
                 'is_timeout_error' => $isTimeoutError,
-                'is_test_key' => $isTestKey,
                 'error_message' => $errorMessage,
                 'error_code' => $errorCode,
             ]);
@@ -1474,19 +1379,11 @@ class CheckoutController extends Controller
                 ], 503);
             }
             
-            // Provide helpful error message for 401 errors
             if ($is401Error) {
-                $userMessage = 'Payment authentication failed. ';
-                if ($isTestKey) {
-                    $userMessage .= 'Test API keys may not work for API calls. Please verify you are using production credentials from your Chargily dashboard at https://epay.chargily.com.dz';
-                } else {
-                    $userMessage .= 'Please verify your Chargily API credentials are correct and active in your dashboard.';
-                }
-                
                 return response()->json([
                     'success' => false,
-                    'message' => $userMessage,
-                    'error_details' => '401 Unauthorized - Invalid API credentials',
+                    'message' => 'Payment gateway rejected the request (authentication). Check SofizPay configuration.',
+                    'error_details' => '401 Unauthorized',
                     'technical_error_code' => $errorCode,
                 ], 401);
             }
@@ -1501,346 +1398,300 @@ class CheckoutController extends Controller
     }
     
     /**
-     * Handle Baridimob webhook from Chargily Pay v2
-     * According to: https://dev.chargily.com/pay-v2/webhooks
-     * 
-     * Webhook structure:
-     * {
-     *   "id": "event_id",
-     *   "entity": "event",
-     *   "type": "checkout.paid" | "checkout.failed" | "checkout.canceled",
-     *   "data": { checkout object }
-     * }
+     * Legacy Chargily webhook — disabled after migrating Baridimob to SofizPay CIB (payment is verified on return URL).
      */
     public function baridimobWebhook(Request $request)
     {
-        try {
-            // Get raw payload for signature verification
-            $rawPayload = $request->getContent();
-            
-            // Log incoming webhook for debugging
-            Log::info('Chargily Pay v2 webhook received', [
-                'ip' => $request->ip(),
-                'headers' => $request->headers->all(),
-                'raw_payload' => $rawPayload,
-            ]);
-            
-            // STEP 1: Verify signature (HMAC SHA256)
-            $signature = $request->header('signature');
-            
-            if (empty($signature)) {
-                Log::warning('Chargily Pay v2 webhook: Missing signature header', [
-                    'ip' => $request->ip(),
-                ]);
-                return response()->json(['error' => 'Missing signature'], 400);
-            }
-            
-            // Get API secret key
-            $chargilyService = app(ChargilyPayV2Service::class);
-            $apiSecret = config('services.chargily_pay_v2.secret') ?? config('laravel-chargily-epay.secret');
-            
-            if (empty($apiSecret)) {
-                Log::error('Chargily Pay v2 webhook: API secret not configured');
-                return response()->json(['error' => 'Server configuration error'], 500);
-            }
-            
-            // Calculate expected signature (HMAC SHA256)
-            $expectedSignature = hash_hmac('sha256', $rawPayload, $apiSecret);
-            
-            // Verify signature using hash_equals to prevent timing attacks
-            if (!hash_equals($expectedSignature, $signature)) {
-                Log::warning('Chargily Pay v2 webhook: Invalid signature', [
-                    'received' => substr($signature, 0, 20) . '...',
-                    'expected' => substr($expectedSignature, 0, 20) . '...',
-                    'ip' => $request->ip(),
-                ]);
-                return response()->json(['error' => 'Invalid signature'], 403);
-            }
-            
-            Log::info('Chargily Pay v2 webhook: Signature verified successfully');
-            
-            // STEP 2: Parse webhook payload
-            $webhookData = json_decode($rawPayload, true);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                Log::error('Chargily Pay v2 webhook: Invalid JSON payload', [
-                    'json_error' => json_last_error_msg(),
-                ]);
-                return response()->json(['error' => 'Invalid JSON'], 400);
-            }
-            
-            // Extract event type and checkout data
-            $eventType = $webhookData['type'] ?? null;
-            $checkoutData = $webhookData['data'] ?? null;
-            
-            if (empty($eventType) || empty($checkoutData)) {
-                Log::warning('Chargily Pay v2 webhook: Missing event type or data', [
-                    'event_type' => $eventType,
-                    'has_data' => !empty($checkoutData),
-                ]);
-                return response()->json(['error' => 'Invalid payload structure'], 400);
-            }
-            
-            $checkoutId = $checkoutData['id'] ?? null;
-            $checkoutStatus = $checkoutData['status'] ?? null;
-            $amount = $checkoutData['amount'] ?? null;
-            $fees = $checkoutData['fees'] ?? null;
-            $paymentMethod = $checkoutData['payment_method'] ?? null;
-            $metadata = $checkoutData['metadata'] ?? null;
-            
-            Log::info('Chargily Pay v2 webhook: Processing event', [
-                'event_type' => $eventType,
-                'checkout_id' => $checkoutId,
-                'checkout_status' => $checkoutStatus,
-            ]);
-            
-            // STEP 3: Find order by checkout_id
-            $order = null;
-            $chargilyStatus = null;
-            
-            if ($checkoutId) {
-                // Try to find by chargily_status first
-                $chargilyStatus = ChargilyStatus::where('checkout_id', $checkoutId)->first();
-                
-                if ($chargilyStatus) {
-                    if ($chargilyStatus->order_id) {
-                        $order = Order::find($chargilyStatus->order_id);
-                    } else {
-                        // Detailed log when chargily_status exists but not linked to an order
-                        Log::warning('Chargily Pay v2 webhook: Found ChargilyStatus without order_id', [
-                            'chargily_status_id' => $chargilyStatus->id,
-                            'checkout_id' => $chargilyStatus->checkout_id,
-                            'chargily_response_snippet' => substr(json_encode($chargilyStatus->webhook_data ?? $chargilyStatus->response_data ?? []), 0, 400),
-                        ]);
-                    }
-                }
-                
-                // If not found, try to find by bmccp invoice_number
-                if (!$order) {
-                    $bmccp = \App\Models\Bmccp::where('invoice_number', $checkoutId)->first();
-                    if ($bmccp) {
-                        $order = Order::where('bmccp_id', $bmccp->id)->first();
-                        if (!$order) {
-                            Log::warning('Chargily Pay v2 webhook: bmccp matched but no order found for bmccp', [
-                                'bmccp_id' => $bmccp->id,
-                                'invoice_number' => $bmccp->invoice_number,
-                            ]);
-                        }
-                    }
-                }
-            }
-            
-            // STEP 4: Save/Update chargily_status
-            if ($chargilyStatus) {
-                // Update existing status
-                Log::info('Chargily Pay v2: Updating existing ChargilyStatus from webhook', [
-                    'chargily_status_id' => $chargilyStatus->id,
-                    'checkout_id' => $chargilyStatus->checkout_id,
-                    'event' => $eventType,
-                ]);
-                $chargilyStatus->update([
-                    'event_type' => $eventType,
-                    'status' => $checkoutStatus ?? 'pending',
-                    'amount' => $amount,
-                    'fees' => $fees,
-                    'payment_method' => $paymentMethod,
-                    'metadata' => $metadata,
-                    'webhook_data' => $webhookData,
-                ]);
-            } else {
-                Log::info('Chargily Pay v2: Creating new ChargilyStatus from webhook', [
-                    'checkout_id' => $checkoutId,
-                    'order_id_candidate' => $order ? $order->id : null,
-                    'event' => $eventType,
-                ]);
-                // Create new status record
-                $chargilyStatus = ChargilyStatus::create([
-                    'order_id' => $order ? $order->id : null,
-                    'checkout_id' => $checkoutId,
-                    'event_type' => $eventType,
-                    'status' => $checkoutStatus ?? 'pending',
-                    'amount' => $amount,
-                    'fees' => $fees,
-                    'payment_method' => $paymentMethod,
-                    'metadata' => $metadata,
-                    'webhook_data' => $webhookData,
-                ]);
-                
-                // Link to order if found
-                if ($order) {
-                    $order->chargily_status_id = $chargilyStatus->id;
-                    $order->save();
-                    Log::info('Chargily Pay v2: Linked new ChargilyStatus to order', [
-                        'chargily_status_id' => $chargilyStatus->id,
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                    ]);
-                }
-            }
-            
-            // STEP 5: Handle event and update order status
-            if ($order) {
-                switch ($eventType) {
-                    case 'checkout.paid':
-                        // Payment successful - Set status to "sending" (payment done, waiting for topup)
-                        $oldOrderStatus = $order->status;
-                        if ($oldOrderStatus !== 'sending' && $oldOrderStatus !== 'completed') {
-                            $order->status = 'sending';
-                            $order->save();
-                            
-                            Log::info('Chargily Pay v2: Payment successful - Order status set to sending (waiting for topup)', [
-                                'checkout_id' => $checkoutId,
-                                'order_id' => $order->id,
-                                'order_number' => $order->order_number,
-                                'old_status' => $oldOrderStatus,
-                                'new_status' => 'sending',
-                            ]);
-                            
-                            // Update Telegram message if exists, otherwise send new one
-                            try {
-                                $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
-                                $updatedMessage = TelegramService::formatOrderMessage($order);
-                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
-                                
-                                if ($order->tlg_message_id) {
-                                    // Update existing message
-                                    TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
-                                } else {
-                                    // Send new message if no existing message
-                                    $messageId = TelegramService::sendMessage($updatedMessage);
-                                    if ($messageId) {
-                                        $order->tlg_message_id = $messageId;
-                                        $order->save();
-                                    }
-                                }
-                            } catch (\Exception $e) {
-                                Log::error('Telegram notification failed for payment success', [
-                                    'order_id' => $order->id,
-                                    'error' => $e->getMessage(),
-                                ]);
-                            }
-                            
-                            // Update bmccp if exists
-                            if ($order->bmccp_id) {
-                                $bmccp = \App\Models\Bmccp::find($order->bmccp_id);
-                                if ($bmccp) {
-                                    $bmccp->status = 'approved';
-                                    $bmccp->save();
-                                }
-                            }
-                            
-                            // Trigger automatic recharge for Mobile Legends orders
-                            // processChargilyRecharge will update order status based on VIP Reseller response
-                            $rechargeResult = $this->processChargilyRecharge($order);
-                            
-                            if ($rechargeResult['success']) {
-                                Log::info('Chargily Pay v2: Payment successful and recharge processed', [
-                                    'checkout_id' => $checkoutId,
-                                    'order_id' => $order->id,
-                                    'order_number' => $order->order_number,
-                                    'trxid' => $rechargeResult['trxid'] ?? null,
-                                    'order_status' => $order->fresh()->status, // Get updated status
-                                ]);
-                                
-                                // Update Telegram message with balance after VIP Reseller order is created
-                                if ($order->tlg_message_id) {
-                                    try {
-                                        $order->refresh();
-                                        $order->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
-                                        $updatedMessage = TelegramService::formatOrderMessage($order);
-                                        // Update header if still showing old status
-                                        if (strpos($updatedMessage, '🆕 <b>New Order Created</b>') !== false) {
-                                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
-                                        }
-                                        TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
-                                    } catch (\Exception $e) {
-                                        Log::error('Failed to update Telegram message with balance after recharge', [
-                                            'order_id' => $order->id,
-                                            'error' => $e->getMessage(),
-                                        ]);
-                                    }
-                                }
-                            } else {
-                                Log::warning('Chargily Pay v2: Payment successful but recharge failed', [
-                                    'checkout_id' => $checkoutId,
-                                    'order_id' => $order->id,
-                                    'order_number' => $order->order_number,
-                                    'recharge_message' => $rechargeResult['message'] ?? 'Unknown error',
-                                    'order_status' => $order->fresh()->status, // Get current status
-                                ]);
-                            }
-                        } else {
-                            Log::info('Chargily Pay v2: Payment successful (order already completed)', [
-                                'checkout_id' => $checkoutId,
-                                'order_id' => $order->id,
-                                'order_number' => $order->order_number,
-                            ]);
-                        }
-                        break;
-                        
-                    case 'checkout.failed':
-                    case 'checkout.canceled':
-                        // Payment failed or canceled
-                        if (!in_array($order->status, ['cancelled', 'refunded'])) {
-                            $order->status = 'cancelled';
-                            $order->save();
-                            
-                            // Update bmccp if exists
-                            if ($order->bmccp_id) {
-                                $bmccp = \App\Models\Bmccp::find($order->bmccp_id);
-                                if ($bmccp) {
-                                    $bmccp->status = 'rejected';
-                                    $bmccp->save();
-                                }
-                            }
-                        }
-                        
-                        Log::info('Chargily Pay v2: Payment failed/canceled', [
-                            'checkout_id' => $checkoutId,
-                            'event_type' => $eventType,
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number,
-                        ]);
-                        break;
-                }
-            } else {
-                // Provide detailed logging to help troubleshooting missing order links
-                $details = [
-                    'checkout_id' => $checkoutId,
-                    'event_type' => $eventType,
-                ];
-                if ($chargilyStatus) {
-                    $details['chargily_status_id'] = $chargilyStatus->id;
-                    $details['chargily_status_order_id'] = $chargilyStatus->order_id;
-                    $details['chargily_status_webhook_data_snippet'] = substr(json_encode($chargilyStatus->webhook_data ?? $chargilyStatus->response_data ?? []), 0, 400);
-                }
-                if (isset($bmccp) && $bmccp) {
-                    $details['bmccp_id'] = $bmccp->id;
-                    $details['bmccp_invoice_number'] = $bmccp->invoice_number;
-                }
+        Log::info('baridimob.webhook ignored (SofizPay CIB)', ['ip' => $request->ip()]);
 
-                Log::warning('Chargily Pay v2 webhook: Order not found', $details);
-            }
-            
-            // STEP 6: Return 200 OK response
-            return response()->json(['success' => true], 200);
-            
-        } catch (\Exception $e) {
-            Log::error('Chargily Pay v2 webhook error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all(),
-            ]);
-            
-            return response()->json(['error' => 'Internal server error'], 500);
-        }
+        return response()->json([
+            'message' => 'Chargily webhook is disabled. Baridimob uses SofizPay CIB return verification.',
+        ], 410);
     }
 
     /**
-     * Process recharge for Chargily completed orders
-     * This method is called when Chargily payment is successful (checkout.paid)
-     * Similar to processRecharge in AdminController but for Chargily payments
+     * SofizPay CIB return handler: server-side check, amount validation, then Digiflazz / provider recharge.
      */
-    private function processChargilyRecharge(Order $order)
+    public function sofizpayCibReturn(Request $request)
+    {
+        $eid = $request->query('eid');
+        if (!is_string($eid) || $eid === '') {
+            return redirect()->route('select-payment')->with('error', 'Invalid payment return.');
+        }
+
+        try {
+            $orderId = Crypt::decryptString($eid);
+        } catch (\Exception $e) {
+            Log::warning('SofizPay CIB return: invalid eid', ['error' => $e->getMessage()]);
+
+            return redirect()->route('select-payment')->with('error', 'Invalid payment return.');
+        }
+
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack', 'sofizpayCibTransaction', 'seller'])->find($orderId);
+        if (!$order || !$order->sofizpayCibTransaction) {
+            return redirect()->route('select-payment')->with('error', 'Order not found.');
+        }
+
+        $spf = $order->sofizpayCibTransaction;
+
+        if ($spf->status === 'paid') {
+            return $this->redirectAfterBaridimobPayment($order, $eid);
+        }
+
+        if (in_array($order->status, ['completed', 'sending'], true)) {
+            return $this->redirectAfterBaridimobPayment($order, $eid);
+        }
+
+        if (!in_array($order->status, ['pending_bmccp', 'pending'], true)) {
+            return $this->redirectBaridimobPaymentRetry($order, $eid, 'This order cannot be paid anymore.');
+        }
+
+        $cibOrderNumber = $spf->cib_order_number;
+        if ($cibOrderNumber === null || $cibOrderNumber === '') {
+            Log::error('SofizPay CIB return: missing cib_order_number', ['order_id' => $order->id]);
+
+            return $this->redirectBaridimobPaymentRetry($order, $eid, 'Payment session is invalid. Please start again.');
+        }
+
+        $svc = app(SofizPayCibService::class);
+        $check = $svc->checkCibTransaction((string) $cibOrderNumber);
+        $checkData = is_array($check['data'] ?? null) ? $check['data'] : [];
+
+        $spf->update(['last_check_response' => $checkData]);
+
+        if (!$check['success'] || !$svc->isPaidCheck($checkData)) {
+            Log::info('SofizPay CIB return: payment not confirmed yet', [
+                'order_id' => $order->id,
+                'cib_order_number' => $cibOrderNumber,
+            ]);
+
+            return $this->redirectBaridimobPaymentRetry($order, $eid, 'Payment not confirmed yet. If you already paid, wait a moment and try again.');
+        }
+
+        $paidAmount = $svc->parsePaidAmountDzd($checkData);
+        $orderFresh = $order->fresh(['diamondPack', 'orderItems.diamondPack', 'coupon']);
+        $expectedCanonical = $this->calculateOrderBaridimobAmountDzd($orderFresh);
+        $sessionAmount = round((float) ($spf->amount_expected ?? 0), 2);
+
+        if ($paidAmount === null) {
+            Log::critical('SofizPay CIB return: could not parse paid amount', ['order_id' => $order->id]);
+
+            return $this->redirectBaridimobPaymentRetry($order, $eid, 'Could not verify payment amount. Contact support.');
+        }
+
+        if (abs($paidAmount - $sessionAmount) > 1.0) {
+            Log::critical('SofizPay CIB return: paid vs session amount mismatch', [
+                'order_id' => $order->id,
+                'paid' => $paidAmount,
+                'amount_expected' => $sessionAmount,
+            ]);
+
+            return $this->redirectBaridimobPaymentRetry($order, $eid, 'Paid amount does not match this checkout session. Contact support with your order number.');
+        }
+
+        if (abs($expectedCanonical - $sessionAmount) > 1.0) {
+            Log::critical('SofizPay CIB return: expected order total vs session mismatch (possible tampering or price change)', [
+                'order_id' => $order->id,
+                'expected_canonical' => $expectedCanonical,
+                'amount_expected' => $sessionAmount,
+            ]);
+
+            return $this->redirectBaridimobPaymentRetry($order, $eid, 'Order total does not match catalog prices. Contact support.');
+        }
+
+        $merchant = $svc->merchantAccount();
+        $dest = $svc->parseDestinationAccount($checkData);
+        if ($merchant !== '' && $dest !== null && $dest !== '' && $dest !== $merchant) {
+            Log::critical('SofizPay CIB return: destination account mismatch', [
+                'order_id' => $order->id,
+                'expected' => $merchant,
+                'got' => $dest,
+            ]);
+
+            return $this->redirectBaridimobPaymentRetry($order, $eid, 'Payment destination mismatch. Contact support.');
+        }
+
+        $shouldRunRecharge = false;
+        DB::transaction(function () use ($order, $spf, &$shouldRunRecharge) {
+            $o = Order::where('id', $order->id)->lockForUpdate()->first();
+            $s = SofizPayCibTransaction::where('id', $spf->id)->lockForUpdate()->first();
+            if (!$o || !$s) {
+                return;
+            }
+            if ($s->status === 'paid') {
+                return;
+            }
+            if (!in_array($o->status, ['pending_bmccp', 'pending'], true)) {
+                return;
+            }
+
+            $s->status = 'paid';
+            $s->paid_at = now();
+            $s->save();
+
+            $o->status = 'sending';
+            $o->save();
+            $shouldRunRecharge = true;
+
+            try {
+                $o->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
+                $updatedMessage = TelegramService::formatOrderMessage($o);
+                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
+                if ($o->tlg_message_id) {
+                    TelegramService::editMessageText($o->tlg_message_id, $updatedMessage);
+                } else {
+                    $messageId = TelegramService::sendMessage($updatedMessage);
+                    if ($messageId) {
+                        $o->tlg_message_id = $messageId;
+                        $o->save();
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('SofizPay CIB return: Telegram update failed', ['order_id' => $o->id, 'error' => $e->getMessage()]);
+            }
+
+            if ($o->bmccp_id) {
+                $bmccp = \App\Models\Bmccp::find($o->bmccp_id);
+                if ($bmccp) {
+                    $bmccp->status = 'approved';
+                    $bmccp->save();
+                }
+            }
+        });
+
+        $order->refresh();
+
+        if ($shouldRunRecharge) {
+            $rechargeResult = $this->processBaridimobPaidRecharge($order->fresh(['diamondPack', 'orderItems.diamondPack']));
+            if (!$rechargeResult['success']) {
+                Log::warning('SofizPay CIB return: recharge failed after verified payment', [
+                    'order_id' => $order->id,
+                    'message' => $rechargeResult['message'] ?? null,
+                ]);
+            }
+        }
+
+        return $this->redirectAfterBaridimobPayment($order->fresh(), $eid);
+    }
+
+    private function redirectAfterBaridimobPayment(Order $order, string $encryptedOrderId)
+    {
+        if ($order->seller_id) {
+            return redirect()->route('seller.payment.success', ['encrypted_order_id' => $encryptedOrderId]);
+        }
+
+        return redirect()->route('payment.success', ['encrypted_order_id' => $encryptedOrderId]);
+    }
+
+    /**
+     * After a failed or pending SofizPay return, send the customer back to the correct Baridimob entry point.
+     */
+    private function redirectBaridimobPaymentRetry(Order $order, string $encryptedOrderId, string $message)
+    {
+        $order->loadMissing('seller');
+        if ($order->seller_id && $order->seller && !empty($order->seller->username)) {
+            return redirect()->route('seller.store.payment-method', ['username' => $order->seller->username])
+                ->with('error', $message);
+        }
+
+        return redirect()->route('baridimob-form', ['encrypted_order_id' => $encryptedOrderId])
+            ->with('error', $message);
+    }
+
+    /**
+     * Recompute catalog total in DZD from current `diamond_packs` rows (pack discounts only, not coupons).
+     */
+    private function recalculateOrderTotalDzdFromDiamondPacks(Order $order): float
+    {
+        $order->loadMissing(['diamondPack', 'orderItems.diamondPack']);
+
+        if ($order->orderItems && $order->orderItems->count() > 0) {
+            $total = 0.0;
+            foreach ($order->orderItems as $orderItem) {
+                $pack = $orderItem->diamondPack;
+                if (!$pack) {
+                    continue;
+                }
+                $quantity = max(1, (int) $orderItem->quantity);
+                $unitPriceDzd = (float) ($pack->price_dzd ?? ($pack->price * 260));
+                if ($unitPriceDzd <= 0) {
+                    $unitPriceDzd = (float) ($pack->price_usd ?? $pack->price ?? 0) * 260;
+                }
+                $discountPercentage = (float) ($pack->discount_percentage ?? 0);
+                $subtotalDzd = $unitPriceDzd * $quantity;
+                $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                $total += $subtotalDzd - $discountAmount;
+            }
+
+            return round(max(0, $total), 2);
+        }
+
+        if ($order->diamondPack) {
+            $pack = $order->diamondPack;
+            $unitPriceDzd = (float) ($pack->price_dzd ?? ($pack->price * 260));
+            if ($unitPriceDzd <= 0) {
+                $unitPriceDzd = (float) ($pack->price_usd ?? $pack->price ?? 0) * 260;
+            }
+            $discountPercentage = (float) ($pack->discount_percentage ?? 0);
+            $quantity = max(1, (int) ($order->quantity ?? 1));
+            $subtotalDzd = $unitPriceDzd * $quantity;
+            $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+
+            return round(max(0, $subtotalDzd - $discountAmount), 2);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Expected Baridimob (DZD) total for SofizPay: seller storefront and coupons use persisted `final_price`;
+     * otherwise totals are derived from `diamond_packs` (and multi-item lines without coupon).
+     */
+    private function calculateOrderBaridimobAmountDzd(Order $order): float
+    {
+        $order->loadMissing(['diamondPack', 'orderItems.diamondPack', 'coupon']);
+        $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
+        $fromPacks = $this->recalculateOrderTotalDzdFromDiamondPacks($order);
+
+        if ($order->seller_id && !$hasOrderItems && $order->diamondPack) {
+            $fp = (float) ($order->final_price ?? 0);
+            if ($fp > 0) {
+                return round($fp, 2);
+            }
+        }
+
+        if ($hasOrderItems) {
+            $storedLines = (float) $order->orderItems->sum('total_dzd');
+            if ((int) ($order->coupon_id ?? 0) > 0) {
+                $fp = (float) ($order->final_price ?? 0);
+                if ($fp > 0) {
+                    return round($fp, 2);
+                }
+
+                return round($storedLines, 2);
+            }
+
+            return round($fromPacks > 0 ? $fromPacks : $storedLines, 2);
+        }
+
+        if ($order->diamondPack) {
+            if ((int) ($order->coupon_id ?? 0) > 0) {
+                $fp = (float) ($order->final_price ?? 0);
+                if ($fp > 0) {
+                    return round($fp, 2);
+                }
+            }
+
+            return round($fromPacks, 2);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Process recharge after SofizPay CIB (Baridimob) payment is verified.
+     */
+    private function processBaridimobPaidRecharge(Order $order)
     {
         try {
             // Load order with diamond pack relationship
@@ -2068,6 +1919,8 @@ class CheckoutController extends Controller
                     'seller_cost' => $order->seller_cost,
                     'quantity' => $order->quantity ?? 1,
                 ]);
+
+                $required = max(1, (int) ($order->quantity ?? 1));
 
                 // Multi-item order support: Submit top-ups for each order_item
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
@@ -2390,6 +2243,8 @@ class CheckoutController extends Controller
                     'seller_cost' => $order->seller_cost,
                     'quantity' => $order->quantity ?? 1,
                 ]);
+
+                $required = max(1, (int) ($order->quantity ?? 1));
 
                 // Multi-item order support: Submit top-ups for each order_item
                 if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
@@ -4300,7 +4155,7 @@ class CheckoutController extends Controller
     
     /**
      * Process recharge/top-up after NOWPayments payment confirmation
-     * Similar to processChargilyRecharge but for crypto payments
+     * Similar to processBaridimobPaidRecharge but for crypto payments
      */
     private function processNowPaymentsRecharge(Order $order)
     {

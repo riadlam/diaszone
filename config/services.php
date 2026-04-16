@@ -52,4 +52,14 @@ return [
         'base_url' => env('ITEM4GAMER_BASE_URL', 'https://item4gamer.com/wp-json/reseller/v1'),
     ],
 
+    'sofizpay' => [
+        'enabled' => env('SOFIZPAY_ENABLED', true),
+        'sandbox' => env('SOFIZPAY_SANDBOX', false),
+        'base_url' => env('SOFIZPAY_BASE_URL', 'https://sofizpay.com'),
+        'merchant_account' => env('SOFIZPAY_MERCHANT_ACCOUNT'),
+        'timeout' => (int) env('SOFIZPAY_TIMEOUT', 30),
+        'redirect' => env('SOFIZPAY_REDIRECT', 'yes'),
+        'keep_return_url' => env('SOFIZPAY_KEEP_RETURN_URL', 'True'),
+    ],
+
 ];
