@@ -49,6 +49,7 @@ class SofizPayCibService
         try {
             $response = Http::timeout($timeout)
                 ->acceptJson()
+                ->withoutRedirecting()
                 ->get($url, $queryParams);
 
             $body = $response->body();
@@ -81,6 +82,7 @@ class SofizPayCibService
         try {
             $response = Http::timeout($timeout)
                 ->acceptJson()
+                ->withoutRedirecting()
                 ->get($url, ['order_number' => $orderNumber]);
 
             $body = $response->body();
@@ -117,6 +119,37 @@ class SofizPayCibService
         $statusOk = $orderStatus === 2 || $orderStatus === '2';
 
         return $resp === '00' && $errOk && $statusOk;
+    }
+
+    /**
+     * When {@see isPaidCheck} is false, use this for a clearer user message if the gateway already reported a decline/failure.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function parsePaymentFailureHint(array $data): ?string
+    {
+        $resp = (string) ($data['respCode'] ?? '');
+        if ($resp !== '' && $resp !== '00') {
+            $desc = trim((string) ($data['ResponseDescription'] ?? $data['responseDescription'] ?? $data['message'] ?? ''));
+
+            return $desc !== '' ? $desc : ('Bank response code: ' . $resp . '. Payment was not completed.');
+        }
+
+        $err = $data['errorCode'] ?? null;
+        if ($err !== null && $err !== '' && $err !== 0 && $err !== '0') {
+            $msg = trim((string) ($data['errorMessage'] ?? $data['ErrorMessage'] ?? $data['message'] ?? ''));
+
+            return $msg !== '' ? $msg : 'Payment could not be completed (gateway error).';
+        }
+
+        $rc = $data['ResponseCode'] ?? $data['responseCode'] ?? null;
+        if ($rc !== null && (string) $rc !== '' && (string) $rc !== '0' && (string) $rc !== '00') {
+            $desc = trim((string) ($data['ResponseDescription'] ?? $data['responseDescription'] ?? ''));
+
+            return $desc !== '' ? $desc : ('Payment was not accepted (code ' . (string) $rc . ').');
+        }
+
+        return null;
     }
 
     /**

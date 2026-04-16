@@ -1241,7 +1241,7 @@ class CheckoutController extends Controller
                 'email' => $clientEmail,
                 'return_url' => $returnUrl,
                 'memo' => 'Order ' . $order->order_number,
-                'redirect' => (string) config('services.sofizpay.redirect', 'yes'),
+                'redirect' => (string) config('services.sofizpay.redirect', 'no'),
                 'keep_return_url' => (string) config('services.sofizpay.keep_return_url', 'True'),
             ];
 
@@ -1460,9 +1460,26 @@ class CheckoutController extends Controller
         $spf->update(['last_check_response' => $checkData]);
 
         if (!$check['success'] || !$svc->isPaidCheck($checkData)) {
+            $failureHint = $svc->parsePaymentFailureHint($checkData);
+            if ($failureHint !== null) {
+                $userMessage = strlen($failureHint) > 220 ? substr($failureHint, 0, 217) . '…' : $failureHint;
+                Log::info('SofizPay CIB return: payment not successful (gateway reported failure)', [
+                    'order_id' => $order->id,
+                    'cib_order_number' => $cibOrderNumber,
+                    'hint' => $failureHint,
+                ]);
+
+                return $this->redirectBaridimobPaymentRetry(
+                    $order,
+                    $eid,
+                    $userMessage . ' You can try again with Baridimob or use another payment method.'
+                );
+            }
+
             Log::info('SofizPay CIB return: payment not confirmed yet', [
                 'order_id' => $order->id,
                 'cib_order_number' => $cibOrderNumber,
+                'check_snippet' => substr(json_encode($checkData), 0, 500),
             ]);
 
             return $this->redirectBaridimobPaymentRetry($order, $eid, 'Payment not confirmed yet. If you already paid, wait a moment and try again.');

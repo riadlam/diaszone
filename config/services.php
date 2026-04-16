@@ -58,7 +58,8 @@ return [
         'base_url' => env('SOFIZPAY_BASE_URL', 'https://sofizpay.com'),
         'merchant_account' => env('SOFIZPAY_MERCHANT_ACCOUNT'),
         'timeout' => (int) env('SOFIZPAY_TIMEOUT', 30),
-        'redirect' => env('SOFIZPAY_REDIRECT', 'yes'),
+        // Use "no" for server-side create: SofizPay returns JSON with payment_url. "yes" can 302 to SATIM HTML and breaks Laravel Http::get().
+        'redirect' => env('SOFIZPAY_REDIRECT', 'no'),
         'keep_return_url' => env('SOFIZPAY_KEEP_RETURN_URL', 'True'),
     ],
 

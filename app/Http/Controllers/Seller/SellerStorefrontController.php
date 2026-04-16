@@ -620,7 +620,7 @@ class SellerStorefrontController extends Controller
                 'email' => $clientEmail,
                 'return_url' => $returnUrl,
                 'memo' => 'Order ' . $order->order_number,
-                'redirect' => (string) config('services.sofizpay.redirect', 'yes'),
+                'redirect' => (string) config('services.sofizpay.redirect', 'no'),
                 'keep_return_url' => (string) config('services.sofizpay.keep_return_url', 'True'),
             ];
 
