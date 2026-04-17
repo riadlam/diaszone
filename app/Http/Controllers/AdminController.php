@@ -1952,11 +1952,15 @@ class AdminController extends Controller
                     // Process recharge (same logic as admin dashboard)
                     $rechargeResult = $this->processRecharge($order);
 
+                    // processRecharge() may already update DB status (e.g. to "sending" for pending provider response).
+                    // Always refresh first so we don't overwrite DB changes with stale in-memory state.
+                    $order->refresh();
+
                     // Decide order status based on recharge result
                     // If provider returned final success -> completed
                     // If provider returned waiting/pending -> sending (await webhook)
                     // If provider returned error -> sending (requires attention)
-                    $newStatus = $order->status; // default keep existing if unchanged
+                    $newStatus = $order->status; // default keep current DB status
                     if (isset($rechargeResult['status'])) {
                         if ($rechargeResult['status'] === 'success') {
                             $newStatus = 'completed';
@@ -1968,8 +1972,10 @@ class AdminController extends Controller
                         }
                     }
 
-                    $order->status = $newStatus;
-                    $order->save();
+                    if ($order->status !== $newStatus) {
+                        $order->status = $newStatus;
+                        $order->save();
+                    }
 
                     Log::info('Telegram: Processing order confirmation', [
                         'order_id' => $order->id,
