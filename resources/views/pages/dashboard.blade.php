@@ -222,7 +222,7 @@
 @if($activeSection === 'orders')
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Translation strings
     const translations = {
         game: {!! json_encode(__('dashboard.game')) !!},
@@ -237,70 +237,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const ordersContainer = document.getElementById('orders-container');
     const ordersLoading = document.getElementById('orders-loading');
     const ordersEmpty = document.getElementById('orders-empty');
-    
-    // Get encrypted order IDs from localStorage
-    const encryptedOrderIdsStr = localStorage.getItem('diaszone_encrypted_order_ids');
-    
-    if (!encryptedOrderIdsStr) {
+    const dashboardUserAuthenticated = @json(auth()->check());
+
+    function diaszoneRenderDashboardOrders(validResults) {
         ordersLoading.classList.add('hidden');
-        ordersEmpty.classList.remove('hidden');
-        return;
-    }
-    
-    let encryptedOrderIds = [];
-    try {
-        const parsed = JSON.parse(encryptedOrderIdsStr);
-        encryptedOrderIds = Array.isArray(parsed) ? parsed : [parsed];
-    } catch (e) {
-        ordersLoading.classList.add('hidden');
-        ordersEmpty.classList.remove('hidden');
-        return;
-    }
-    
-    if (encryptedOrderIds.length === 0) {
-        ordersLoading.classList.add('hidden');
-        ordersEmpty.classList.remove('hidden');
-        return;
-    }
-    
-    // Fetch all orders
-    const fetchPromises = encryptedOrderIds.map((encryptedOrderId, index) => {
-        return fetch('{{ route("api.orders.get-by-encrypted-id") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                encrypted_order_id: encryptedOrderId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.order) {
-                return { order: data.order, encryptedId: encryptedOrderId };
-            }
-            return null;
-        })
-        .catch(error => {
-            console.error('Error fetching order:', error);
-            return null;
-        });
-    });
-    
-    Promise.all(fetchPromises).then(results => {
-        ordersLoading.classList.add('hidden');
-        
-        const validResults = results.filter(result => result !== null);
-        
-        if (validResults.length === 0) {
+
+        const filtered = validResults.filter(result => result !== null);
+
+        if (filtered.length === 0) {
             ordersEmpty.classList.remove('hidden');
             return;
         }
-        
+
+        ordersEmpty.classList.add('hidden');
+
         // Sort orders by date (newest first)
-        validResults.sort((a, b) => {
+        filtered.sort((a, b) => {
             const dateA = new Date(a.order.created_at);
             const dateB = new Date(b.order.created_at);
             return dateB - dateA; // Descending order (newest first)
@@ -310,8 +262,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const ordersPerPage = 5;
         const paginationState = {
             currentPage: 1,
-            totalPages: Math.ceil(validResults.length / ordersPerPage),
-            allOrders: validResults
+            totalPages: Math.ceil(filtered.length / ordersPerPage),
+            allOrders: filtered
         };
         const paginationContainer = document.getElementById('orders-pagination');
         
@@ -622,7 +574,31 @@ document.addEventListener('DOMContentLoaded', function() {
         window.addEventListener('currencyChanged', function(e) {
             updateDashboardPrices();
         });
-    });
+    }
+
+    if (!dashboardUserAuthenticated) {
+        ordersLoading.classList.add('hidden');
+        ordersEmpty.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const res = await fetch('{{ route("api.orders.mine") }}', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        });
+        const data = await res.json();
+        const rows = (data.success && Array.isArray(data.orders))
+            ? data.orders.map((row) => ({
+                order: row.order,
+                encryptedId: row.encrypted_id,
+            }))
+            : [];
+        diaszoneRenderDashboardOrders(rows);
+    } catch (e) {
+        console.error('Could not load orders from account', e);
+        diaszoneRenderDashboardOrders([]);
+    }
 });
 </script>
 @endpush

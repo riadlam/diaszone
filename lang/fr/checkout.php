@@ -14,14 +14,14 @@ return [
     'terms_of_sale' => 'Conditions de vente',
     'terms_of_use' => 'Conditions d\'utilisation',
     'effective' => 'En vigueur',
-    
+
     // Messages d'erreur
     'service_error' => 'Erreur de service',
     'algerie_poste_timeout' => 'Désolé, le service de la Poste Algérienne est temporairement fermé. Veuillez réessayer d\'ici 10 minutes. Merci pour votre compréhension et votre patience.',
     'algerie_poste_timeout_short' => 'Service La Poste fermé temporairement',
     'retry' => 'Réessayer',
     'close' => 'Fermer',
-    
+
     // Page de formulaire Flexy
     'upload_flexy_receipt' => 'Télécharger le reçu Flexy',
     'order_summary' => 'Résumé de la commande',
@@ -38,7 +38,7 @@ return [
     'remove_image' => 'Supprimer l\'image',
     'receipt_preview' => 'Aperçu du reçu',
     'product' => 'Produit',
-    
+
     // Page de succès Flexy
     'receipt_submitted_successfully' => 'Reçu soumis avec succès!',
     'thank_you_for_payment' => 'Merci pour votre paiement.',
@@ -53,7 +53,7 @@ return [
     'zone_id' => 'ID de zone',
     'player_id' => 'ID joueur',
     'server' => 'Serveur',
-    
+
     // Payment pages common strings
     'review_order_subtitle' => 'Vérifiez votre commande et procédez au paiement',
     'order_number' => 'Numéro de commande',
@@ -68,4 +68,6 @@ return [
     'payment_failed_message' => 'Votre paiement n\'a pas pu être traité. Veuillez réessayer ou choisir une autre méthode de paiement.',
     'payment_service_unavailable' => 'Service de paiement indisponible',
     'cryptocurrency_usd' => 'Cryptomonnaie (USD)',
+
+    'login_required_checkout' => 'Veuillez vous connecter avec Google pour payer.',
 ];

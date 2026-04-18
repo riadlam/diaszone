@@ -14,14 +14,14 @@ return [
     'terms_of_sale' => 'شروط البيع',
     'terms_of_use' => 'شروط الاستخدام',
     'effective' => 'ساري من',
-    
+
     // رسائل الخطأ
     'service_error' => 'خطأ في الخدمة',
     'algerie_poste_timeout' => 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.',
     'algerie_poste_timeout_short' => 'خدمة البريد الجزائري مغلقة مؤقتاً',
     'retry' => 'إعادة محاولة',
     'close' => 'إغلاق',
-    
+
     // صفحة نموذج فليكسي
     'upload_flexy_receipt' => 'رفع إيصال فليكسي',
     'order_summary' => 'ملخص الطلب',
@@ -38,7 +38,7 @@ return [
     'remove_image' => 'إزالة الصورة',
     'receipt_preview' => 'معاينة الإيصال',
     'product' => 'المنتج',
-    
+
     // صفحة نجاح فليكسي
     'receipt_submitted_successfully' => 'تم إرسال الإيصال بنجاح!',
     'thank_you_for_payment' => 'شكراً لك على الدفعة.',
@@ -53,7 +53,7 @@ return [
     'zone_id' => 'معرف المنطقة',
     'player_id' => 'معرف اللاعب',
     'server' => 'الخادم',
-    
+
     // Payment pages common strings
     'review_order_subtitle' => 'راجع طلبك وتابع عملية الدفع',
     'order_number' => 'رقم الطلب',
@@ -68,4 +68,6 @@ return [
     'payment_failed_message' => 'لم تتم معالجة دفعتك. يرجى المحاولة مرة أخرى أو اختيار طريقة دفع أخرى.',
     'payment_service_unavailable' => 'خدمة الدفع غير متاحة',
     'cryptocurrency_usd' => 'العملات المشفرة (USD)',
+
+    'login_required_checkout' => 'يُرجى تسجيل الدخول بـ Google للدفع.',
 ];

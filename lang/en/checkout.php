@@ -14,14 +14,14 @@ return [
     'terms_of_sale' => 'Terms of sale',
     'terms_of_use' => 'Terms of use',
     'effective' => 'Effective',
-    
+
     // Error messages
     'service_error' => 'Service Error',
     'algerie_poste_timeout' => 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding.',
     'algerie_poste_timeout_short' => 'Algerie Poste temporarily unavailable',
     'retry' => 'Retry',
     'close' => 'Close',
-    
+
     // Flexy Form Page
     'upload_flexy_receipt' => 'Upload Flexy Receipt',
     'order_summary' => 'Order Summary',
@@ -38,7 +38,7 @@ return [
     'remove_image' => 'Remove image',
     'receipt_preview' => 'Receipt preview',
     'product' => 'Product',
-    
+
     // Flexy Success Page
     'receipt_submitted_successfully' => 'Receipt Submitted Successfully!',
     'thank_you_for_payment' => 'Thank you for your payment.',
@@ -53,7 +53,7 @@ return [
     'zone_id' => 'Zone ID',
     'player_id' => 'Player ID',
     'server' => 'Server',
-    
+
     // Payment pages
     'review_order_subtitle' => 'Review your order and proceed to payment',
     'order_number' => 'Order Number',
@@ -68,4 +68,6 @@ return [
     'payment_failed_message' => 'Your payment could not be processed. Please try again or choose a different payment method.',
     'payment_service_unavailable' => 'Payment Service Unavailable',
     'cryptocurrency_usd' => 'Cryptocurrency (USD)',
+
+    'login_required_checkout' => 'Please sign in with Google to pay.',
 ];

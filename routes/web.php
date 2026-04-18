@@ -1,37 +1,37 @@
 <?php
 
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\CheckoutController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Admin\SellerManagementController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CouponController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Seller\SellerAuthController;
 use App\Http\Controllers\Seller\SellerController;
 use App\Http\Controllers\Seller\SellerStorefrontController;
-use App\Http\Controllers\Admin\SellerManagementController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Test translation debug route
-Route::get('/test/translation', function() {
+Route::get('/test/translation', function () {
     $loader = app('translation.loader');
     $langPath = app('path.lang');
     $locale = app()->getLocale();
-    
+
     // Force reload translations
     app('translator')->setLoaded([]);
-    
+
     return response()->json([
         'locale' => $locale,
         'lang_path' => $langPath,
         'lang_path_resolved' => base_path('lang'),
-        'nav_file_exists' => file_exists($langPath . '/en/nav.php'),
-        'home_file_exists' => file_exists($langPath . '/' . $locale . '/home.php'),
-        'home_file_path' => $langPath . '/' . $locale . '/home.php',
-        'home_file_content' => file_exists($langPath . '/' . $locale . '/home.php') ? require($langPath . '/' . $locale . '/home.php') : null,
+        'nav_file_exists' => file_exists($langPath.'/en/nav.php'),
+        'home_file_exists' => file_exists($langPath.'/'.$locale.'/home.php'),
+        'home_file_path' => $langPath.'/'.$locale.'/home.php',
+        'home_file_content' => file_exists($langPath.'/'.$locale.'/home.php') ? require ($langPath.'/'.$locale.'/home.php') : null,
         'loader_result' => $loader->load($locale, 'home', '*'),
         'loader_class' => get_class($loader),
         'translation_test' => __('nav.home'),
@@ -42,33 +42,39 @@ Route::get('/test/translation', function() {
 });
 
 // Language switching route
-Route::get('/language/{locale}', function($locale) {
+Route::get('/language/{locale}', function ($locale) {
     $availableLocales = ['en', 'fr', 'ar'];
     if (in_array($locale, $availableLocales)) {
         Session::put('locale', $locale);
     }
+
     return redirect()->back();
 })->name('language.switch');
 
 Route::get('/mobilelegends', [HomeController::class, 'mobileLegends'])->name('mobilelegends');
-Route::get('/free-fire-diamonds-top-up', function() {
+Route::get('/free-fire-diamonds-top-up', function () {
     $controller = app(HomeController::class);
+
     return $controller->gameTopUp('freefire');
 })->name('freefire');
-Route::get('/pubg-mobile-uc-top-up-global', function() {
+Route::get('/pubg-mobile-uc-top-up-global', function () {
     $controller = app(HomeController::class);
+
     return $controller->gameTopUp('pubgmobile');
 })->name('pubgmobile');
-Route::get('/honor-of-kings-tokens-top-up-global', function() {
+Route::get('/honor-of-kings-tokens-top-up-global', function () {
     $controller = app(HomeController::class);
+
     return $controller->gameTopUp('honorofkings');
 })->name('honorofkings');
-Route::get('/blood-strike-golds-top-up-global', function() {
+Route::get('/blood-strike-golds-top-up-global', function () {
     $controller = app(HomeController::class);
+
     return $controller->gameTopUp('bloodstrike');
 })->name('bloodstrike');
-Route::get('/steam-gift-cards', function() {
+Route::get('/steam-gift-cards', function () {
     $controller = app(HomeController::class);
+
     return $controller->gameTopUp('steam_giftcard');
 })->name('steam_giftcard');
 Route::get('/shop', [HomeController::class, 'shop'])->name('shop');
@@ -142,11 +148,14 @@ Route::post('/api/packs', [CheckoutController::class, 'getPacks'])
     ->middleware('throttle:30,1') // 30 requests per minute
     ->name('api.packs');
 Route::post('/api/orders/create', [CheckoutController::class, 'createOrder'])
-    ->middleware('throttle:20,1') // 20 orders per minute per IP (generous limit for legitimate users)
+    ->middleware(['auth', 'throttle:20,1']) // Logged-in customers only; 20 orders per minute per IP
     ->name('api.orders.create');
 Route::post('/api/orders/get-by-encrypted-id', [CheckoutController::class, 'getOrderByEncryptedId'])
     ->middleware('throttle:10,1') // 10 requests per minute (prevent brute force)
     ->name('api.orders.get-by-encrypted-id');
+Route::get('/api/orders/mine', [CheckoutController::class, 'listMyOrders'])
+    ->middleware(['auth', 'throttle:60,1'])
+    ->name('api.orders.mine');
 Route::post('/api/validate-nickname', [CheckoutController::class, 'validateNickname'])
     ->middleware('throttle:10,1') // 10 requests per minute
     ->name('api.validate-nickname');
@@ -166,11 +175,13 @@ Route::post('/api/coupon/process-free-order', [CouponController::class, 'process
     ->middleware('auth') // Only free order requires auth middleware
     ->name('api.coupon.process-free-order');
 
-// Authentication routes
+// Authentication routes (Google OAuth only for customers)
+Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::get('/signup', [AuthController::class, 'showSignupForm'])->name('signup');
-Route::post('/signup', [AuthController::class, 'signup']);
+Route::post('/signup', [AuthController::class, 'signup'])->middleware('throttle:10,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Dashboard routes - orders, invoices, notifications accessible without auth
@@ -197,7 +208,7 @@ Route::post('/webhook/nowpayments', [CheckoutController::class, 'nowPaymentsWebh
 Route::post('/webhook/mixpay', [CheckoutController::class, 'mixPayWebhook'])->name('mixpay.webhook');
 
 // GET route for webhook testing/info (not used by NOWPayments, but helpful for debugging)
-Route::get('/webhook/nowpayments', function() {
+Route::get('/webhook/nowpayments', function () {
     return response()->json([
         'message' => 'NOWPayments webhook endpoint',
         'note' => 'This endpoint only accepts POST requests from NOWPayments servers',
@@ -290,12 +301,12 @@ Route::prefix('seller')->name('seller.')->middleware('seller')->group(function (
     Route::post('/settings/check-slug', [SellerController::class, 'checkSlugAvailability'])->name('settings.check-slug');
     Route::put('/profile', [SellerController::class, 'updateProfile'])->name('profile.update');
     Route::post('/profile/password', [SellerController::class, 'changePassword'])->name('profile.password');
-    
+
     // Order Management API
     Route::get('/orders/{orderNumber}', [SellerController::class, 'getOrderDetails'])->name('orders.details');
     Route::patch('/orders/{orderNumber}/confirm', [SellerController::class, 'confirmFlexyOrder'])->name('orders.confirm');
     Route::delete('/orders/{orderNumber}', [SellerController::class, 'deleteOrder'])->name('orders.delete');
-    
+
     // API for seller dashboard
     Route::get('/api/packs', [SellerController::class, 'getGamePacks'])->name('api.packs');
 });
@@ -316,12 +327,12 @@ Route::get('/store/payment/success/{encrypted_order_id}', [SellerStorefrontContr
 
 // Dynamic game routes - matches snake_case game names (e.g., /arena_breakout, /naruto_shippuden)
 // Must be placed last to avoid conflicts with other routes
-Route::get('/{gameType}', function($gameType) {
+Route::get('/{gameType}', function ($gameType) {
     // Only allow snake_case game types (letters, numbers, underscores)
-    if (!preg_match('/^[a-z0-9_]+$/', $gameType)) {
+    if (! preg_match('/^[a-z0-9_]+$/', $gameType)) {
         abort(404);
     }
-    
+
     // Normalize Genshin Impact variants to 'genshin_impact'
     // If the URL is a genshin_impact variant (e.g., genshin_impact_genesis_crystals),
     // normalize it to genshin_impact for consistent routing
@@ -330,13 +341,14 @@ Route::get('/{gameType}', function($gameType) {
         // Redirect genshin_impact variants to the base /genshin_impact route
         return redirect('/genshin_impact', 301);
     }
-    
+
     // Check if game type has packs in database
     $hasPacks = \App\Models\DiamondPack::where('game_type', $gameType)->exists();
-    if (!$hasPacks) {
+    if (! $hasPacks) {
         abort(404);
     }
-    
+
     $controller = app(\App\Http\Controllers\HomeController::class);
+
     return $controller->gameTopUp($gameType);
 })->where('gameType', '[a-z0-9_]+')->name('game-topup');
