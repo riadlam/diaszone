@@ -37,7 +37,7 @@
                                     <div class="flex-shrink-0 {{ $isComingSoon ? '' : 'group-hover:scale-110' }} transition-transform duration-300" style="width: 57.6px; height: 57.6px; min-width: 57.6px; min-height: 57.6px; display: flex !important; align-items: center; justify-center; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 12.8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                                         <img src="{{ $baseUrl }}/storage_public/images_homepage/{{ $method['icon'] }}" 
                                              alt="{{ $method['name'] }}" 
-                                             style="width: 100% !important; height: 100% !important; max-width: 57.6px !important; max-height: 57.6px !important; object-fit: contain !important; display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 1 !important;"
+                                             style="width: 100% !important; height: 100% !important; max-width: 57.6px !important; max-height: 57.6px !important; object-fit: contain !important; display: block !important; visibility: visible !important; opacity: 1 !important;"
                                              loading="lazy"
                                              decoding="async">
                                     </div>
@@ -261,10 +261,11 @@
 
 {{-- Sign in required for checkout (Google only) --}}
 @if(!auth()->check())
-<div id="checkout-auth-modal" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true" aria-labelledby="checkout-auth-modal-title">
-    <div id="checkout-auth-modal-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-purple-100 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+{{-- z above WhatsApp FAB (9999), header dropdowns, and scaled payment cards so only this layer shows during login --}}
+<div id="checkout-auth-modal" class="fixed inset-0 z-[100010] isolate hidden" role="dialog" aria-modal="true" aria-labelledby="checkout-auth-modal-title">
+    <div id="checkout-auth-modal-backdrop" class="absolute inset-0 z-0 bg-black/60 backdrop-blur-sm transition-opacity"></div>
+    <div class="absolute inset-0 z-10 flex items-center justify-center p-4 pointer-events-none">
+        <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-purple-100 overflow-hidden animate-[fadeIn_0.2s_ease-out] pointer-events-auto">
             <button type="button" id="checkout-auth-modal-close" class="absolute top-4 right-4 p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition" aria-label="{{ __('auth.checkout_modal_close') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>

@@ -34,27 +34,27 @@ class CheckoutController extends Controller
             'ids' => 'nullable|array',
             'ids.*' => 'integer|min:1',
         ]);
-
+        
         $packIds = $request->input('ids', []);
-
+        
         if (empty($packIds)) {
             return response()->json(['packs' => []]);
         }
-
+        
         // Ensure packIds is an array
         if (! is_array($packIds)) {
             $packIds = [$packIds];
         }
-
+        
         // Sanitize: ensure all IDs are integers (extra safety)
         $packIds = array_filter(array_map('intval', $packIds), function ($id) {
             return $id > 0;
         });
-
+        
         if (empty($packIds)) {
             return response()->json(['packs' => []]);
         }
-
+        
         // Fetch packs from database
         $packs = DiamondPack::whereIn('id', $packIds)
             ->where('is_active', true)
@@ -65,7 +65,7 @@ class CheckoutController extends Controller
                 $game = \App\Models\Game::where('game_type', $gameType)
                     ->where('is_active', true)
                     ->first();
-
+                
                 // Get game display name
                 $gameDisplayName = null;
                 if ($game) {
@@ -96,7 +96,7 @@ class CheckoutController extends Controller
                     ];
                     $gameDisplayName = $gameNames[$gameType] ?? ucfirst(str_replace('_', ' ', $gameType));
                 }
-
+                
                 // Get game image using HomeController's findGameImage method via reflection
                 $gameImagePath = null;
                 try {
@@ -114,7 +114,7 @@ class CheckoutController extends Controller
                     if (is_dir($top4gamersDir)) {
                         $gameTypeLower = strtolower($gameType);
                         $extensions = ['.webp', '.jpg', '.jpeg', '.png'];
-
+                        
                         // Try numbered prefix patterns (e.g., 02_mobile-legends.webp)
                         try {
                             $files = scandir($top4gamersDir);
@@ -131,7 +131,7 @@ class CheckoutController extends Controller
                                 $gameTypeVariations = ['blood-strike', 'blood_strike'];
                             }
                             $gameTypeVariations[] = $gameTypeLower;
-
+                            
                             foreach ($files as $file) {
                                 if ($file === '.' || $file === '..' || is_dir($top4gamersDir.'/'.$file)) {
                                     continue;
@@ -150,7 +150,7 @@ class CheckoutController extends Controller
                         } catch (\Exception $scanError) {
                             // Continue to simple extension check
                         }
-
+                        
                         // Try simple game_type.ext pattern if not found yet
                         if (! $gameImagePath) {
                             foreach ($extensions as $ext) {
@@ -163,7 +163,7 @@ class CheckoutController extends Controller
                         }
                     }
                 }
-
+                
                 return [
                     'id' => $pack->id,
                     'diamonds' => $pack->diamonds,
@@ -180,7 +180,7 @@ class CheckoutController extends Controller
                 ];
             })
             ->keyBy('id');
-
+        
         return response()->json(['packs' => $packs]);
     }
 
@@ -203,7 +203,7 @@ class CheckoutController extends Controller
             'digiflazz' => $digiflazz ? $digiflazz->toArray() : null,
         ], 200);
     }
-
+    
     public function cart()
     {
         return view('pages.cart');
@@ -257,10 +257,10 @@ class CheckoutController extends Controller
 
             // Get game type
             $gameType = $pack->game_type ?? 'mobilelegends';
-
+            
             // Only check Digiflazz availability for Mobile Legends, Free Fire, PUBG Mobile, Genshin Impact, Blood Strike, Honor of Kings, Punishing Gray Raven, and Wuthering Waves
             $gamesUsingDigiflazz = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
-
+            
             if (in_array($gameType, $gamesUsingDigiflazz)) {
                 // For these games, check Digiflazz availability
                 $code = $pack->code;
@@ -356,15 +356,15 @@ class CheckoutController extends Controller
             'message' => 'All products are available',
         ]);
     }
-
+    
     public function orderCheckout(Request $request)
     {
         // Get order ID from query parameter
         $orderId = $request->query('buy_now_orders');
-
+        
         // For now, we'll use dummy data or fetch from session/database
         // In a real app, you'd fetch the actual order data
-
+        
         // Example order data structure
         $orderData = [
             'order_id' => $orderId ?? '87306940',
@@ -373,14 +373,14 @@ class CheckoutController extends Controller
             'user_id' => '205762973',
             'zone_id' => '4048',
         ];
-
+        
         // Fetch pack details (in real app, this would come from the order)
         $pack = DiamondPack::find($orderData['pack_id']) ?? DiamondPack::first();
-
+        
         if (! $pack) {
             abort(404, 'Pack not found');
         }
-
+        
         // Calculate prices
         $unitPrice = $pack->price;
         $discountPercentage = $pack->discount_percentage ?? 0;
@@ -389,10 +389,10 @@ class CheckoutController extends Controller
         $totalBeforeDiscount = $unitPrice * $orderData['quantity'];
         $totalDiscount = $discountAmount * $orderData['quantity'];
         $total = $priceAfterDiscount * $orderData['quantity'];
-
+        
         // Calculate SEAGM Credits (example: 1 USD = ~416 credits)
         $seagmCredits = round($total * 416);
-
+        
         return view('pages.checkout', [
             'order' => $orderData,
             'pack' => $pack,
@@ -406,13 +406,13 @@ class CheckoutController extends Controller
             'seagmCredits' => $seagmCredits,
         ]);
     }
-
+    
     public function selectPayment(Request $request)
     {
         // Note: Client-side validation already checks for stored encrypted_order_id
         // and redirects to home if order is already created.
         // This prevents users from accessing /select after order creation.
-
+        
         // Payment method data
         $paymentMethods = [
             [
@@ -437,12 +437,12 @@ class CheckoutController extends Controller
                 'coming_soon' => false,
             ],
         ];
-
+        
         return view('pages.select-payment', [
             'paymentMethods' => $paymentMethods,
         ]);
     }
-
+    
     /**
      * API endpoint to convert cart total from DZD to USD for cryptocurrency payment
      */
@@ -454,10 +454,10 @@ class CheckoutController extends Controller
                 'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
                 'cart_items.*.quantity' => 'nullable|integer|min:1|max:20',
             ]);
-
+            
             $cartItems = $request->input('cart_items');
             $totalAmountDzd = 0;
-
+            
             // Calculate total in DZD from cart items (backend validation)
             foreach ($cartItems as $item) {
                 $pack = \App\Models\DiamondPack::find($item['pack_id']);
@@ -467,40 +467,40 @@ class CheckoutController extends Controller
                         'message' => "Pack ID {$item['pack_id']} not found or inactive",
                     ], 404);
                 }
-
+                
                 $quantity = max(1, min(20, (int) ($item['quantity'] ?? 1)));
                 $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
                 $discountPercentage = $pack->discount_percentage ?? 0;
-
+                
                 $subtotalDzd = $unitPriceDzd * $quantity;
                 $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                 $itemTotalDzd = $subtotalDzd - $discountAmount;
-
+                
                 $totalAmountDzd += $itemTotalDzd;
             }
-
+            
             // Convert DZD to USD (divide by 260)
             $totalAmountUsd = round($totalAmountDzd / 260, 2);
-
+            
             return response()->json([
                 'success' => true,
                 'total_dzd' => round($totalAmountDzd, 2),
                 'total_usd' => $totalAmountUsd,
             ]);
-
+            
         } catch (\Exception $e) {
             Log::error('Convert cart to USD error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to convert price. Please try again.',
             ], 500);
         }
     }
-
+    
     /**
      * API endpoint to create order from cart data
      */
@@ -518,7 +518,7 @@ class CheckoutController extends Controller
             $key = 'order_creation_user_'.Auth::id();
             $maxAttempts = 20; // Increased to match IP limit
             $decayMinutes = 1;
-
+            
             if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
                 $seconds = RateLimiter::availableIn($key);
 
@@ -527,17 +527,17 @@ class CheckoutController extends Controller
                     'message' => 'Too many order creation attempts. Please try again in '.ceil($seconds / 60).' minute(s).',
                 ], 429);
             }
-
+            
             RateLimiter::hit($key, $decayMinutes * 60);
         }
-
+        
         // Prevent duplicate requests within 2 seconds (same cart + same payment method)
         $requestHash = md5(json_encode([
             'cart_items' => $request->input('cart_items'),
             'payment_method' => $request->input('payment_method'),
             'ip' => $request->ip(),
         ]));
-
+        
         $duplicateKey = 'order_creation_duplicate_'.$requestHash;
         if (RateLimiter::tooManyAttempts($duplicateKey, 1)) {
             return response()->json([
@@ -546,7 +546,7 @@ class CheckoutController extends Controller
             ], 429);
         }
         RateLimiter::hit($duplicateKey, 2); // 2 second window
-
+        
         try {
             $request->validate([
                 'cart_items' => 'required|array|min:1|max:10', // Allow up to 10 different packs
@@ -565,16 +565,16 @@ class CheckoutController extends Controller
                 'cart_items.*.game_user_id' => 'nullable|string', // User ID for games like Devil May Cry
                 'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency,coupon_free',
             ]);
-
+            
             $cartItems = $request->input('cart_items');
             $paymentMethod = $request->input('payment_method'); // flexy, bmccp, cryptocurrency, or coupon_free
             $userId = Auth::id();
-
+            
             // Validate all packs exist and are from same game
             $packs = [];
             $gameType = null;
             $gameTypeMap = [];
-
+            
             foreach ($cartItems as $item) {
                 $pack = \App\Models\DiamondPack::find($item['pack_id']);
                 if (! $pack) {
@@ -583,7 +583,7 @@ class CheckoutController extends Controller
                         'message' => "Pack ID {$item['pack_id']} not found",
                     ], 404);
                 }
-
+                
                 // Ensure all packs are from the same game
                 if ($gameType === null) {
                     $gameType = $pack->game_type;
@@ -593,11 +593,11 @@ class CheckoutController extends Controller
                         'message' => 'All packs must be from the same game',
                     ], 422);
                 }
-
+                
                 $packs[$item['pack_id']] = $pack;
                 $gameTypeMap[$item['pack_id']] = $pack->game_type;
             }
-
+            
             // Validate user/player IDs based on game type
             $user_id_ml = null;
             $zone_id_ml = null;
@@ -608,14 +608,14 @@ class CheckoutController extends Controller
             $server_bs = null;
             $save_id = null; // For new games (same as user_id)
             $server = null; // Generic server field for games like Genshin Impact
-
+            
             // Get IDs from first item (all items should have same game type)
             $firstItem = $cartItems[0];
-
+            
             // Try to get required_fields from game to validate dynamically
             $game = \App\Models\Game::where('game_type', $gameType)->first();
             $requiredFields = $game ? $game->required_fields : null;
-
+            
             if ($gameType === 'mobilelegends') {
                 $user_id_ml = $firstItem['user_id'] ?? null;
                 $zone_id_ml = $firstItem['zone_id'] ?? null;
@@ -628,54 +628,54 @@ class CheckoutController extends Controller
             } elseif ($gameType === 'freefire') {
                 $player_id_ff = $firstItem['player_id_ff'] ?? $firstItem['player_id'] ?? null;
                 if (empty($player_id_ff)) {
-                    return response()->json([
-                        'success' => false,
+                        return response()->json([
+                            'success' => false,
                         'message' => 'Player ID is required for Free Fire',
-                    ], 422);
-                }
+                        ], 422);
+                    }
             } elseif ($gameType === 'pubgmobile') {
                 // PUBG Mobile: player ID is stored in save_id column
                 $save_id = $firstItem['player_id_pubg'] ?? $firstItem['player_id'] ?? $firstItem['save_id'] ?? null;
                 if (empty($save_id)) {
-                    return response()->json([
-                        'success' => false,
+                        return response()->json([
+                            'success' => false,
                         'message' => 'Player ID is required for PUBG Mobile',
-                    ], 422);
-                }
+                        ], 422);
+                    }
                 // Store in save_id for PUBG Mobile (will be used in DigiflazzService)
                 $player_id_pubg = null; // Keep for backward compatibility but won't be used
             } elseif ($gameType === 'honorofkings') {
                 $player_id_hok = $firstItem['player_id_hok'] ?? $firstItem['player_id'] ?? null;
                 if (empty($player_id_hok)) {
-                    return response()->json([
-                        'success' => false,
+                        return response()->json([
+                            'success' => false,
                         'message' => 'Player ID is required for Honor of Kings',
-                    ], 422);
-                }
+                        ], 422);
+                    }
             } elseif ($gameType === 'bloodstrike') {
                 $user_id_bs = $firstItem['user_id_bs'] ?? $firstItem['user_id'] ?? null;
                 $server_bs = $firstItem['server_bs'] ?? $firstItem['server'] ?? null;
                 if (empty($user_id_bs) || empty($server_bs)) {
-                    return response()->json([
-                        'success' => false,
+                        return response()->json([
+                            'success' => false,
                         'message' => 'User ID and Server are required for Blood Strike',
-                    ], 422);
-                }
+                        ], 422);
+                    }
             } elseif ($requiredFields && is_array($requiredFields)) {
                 // Dynamic validation based on required_fields from JSON
                 foreach ($requiredFields as $field) {
                     $fieldName = $field['data_name'] ?? '';
                     $isRequired = $field['required'] ?? true;
-
+                    
                     // Map game_user_id to save_id for compatibility (they're the same)
                     $value = null;
                     if ($fieldName === 'game_user_id') {
                         // Accept both game_user_id and save_id
                         $value = $firstItem['game_user_id'] ?? $firstItem['save_id'] ?? null;
                     } else {
-                        $value = $firstItem[$fieldName] ?? null;
+                    $value = $firstItem[$fieldName] ?? null;
                     }
-
+                    
                     if ($isRequired && empty($value)) {
                         $fieldLabel = $field['name'] ?? $fieldName;
 
@@ -684,7 +684,7 @@ class CheckoutController extends Controller
                             'message' => "{$fieldLabel} is required",
                         ], 422);
                     }
-
+                    
                     // Store values for later use
                     if ($fieldName === 'save_id' || $fieldName === 'game_user_id') {
                         $save_id = $value;
@@ -697,7 +697,7 @@ class CheckoutController extends Controller
                 // Check for save_id (treat as user_id for new games)
                 $save_id = $firstItem['save_id'] ?? $firstItem['user_id'] ?? null;
                 $server = $firstItem['server'] ?? null;
-
+                
                 if (empty($save_id)) {
                     return response()->json([
                         'success' => false,
@@ -705,7 +705,7 @@ class CheckoutController extends Controller
                     ], 422);
                 }
             }
-
+            
             // Determine status based on payment method
             $orderStatus = 'pending'; // Default
             if ($paymentMethod === 'flexy') {
@@ -717,7 +717,7 @@ class CheckoutController extends Controller
             } elseif ($paymentMethod === 'coupon_free') {
                 $orderStatus = 'pending'; // Will be processed immediately by CouponController
             }
-
+            
             // Create single order with multiple order_items
             return DB::transaction(function () use (
                 $userId, $user_id_ml, $zone_id_ml, $player_id_ff, $player_id_pubg,
@@ -725,7 +725,7 @@ class CheckoutController extends Controller
             ) {
                 // Determine which pack to use as primary (first pack)
                 $primaryPack = reset($packs);
-
+                
                 // Create the order (using primary pack for backward compatibility)
                 $order = Order::create([
                     'order_number' => Order::generateOrderNumber(),
@@ -742,23 +742,23 @@ class CheckoutController extends Controller
                     'save_id' => $save_id, // For PUBG Mobile, player ID is stored here
                     'server' => $server,
                 ]);
-
+                
                 // Create order_items and calculate totals
                 // SECURITY: Always use current pack prices from database (prevents client-side manipulation)
                 $totalOriginalPrice = 0;
                 $totalDiscount = 0;
                 $totalFinalPrice = 0;
-
+                
                 foreach ($cartItems as $item) {
                     // Re-fetch pack to ensure we have latest prices
                     $pack = \App\Models\DiamondPack::find($item['pack_id']);
                     if (! $pack || ! $pack->is_active) {
                         throw new \Exception("Pack ID {$item['pack_id']} not found or inactive");
                     }
-
+                    
                     // Validate quantity (max 20 per pack, min 1)
                     $quantity = max(1, min(20, (int) ($item['quantity'] ?? ($pack->special_quantity ?? 1))));
-
+                    
                     // Calculate prices from current pack data (not from client input)
                     $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
                     $unitPriceUsd = $pack->price_usd ?? $pack->price;
@@ -766,7 +766,7 @@ class CheckoutController extends Controller
                     $subtotalDzd = $unitPriceDzd * $quantity;
                     $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                     $totalDzd = $subtotalDzd - $discountAmount;
-
+                    
                     // Create order item with validated prices
                     \App\Models\OrderItem::create([
                         'order_id' => $order->id,
@@ -779,18 +779,18 @@ class CheckoutController extends Controller
                         'discount_amount_dzd' => $discountAmount,
                         'total_dzd' => $totalDzd,
                     ]);
-
+                    
                     $totalOriginalPrice += $subtotalDzd;
                     $totalDiscount += $discountAmount;
                     $totalFinalPrice += $totalDzd;
                 }
-
+                
                 // Update order with total prices
                 $order->original_price = $totalOriginalPrice;
                 $order->discount_amount = $totalDiscount;
                 $order->final_price = $totalFinalPrice;
                 $order->save();
-
+                
                 // Send Telegram notification (skip pending_flexy status)
                 if ($order->status !== 'pending_flexy') {
                     try {
@@ -808,12 +808,12 @@ class CheckoutController extends Controller
                         ]);
                     }
                 }
-
+                
                 // Encrypt order ID for frontend
                 $encryptedOrderId = Crypt::encryptString($order->id);
-
-                return response()->json([
-                    'success' => true,
+            
+            return response()->json([
+                'success' => true,
                     'orders' => [
                         [
                             'id' => $order->id,
@@ -837,7 +837,7 @@ class CheckoutController extends Controller
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all(),
             ]);
-
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create order: '.$e->getMessage(),
@@ -845,7 +845,7 @@ class CheckoutController extends Controller
             ], 500);
         }
     }
-
+    
     /**
      * Order success page for free coupon orders
      */
@@ -855,15 +855,15 @@ class CheckoutController extends Controller
         if ((int) $order->user_id !== (int) Auth::id()) {
             abort(403, 'Unauthorized');
         }
-
+        
         // Load relationships
         $order->load(['diamondPack', 'coupon']);
-
+        
         return view('pages.order-success', [
             'order' => $order,
         ]);
     }
-
+    
     /**
      * List orders for the authenticated customer (dashboard).
      */
@@ -917,88 +917,88 @@ class CheckoutController extends Controller
      */
     protected function buildOrderApiPayload(Order $order): array
     {
-        $gameType = null;
-        if ($order->orderItems && $order->orderItems->count() > 0) {
-            $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
-        } else {
-            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
-        }
-
-        $gameModel = \App\Models\Game::where('game_type', $gameType)->where('is_active', true)->first();
-        $gameName = null;
-        if ($gameModel) {
-            $gameNameFromModel = $gameModel->name;
-            if (strpos($gameNameFromModel, ' - ') !== false) {
-                $gameName = explode(' - ', $gameNameFromModel)[0];
-            } elseif (preg_match('/^\d+/', $gameNameFromModel) || preg_match('/\d+\s*\+?\s*\d+/', $gameNameFromModel)) {
-                $gameName = ucfirst(str_replace('_', ' ', $gameType));
+            $gameType = null;
+            if ($order->orderItems && $order->orderItems->count() > 0) {
+                $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
             } else {
-                $gameName = $gameNameFromModel;
+                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             }
-        } else {
-            $gameName = ucfirst(str_replace('_', ' ', $gameType));
-        }
-
-        $orderData = [
-            'id' => $order->id,
-            'order_number' => $order->order_number,
-            'status' => $order->status,
-            'flexy_id' => $order->flexy_id,
-            'user_id_ml' => $order->user_id_ml,
-            'zone_id_ml' => $order->zone_id_ml,
-            'player_id_ff' => $order->player_id_ff,
-            'player_id_pubg' => $order->player_id_pubg,
-            'player_id_hok' => $order->player_id_hok,
-            'user_id_bs' => $order->user_id_bs,
-            'server_bs' => $order->server_bs,
+            
+            $gameModel = \App\Models\Game::where('game_type', $gameType)->where('is_active', true)->first();
+            $gameName = null;
+            if ($gameModel) {
+                $gameNameFromModel = $gameModel->name;
+                if (strpos($gameNameFromModel, ' - ') !== false) {
+                    $gameName = explode(' - ', $gameNameFromModel)[0];
+                } elseif (preg_match('/^\d+/', $gameNameFromModel) || preg_match('/\d+\s*\+?\s*\d+/', $gameNameFromModel)) {
+                    $gameName = ucfirst(str_replace('_', ' ', $gameType));
+                } else {
+                    $gameName = $gameNameFromModel;
+                }
+            } else {
+                $gameName = ucfirst(str_replace('_', ' ', $gameType));
+            }
+            
+            $orderData = [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'flexy_id' => $order->flexy_id,
+                'user_id_ml' => $order->user_id_ml,
+                'zone_id_ml' => $order->zone_id_ml,
+                'player_id_ff' => $order->player_id_ff,
+                'player_id_pubg' => $order->player_id_pubg,
+                'player_id_hok' => $order->player_id_hok,
+                'user_id_bs' => $order->user_id_bs,
+                'server_bs' => $order->server_bs,
             'save_id' => $order->save_id,
             'server' => $order->server,
-            'notes' => $order->notes,
-            'created_at' => $order->created_at->format('Y-m-d H:i:s'),
-            'updated_at' => $order->updated_at->format('Y-m-d H:i:s'),
-            'game_type' => $gameType,
-            'game_name' => $gameName,
-            'diamond_pack' => $order->diamondPack ? [
-                'id' => $order->diamondPack->id,
-                'diamonds' => $order->diamondPack->diamonds,
-                'bonus_diamonds' => $order->diamondPack->bonus_diamonds,
-                'price' => (float) $order->diamondPack->price,
-                'price_usd' => (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price),
-                'price_dzd' => (float) ($order->diamondPack->price_dzd ?? 0),
-                'discount_percentage' => (float) $order->diamondPack->discount_percentage,
-                'game_type' => $order->diamondPack->game_type ?? 'mobilelegends',
-                'name' => $order->diamondPack->name ?? null,
-            ] : null,
+                'notes' => $order->notes,
+                'created_at' => $order->created_at->format('Y-m-d H:i:s'),
+                'updated_at' => $order->updated_at->format('Y-m-d H:i:s'),
+                'game_type' => $gameType,
+                'game_name' => $gameName,
+                'diamond_pack' => $order->diamondPack ? [
+                    'id' => $order->diamondPack->id,
+                    'diamonds' => $order->diamondPack->diamonds,
+                    'bonus_diamonds' => $order->diamondPack->bonus_diamonds,
+                    'price' => (float) $order->diamondPack->price,
+                    'price_usd' => (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price),
+                    'price_dzd' => (float) ($order->diamondPack->price_dzd ?? 0),
+                    'discount_percentage' => (float) $order->diamondPack->discount_percentage,
+                    'game_type' => $order->diamondPack->game_type ?? 'mobilelegends',
+                    'name' => $order->diamondPack->name ?? null,
+                ] : null,
             'order_items' => $order->orderItems ? $order->orderItems->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'quantity' => $item->quantity,
-                    'diamond_pack' => [
-                        'id' => $item->diamondPack->id,
-                        'diamonds' => $item->diamondPack->diamonds,
-                        'bonus_diamonds' => $item->diamondPack->bonus_diamonds,
-                        'price' => (float) $item->diamondPack->price,
-                        'price_usd' => (float) ($item->diamondPack->price_usd ?? $item->diamondPack->price),
-                        'price_dzd' => (float) ($item->diamondPack->price_dzd ?? 0),
-                        'discount_percentage' => (float) $item->diamondPack->discount_percentage,
-                        'game_type' => $item->diamondPack->game_type ?? 'mobilelegends',
-                        'name' => $item->diamondPack->name ?? null,
-                    ],
-                ];
-            })->toArray() : [],
-        ];
-
-        if ($order->final_price && $order->final_price > 0) {
-            $orderData['amount'] = (float) $order->final_price;
-        } elseif ($order->orderItems && $order->orderItems->count() > 0) {
-            $orderData['amount'] = (float) $order->orderItems->sum('total_dzd');
-        } elseif ($order->diamondPack) {
-            $unitPrice = $orderData['diamond_pack']['price'];
-            $discountPercentage = $orderData['diamond_pack']['discount_percentage'] ?? 0;
-            $discountAmount = ($unitPrice * $discountPercentage) / 100;
-            $orderData['amount'] = $unitPrice - $discountAmount;
-        } else {
-            $orderData['amount'] = 0;
+                    return [
+                        'id' => $item->id,
+                        'quantity' => $item->quantity,
+                        'diamond_pack' => [
+                            'id' => $item->diamondPack->id,
+                            'diamonds' => $item->diamondPack->diamonds,
+                            'bonus_diamonds' => $item->diamondPack->bonus_diamonds,
+                            'price' => (float) $item->diamondPack->price,
+                            'price_usd' => (float) ($item->diamondPack->price_usd ?? $item->diamondPack->price),
+                            'price_dzd' => (float) ($item->diamondPack->price_dzd ?? 0),
+                            'discount_percentage' => (float) $item->diamondPack->discount_percentage,
+                            'game_type' => $item->diamondPack->game_type ?? 'mobilelegends',
+                            'name' => $item->diamondPack->name ?? null,
+                        ],
+                    ];
+                })->toArray() : [],
+            ];
+            
+            if ($order->final_price && $order->final_price > 0) {
+                $orderData['amount'] = (float) $order->final_price;
+            } elseif ($order->orderItems && $order->orderItems->count() > 0) {
+                $orderData['amount'] = (float) $order->orderItems->sum('total_dzd');
+            } elseif ($order->diamondPack) {
+                $unitPrice = $orderData['diamond_pack']['price'];
+                $discountPercentage = $orderData['diamond_pack']['discount_percentage'] ?? 0;
+                $discountAmount = ($unitPrice * $discountPercentage) / 100;
+                $orderData['amount'] = $unitPrice - $discountAmount;
+            } else {
+                $orderData['amount'] = 0;
         }
 
         return $orderData;
@@ -1028,7 +1028,7 @@ class CheckoutController extends Controller
             if ($deny = $this->denyOrderAccessUnlessAllowed($order)) {
                 return $deny;
             }
-
+            
             return response()->json([
                 'success' => true,
                 'order' => $this->buildOrderApiPayload($order),
@@ -1040,7 +1040,7 @@ class CheckoutController extends Controller
             ], 400);
         }
     }
-
+    
     /**
      * API endpoint to validate nickname for Mobile Legends
      */
@@ -1079,7 +1079,7 @@ class CheckoutController extends Controller
             ], 500);
         }
     }
-
+    
     /**
      * Show Flexy form page
      */
@@ -1087,30 +1087,30 @@ class CheckoutController extends Controller
     {
         // Get encrypted order ID from query
         $encryptedOrderId = $request->query('order_id');
-
+        
         if (! $encryptedOrderId) {
             return redirect()->route('select-payment')->with('error', 'Order ID is required');
         }
-
+        
         try {
             // Decrypt the order ID
             $orderId = Crypt::decryptString($encryptedOrderId);
         } catch (\Exception $e) {
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
-
+        
         // Load order with relationships - support both single-pack and multi-item orders
         $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
-
+        
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
         }
-
+        
         return view('pages.flexy-form', [
             'order' => $order,
         ]);
     }
-
+    
     /**
      * Show Baridimob form page
      */
@@ -1119,26 +1119,26 @@ class CheckoutController extends Controller
         if (! $encryptedOrderId) {
             return redirect()->route('select-payment')->with('error', 'Order ID is required');
         }
-
+        
         try {
             // Decrypt the order ID
             $orderId = Crypt::decryptString($encryptedOrderId);
         } catch (\Exception $e) {
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
-
+        
         $order = Order::with('diamondPack')->find($orderId);
-
+        
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
         }
-
+        
         return view('pages.baridimob-form', [
             'order' => $order,
             'encrypted_order_id' => $encryptedOrderId,
         ]);
     }
-
+    
     /**
      * Payment success page - shows success message and redirects to orders
      */
@@ -1147,11 +1147,11 @@ class CheckoutController extends Controller
         try {
             $orderId = Crypt::decryptString($encryptedOrderId);
             $order = Order::with('diamondPack')->find($orderId);
-
+            
             if (! $order) {
                 return redirect()->route('home')->with('error', 'Order not found');
             }
-
+            
             return view('pages.payment-success', [
                 'order' => $order,
             ]);
@@ -1159,7 +1159,7 @@ class CheckoutController extends Controller
             return redirect()->route('home')->with('error', 'Invalid order');
         }
     }
-
+    
     /**
      * Handle Baridimob payment (SofizPay CIB).
      */
@@ -1168,11 +1168,11 @@ class CheckoutController extends Controller
         Log::info('=== BARIDIMOB PAYMENT PROCESS STARTED ===', [
             'encrypted_order_id' => substr($request->encrypted_order_id ?? '', 0, 20).'...',
         ]);
-
+        
         $request->validate([
             'encrypted_order_id' => 'required|string',
         ]);
-
+        
         try {
             $orderId = Crypt::decryptString($request->encrypted_order_id);
             Log::info('Baridimob: Order ID decrypted', ['order_id' => $orderId]);
@@ -1186,10 +1186,10 @@ class CheckoutController extends Controller
                 'message' => 'Invalid order ID',
             ], 400);
         }
-
+        
         // Load order with relationships - support both single-pack and multi-item orders
         $order = Order::with(['diamondPack', 'orderItems.diamondPack', 'coupon'])->find($orderId);
-
+        
         if (! $order) {
             Log::error('Baridimob: Order not found', ['order_id' => $orderId]);
 
@@ -1198,7 +1198,7 @@ class CheckoutController extends Controller
                 'message' => 'Order not found',
             ], 404);
         }
-
+        
         Log::info('Baridimob: Order loaded', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
@@ -1206,17 +1206,17 @@ class CheckoutController extends Controller
             'has_order_items' => $order->orderItems && $order->orderItems->count() > 0,
             'order_items_count' => $order->orderItems ? $order->orderItems->count() : 0,
         ]);
-
+        
         $sofizPay = app(SofizPayCibService::class);
         if (! config('services.sofizpay.enabled', true) || ! $sofizPay->isConfigured()) {
             Log::error('SofizPay CIB not configured', ['merchant_set' => $sofizPay->merchantAccount() !== '']);
-
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Baridimob payment is not configured. Set SOFIZPAY_MERCHANT_ACCOUNT in .env and run php artisan config:clear',
             ], 500);
         }
-
+        
         try {
             $amount = $this->calculateOrderBaridimobAmountDzd($order);
             $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
@@ -1226,14 +1226,14 @@ class CheckoutController extends Controller
                 'is_multi_item' => $hasOrderItems,
                 'final_amount_dzd' => $amount,
             ]);
-
+            
             if ($amount < 75) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Minimum payment amount is 75 DZD',
                 ], 400);
             }
-
+            
             $clientName = Auth::check() ? (Auth::user()->name ?? 'Customer') : 'Customer';
             $clientEmail = Auth::check() ? (Auth::user()->email ?? 'customer@example.com') : 'customer@example.com';
             $clientPhone = $request->input('customer_phone', '+213000000000');
@@ -1241,11 +1241,11 @@ class CheckoutController extends Controller
             if ($hasOrderItems && $order->orderItems->first()) {
                 $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
             } elseif ($order->diamondPack) {
-                $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
+            $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             } else {
                 $gameType = 'mobilelegends';
             }
-
+            
             $gameName = 'Mobile Legends';
             $currencyText = 'Diamonds';
             if ($gameType === 'freefire') {
@@ -1261,41 +1261,41 @@ class CheckoutController extends Controller
                 $gameName = 'Blood Strike';
                 $currencyText = 'Golds';
             }
-
+            
             if ($hasOrderItems) {
                 $itemsCount = $order->orderItems->count();
                 $description = "DiasZone - {$gameName} - {$itemsCount} pack(s)";
             } elseif ($order->diamondPack) {
                 $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds.' '.$currencyText);
-                $description = "DiasZone - {$gameName} - {$packName}";
+            $description = "DiasZone - {$gameName} - {$packName}";
             } else {
                 $description = "DiasZone - {$gameName} - Order #{$order->order_number}";
             }
-
+            
             $firstPackId = null;
             if ($hasOrderItems && $order->orderItems->first()) {
                 $firstPackId = $order->orderItems->first()->diamond_pack_id;
             } elseif ($order->diamond_pack_id) {
                 $firstPackId = $order->diamond_pack_id;
             }
-
+            
             $bmccp = \App\Models\Bmccp::create([
                 'diamond_pack_id' => $firstPackId,
                 'status' => 'pending',
                 'notes' => $description,
             ]);
-
+            
             $order->bmccp_id = $bmccp->id;
             $order->status = 'pending_bmccp';
             $order->chargily_status_id = null;
             $order->save();
-
+            
             Log::info('Baridimob: BMCCP record created and order updated', [
                 'order_id' => $order->id,
                 'bmccp_id' => $bmccp->id,
                 'amount' => $amount,
             ]);
-
+            
             $encryptedOrderId = $request->encrypted_order_id;
             $returnUrl = route('payment.sofizpay.cib.return', [], true).'?eid='.rawurlencode((string) $encryptedOrderId);
 
@@ -1326,13 +1326,13 @@ class CheckoutController extends Controller
                     'response' => $data,
                     'http_status' => $create['http_status'] ?? null,
                 ]);
-
+                
                 return response()->json([
                     'success' => false,
                     'message' => is_array($data) && ! empty($data['message']) ? (string) $data['message'] : 'Failed to create payment with SofizPay',
                 ], 500);
             }
-
+            
             $cibOrderNumber = $data['cib_transaction_id'] ?? null;
             if ($cibOrderNumber !== null && $cibOrderNumber !== '') {
                 $cibOrderNumber = (string) $cibOrderNumber;
@@ -1370,15 +1370,15 @@ class CheckoutController extends Controller
                     'checkout_url' => $paymentUrl,
                 ]);
             }
-
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create payment. Please try again.',
             ], 500);
-
+            
         } catch (\Exception $e) {
             $errorMessage = $e->getMessage();
-
+            
             Log::error('Baridimob payment exception caught', [
                 'order_id' => $orderId ?? null,
                 'error_message' => $errorMessage,
@@ -1387,17 +1387,17 @@ class CheckoutController extends Controller
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
             ]);
-
+            
             // Detect timeout errors with multiple patterns
-            $isTimeoutError = str_contains($errorMessage, 'cURL error 28')
+            $isTimeoutError = str_contains($errorMessage, 'cURL error 28') 
                 || str_contains($errorMessage, 'Connection timed out')
                 || str_contains($errorMessage, 'timeout')
                 || str_contains($errorMessage, 'CURLE_OPERATION_TIMEDOUT')
                 || str_contains($errorMessage, '10001 milliseconds')
                 || str_contains($errorMessage, '10002 milliseconds');
-
+            
             $is401Error = str_contains($errorMessage, '401') || str_contains($errorMessage, 'Unauthorized');
-
+            
             // Extract error code - simple numeric format for documentation
             // ERR-028 = cURL timeout, ERR-401 = Auth failed, ERR-500 = Server error, ERR-503 = Service unavailable
             $errorCode = 'ERR-500';  // Default generic error
@@ -1410,7 +1410,7 @@ class CheckoutController extends Controller
             } elseif (str_contains($errorMessage, '503')) {
                 $errorCode = 'ERR-503';
             }
-
+            
             \Log::error('Baridimob payment error: '.$errorMessage, [
                 'trace' => $e->getTraceAsString(),
                 'order_id' => $orderId ?? 'unknown',
@@ -1419,11 +1419,11 @@ class CheckoutController extends Controller
                 'error_message' => $errorMessage,
                 'error_code' => $errorCode,
             ]);
-
+            
             // Provide helpful error message for timeout errors (Algerie Poste temporary outage)
             if ($isTimeoutError) {
                 $locale = app()->getLocale();
-
+                
                 if ($locale === 'ar') {
                     $userMessage = 'عذراً، خدمة البريد الجزائري مغلقة مؤقتاً. يرجى محاولة الدفع مرة أخرى خلال 10 دقائق. شكراً لفهمك وصبرك.';
                     $shortMessage = 'خدمة البريد الجزائري مغلقة مؤقتاً';
@@ -1434,7 +1434,7 @@ class CheckoutController extends Controller
                     $userMessage = 'Sorry, Algerie Poste service is temporarily unavailable. Please try again in 10 minutes. Thank you for your understanding and patience.';
                     $shortMessage = 'Algerie Poste temporarily unavailable';
                 }
-
+                
                 return response()->json([
                     'success' => false,
                     'message' => $userMessage,  // Friendly message only, no technical details
@@ -1444,7 +1444,7 @@ class CheckoutController extends Controller
                     'is_timeout' => true,
                 ], 503);
             }
-
+            
             if ($is401Error) {
                 return response()->json([
                     'success' => false,
@@ -1453,7 +1453,7 @@ class CheckoutController extends Controller
                     'technical_error_code' => $errorCode,
                 ], 401);
             }
-
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Payment processing failed: '.$errorMessage,
@@ -1462,7 +1462,7 @@ class CheckoutController extends Controller
             ], 500);
         }
     }
-
+    
     /**
      * Legacy Chargily webhook — disabled after migrating Baridimob to SofizPay CIB (payment is verified on return URL).
      */
@@ -1586,7 +1586,7 @@ class CheckoutController extends Controller
         $dest = $svc->parseDestinationAccount($checkData);
         if ($merchant !== '' && $dest !== null && $dest !== '' && $dest !== $merchant) {
             Log::critical('SofizPay CIB return: destination account mismatch', [
-                'order_id' => $order->id,
+                        'order_id' => $order->id,
                 'expected' => $merchant,
                 'got' => $dest,
             ]);
@@ -1619,27 +1619,27 @@ class CheckoutController extends Controller
             try {
                 $o->load('diamondPack', 'user', 'vipResellerStatuses', 'seller');
                 $updatedMessage = TelegramService::formatOrderMessage($o);
-                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
+                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
                 if ($o->tlg_message_id) {
                     TelegramService::editMessageText($o->tlg_message_id, $updatedMessage);
-                } else {
-                    $messageId = TelegramService::sendMessage($updatedMessage);
-                    if ($messageId) {
+                                } else {
+                                    $messageId = TelegramService::sendMessage($updatedMessage);
+                                    if ($messageId) {
                         $o->tlg_message_id = $messageId;
                         $o->save();
-                    }
-                }
-            } catch (\Exception $e) {
+                                    }
+                                }
+                            } catch (\Exception $e) {
                 Log::error('SofizPay CIB return: Telegram update failed', ['order_id' => $o->id, 'error' => $e->getMessage()]);
-            }
-
+                            }
+                            
             if ($o->bmccp_id) {
                 $bmccp = \App\Models\Bmccp::find($o->bmccp_id);
-                if ($bmccp) {
-                    $bmccp->status = 'approved';
-                    $bmccp->save();
-                }
-            }
+                                if ($bmccp) {
+                                    $bmccp->status = 'approved';
+                                    $bmccp->save();
+                                }
+                            }
         });
 
         $order->refresh();
@@ -1648,7 +1648,7 @@ class CheckoutController extends Controller
             $rechargeResult = $this->processBaridimobPaidRecharge($order->fresh(['diamondPack', 'orderItems.diamondPack']));
             if (! $rechargeResult['success']) {
                 Log::warning('SofizPay CIB return: recharge failed after verified payment', [
-                    'order_id' => $order->id,
+                                    'order_id' => $order->id,
                     'message' => $rechargeResult['message'] ?? null,
                 ]);
             }
@@ -1779,14 +1779,14 @@ class CheckoutController extends Controller
         try {
             // Load order with diamond pack relationship
             $order->load('diamondPack');
-
+            
             // Get game type
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
-
+            
             // Determine which provider to use
             $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
-
+            
             // For non-Digiflazz games, use Item4Gamer
             if (! $useDigiflazz) {
                 // Use Item4Gamer for other games
@@ -1797,7 +1797,7 @@ class CheckoutController extends Controller
                 }
 
                 $order->load('orderItems.diamondPack', 'user');
-
+                
                 return DB::transaction(function () use ($order) {
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                     if (! $orderLocked) {
@@ -1883,19 +1883,19 @@ class CheckoutController extends Controller
                         $order->status = 'sending';
                         $order->save();
                     }
-
+                    
                     return [
                         'success' => $allSuccessful,
                         'message' => $allSuccessful ? 'Item4Gamer orders placed successfully' : ($lastError ?? 'Some orders failed'),
                     ];
                 });
             }
-
+            
             // Continue with Digiflazz processing for ML, FF, PUBG
 
             $vipReseller = app(VipResellerService::class);
             $packageCode = $order->diamondPack->code ?? null;
-
+            
             if (empty($packageCode)) {
                 Log::warning('Chargily recharge skipped: Missing package code', [
                     'order_id' => $order->id,
@@ -1908,7 +1908,7 @@ class CheckoutController extends Controller
                     'message' => 'Package code not found',
                 ];
             }
-
+            
             // Handle based on game type
             if ($gameType === 'mobilelegends') {
                 // Check if user_id_ml and zone_id_ml are set
@@ -2026,31 +2026,31 @@ class CheckoutController extends Controller
                         }
 
                         $orderLocked->load('orderItems.diamondPack');
-
+                        
                         // SECURITY: Re-calculate and validate prices before top-up to prevent manipulation
                         $totalOriginalPrice = 0;
                         $totalDiscount = 0;
                         $totalFinalPrice = 0;
                         $priceValidationErrors = [];
-
+                        
                         foreach ($orderLocked->orderItems as $orderItem) {
                             $pack = $orderItem->diamondPack;
-
+                            
                             // Re-calculate prices from current pack data (prevents price manipulation)
                             $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
                             $unitPriceUsd = $pack->price_usd ?? $pack->price;
                             $discountPercentage = $pack->discount_percentage ?? 0;
                             $quantity = max(1, (int) $orderItem->quantity);
-
+                            
                             $subtotalDzd = $unitPriceDzd * $quantity;
                             $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                             $totalDzd = $subtotalDzd - $discountAmount;
-
+                            
                             // Validate: stored prices should match calculated prices (within 1 DZD tolerance)
                             $storedTotal = (float) $orderItem->total_dzd;
                             $calculatedTotal = (float) $totalDzd;
                             $priceDiff = abs($storedTotal - $calculatedTotal);
-
+                            
                             if ($priceDiff > 1.0) {
                                 $priceValidationErrors[] = [
                                     'order_item_id' => $orderItem->id,
@@ -2061,7 +2061,7 @@ class CheckoutController extends Controller
                                     'difference' => $priceDiff,
                                 ];
                             }
-
+                            
                             // Update order_item with recalculated prices (use current pack prices)
                             $orderItem->unit_price_dzd = $unitPriceDzd;
                             $orderItem->unit_price_usd = $unitPriceUsd;
@@ -2071,13 +2071,13 @@ class CheckoutController extends Controller
                             $orderItem->total_dzd = $totalDzd;
                             $orderItem->quantity = $quantity; // Ensure quantity is valid
                             $orderItem->save();
-
+                            
                             $totalOriginalPrice += $subtotalDzd;
                             $totalDiscount += $discountAmount;
                             // Note: totalDzd here is per-item total (after pack discount, before coupon)
                             // We'll calculate final order total after applying coupon discount below
                         }
-
+                        
                         // If individual item price validation fails, abort and log
                         if (! empty($priceValidationErrors)) {
                             Log::error('Chargily: Price validation failed - potential manipulation detected', [
@@ -2095,11 +2095,11 @@ class CheckoutController extends Controller
 
                             return;
                         }
-
+                        
                         // Apply coupon discount if order has a coupon
                         $orderDiscountAmount = 0;
                         $calculatedFinalPrice = $totalOriginalPrice - $totalDiscount; // After pack discounts
-
+                        
                         if ($orderLocked->coupon_id) {
                             $orderLocked->load('coupon');
                             if ($orderLocked->coupon) {
@@ -2110,7 +2110,7 @@ class CheckoutController extends Controller
                                 $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
                                 // Ensure final price doesn't go below 0
                                 $calculatedFinalPrice = max(0, $calculatedFinalPrice);
-
+                                
                                 Log::info('Chargily: Coupon discount recalculated', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
@@ -2126,11 +2126,11 @@ class CheckoutController extends Controller
                                 ]);
                             }
                         }
-
+                        
                         // Validate final order price (accounting for coupon discount)
                         $storedFinalPrice = (float) ($orderLocked->final_price ?? 0);
                         $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
-
+                        
                         if ($finalPriceDiff > 1.0) {
                             Log::error('Chargily: Final price validation failed - potential manipulation detected', [
                                 'order_id' => $orderLocked->id,
@@ -2152,19 +2152,19 @@ class CheckoutController extends Controller
 
                             return;
                         }
-
+                        
                         // Update order with recalculated total prices
                         $orderLocked->original_price = $totalOriginalPrice;
                         $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
                         $orderLocked->final_price = $calculatedFinalPrice;
                         $orderLocked->save();
-
+                        
                         Log::info('Chargily: Price validation passed, proceeding with top-up', [
                             'order_id' => $orderLocked->id,
                             'final_price' => $totalFinalPrice,
                             'items_count' => $orderLocked->orderItems->count(),
                         ]);
-
+                        
                         $lastResult = ['result' => false, 'message' => 'No provider calls made'];
 
                         // Submit top-ups for each order_item
@@ -2172,23 +2172,23 @@ class CheckoutController extends Controller
                             // Check how many DigiflazzStatus records already exist for this item
                             $submitted = $orderItem->digiflazzStatuses()
                                 ->where(function ($q) {
-                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                        ->orWhere('event', 'create');
-                                })->count();
+                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                          ->orWhere('event', 'create');
+                    })->count();
 
                             $remaining = max(0, $orderItem->quantity - $submitted);
 
                             // Submit remaining top-ups for this item
-                            for ($i = 0; $i < $remaining; $i++) {
+                    for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
-
+                                
                                 $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
                                     $orderItem->diamondPack,
                                     $orderLocked,
                                     $refId,
                                     $orderItem->id
                                 );
-
+                                
                                 Log::info('Chargily: Digiflazz placeOrder attempt', [
                                     'order_id' => $orderLocked->id,
                                     'order_item_id' => $orderItem->id,
@@ -2198,13 +2198,13 @@ class CheckoutController extends Controller
                                     'ref_id' => $refId,
                                     'result' => $lastResult,
                                 ]);
-
+                                
                                 // Small delay to ensure DigiflazzStatus record is committed
                                 usleep(100000); // 0.1 second
                             }
-                        }
+                    }
 
-                        $result = $lastResult;
+                    $result = $lastResult;
                         $order = $orderLocked; // Update order reference
                     });
                 } else {
@@ -2260,15 +2260,15 @@ class CheckoutController extends Controller
                     'order_number' => $order->order_number,
                     'api_result' => $result,
                 ]);
-
+                
                 $playerId = $order->user_id_ml;
                 $zoneId = $order->zone_id_ml;
-
+                
                 // Initialize result if not set (safety check)
                 if (! isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
                 }
-
+                
             } elseif ($gameType === 'freefire') {
                 // Check if player_id_ff is set
                 if (empty($order->player_id_ff)) {
@@ -2354,31 +2354,31 @@ class CheckoutController extends Controller
                         }
 
                         $orderLocked->load('orderItems.diamondPack');
-
+                        
                         // SECURITY: Re-calculate and validate prices before top-up to prevent manipulation
                         $totalOriginalPrice = 0;
                         $totalDiscount = 0;
                         $totalFinalPrice = 0;
                         $priceValidationErrors = [];
-
+                        
                         foreach ($orderLocked->orderItems as $orderItem) {
                             $pack = $orderItem->diamondPack;
-
+                            
                             // Re-calculate prices from current pack data (prevents price manipulation)
                             $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
                             $unitPriceUsd = $pack->price_usd ?? $pack->price;
                             $discountPercentage = $pack->discount_percentage ?? 0;
                             $quantity = max(1, (int) $orderItem->quantity);
-
+                            
                             $subtotalDzd = $unitPriceDzd * $quantity;
                             $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                             $totalDzd = $subtotalDzd - $discountAmount;
-
+                            
                             // Validate: stored prices should match calculated prices (within 1 DZD tolerance)
                             $storedTotal = (float) $orderItem->total_dzd;
                             $calculatedTotal = (float) $totalDzd;
                             $priceDiff = abs($storedTotal - $calculatedTotal);
-
+                            
                             if ($priceDiff > 1.0) {
                                 $priceValidationErrors[] = [
                                     'order_item_id' => $orderItem->id,
@@ -2389,7 +2389,7 @@ class CheckoutController extends Controller
                                     'difference' => $priceDiff,
                                 ];
                             }
-
+                            
                             // Update order_item with recalculated prices (use current pack prices)
                             $orderItem->unit_price_dzd = $unitPriceDzd;
                             $orderItem->unit_price_usd = $unitPriceUsd;
@@ -2399,12 +2399,12 @@ class CheckoutController extends Controller
                             $orderItem->total_dzd = $totalDzd;
                             $orderItem->quantity = $quantity; // Ensure quantity is valid
                             $orderItem->save();
-
+                            
                             $totalOriginalPrice += $subtotalDzd;
                             $totalDiscount += $discountAmount;
                             // Note: totalDzd here is per-item total (after pack discount, before coupon)
                         }
-
+                        
                         // If individual item price validation fails, abort and log
                         if (! empty($priceValidationErrors)) {
                             Log::error('Chargily: Price validation failed - potential manipulation detected (Free Fire)', [
@@ -2422,11 +2422,11 @@ class CheckoutController extends Controller
 
                             return;
                         }
-
+                        
                         // Apply coupon discount if order has a coupon
                         $orderDiscountAmount = 0;
                         $calculatedFinalPrice = $totalOriginalPrice - $totalDiscount; // After pack discounts
-
+                        
                         if ($orderLocked->coupon_id) {
                             $orderLocked->load('coupon');
                             if ($orderLocked->coupon) {
@@ -2435,7 +2435,7 @@ class CheckoutController extends Controller
                                 $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
                                 $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
                                 $calculatedFinalPrice = max(0, $calculatedFinalPrice);
-
+                                
                                 Log::info('Chargily: Coupon discount recalculated (Free Fire)', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
@@ -2446,11 +2446,11 @@ class CheckoutController extends Controller
                                 ]);
                             }
                         }
-
+                        
                         // Validate final order price (accounting for coupon discount)
                         $storedFinalPrice = (float) ($orderLocked->final_price ?? 0);
                         $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
-
+                        
                         if ($finalPriceDiff > 1.0) {
                             Log::error('Chargily: Final price validation failed - potential manipulation detected (Free Fire)', [
                                 'order_id' => $orderLocked->id,
@@ -2470,19 +2470,19 @@ class CheckoutController extends Controller
 
                             return;
                         }
-
+                        
                         // Update order with recalculated total prices
                         $orderLocked->original_price = $totalOriginalPrice;
                         $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
                         $orderLocked->final_price = $calculatedFinalPrice;
                         $orderLocked->save();
-
+                        
                         Log::info('Chargily: Price validation passed, proceeding with top-up (Free Fire)', [
                             'order_id' => $orderLocked->id,
                             'final_price' => $totalFinalPrice,
                             'items_count' => $orderLocked->orderItems->count(),
                         ]);
-
+                        
                         $lastResult = ['result' => false, 'message' => 'No provider calls made'];
 
                         // Submit top-ups for each order_item
@@ -2490,23 +2490,23 @@ class CheckoutController extends Controller
                             // Check how many DigiflazzStatus records already exist for this item
                             $submitted = $orderItem->digiflazzStatuses()
                                 ->where(function ($q) {
-                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                        ->orWhere('event', 'create');
-                                })->count();
+                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
+                          ->orWhere('event', 'create');
+                    })->count();
 
                             $remaining = max(0, $orderItem->quantity - $submitted);
 
                             // Submit remaining top-ups for this item
-                            for ($i = 0; $i < $remaining; $i++) {
+                    for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
-
+                                
                                 $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
                                     $orderItem->diamondPack,
                                     $orderLocked,
                                     $refId,
                                     $orderItem->id
                                 );
-
+                                
                                 Log::info('Chargily: Digiflazz placeOrder attempt (Free Fire)', [
                                     'order_id' => $orderLocked->id,
                                     'order_item_id' => $orderItem->id,
@@ -2516,13 +2516,13 @@ class CheckoutController extends Controller
                                     'ref_id' => $refId,
                                     'result' => $lastResult,
                                 ]);
-
+                                
                                 // Small delay to ensure DigiflazzStatus record is committed
                                 usleep(100000); // 0.1 second
                             }
-                        }
+                    }
 
-                        $result = $lastResult;
+                    $result = $lastResult;
                         $order = $orderLocked; // Update order reference
                     });
                 } else {
@@ -2548,10 +2548,10 @@ class CheckoutController extends Controller
                     'order_number' => $order->order_number,
                     'api_result' => $result,
                 ]);
-
+                
                 $playerId = $order->player_id_ff;
                 $zoneId = null; // Free Fire doesn't use zone_id
-
+                
                 // Initialize result if not set (safety check)
                 if (! isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
@@ -2598,7 +2598,7 @@ class CheckoutController extends Controller
                     }
 
                     $orderLocked->load('orderItems.diamondPack');
-
+                    
                     $lastResult = ['result' => false, 'message' => 'No provider calls made'];
 
                     // Submit top-ups for each order_item
@@ -2607,7 +2607,7 @@ class CheckoutController extends Controller
                         $submitted = $orderItem->digiflazzStatuses()
                             ->where(function ($q) {
                                 $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                    ->orWhere('event', 'create');
+                                  ->orWhere('event', 'create');
                             })->count();
 
                         $remaining = max(0, $orderItem->quantity - $submitted);
@@ -2615,14 +2615,14 @@ class CheckoutController extends Controller
                         // Submit remaining top-ups for this item
                         for ($i = 0; $i < $remaining; $i++) {
                             $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
-
+                            
                             $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
                                 $orderItem->diamondPack,
                                 $orderLocked,
                                 $refId,
                                 $orderItem->id
                             );
-
+                            
                             Log::info('Chargily: Digiflazz placeOrder attempt (PUBG Mobile)', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
@@ -2632,7 +2632,7 @@ class CheckoutController extends Controller
                                 'ref_id' => $refId,
                                 'result' => $lastResult,
                             ]);
-
+                            
                             // Small delay to ensure DigiflazzStatus record is committed
                             usleep(100000); // 0.1 second
                         }
@@ -2674,10 +2674,10 @@ class CheckoutController extends Controller
                     'order_number' => $order->order_number,
                     'api_result' => $result,
                 ]);
-
+                
                 $playerId = $order->save_id;
                 $zoneId = null; // PUBG Mobile doesn't use zone_id
-
+                
                 // Initialize result if not set (safety check)
                 if (! isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
@@ -2726,7 +2726,7 @@ class CheckoutController extends Controller
                     }
 
                     $orderLocked->load('orderItems.diamondPack');
-
+                    
                     $lastResult = ['result' => false, 'message' => 'No provider calls made'];
 
                     // Submit top-ups for each order_item
@@ -2735,7 +2735,7 @@ class CheckoutController extends Controller
                         $submitted = $orderItem->digiflazzStatuses()
                             ->where(function ($q) {
                                 $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                    ->orWhere('event', 'create');
+                                  ->orWhere('event', 'create');
                             })->count();
 
                         $remaining = max(0, $orderItem->quantity - $submitted);
@@ -2743,14 +2743,14 @@ class CheckoutController extends Controller
                         // Submit remaining top-ups for this item
                         for ($i = 0; $i < $remaining; $i++) {
                             $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
-
+                            
                             $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
                                 $orderItem->diamondPack,
                                 $orderLocked,
                                 $refId,
                                 $orderItem->id
                             );
-
+                            
                             Log::info('Chargily: Digiflazz placeOrder attempt (Punishing Gray Raven)', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
@@ -2760,7 +2760,7 @@ class CheckoutController extends Controller
                                 'ref_id' => $refId,
                                 'result' => $lastResult,
                             ]);
-
+                            
                             // Small delay to ensure DigiflazzStatus record is committed
                             usleep(100000); // 0.1 second
                         }
@@ -2802,10 +2802,10 @@ class CheckoutController extends Controller
                     'order_number' => $order->order_number,
                     'api_result' => $result,
                 ]);
-
+                
                 $playerId = $order->save_id;
                 $zoneId = $order->server;
-
+                
                 // Initialize result if not set (safety check)
                 if (! isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
@@ -2854,7 +2854,7 @@ class CheckoutController extends Controller
                     }
 
                     $orderLocked->load('orderItems.diamondPack');
-
+                    
                     $lastResult = ['result' => false, 'message' => 'No provider calls made'];
 
                     // Submit top-ups for each order_item
@@ -2863,7 +2863,7 @@ class CheckoutController extends Controller
                         $submitted = $orderItem->digiflazzStatuses()
                             ->where(function ($q) {
                                 $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                    ->orWhere('event', 'create');
+                                  ->orWhere('event', 'create');
                             })->count();
 
                         $remaining = max(0, $orderItem->quantity - $submitted);
@@ -2871,14 +2871,14 @@ class CheckoutController extends Controller
                         // Submit remaining top-ups for this item
                         for ($i = 0; $i < $remaining; $i++) {
                             $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
-
+                            
                             $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
                                 $orderItem->diamondPack,
                                 $orderLocked,
                                 $refId,
                                 $orderItem->id
                             );
-
+                            
                             Log::info('Chargily: Digiflazz placeOrder attempt (Wuthering Waves)', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
@@ -2888,7 +2888,7 @@ class CheckoutController extends Controller
                                 'ref_id' => $refId,
                                 'result' => $lastResult,
                             ]);
-
+                            
                             // Small delay to ensure DigiflazzStatus record is committed
                             usleep(100000); // 0.1 second
                         }
@@ -2930,10 +2930,10 @@ class CheckoutController extends Controller
                     'order_number' => $order->order_number,
                     'api_result' => $result,
                 ]);
-
+                
                 $playerId = $order->save_id;
                 $zoneId = $order->server;
-
+                
                 // Initialize result if not set (safety check)
                 if (! isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
@@ -3038,7 +3038,7 @@ class CheckoutController extends Controller
 
             // Update order status based on provider response
             $oldOrderStatus = $order->status;
-
+            
             if ($status === 'waiting') {
                 // Provider is processing - ensure order is "sending" (payment done, waiting for topup)
                 if ($oldOrderStatus !== 'sending') {
@@ -3052,7 +3052,7 @@ class CheckoutController extends Controller
                         'provider_status' => $status,
                     ]);
                 }
-
+                
                 // Update Telegram message if exists (always update when VIP Reseller status changes)
                 if ($order->tlg_message_id) {
                     try {
@@ -3167,7 +3167,7 @@ class CheckoutController extends Controller
                         'vip_status' => $status,
                     ]);
                 }
-
+                
                 // Update Telegram message if exists
                 if ($order->tlg_message_id) {
                     try {
@@ -3227,13 +3227,13 @@ class CheckoutController extends Controller
                 'order_number' => $order->order_number,
                 'trace' => $e->getTraceAsString(),
             ]);
-
+            
             // Try to save error status
             try {
                 $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
                 $playerId = $gameType === 'freefire' ? $order->player_id_ff : $order->user_id_ml;
                 $zoneId = $gameType === 'freefire' ? null : $order->zone_id_ml;
-
+                
                 VipResellerStatus::create([
                     'order_id' => $order->id,
                     'trxid' => null,
@@ -3254,14 +3254,14 @@ class CheckoutController extends Controller
             } catch (\Exception $saveException) {
                 Log::error('Failed to save Chargily error status: '.$saveException->getMessage());
             }
-
+            
             return [
                 'success' => false,
                 'message' => 'Error processing recharge: '.$e->getMessage(),
             ];
         }
     }
-
+    
     /**
      * Handle Flexy form submission
      */
@@ -3272,20 +3272,20 @@ class CheckoutController extends Controller
         if (! $recaptchaResponse) {
             return back()->withErrors(['recaptcha' => 'Please complete the reCAPTCHA verification'])->withInput();
         }
-
+        
         // Verify reCAPTCHA with Google (server-side only)
         $secretKey = config('recaptcha.secret_key');
         $verifyUrl = config('recaptcha.verify_url');
-
+        
         try {
             $response = Http::asForm()->post($verifyUrl, [
                 'secret' => $secretKey,
                 'response' => $recaptchaResponse,
                 'remoteip' => $request->ip(),
             ]);
-
+            
             $responseData = $response->json();
-
+            
             if (! isset($responseData['success']) || ! $responseData['success']) {
                 Log::warning('Flexy submission: reCAPTCHA verification failed', [
                     'ip' => $request->ip(),
@@ -3302,13 +3302,13 @@ class CheckoutController extends Controller
 
             return back()->withErrors(['recaptcha' => 'reCAPTCHA verification error. Please try again.'])->withInput();
         }
-
+        
         $request->validate([
             'encrypted_order_id' => 'required|string',
             'receipt_image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // 5MB max
             'notes' => 'nullable|string|max:1000',
         ]);
-
+        
         try {
             // Decrypt the order ID - use generic error message for security
             $orderId = Crypt::decryptString($request->input('encrypted_order_id'));
@@ -3321,7 +3321,7 @@ class CheckoutController extends Controller
 
             return back()->withErrors(['encrypted_order_id' => 'Invalid order information'])->withInput();
         }
-
+        
         // Verify order exists
         $order = Order::find($orderId);
         if (! $order) {
@@ -3332,7 +3332,7 @@ class CheckoutController extends Controller
 
             return back()->withErrors(['encrypted_order_id' => 'Order not found'])->withInput();
         }
-
+        
         // Verify order belongs to authenticated user (if logged in)
         if (auth()->check() && $order->user_id !== auth()->id()) {
             Log::warning('Flexy submission: Unauthorized order access attempt', [
@@ -3344,7 +3344,7 @@ class CheckoutController extends Controller
 
             return back()->withErrors(['encrypted_order_id' => 'Unauthorized access'])->withInput();
         }
-
+        
         // Verify order is in correct status (should be pending_flexy)
         if ($order->status !== 'pending_flexy') {
             Log::warning('Flexy submission: Order in wrong status', [
@@ -3355,15 +3355,15 @@ class CheckoutController extends Controller
 
             return back()->withErrors(['encrypted_order_id' => 'Order cannot be processed'])->withInput();
         }
-
+        
         // Enhanced file upload validation
         $file = $request->file('receipt_image');
-
+        
         // Verify file was actually uploaded
         if (! $file || ! $file->isValid()) {
             return back()->withErrors(['receipt_image' => 'Invalid file upload'])->withInput();
         }
-
+        
         // Check MIME type (additional security layer)
         $allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
         $mimeType = $file->getMimeType();
@@ -3376,7 +3376,7 @@ class CheckoutController extends Controller
 
             return back()->withErrors(['receipt_image' => 'Invalid file type'])->withInput();
         }
-
+        
         // Check file extension matches MIME type
         $extension = strtolower($file->getClientOriginalExtension());
         $extensionMimeMap = [
@@ -3396,40 +3396,40 @@ class CheckoutController extends Controller
 
             return back()->withErrors(['receipt_image' => 'File type mismatch'])->withInput();
         }
-
+        
         // Check file size (in bytes)
         $maxSize = 5120 * 1024; // 5MB in bytes
         if ($file->getSize() > $maxSize) {
             return back()->withErrors(['receipt_image' => 'File size exceeds 5MB limit'])->withInput();
         }
-
+        
         // Sanitize filename to prevent directory traversal
         $originalName = $file->getClientOriginalName();
         $sanitizedName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalName);
         $sanitizedName = substr($sanitizedName, 0, 255); // Limit filename length
-
+        
         // Create directory if it doesn't exist (more restrictive permissions)
         $storagePath = public_path('storage/flexy_receipts');
         if (! file_exists($storagePath)) {
             mkdir($storagePath, 0750, true);
         }
-
+        
         // Generate unique filename
         $filename = $order->id.'_'.time().'_'.$sanitizedName;
-
+        
         // Move file to public/storage/flexy_receipts/
         $file->move($storagePath, $filename);
-
+        
         // Store relative path for database (storage/flexy_receipts/filename)
         $imagePath = 'storage/flexy_receipts/'.$filename;
-
+        
         // Create or update Flexy record
         $flexy = Flexy::create([
             'receipt_image' => $imagePath,
             'diamond_pack_id' => $order->diamond_pack_id,
             'status' => 'pending',
         ]);
-
+        
         // Link order to flexy and update status to pending_confirmation
         $order->flexy_id = $flexy->id;
         $oldStatus = $order->status;
@@ -3442,7 +3442,7 @@ class CheckoutController extends Controller
         }
         $order->notes = $notes;
         $order->save();
-
+        
         // Send Telegram notification for status change to pending_confirmation
         if ($oldStatus === 'pending_flexy' && $order->status === 'pending_confirmation') {
             try {
@@ -3462,7 +3462,7 @@ class CheckoutController extends Controller
                 ]);
             }
         }
-
+        
         // Log successful submission
         Log::info('Flexy receipt submitted successfully', [
             'order_id' => $order->id,
@@ -3472,44 +3472,44 @@ class CheckoutController extends Controller
             'ip' => $request->ip(),
             'user_id' => auth()->id() ?? 'guest',
         ]);
-
+        
         // Encrypt order ID for redirect
         $encryptedOrderId = Crypt::encryptString($order->id);
-
+        
         // Clear cart
         // Redirect to success page with encrypted order_id
         return redirect()->route('flexy-success', ['order_id' => $encryptedOrderId])
             ->with('clear_cart', true);
     }
-
+    
     /**
      * Show Flexy success page
      */
     public function flexySuccess(Request $request)
     {
         $encryptedOrderId = $request->query('order_id');
-
+        
         if (! $encryptedOrderId) {
             return redirect()->route('dashboard.orders');
         }
-
+        
         try {
             // Decrypt the order ID (just for validation, we don't need to show it)
             $orderId = Crypt::decryptString($encryptedOrderId);
             $order = Order::find($orderId);
-
+            
             if (! $order) {
                 return redirect()->route('dashboard.orders');
             }
         } catch (\Exception $e) {
             return redirect()->route('dashboard.orders');
         }
-
+        
         return view('pages.flexy-success', [
             'encrypted_order_id' => $encryptedOrderId,
         ]);
     }
-
+    
     /**
      * Delete an order by encrypted ID
      */
@@ -3518,7 +3518,7 @@ class CheckoutController extends Controller
         $request->validate([
             'encrypted_order_id' => 'required|string',
         ]);
-
+        
         try {
             // Decrypt the order ID
             $orderId = Crypt::decryptString($request->encrypted_order_id);
@@ -3528,16 +3528,16 @@ class CheckoutController extends Controller
                 'message' => 'Invalid order ID',
             ], 400);
         }
-
+        
         $order = Order::with('diamondPack')->find($orderId);
-
+        
         if (! $order) {
             return response()->json([
                 'success' => false,
                 'message' => 'Order not found',
             ], 404);
         }
-
+        
         // Get order data before deleting (to restore to cart)
         $orderData = [
             'pack_id' => $order->diamond_pack_id,
@@ -3549,23 +3549,23 @@ class CheckoutController extends Controller
             'user_id_bs' => $order->user_id_bs,
             'server_bs' => $order->server_bs,
         ];
-
+        
         // Log before deletion
         Log::info('Deleting order', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
             'status' => $order->status,
         ]);
-
+        
         // Delete the order from database
         $order->delete();
-
+        
         // Log after deletion
         Log::info('Order deleted successfully', [
             'order_id' => $orderId,
             'encrypted_order_id_received' => $request->encrypted_order_id,
         ]);
-
+        
         // Return multiple formats of the encrypted ID to help frontend match
         $encryptedId = $request->encrypted_order_id;
 
@@ -3582,7 +3582,7 @@ class CheckoutController extends Controller
             'cart_item' => $orderData, // Return order data to restore to cart
         ]);
     }
-
+    
     /**
      * Show crypto payment form page (order confirmation before cryptocurrency payment)
      */
@@ -3594,19 +3594,19 @@ class CheckoutController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
-
+        
         $order = Order::with('diamondPack')->find($orderId);
-
+        
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
         }
-
+        
         // Calculate order amount
         $unitPrice = $order->diamondPack->price;
         $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
         $discountAmount = ($unitPrice * $discountPercentage) / 100;
         $totalAmount = $unitPrice - $discountAmount;
-
+        
         return view('pages.crypto-form', [
             'order' => $order,
             'encrypted_order_id' => $encryptedOrderId,
@@ -3616,7 +3616,7 @@ class CheckoutController extends Controller
             'discount_amount' => $discountAmount,
         ]);
     }
-
+    
     /**
      * Show MixPay crypto payment page
      */
@@ -3628,21 +3628,21 @@ class CheckoutController extends Controller
         } catch (\Exception $e) {
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
-
+        
         $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
-
+        
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
         }
-
+        
         // Calculate order total amount in DZD (backend calculation - prevents client manipulation)
         $totalAmountDzd = 0;
         $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
-
+        
         if ($hasOrderItems) {
             // Multi-item order: sum from order items
             $totalAmountDzd = $order->orderItems->sum('total_dzd');
-
+            
             // SECURITY: Re-calculate to validate stored prices match current pack prices
             $order->load('orderItems.diamondPack');
             $recalculatedTotalDzd = 0;
@@ -3656,19 +3656,19 @@ class CheckoutController extends Controller
 
                     return redirect()->route('select-payment')->with('error', 'Order data error. Please try again.');
                 }
-
+                
                 // Re-calculate from current pack prices
                 $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
                 $discountPercentage = $pack->discount_percentage ?? 0;
                 $quantity = max(1, (int) $orderItem->quantity);
-
+                
                 $subtotalDzd = $unitPriceDzd * $quantity;
                 $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                 $itemTotalDzd = $subtotalDzd - $discountAmount;
-
+                
                 $recalculatedTotalDzd += $itemTotalDzd;
             }
-
+            
             // Validate stored total matches recalculated (within 1 DZD tolerance)
             if (abs($totalAmountDzd - $recalculatedTotalDzd) > 1.0) {
                 Log::error('NOWPayments: Price validation failed', [
@@ -3684,23 +3684,23 @@ class CheckoutController extends Controller
             if (! $order->diamondPack) {
                 return redirect()->route('select-payment')->with('error', 'Order data error. Please try again.');
             }
-
+            
             $unitPriceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
             $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
             $quantity = (int) ($order->quantity ?? 1);
-
+            
             $subtotalDzd = $unitPriceDzd * $quantity;
             $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
             $totalAmountDzd = $subtotalDzd - $discountAmount;
         }
-
+        
         // SECURITY: Convert DZD to USD on backend (divide by 260)
         // This ensures conversion happens server-side and prevents manipulation
         $totalAmountUsd = $totalAmountDzd / 260;
-
+        
         // Round to 2 decimal places for payment
         $totalAmountUsd = round($totalAmountUsd, 2);
-
+        
         Log::info('NOWPayments: Creating payment', [
             'order_id' => $order->id,
             'order_number' => $order->order_number,
@@ -3708,16 +3708,16 @@ class CheckoutController extends Controller
             'total_amount_usd' => $totalAmountUsd,
             'has_order_items' => $hasOrderItems,
         ]);
-
+        
         // Initialize NOWPayments service
         $nowPaymentsService = new NowPaymentsService;
-
+        
         if (! $nowPaymentsService->hasCredentials()) {
             Log::error('NOWPayments: API key not configured', ['order_id' => $order->id]);
 
             return redirect()->route('select-payment')->with('error', 'Cryptocurrency payment is not configured. Please contact support.');
         }
-
+        
         // Build order description
         if ($hasOrderItems) {
             $itemDescriptions = [];
@@ -3730,7 +3730,7 @@ class CheckoutController extends Controller
             $pack = $order->diamondPack;
             $orderDescription = 'DiasZone - '.$pack->name;
         }
-
+        
         // Prepare order data for NOWPayments
         $orderData = [
             'order_id' => $order->order_number,
@@ -3742,24 +3742,24 @@ class CheckoutController extends Controller
             'cancel_url' => route('select-payment'),
             'ipn_callback_url' => route('nowpayments.webhook'),
         ];
-
+        
         // Create NOWPayments invoice (returns invoice_url for payment page)
         $paymentResponse = $nowPaymentsService->createInvoice($orderData);
-
+        
         if (! $paymentResponse['success']) {
             Log::error('NOWPayments Payment Creation Failed', [
                 'order_id' => $order->id,
                 'error' => $paymentResponse['error'] ?? 'Unknown error',
                 'response' => $paymentResponse['response_data'] ?? [],
             ]);
-
+            
             return redirect()->route('select-payment')->with('error', 'Failed to create payment. Please try again or contact support.');
         }
-
+        
         // Extract payment ID from response
         $paymentId = $paymentResponse['data']['payment_id'] ?? $paymentResponse['data']['invoice_id'] ?? null;
         $paymentUrl = $paymentResponse['data']['invoice_url'] ?? $paymentResponse['data']['payment_url'] ?? null;
-
+        
         if (! $paymentId) {
             Log::error('NOWPayments: Payment ID not returned', [
                 'order_id' => $order->id,
@@ -3768,25 +3768,25 @@ class CheckoutController extends Controller
 
             return redirect()->route('select-payment')->with('error', 'Payment creation failed. Please try again.');
         }
-
+        
         // Store payment ID in order
         $order->nowpayments_payment_id = $paymentId;
         $order->status = 'pending_cryptopay';
         $order->save();
-
+        
         Log::info('NOWPayments: Payment created successfully', [
             'order_id' => $order->id,
             'payment_id' => $paymentId,
         ]);
-
+        
         // Redirect to NOWPayments payment URL
         if ($paymentUrl) {
             return redirect($paymentUrl);
         }
-
+        
         return redirect()->route('select-payment')->with('error', 'Payment URL not generated. Please try again.');
     }
-
+    
     /**
      * Handle cryptocurrency payment success callback
      */
@@ -3795,21 +3795,21 @@ class CheckoutController extends Controller
         try {
             $orderId = Crypt::decryptString($encryptedOrderId);
             $order = Order::find($orderId);
-
+            
             if (! $order) {
                 return redirect()->route('dashboard.orders')->with('error', 'Order not found');
             }
-
+            
             // Update order status to completed
             $order->status = 'completed';
             $order->save();
-
+            
             return redirect()->route('dashboard.orders')->with('success', 'Payment successful! Your order has been processed.');
         } catch (\Exception $e) {
             return redirect()->route('dashboard.orders')->with('error', 'Invalid order ID');
         }
     }
-
+    
     /**
      * API endpoint to check crypto payment status
      */
@@ -3818,18 +3818,18 @@ class CheckoutController extends Controller
         $request->validate([
             'encrypted_order_id' => 'required|string',
         ]);
-
+        
         try {
             $orderId = Crypt::decryptString($request->input('encrypted_order_id'));
             $order = Order::find($orderId);
-
+            
             if (! $order) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Order not found',
                 ], 404);
             }
-
+            
             // Check if order has a NOWPayments payment_id stored
             if (! $order->nowpayments_payment_id) {
                 return response()->json([
@@ -3839,25 +3839,25 @@ class CheckoutController extends Controller
                     'status' => 'PENDING',
                 ]);
             }
-
+            
             // NOWPayments API key (will be set from env or static later)
             $nowPaymentsApiKey = null; // Will be set from env or static later
             $nowPaymentsEndpoint = 'https://api.nowpayments.io/v1/';
-
+            
             // Query NOWPayments for payment status using the stored payment_id
             $nowPaymentsService = new NowPaymentsService($nowPaymentsApiKey, $nowPaymentsEndpoint);
             $paymentResponse = $nowPaymentsService->getPaymentStatus($order->nowpayments_payment_id);
-
+            
             if ($paymentResponse['success']) {
                 $paymentData = $paymentResponse['data'];
                 $status = $paymentData['payment_status'] ?? 'waiting';
-
+                
                 // NOWPayments statuses: waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
                 if ($status === 'finished' || $status === 'confirmed') {
                     // Update order status
                     $order->status = 'completed';
                     $order->save();
-
+                    
                     return response()->json([
                         'success' => true,
                         'paid' => true,
@@ -3865,7 +3865,7 @@ class CheckoutController extends Controller
                     ]);
                 }
             }
-
+            
             return response()->json([
                 'success' => true,
                 'paid' => false,
@@ -3888,13 +3888,13 @@ class CheckoutController extends Controller
         // API key will be set from env or static later
         $apiKey = null; // Will be set from env or static later
         $endpoint = 'https://api.nowpayments.io/v1/';
-
+        
         $nowPaymentsService = new NowPaymentsService($apiKey, $endpoint);
         $testResult = $nowPaymentsService->testConnection();
-
+        
         return response()->json($testResult, $testResult['success'] ? 200 : 400);
     }
-
+    
     /**
      * Test NOWPayments payment creation with $10
      * Route: /test/nowpayments/payment
@@ -3906,11 +3906,11 @@ class CheckoutController extends Controller
             // Return JSON for AJAX requests
             return $this->testNowPaymentsPaymentJson();
         }
-
+        
         // Return HTML page with dialog
         return view('pages.crypto-payment-dialog');
     }
-
+    
     /**
      * Test NOWPayments payment creation (JSON response)
      */
@@ -3919,9 +3919,9 @@ class CheckoutController extends Controller
         // API key will be set from env or static later
         $apiKey = null; // Will be set from env or static later
         $endpoint = 'https://api.nowpayments.io/v1/';
-
+        
         $nowPaymentsService = new NowPaymentsService($apiKey, $endpoint);
-
+        
         // Check if credentials are configured
         if (! $nowPaymentsService->hasCredentials()) {
             return response()->json([
@@ -3937,14 +3937,14 @@ class CheckoutController extends Controller
                 ],
             ], 400);
         }
-
+        
         // First, get available currencies to see what's supported
         $currenciesResponse = $nowPaymentsService->getAvailableCurrencies();
         $availableCurrencies = [];
         if ($currenciesResponse['success']) {
             $availableCurrencies = $currenciesResponse['data']['currencies'] ?? [];
         }
-
+        
         // Create a test payment for $10
         // Use usdttrc20 (USDT on TRC20) as default - it's usually the cheapest option
         // You can change this to any currency from the available_currencies list
@@ -3958,12 +3958,12 @@ class CheckoutController extends Controller
             'cancel_url' => route('home'),
             'ipn_callback_url' => route('nowpayments.webhook'),
         ];
-
+        
         $paymentResponse = $nowPaymentsService->createInvoice($orderData);
-
+        
         // If invoice creation fails due to currency issue, try alternative currencies
         if (! $paymentResponse['success'] &&
-            (str_contains($paymentResponse['error'], 'estimate') ||
+            (str_contains($paymentResponse['error'], 'estimate') || 
              str_contains($paymentResponse['error'], 'currency'))) {
             // Try alternative USDT options
             $alternativeCurrencies = ['usdterc20', 'usdtbsc', 'usdtmatic', 'usdtsol'];
@@ -3977,10 +3977,10 @@ class CheckoutController extends Controller
                 }
             }
         }
-
+        
         if ($paymentResponse['success']) {
             $paymentData = $paymentResponse['data'];
-
+            
             $response = [
                 'success' => true,
                 'message' => 'Test payment created successfully!',
@@ -3999,7 +3999,7 @@ class CheckoutController extends Controller
                 'available_currencies' => $availableCurrencies,
                 'full_response' => $paymentData,
             ];
-
+            
             // Add direct properties for easier access in dialog
             $response['pay_address'] = $paymentData['pay_address'] ?? null;
             $response['pay_amount'] = $paymentData['pay_amount'] ?? null;
@@ -4010,7 +4010,7 @@ class CheckoutController extends Controller
             // Invoice endpoint returns invoice_url directly - use it as payment_url
             $response['invoice_url'] = $paymentData['invoice_url'] ?? null;
             $response['payment_url'] = $paymentData['invoice_url'] ?? $paymentData['payment_url'] ?? null;
-
+            
             return response()->json($response, 200);
         } else {
             return response()->json([
@@ -4023,7 +4023,7 @@ class CheckoutController extends Controller
             ], 400);
         }
     }
-
+    
     /**
      * Test NOWPayments payment status check
      * Route: /test/nowpayments/status/{payment_id}
@@ -4033,9 +4033,9 @@ class CheckoutController extends Controller
         // API key will be set from env or static later
         $apiKey = null; // Will be set from env or static later
         $endpoint = 'https://api.nowpayments.io/v1/';
-
+        
         $nowPaymentsService = new NowPaymentsService($apiKey, $endpoint);
-
+        
         // Check if credentials are configured
         if (! $nowPaymentsService->hasCredentials()) {
             return response()->json([
@@ -4044,13 +4044,13 @@ class CheckoutController extends Controller
                 'message' => 'Add NOWPAYMENTS_API_KEY to your .env file',
             ], 400);
         }
-
+        
         // Get payment status
         $statusResponse = $nowPaymentsService->getPaymentStatus($paymentId);
-
+        
         if ($statusResponse['success']) {
             $paymentData = $statusResponse['data'];
-
+            
             return response()->json([
                 'success' => true,
                 'payment_id' => $paymentId,
@@ -4076,7 +4076,7 @@ class CheckoutController extends Controller
             ], 400);
         }
     }
-
+    
     /**
      * Handle NOWPayments IPN (Instant Payment Notification)
      * This is called by NOWPayments when payment status changes
@@ -4087,21 +4087,21 @@ class CheckoutController extends Controller
         try {
             $paymentData = $request->all();
             $requestBody = $request->getContent();
-
+            
             // Log IPN for debugging
             Log::info('NOWPayments IPN Received', [
                 'payment_data' => $paymentData,
                 'headers' => $request->headers->all(),
             ]);
-
+            
             // SECURITY: Verify HMAC signature
             $ipnSecret = config('services.nowpayments.ipn_secret') ?? env('NOWPAYMENTS_IPN_SECRET');
             $signature = $request->header('x-nowpayments-sig');
-
+            
             if ($ipnSecret && $signature) {
                 // Compute HMAC SHA-512 signature
                 $computedSignature = hash_hmac('sha512', $requestBody, $ipnSecret);
-
+                
                 if (! hash_equals($computedSignature, $signature)) {
                     Log::error('NOWPayments IPN: Invalid signature', [
                         'received_sig' => substr($signature, 0, 20).'...',
@@ -4116,25 +4116,25 @@ class CheckoutController extends Controller
                     Log::warning('NOWPayments IPN: IPN secret not configured - signature verification skipped');
                 }
             }
-
+            
             // Extract payment data
             $paymentId = $paymentData['payment_id'] ?? null;
             $paymentStatus = $paymentData['payment_status'] ?? 'waiting';
             $priceAmount = isset($paymentData['price_amount']) ? (float) $paymentData['price_amount'] : null;
             $priceCurrency = $paymentData['price_currency'] ?? null;
             $orderId = $paymentData['order_id'] ?? null;
-
+            
             if (! $paymentId) {
                 Log::warning('NOWPayments IPN: Missing payment_id', ['data' => $paymentData]);
 
                 return response()->json(['error' => 'Missing payment_id'], 400);
             }
-
+            
             // Find order by payment_id
             $order = Order::where('nowpayments_payment_id', $paymentId)
-                ->with(['orderItems.diamondPack', 'diamondPack'])
-                ->first();
-
+                         ->with(['orderItems.diamondPack', 'diamondPack'])
+                         ->first();
+            
             if (! $order) {
                 Log::warning('NOWPayments IPN: Order not found', [
                     'payment_id' => $paymentId,
@@ -4143,13 +4143,13 @@ class CheckoutController extends Controller
 
                 return response()->json(['error' => 'Order not found'], 404);
             }
-
+            
             // SECURITY: Validate payment amount matches order amount (USD)
             if ($priceAmount !== null && $priceCurrency === 'usd') {
                 // Calculate expected USD amount from order
                 $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
                 $expectedTotalDzd = 0;
-
+                
                 if ($hasOrderItems) {
                     $expectedTotalDzd = $order->orderItems->sum('total_dzd');
                 } else {
@@ -4158,16 +4158,16 @@ class CheckoutController extends Controller
                         $unitPriceDzd = $order->diamondPack->price_dzd ?? ($order->diamondPack->price * 260);
                         $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
                         $quantity = (int) ($order->quantity ?? 1);
-
+                        
                         $subtotalDzd = $unitPriceDzd * $quantity;
                         $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                         $expectedTotalDzd = $subtotalDzd - $discountAmount;
                     }
                 }
-
+                
                 // Convert DZD to USD (divide by 260)
                 $expectedTotalUsd = round($expectedTotalDzd / 260, 2);
-
+                
                 // Allow 0.01 USD tolerance for rounding differences
                 $amountDiff = abs($priceAmount - $expectedTotalUsd);
                 if ($amountDiff > 0.01) {
@@ -4182,12 +4182,12 @@ class CheckoutController extends Controller
                     return response()->json(['error' => 'Amount mismatch'], 400);
                 }
             }
-
+            
             // Only process if status is 'finished' or 'confirmed'
             // Other statuses: waiting, confirming, sending, partially_paid, failed, refunded, expired
             if ($paymentStatus === 'finished' || $paymentStatus === 'confirmed') {
                 $oldOrderStatus = $order->status;
-
+                
                 // Prevent double processing
                 if ($oldOrderStatus === 'completed' || $oldOrderStatus === 'sending' || $oldOrderStatus === 'processing') {
                     Log::info('NOWPayments IPN: Order already processed', [
@@ -4198,11 +4198,11 @@ class CheckoutController extends Controller
 
                     return response()->json(['status' => 'ok', 'message' => 'Already processed'], 200);
                 }
-
+                
                 // Set status to 'sending' (payment confirmed, processing top-up)
                 $order->status = 'sending';
                 $order->save();
-
+                
                 Log::info('NOWPayments IPN: Payment confirmed - Processing top-up', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
@@ -4211,13 +4211,13 @@ class CheckoutController extends Controller
                     'old_status' => $oldOrderStatus,
                     'new_status' => 'sending',
                 ]);
-
+                
                 // Update Telegram message
                 try {
                     $order->load('user', 'seller');
                     $updatedMessage = TelegramService::formatOrderMessage($order);
                     $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Crypto Payment Confirmed - Processing Recharge</b>', $updatedMessage);
-
+                    
                     if ($order->tlg_message_id) {
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
                     } else {
@@ -4233,10 +4233,10 @@ class CheckoutController extends Controller
                         'error' => $e->getMessage(),
                     ]);
                 }
-
+                
                 // Trigger top-up processing
                 $rechargeResult = $this->processNowPaymentsRecharge($order);
-
+                
                 if ($rechargeResult['success']) {
                     Log::info('NOWPayments IPN: Top-up processed successfully', [
                         'order_id' => $order->id,
@@ -4251,13 +4251,13 @@ class CheckoutController extends Controller
                         'error' => $rechargeResult['message'] ?? 'Unknown error',
                     ]);
                 }
-
+                
             } elseif (in_array($paymentStatus, ['failed', 'expired', 'refunded'])) {
                 // Payment failed/expired/refunded
                 if (! in_array($order->status, ['cancelled', 'failed'])) {
                     $order->status = 'cancelled';
                     $order->save();
-
+                    
                     Log::info('NOWPayments IPN: Payment failed/expired/refunded', [
                         'order_id' => $order->id,
                         'payment_id' => $paymentId,
@@ -4265,9 +4265,9 @@ class CheckoutController extends Controller
                     ]);
                 }
             }
-
+            
             return response()->json(['status' => 'ok'], 200);
-
+            
         } catch (\Exception $e) {
             Log::error('NOWPayments IPN: Exception', [
                 'error' => $e->getMessage(),
@@ -4277,7 +4277,7 @@ class CheckoutController extends Controller
             return response()->json(['error' => 'Internal server error'], 500);
         }
     }
-
+    
     /**
      * Process recharge/top-up after NOWPayments payment confirmation
      * Similar to processBaridimobPaidRecharge but for crypto payments
@@ -4287,17 +4287,17 @@ class CheckoutController extends Controller
         try {
             $order->load('orderItems.diamondPack', 'diamondPack');
             $gameType = $order->game_type ?? ($order->diamondPack->game_type ?? null);
-
+            
             if (! $gameType) {
                 Log::error('NOWPayments recharge: Game type not found', ['order_id' => $order->id]);
 
                 return ['success' => false, 'message' => 'Game type not found'];
             }
-
+            
             // Determine which provider to use
             $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
             $useDigiflazz = in_array($gameType, $digiflazzGames);
-
+            
             if ($useDigiflazz) {
                 // Use Digiflazz for ML, FF, PUBG
                 if (! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
@@ -4305,7 +4305,7 @@ class CheckoutController extends Controller
 
                     return ['success' => false, 'message' => 'Digiflazz not configured'];
                 }
-
+                
                 // Process similar to Chargily recharge
                 return DB::transaction(function () use ($order) {
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
@@ -4314,9 +4314,9 @@ class CheckoutController extends Controller
 
                         return ['success' => false, 'message' => 'Failed to lock order'];
                     }
-
+                    
                     $orderLocked->load('orderItems.diamondPack');
-
+                    
                     // Validate prices before top-up
                     $priceValidationErrors = [];
                     foreach ($orderLocked->orderItems as $orderItem) {
@@ -4324,15 +4324,15 @@ class CheckoutController extends Controller
                         $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
                         $discountPercentage = $pack->discount_percentage ?? 0;
                         $quantity = max(1, (int) $orderItem->quantity);
-
+                        
                         $subtotalDzd = $unitPriceDzd * $quantity;
                         $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                         $totalDzd = $subtotalDzd - $discountAmount;
-
+                        
                         $storedTotal = (float) $orderItem->total_dzd;
                         $calculatedTotal = (float) $totalDzd;
                         $priceDiff = abs($storedTotal - $calculatedTotal);
-
+                        
                         if ($priceDiff > 1.0) {
                             $priceValidationErrors[] = [
                                 'order_item_id' => $orderItem->id,
@@ -4342,7 +4342,7 @@ class CheckoutController extends Controller
                             ];
                         }
                     }
-
+                    
                     if (! empty($priceValidationErrors)) {
                         Log::error('NOWPayments recharge: Price validation failed', [
                             'order_id' => $orderLocked->id,
@@ -4351,45 +4351,45 @@ class CheckoutController extends Controller
 
                         return ['success' => false, 'message' => 'Price validation failed'];
                     }
-
+                    
                     // Submit top-ups for each order_item
                     $lastResult = ['result' => false, 'message' => 'No provider calls made'];
-
+                    
                     foreach ($orderLocked->orderItems as $orderItem) {
                         $submitted = $orderItem->digiflazzStatuses()
                             ->where(function ($q) {
                                 $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                    ->orWhere('event', 'create');
+                                  ->orWhere('event', 'create');
                             })->count();
-
+                        
                         $remaining = max(0, $orderItem->quantity - $submitted);
-
+                        
                         for ($i = 0; $i < $remaining; $i++) {
                             $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
-
+                            
                             $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
                                 $orderItem->diamondPack,
                                 $orderLocked,
                                 $refId,
                                 $orderItem->id
                             );
-
+                            
                             Log::info('NOWPayments recharge: Digiflazz placeOrder', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'ref_id' => $refId,
                                 'result' => $lastResult,
                             ]);
-
+                            
                             usleep(100000); // 0.1 second delay
                         }
                     }
-
+                    
                     $order = $orderLocked;
 
                     return ['success' => $lastResult['result'] ?? false, 'trxid' => $lastResult['data']['trxid'] ?? null, 'message' => $lastResult['message'] ?? ''];
                 });
-
+                
             } else {
                 // Use Item4Gamer for other games (non-Digiflazz games)
                 if (! config('services.item4gamer.api_key') && ! env('ITEM4GAMER_API_KEY')) {
@@ -4521,7 +4521,7 @@ class CheckoutController extends Controller
                     ];
                 });
             }
-
+            
         } catch (\Exception $e) {
             Log::error('NOWPayments recharge: Exception', [
                 'order_id' => $order->id,
@@ -4543,32 +4543,32 @@ class CheckoutController extends Controller
             case 'mobilelegends':
                 // For ML, Item4Gamer likely expects user_id (zone_id may not be needed for Item4Gamer)
                 return $order->user_id_ml ?? null;
-
+            
             case 'freefire':
                 return $order->player_id_ff ?? null;
-
+            
             case 'pubgmobile':
                 return $order->player_id_pubg ?? null;
-
+            
             case 'honorofkings':
                 return $order->player_id_hok ?? null;
-
+            
             case 'bloodstrike':
                 return $order->user_id_bs ?? null;
-
+            
             default:
                 // For other games, try to find any player/user ID field
                 // save_id is same as user_id for new games (Genshin Impact, etc.)
                 return $order->save_id
-                    ?? $order->user_id_ml
-                    ?? $order->player_id_ff
-                    ?? $order->player_id_pubg
-                    ?? $order->player_id_hok
-                    ?? $order->user_id_bs
+                    ?? $order->user_id_ml 
+                    ?? $order->player_id_ff 
+                    ?? $order->player_id_pubg 
+                    ?? $order->player_id_hok 
+                    ?? $order->user_id_bs 
                     ?? null;
         }
     }
-
+    
     /**
      * Handle MixPay payment callback
      * This is called by MixPay when payment status changes
@@ -4578,26 +4578,26 @@ class CheckoutController extends Controller
     {
         // Handle MixPay payment callback
         $paymentData = $request->all();
-
+        
         // Log callback for debugging
         Log::info('MixPay Webhook Received', $paymentData);
-
+        
         // Extract orderId from callback data
         $orderId = $paymentData['orderId'] ?? null;
-
+        
         if ($orderId) {
             // Find order by orderId (MixPay uses orderId, not payment_id)
             // We stored the MixPay code in nowpayments_payment_id field
             // But we need to match by orderId which is stored in order_number
             // MixPay orderId format: order_number_timestamp
             $order = Order::where('order_number', 'like', explode('_', $orderId)[0].'%')
-                ->orWhere('nowpayments_payment_id', $paymentData['code'] ?? null)
-                ->first();
-
+                          ->orWhere('nowpayments_payment_id', $paymentData['code'] ?? null)
+                          ->first();
+            
             if ($order) {
                 // Update order status based on payment status
                 $paymentStatus = $paymentData['status'] ?? 'pending';
-
+                
                 // MixPay statuses: pending, paid, success, failed
                 // See: https://mixpay.me/developers/api/payments/payment-callback
                 if ($paymentStatus === 'success' || $paymentStatus === 'paid') {
@@ -4609,10 +4609,10 @@ class CheckoutController extends Controller
                 }
             }
         }
-
+        
         return response()->json(['status' => 'ok'], 200);
     }
-
+    
     /**
      * Test Chargily Pay credentials
      */
@@ -4622,7 +4622,7 @@ class CheckoutController extends Controller
         $secret = env('CHARGILY_EPAY_SECRET') ?? config('laravel-chargily-epay.secret');
         $backUrl = env('CHARGILY_EPAY_BACK_URL') ?? config('laravel-chargily-epay.back_url');
         $webhookUrl = env('CHARGILY_EPAY_WEBHOOK_URL') ?? config('laravel-chargily-epay.webhook_url');
-
+        
         return response()->json([
             'credentials_configured' => ! empty($key) && ! empty($secret),
             'key_exists' => ! empty($key),
