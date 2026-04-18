@@ -247,6 +247,17 @@
                                 </svg>
                                 <span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700">{{ __('profile.my_orders') }}</span>
                             </a>
+                            <div class="border-t border-gray-100 mt-1 pt-1">
+                                <form action="{{ route('logout') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="w-full flex items-center space-x-3 px-4 py-3 hover:bg-red-50 transition-all duration-200 group text-start">
+                                        <svg class="w-5 h-5 text-gray-600 group-hover:text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                        </svg>
+                                        <span class="text-sm font-semibold text-gray-800 group-hover:text-red-700">{{ __('profile.logout') }}</span>
+                                    </button>
+                                </form>
+                            </div>
                         @else
                             <!-- Not Logged In: Show Login and My Orders -->
                             <a href="{{ route('login') }}" class="flex items-center space-x-3 px-4 py-3 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group">
