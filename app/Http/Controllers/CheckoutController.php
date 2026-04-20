@@ -3333,8 +3333,9 @@ class CheckoutController extends Controller
             return back()->withErrors(['encrypted_order_id' => 'Order not found'])->withInput();
         }
         
-        // Verify order belongs to authenticated user (if logged in)
-        if (auth()->check() && $order->user_id !== auth()->id()) {
+        // Verify order belongs to authenticated user (if logged in).
+        // Cast to int so "13" and 13 are treated as the same user ID.
+        if (auth()->check() && (int) $order->user_id !== (int) auth()->id()) {
             Log::warning('Flexy submission: Unauthorized order access attempt', [
                 'order_id' => $order->id,
                 'order_user_id' => $order->user_id,
