@@ -14,20 +14,12 @@ class VipResellerService
 
     public function __construct()
     {
-        $this->apiId = env('VIP_RESELLER_API_ID');
-        $this->apiKey = env('VIP_RESELLER_API_KEY');
-        $this->sign = env('VIP_RESELLER_SIGN');
-        $this->baseUrl = env('VIP_RESELLER_BASE_URL', 'https://vip-reseller.co.id/api');
-        
-        // Log credentials check (without exposing full values)
-        Log::info('Provider service initialized', [
-            'api_id_set' => !empty($this->apiId),
-            'api_key_set' => !empty($this->apiKey),
-            'api_key_length' => strlen($this->apiKey ?? ''),
-            'sign_set' => !empty($this->sign),
-            'sign_length' => strlen($this->sign ?? ''),
-            'base_url' => $this->baseUrl,
-        ]);
+        // Use config() so credentials work when config is cached on production
+        $this->apiId = config('services.vip_reseller.api_id') ?: env('VIP_RESELLER_API_ID');
+        $this->apiKey = config('services.vip_reseller.api_key') ?: env('VIP_RESELLER_API_KEY');
+        $this->sign = config('services.vip_reseller.sign') ?: env('VIP_RESELLER_SIGN');
+        $this->baseUrl = config('services.vip_reseller.base_url')
+            ?: env('VIP_RESELLER_BASE_URL', 'https://vip-reseller.co.id/api');
     }
 
     /**
@@ -42,9 +34,11 @@ class VipResellerService
         try {
             // Validate credentials are set
             if (empty($this->apiKey) || empty($this->sign)) {
-                Log::error('Provider credentials missing', [
+                Log::error('Provider nickname check: credentials missing', [
                     'api_key_empty' => empty($this->apiKey),
                     'sign_empty' => empty($this->sign),
+                    'api_id_set' => !empty($this->apiId),
+                    'base_url' => $this->baseUrl,
                 ]);
                 return [
                     'result' => false,
@@ -59,13 +53,15 @@ class VipResellerService
                 'sign' => $this->sign,
                 'type' => 'get-nickname',
                 'code' => 'mobile-legends',
-                'target' => $userId,
-                'additional_target' => $zoneId,
+                'target' => (string) $userId,
+                'additional_target' => (string) $zoneId,
             ];
             
+            $url = rtrim($this->baseUrl, '/') . '/game-feature';
+
             // Log request data (without exposing full credentials)
             Log::info('Provider nickname check request', [
-                'url' => $this->baseUrl . '/game-feature',
+                'url' => $url,
                 'type' => $formData['type'],
                 'code' => $formData['code'],
                 'target' => $formData['target'],
@@ -78,23 +74,27 @@ class VipResellerService
             
             // Use asForm() which sends as application/x-www-form-urlencoded
             $response = Http::asForm()
+                ->timeout(20)
                 ->withHeaders([
                     'Content-Type' => 'application/x-www-form-urlencoded',
                 ])
-                ->post($this->baseUrl . '/game-feature', $formData);
+                ->post($url, $formData);
 
+            $rawBody = $response->body();
             $data = $response->json();
 
-            // Log response for debugging
+            // Always log full provider response so production 500s/API errors are visible
             Log::info('Provider nickname check response', [
-                'status' => $response->status(),
-                'headers' => $response->headers(),
-                'body' => $response->body(),
-                'data' => $data,
+                'http_status' => $response->status(),
+                'successful' => $response->successful(),
+                'raw_body' => $rawBody,
+                'parsed_json' => $data,
+                'target' => $formData['target'],
+                'additional_target' => $formData['additional_target'],
             ]);
 
             // API returns: {"result": true, "data": "nickname", "message": "Success"}
-            if ($response->successful() && isset($data['result']) && $data['result'] === true) {
+            if ($response->successful() && is_array($data) && ($data['result'] ?? false) === true) {
                 // The nickname is in the 'data' field directly (string)
                 $nickname = $data['data'] ?? null;
                 
@@ -105,21 +105,40 @@ class VipResellerService
                 ];
             }
 
+            $providerMessage = is_array($data)
+                ? ($data['message'] ?? null)
+                : null;
+
+            Log::warning('Provider nickname check failed', [
+                'http_status' => $response->status(),
+                'provider_message' => $providerMessage,
+                'raw_body' => $rawBody,
+                'target' => $formData['target'],
+                'additional_target' => $formData['additional_target'],
+            ]);
+
             // API returns: {"result": false, "message": "error message"}
             return [
                 'result' => false,
                 'data' => null,
-                'message' => $data['message'] ?? 'Failed to validate nickname. Please check your User ID and Zone ID.',
+                'message' => $providerMessage ?: 'Failed to validate nickname. Please check your User ID and Zone ID.',
+                'provider_http_status' => $response->status(),
+                'provider_body' => $rawBody,
             ];
-        } catch (\Exception $e) {
-            Log::error('Provider nickname check error: ' . $e->getMessage(), [
+        } catch (\Throwable $e) {
+            Log::error('Provider nickname check exception', [
                 'user_id' => $userId,
                 'zone_id' => $zoneId,
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return [
-                'success' => false,
+                'result' => false,
+                'data' => null,
                 'message' => 'Error validating nickname: ' . $e->getMessage(),
             ];
         }

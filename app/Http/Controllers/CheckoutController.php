@@ -1046,14 +1046,34 @@ class CheckoutController extends Controller
      */
     public function validateNickname(Request $request)
     {
-        $request->validate([
-            'user_id' => 'required|string',
-            'zone_id' => 'required|string',
+        Log::info('Nickname validation endpoint hit', [
+            'user_id' => $request->input('user_id'),
+            'zone_id' => $request->input('zone_id'),
+            'ip' => $request->ip(),
+            'content_type' => $request->header('Content-Type'),
         ]);
 
         try {
+            $request->validate([
+                'user_id' => 'required',
+                'zone_id' => 'required',
+            ]);
+
+            $userId = (string) $request->input('user_id');
+            $zoneId = (string) $request->input('zone_id');
+
             $vipResellerService = app(VipResellerService::class);
-            $result = $vipResellerService->checkNickname($request->user_id, $request->zone_id);
+            $result = $vipResellerService->checkNickname($userId, $zoneId);
+
+            Log::info('Nickname validation service result', [
+                'user_id' => $userId,
+                'zone_id' => $zoneId,
+                'result' => $result['result'] ?? false,
+                'message' => $result['message'] ?? null,
+                'data' => $result['data'] ?? null,
+                'provider_http_status' => $result['provider_http_status'] ?? null,
+                'provider_body' => $result['provider_body'] ?? null,
+            ]);
 
             // Return the API response directly: {"result": true/false, "data": "nickname", "message": "..."}
             // Build a friendly message when the external service returned no message
@@ -1067,15 +1087,28 @@ class CheckoutController extends Controller
                 'data' => $result['data'] ?? null,
                 'message' => $message,
             ], ($result['result'] === true) ? 200 : 400);
-        } catch (\Exception $e) {
-            Log::error('Nickname validation error: '.$e->getMessage(), [
-                'user_id' => $request->user_id,
-                'zone_id' => $request->zone_id,
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Nickname validation request invalid', [
+                'errors' => $e->errors(),
+                'payload' => $request->all(),
+            ]);
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Nickname validation error', [
+                'user_id' => $request->input('user_id'),
+                'zone_id' => $request->input('zone_id'),
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
+                'result' => false,
                 'success' => false,
                 'message' => 'Error validating nickname. Please try again.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
