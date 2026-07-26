@@ -3,30 +3,11 @@
 namespace App\Support;
 
 /**
- * Logging that never takes down a request/command if storage/logs is broken.
+ * File-only logging. Avoids Laravel's Log/Monolog facade entirely because a
+ * locked or broken storage/logs/laravel.log can hang/kill requests & cron jobs.
  */
 class SafeLog
 {
-    public static function write(string $level, string $message, array $context = []): void
-    {
-        try {
-            $logger = \Illuminate\Support\Facades\Log::getFacadeRoot();
-            if ($logger && method_exists($logger, $level)) {
-                $logger->{$level}($message, $context);
-            }
-        } catch (\Throwable $e) {
-            self::file('laravel-fallback.log', 'LOG_FAIL '.$e->getMessage().' | '.$message, $context);
-        }
-
-        // Always mirror critical debug lines to a dedicated file
-        if (in_array($level, ['error', 'warning', 'critical'], true)
-            || str_contains($message, 'nickname')
-            || str_contains($message, 'Digiflazz sync')
-            || str_contains($message, 'Provider nickname')) {
-            self::file('debug-runtime.log', strtoupper($level).' '.$message, $context);
-        }
-    }
-
     public static function info(string $message, array $context = []): void
     {
         self::write('info', $message, $context);
@@ -40,6 +21,20 @@ class SafeLog
     public static function error(string $message, array $context = []): void
     {
         self::write('error', $message, $context);
+    }
+
+    public static function write(string $level, string $message, array $context = []): void
+    {
+        self::file('debug-runtime.log', strtoupper($level).' '.$message, $context);
+
+        if (str_contains(strtolower($message), 'nickname')
+            || str_contains(strtolower($message), 'provider nickname')) {
+            self::file('nickname-debug.log', strtoupper($level).' '.$message, $context);
+        }
+
+        if (str_contains(strtolower($message), 'digiflazz')) {
+            self::file('digiflazz-sync.log', strtoupper($level).' '.$message, $context);
+        }
     }
 
     public static function file(string $filename, string $message, array $context = []): void

@@ -31,8 +31,8 @@ class SyncDigiflazzPrices extends Command
     {
         $step = function (string $msg) {
             $this->info($msg);
+            // File only — never call Laravel Log (can hang on locked laravel.log)
             \App\Support\SafeLog::file('digiflazz-sync.log', $msg);
-            \App\Support\SafeLog::info('Digiflazz sync: '.$msg);
         };
 
         $step('Starting Digiflazz price sync...');
