@@ -31,6 +31,7 @@ class SyncDigiflazzPrices extends Command
     public function handle()
     {
         $this->info('Starting Digiflazz price sync...');
+        Log::info('Digiflazz sync: started');
 
         try {
             // Get Digiflazz credentials
@@ -315,6 +316,16 @@ class SyncDigiflazzPrices extends Command
                 $this->info("Activated: {$activatedCount} packs");
                 $this->info("Deactivated: {$deactivatedCount} packs");
 
+                if ($updatedCount === 0) {
+                    $this->warn('No packs matched Digiflazz products (Updated: 0). Check pack names vs Digiflazz product names.');
+                    Log::warning('Digiflazz sync: zero packs matched/updated', [
+                        'products_fetched' => count($products),
+                        'active_products' => count($activeProducts),
+                        'grouped_products' => count($groupedProducts),
+                        'game_types_in_sync' => $gameTypesInSync,
+                    ]);
+                }
+
                 // Send Telegram notification
                 $this->sendTelegramNotification($updatedCount, $activatedCount, $deactivatedCount, $activatedPacks, $deactivatedPacks);
 
@@ -322,6 +333,8 @@ class SyncDigiflazzPrices extends Command
                     'updated' => $updatedCount,
                     'activated' => $activatedCount,
                     'deactivated' => $deactivatedCount,
+                    'products_fetched' => count($products),
+                    'grouped_products' => count($groupedProducts),
                 ]);
 
                 return 0;

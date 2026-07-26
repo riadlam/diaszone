@@ -9,19 +9,22 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Schedule Digiflazz price sync every 5 minutes
+// Note: do NOT use runInBackground() with withoutOverlapping() — if the
+// background process dies before schedule:finish, the mutex sticks for up to
+// 24h and later runs are skipped silently (no logs, no Telegram).
 Schedule::command('digiflazz:sync-prices')
     ->everyFiveMinutes()
-    ->withoutOverlapping()
-    ->runInBackground();
+    ->withoutOverlapping(10)
+    ->appendOutputTo(storage_path('logs/digiflazz-sync.log'));
 
 // Schedule Item4Gamer order status check every 3 minutes
 Schedule::command('item4gamer:check-status')
     ->everyThreeMinutes()
-    ->withoutOverlapping()
-    ->runInBackground();
+    ->withoutOverlapping(10)
+    ->appendOutputTo(storage_path('logs/item4gamer-status.log'));
 
 // Schedule Digiflazz order status check every 5 minutes
 Schedule::command('digiflazz:check-order-status')
     ->everyFiveMinutes()
-    ->withoutOverlapping()
-    ->runInBackground();
+    ->withoutOverlapping(10)
+    ->appendOutputTo(storage_path('logs/digiflazz-order-status.log'));

@@ -29,6 +29,7 @@ class CheckDigiflazzOrderStatus extends Command
     public function handle()
     {
         $this->info('Checking Digiflazz order statuses...');
+        Log::info('Digiflazz cron: order status check started');
 
         try {
             // Get all orders with status 'sending'
@@ -37,6 +38,9 @@ class CheckDigiflazzOrderStatus extends Command
                 ->get();
 
             $this->info("Found {$sendingOrders->count()} orders with status 'sending'");
+            Log::info('Digiflazz cron: found sending orders', [
+                'count' => $sendingOrders->count(),
+            ]);
 
             $checked = 0;
             $completed = 0;
