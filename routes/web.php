@@ -157,7 +157,7 @@ Route::get('/api/orders/mine', [CheckoutController::class, 'listMyOrders'])
     ->middleware(['auth', 'throttle:60,1'])
     ->name('api.orders.mine');
 Route::post('/api/validate-nickname', [CheckoutController::class, 'validateNickname'])
-    ->middleware('throttle:10,1') // 10 requests per minute
+    ->middleware('throttle:30,1')
     ->name('api.validate-nickname');
 Route::post('/api/orders/check-crypto-payment', [CheckoutController::class, 'checkCryptoPayment'])
     ->middleware('throttle:20,1') // 20 requests per minute

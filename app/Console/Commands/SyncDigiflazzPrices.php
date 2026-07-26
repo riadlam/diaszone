@@ -7,7 +7,6 @@ use App\Services\TelegramService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class SyncDigiflazzPrices extends Command
 {
@@ -30,19 +29,29 @@ class SyncDigiflazzPrices extends Command
      */
     public function handle()
     {
-        $this->info('Starting Digiflazz price sync...');
-        Log::info('Digiflazz sync: started');
+        $step = function (string $msg) {
+            $this->info($msg);
+            \App\Support\SafeLog::file('digiflazz-sync.log', $msg);
+            \App\Support\SafeLog::info('Digiflazz sync: '.$msg);
+        };
+
+        $step('Starting Digiflazz price sync...');
 
         try {
             // Get Digiflazz credentials
             // Note: Digiflazz uses 'sign' as the API key name in config
-            $username = config('services.digiflazz.username') ?? env('DIGIFLAZZ_USERNAME');
-            $apiKey = config('services.digiflazz.sign') ?? config('services.digiflazz.api_key') ?? env('DIGIFLAZZ_SIGN') ?? env('DIGIFLAZZ_API_KEY');
+            $username = config('services.digiflazz.username') ?: env('DIGIFLAZZ_USERNAME');
+            $apiKey = config('services.digiflazz.sign')
+                ?: config('services.digiflazz.api_key')
+                ?: env('DIGIFLAZZ_SIGN')
+                ?: env('DIGIFLAZZ_API_KEY');
             $baseUrl = config('services.digiflazz.base_url', 'https://api.digiflazz.com/v1');
+
+            $step('Credentials check: username_set='.(!empty($username) ? 'yes' : 'no').' api_key_set='.(!empty($apiKey) ? 'yes' : 'no').' base_url='.$baseUrl);
 
             if (empty($username) || empty($apiKey)) {
                 $this->error('Digiflazz credentials not configured');
-                Log::error('Digiflazz sync: Missing credentials', [
+                \App\Support\SafeLog::error('Digiflazz sync: Missing credentials', [
                     'username_set' => !empty($username),
                     'api_key_set' => !empty($apiKey),
                 ]);
@@ -53,19 +62,33 @@ class SyncDigiflazzPrices extends Command
             // Note: Digiflazz uses "pricelist" as the constant string for price-list endpoint
             $sign = md5($username . $apiKey . 'pricelist');
 
+            $step('Calling Digiflazz price-list API...');
+
             // Single API call to fetch all Games category products
             // We'll filter to only process products that match our packs for mobilelegends, freefire, pubg_mobile, genshin_impact, bloodstrike, honorofkings, punishinggrayraven, and wutheringwaves
-            $response = Http::timeout(30)
-                ->post($baseUrl . '/price-list', [
-                    'cmd' => 'prepaid',
-                    'username' => $username,
-                    'sign' => $sign,
-                    'category' => 'Games',
+            try {
+                $response = Http::connectTimeout(8)
+                    ->timeout(25)
+                    ->post($baseUrl . '/price-list', [
+                        'cmd' => 'prepaid',
+                        'username' => $username,
+                        'sign' => $sign,
+                        'category' => 'Games',
+                    ]);
+            } catch (\Throwable $httpEx) {
+                $this->error('Digiflazz HTTP error: '.$httpEx->getMessage());
+                \App\Support\SafeLog::error('Digiflazz sync: HTTP exception', [
+                    'error' => $httpEx->getMessage(),
+                    'exception' => get_class($httpEx),
                 ]);
+                return 1;
+            }
+
+            $step('Digiflazz HTTP status='.$response->status());
 
             if (!$response->successful()) {
                 $this->error('Failed to fetch products from Digiflazz');
-                Log::error('Digiflazz sync: API call failed', [
+                \App\Support\SafeLog::error('Digiflazz sync: API call failed', [
                     'status' => $response->status(),
                     'response' => $response->body(),
                 ]);
@@ -77,7 +100,7 @@ class SyncDigiflazzPrices extends Command
 
             if (empty($products)) {
                 $this->warn('No products returned from Digiflazz API');
-                Log::warning('Digiflazz sync: Empty product list');
+                \App\Support\SafeLog::warning('Digiflazz sync: Empty product list');
                 return 0;
             }
 
@@ -174,7 +197,7 @@ class SyncDigiflazzPrices extends Command
                         if ($exceedsPriceLimit) {
                             // Price exceeds limit - don't update/activate, will be deactivated if no other sellers
                             $this->warn("Price exceeds limit for {$pack->name}: {$price} > {$priceLimit}");
-                            Log::info('Digiflazz sync: Price exceeds limit', [
+                            \App\Support\SafeLog::info('Digiflazz sync: Price exceeds limit', [
                                 'pack_id' => $pack->id,
                                 'pack_name' => $pack->name,
                                 'digiflazz_price' => $price,
@@ -243,7 +266,7 @@ class SyncDigiflazzPrices extends Command
                     } else {
                         // Pack not found - log for manual review
                         $this->warn("Pack not found for any SKU variants: " . implode(", ", $allSkuCodes) . " ({$productData['product_name']})");
-                        Log::warning('Digiflazz sync: Pack not found for any SKU variants', [
+                        \App\Support\SafeLog::warning('Digiflazz sync: Pack not found for any SKU variants', [
                             'sku_codes' => $allSkuCodes,
                             'cheapest_sku_code' => $cheapestSkuCode,
                             'product_name' => $productData['product_name'],
@@ -318,7 +341,7 @@ class SyncDigiflazzPrices extends Command
 
                 if ($updatedCount === 0) {
                     $this->warn('No packs matched Digiflazz products (Updated: 0). Check pack names vs Digiflazz product names.');
-                    Log::warning('Digiflazz sync: zero packs matched/updated', [
+                    \App\Support\SafeLog::warning('Digiflazz sync: zero packs matched/updated', [
                         'products_fetched' => count($products),
                         'active_products' => count($activeProducts),
                         'grouped_products' => count($groupedProducts),
@@ -329,7 +352,7 @@ class SyncDigiflazzPrices extends Command
                 // Send Telegram notification
                 $this->sendTelegramNotification($updatedCount, $activatedCount, $deactivatedCount, $activatedPacks, $deactivatedPacks);
 
-                Log::info('Digiflazz price sync completed', [
+                \App\Support\SafeLog::info('Digiflazz price sync completed', [
                     'updated' => $updatedCount,
                     'activated' => $activatedCount,
                     'deactivated' => $deactivatedCount,
@@ -341,7 +364,7 @@ class SyncDigiflazzPrices extends Command
             } catch (\Exception $e) {
                 DB::rollBack();
                 $this->error('Error updating packs: ' . $e->getMessage());
-                Log::error('Digiflazz sync: Database error', [
+                \App\Support\SafeLog::error('Digiflazz sync: Database error', [
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
@@ -349,7 +372,7 @@ class SyncDigiflazzPrices extends Command
             }
         } catch (\Exception $e) {
             $this->error('Sync failed: ' . $e->getMessage());
-            Log::error('Digiflazz sync: Fatal error', [
+            \App\Support\SafeLog::error('Digiflazz sync: Fatal error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -418,7 +441,7 @@ class SyncDigiflazzPrices extends Command
 
             TelegramService::sendToUpdatesChannel($message);
         } catch (\Exception $e) {
-            Log::warning('Failed to send Telegram notification for price sync', [
+            \App\Support\SafeLog::warning('Failed to send Telegram notification for price sync', [
                 'error' => $e->getMessage(),
             ]);
         }

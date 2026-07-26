@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\SafeLog;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -34,7 +35,7 @@ class VipResellerService
         try {
             // Validate credentials are set
             if (empty($this->apiKey) || empty($this->sign)) {
-                Log::error('Provider nickname check: credentials missing', [
+                SafeLog::error('Provider nickname check: credentials missing', [
                     'api_key_empty' => empty($this->apiKey),
                     'sign_empty' => empty($this->sign),
                     'api_id_set' => !empty($this->apiId),
@@ -60,7 +61,7 @@ class VipResellerService
             $url = rtrim($this->baseUrl, '/') . '/game-feature';
 
             // Log request data (without exposing full credentials)
-            Log::info('Provider nickname check request', [
+            SafeLog::info('Provider nickname check request', [
                 'url' => $url,
                 'type' => $formData['type'],
                 'code' => $formData['code'],
@@ -74,6 +75,7 @@ class VipResellerService
             
             // Use asForm() which sends as application/x-www-form-urlencoded
             $response = Http::asForm()
+                ->connectTimeout(8)
                 ->timeout(20)
                 ->withHeaders([
                     'Content-Type' => 'application/x-www-form-urlencoded',
@@ -84,7 +86,7 @@ class VipResellerService
             $data = $response->json();
 
             // Always log full provider response so production 500s/API errors are visible
-            Log::info('Provider nickname check response', [
+            SafeLog::info('Provider nickname check response', [
                 'http_status' => $response->status(),
                 'successful' => $response->successful(),
                 'raw_body' => $rawBody,
@@ -109,7 +111,7 @@ class VipResellerService
                 ? ($data['message'] ?? null)
                 : null;
 
-            Log::warning('Provider nickname check failed', [
+            SafeLog::warning('Provider nickname check failed', [
                 'http_status' => $response->status(),
                 'provider_message' => $providerMessage,
                 'raw_body' => $rawBody,
@@ -126,7 +128,7 @@ class VipResellerService
                 'provider_body' => $rawBody,
             ];
         } catch (\Throwable $e) {
-            Log::error('Provider nickname check exception', [
+            SafeLog::error('Provider nickname check exception', [
                 'user_id' => $userId,
                 'zone_id' => $zoneId,
                 'error' => $e->getMessage(),

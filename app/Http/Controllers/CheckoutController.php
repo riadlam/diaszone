@@ -1046,11 +1046,10 @@ class CheckoutController extends Controller
      */
     public function validateNickname(Request $request)
     {
-        Log::info('Nickname validation endpoint hit', [
+        \App\Support\SafeLog::file('nickname-debug.log', 'endpoint_hit', [
             'user_id' => $request->input('user_id'),
             'zone_id' => $request->input('zone_id'),
             'ip' => $request->ip(),
-            'content_type' => $request->header('Content-Type'),
         ]);
 
         try {
@@ -1062,10 +1061,24 @@ class CheckoutController extends Controller
             $userId = (string) $request->input('user_id');
             $zoneId = (string) $request->input('zone_id');
 
+            \App\Support\SafeLog::info('Nickname validation endpoint hit', [
+                'user_id' => $userId,
+                'zone_id' => $zoneId,
+                'ip' => $request->ip(),
+            ]);
+
             $vipResellerService = app(VipResellerService::class);
             $result = $vipResellerService->checkNickname($userId, $zoneId);
 
-            Log::info('Nickname validation service result', [
+            \App\Support\SafeLog::file('nickname-debug.log', 'service_result', [
+                'result' => $result['result'] ?? false,
+                'message' => $result['message'] ?? null,
+                'data' => $result['data'] ?? null,
+                'provider_http_status' => $result['provider_http_status'] ?? null,
+                'provider_body' => $result['provider_body'] ?? null,
+            ]);
+
+            \App\Support\SafeLog::info('Nickname validation service result', [
                 'user_id' => $userId,
                 'zone_id' => $zoneId,
                 'result' => $result['result'] ?? false,
@@ -1088,13 +1101,19 @@ class CheckoutController extends Controller
                 'message' => $message,
             ], ($result['result'] === true) ? 200 : 400);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::warning('Nickname validation request invalid', [
+            \App\Support\SafeLog::warning('Nickname validation request invalid', [
                 'errors' => $e->errors(),
                 'payload' => $request->all(),
             ]);
             throw $e;
         } catch (\Throwable $e) {
-            Log::error('Nickname validation error', [
+            \App\Support\SafeLog::file('nickname-debug.log', 'exception', [
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            \App\Support\SafeLog::error('Nickname validation error', [
                 'user_id' => $request->input('user_id'),
                 'zone_id' => $request->input('zone_id'),
                 'error' => $e->getMessage(),
