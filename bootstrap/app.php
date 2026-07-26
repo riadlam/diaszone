@@ -21,15 +21,24 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\LanguageMiddleware::class,
         ]);
         
-        // Exclude webhook routes from CSRF verification
+        // Exclude webhook / public JSON API routes from CSRF verification
         $middleware->validateCsrfTokens(except: [
             'webhook/baridimob',
             'webhook/mixpay',
             'webhook/nowpayments',
             'webhook/vipreseller',
             'webhook/telegram',
+            'webhook/digiflazz',
+            'api/validate-nickname',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->reportable(function (\Illuminate\Session\TokenMismatchException $e) {
+            \Illuminate\Support\Facades\Log::warning('CSRF token mismatch', [
+                'url' => request()->fullUrl(),
+                'method' => request()->method(),
+                'ip' => request()->ip(),
+                'path' => request()->path(),
+            ]);
+        });
     })->create();
