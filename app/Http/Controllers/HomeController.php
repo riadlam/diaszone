@@ -761,8 +761,21 @@ class HomeController extends Controller
         // Pass helper functions to view for region flags/names
         view()->share('getRegionFlag', [$this, 'getRegionFlag']);
         view()->share('getRegionName', [$this, 'getRegionName']);
+
+        $item4gamerUnavailable = \App\Support\GameProvider::isItem4GamerUnavailable($gameType);
         
-        return view('pages.game-topup', compact('packs', 'gameType', 'gameTitle', 'gameImage', 'game', 'reviews', 'averageRating', 'totalReviews', 'availableRegions'));
+        return view('pages.game-topup', compact(
+            'packs',
+            'gameType',
+            'gameTitle',
+            'gameImage',
+            'game',
+            'reviews',
+            'averageRating',
+            'totalReviews',
+            'availableRegions',
+            'item4gamerUnavailable'
+        ));
     }
 
     public function mobileLegends()

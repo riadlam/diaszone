@@ -116,9 +116,6 @@
                             <div id="orders-container" class="hidden space-y-4">
                                 <!-- Orders will be loaded here via JavaScript -->
                             </div>
-                            <div id="orders-pagination" class="hidden mt-6 flex justify-center items-center space-x-2">
-                                <!-- Pagination controls will be loaded here via JavaScript -->
-                            </div>
                             <div id="orders-empty" class="hidden text-center py-12">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
@@ -251,29 +248,19 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         ordersEmpty.classList.add('hidden');
 
-        // Sort orders by date (newest first)
+        // Sort orders by date (newest first, oldest at the end)
         filtered.sort((a, b) => {
-            const dateA = new Date(a.order.created_at);
-            const dateB = new Date(b.order.created_at);
-            return dateB - dateA; // Descending order (newest first)
+            const dateA = new Date(a.order.created_at).getTime() || 0;
+            const dateB = new Date(b.order.created_at).getTime() || 0;
+            if (dateB !== dateA) {
+                return dateB - dateA;
+            }
+            // Stable tie-break: higher order id first
+            return (parseInt(b.order.id || 0, 10) - parseInt(a.order.id || 0, 10));
         });
-        
-        // Pagination state (store in object for global access)
-        const ordersPerPage = 5;
-        const paginationState = {
-            currentPage: 1,
-            totalPages: Math.ceil(filtered.length / ordersPerPage),
-            allOrders: filtered
-        };
-        const paginationContainer = document.getElementById('orders-pagination');
-        
-        // Function to render orders for a specific page
-        function renderOrders(page) {
-            const startIndex = (page - 1) * ordersPerPage;
-            const endIndex = startIndex + ordersPerPage;
-            const ordersToShow = paginationState.allOrders.slice(startIndex, endIndex);
-            
-            ordersContainer.innerHTML = ordersToShow.map(result => {
+
+        function renderOrders(allOrders) {
+            ordersContainer.innerHTML = allOrders.map(result => {
             const order = result.order;
             const encryptedOrderId = result.encryptedId;
             
@@ -285,11 +272,27 @@ document.addEventListener('DOMContentLoaded', async function() {
                 'pending_confirmation': 'bg-orange-100 text-orange-800',
                 'completed': 'bg-green-100 text-green-800',
                 'sending': 'bg-blue-100 text-blue-800',
+                'failed': 'bg-red-100 text-red-800',
                 'refunded': 'bg-red-100 text-red-800',
                 'cancelled': 'bg-gray-100 text-gray-800'
             };
+
+            const statusLabels = {
+                'pending': 'Pending',
+                'pending_flexy': 'Pending Flexy',
+                'pending_bmccp': 'Pending Baridimob',
+                'pending_cryptopay': 'Pending Crypto',
+                'pending_confirmation': 'Pending Confirmation',
+                'sending': 'Processing',
+                'completed': 'Completed',
+                'failed': 'Failed',
+                'refunded': 'Refunded',
+                'cancelled': 'Cancelled',
+            };
             
             const statusColor = statusColors[order.status] || 'bg-gray-100 text-gray-800';
+            const statusLabel = statusLabels[order.status]
+                || String(order.status || 'Unknown').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
             
             // Get game type and name from API response (already calculated on backend)
             let gameType = order.game_type || order.diamond_pack?.game_type;
@@ -328,19 +331,34 @@ document.addEventListener('DOMContentLoaded', async function() {
                 'devil_may_cry_peak_of_combat': 'Devil Gems',
             };
             currencyText = currencyMap[gameType] || 'Diamonds';
-            
-            // Determine pack display name
-            let packDisplayName = '';
-            if (order.diamond_pack?.name) {
-                packDisplayName = order.diamond_pack.name;
+
+            // Build pack lines from order_items (correct qty / multi-pack), fallback to primary pack
+            const orderItems = Array.isArray(order.order_items) ? order.order_items : [];
+            let packLinesHtml = '';
+            if (orderItems.length > 0) {
+                packLinesHtml = orderItems.map((item, idx) => {
+                    const pack = item.diamond_pack || {};
+                    const qty = Math.max(1, parseInt(item.quantity || 1, 10));
+                    let name = pack.name || `${pack.diamonds || 0} ${currencyText}`;
+                    const bonus = parseInt(pack.bonus_diamonds || 0, 10);
+                    if (bonus > 0) {
+                        name += ` + ${bonus} Bonus ${currencyText}`;
+                    }
+                    const qtyText = qty > 1 ? ` <span class="text-purple-500">× ${qty}</span>` : '';
+                    const border = idx > 0 ? 'mt-1 pt-1 border-t border-purple-100' : '';
+                    return `<p class="text-lg text-purple-600 font-semibold ${border}">${name}${qtyText}</p>`;
+                }).join('');
             } else {
-                packDisplayName = `${order.diamond_pack?.diamonds || 0} ${currencyText}`;
+                let packDisplayName = order.diamond_pack?.name
+                    || `${order.diamond_pack?.diamonds || 0} ${currencyText}`;
+                const bonus = order.diamond_pack?.bonus_diamonds || 0;
+                if (bonus > 0) {
+                    packDisplayName += ` + ${bonus} Bonus ${currencyText}`;
+                }
+                const legacyQty = Math.max(1, parseInt(order.quantity || 1, 10));
+                const qtyText = legacyQty > 1 ? ` <span class="text-purple-500">× ${legacyQty}</span>` : '';
+                packLinesHtml = `<p class="text-lg text-purple-600 font-semibold mb-2">${packDisplayName}${qtyText}</p>`;
             }
-            
-            // Bonus display
-            const bonus = order.diamond_pack?.bonus_diamonds || 0;
-            const bonusText = bonus > 0 ? ` + ${bonus} Bonus ${currencyText}` : '';
-            const packDisplayText = packDisplayName + bonusText;
             
             // Determine game type and display appropriate fields (only show if values exist)
             let gameInfo = `<p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>`;
@@ -408,70 +426,42 @@ document.addEventListener('DOMContentLoaded', async function() {
                     `;
             }
             
-            // Calculate price display based on order status and payment method
+            // Prefer stored order totals (includes quantity / multi-item)
+            const amountDzd = parseFloat(order.amount_dzd ?? order.amount ?? 0) || 0;
+            const amountUsd = parseFloat(order.amount_usd ?? 0) || 0;
             let priceDisplay = '';
             const isFlexyOrder = order.status === 'pending_flexy' || order.status === 'pending_confirmation';
             
             if (isFlexyOrder) {
-                // For Flexy orders: use price_dzd from pack, then add 50 DZD fee
-                const priceDzd = parseFloat(order.diamond_pack?.price_dzd || 0);
-                
-                if (!priceDzd || priceDzd <= 0) {
-                    console.error('Flexy order missing price_dzd:', order);
-                    priceDisplay = `US$ ${order.amount.toFixed(2)}`;
-                } else {
-                    const discountPercentage = parseFloat(order.diamond_pack?.discount_percentage || 0);
-                    let finalPrice = priceDzd;
-                    
-                    if (discountPercentage > 0) {
-                        const discountAmount = (priceDzd * discountPercentage) / 100;
-                        finalPrice = priceDzd - discountAmount;
-                    }
-                    
-                    const flexyFee = 50; // 50 DZD processing fee
-                    const totalWithFee = finalPrice + flexyFee;
-                    
-                    priceDisplay = `${Math.round(totalWithFee).toLocaleString()} DZD`;
-                }
+                const flexyFee = 50;
+                const totalWithFee = amountDzd + flexyFee;
+                priceDisplay = `${Math.round(totalWithFee).toLocaleString()} DZD`;
             } else {
-                // For other orders, use selected currency
                 const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
-                const priceUsd = parseFloat(order.diamond_pack?.price_usd || order.amount);
-                const priceDzd = parseFloat(order.diamond_pack?.price_dzd || 0);
-                const discountPercentage = parseFloat(order.diamond_pack?.discount_percentage || 0);
-                
-                let finalPrice = currency === 'DZD' ? priceDzd : priceUsd;
-                
-                if (discountPercentage > 0) {
-                    const discountAmount = (finalPrice * discountPercentage) / 100;
-                    finalPrice = finalPrice - discountAmount;
-                }
-                
                 if (currency === 'DZD') {
-                    priceDisplay = `${Math.round(finalPrice).toLocaleString()} DZD`;
+                    priceDisplay = `${Math.round(amountDzd).toLocaleString()} DZD`;
                 } else {
-                    priceDisplay = `$${finalPrice.toFixed(2)} USD`;
+                    priceDisplay = `$${(amountUsd > 0 ? amountUsd : amountDzd).toFixed(2)} USD`;
                 }
             }
             
             return `
                 <div class="border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all">
                     <div class="flex justify-between items-start mb-4">
-                        <div>
+                        <div class="min-w-0 flex-1 pr-4">
                             <h3 class="text-xl font-bold text-gray-900 mb-2">${translations.orderNumber.replace(':number', order.order_number)}</h3>
-                            <p class="text-lg text-purple-600 font-semibold mb-2">${packDisplayText}</p>
+                            <div class="mb-2">${packLinesHtml}</div>
                             ${gameInfo}
                         </div>
-                        <div class="text-right">
+                        <div class="text-right flex-shrink-0">
                             <p class="text-2xl font-bold text-purple-600 mb-2 order-price-display" 
                                data-order-id="${order.id}" 
                                data-status="${order.status}"
-                               data-price-usd="${order.diamond_pack?.price_usd || 0}"
-                               data-price-dzd="${order.diamond_pack?.price_dzd || 0}"
-                               data-discount="${order.diamond_pack?.discount_percentage || 0}"
+                               data-amount-dzd="${amountDzd}"
+                               data-amount-usd="${amountUsd}"
                                data-is-flexy="${isFlexyOrder}">${priceDisplay}</p>
                             <span class="inline-block px-4 py-2 rounded-full text-sm font-semibold ${statusColor}">
-                                ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                ${statusLabel}
                             </span>
                         </div>
                     </div>
@@ -482,44 +472,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 </div>
             `;
             }).join('');
-            
-            // Render pagination
-            if (paginationState.totalPages > 1) {
-                const tPrevious = {!! json_encode(__('pagination.previous')) !!};
-                const tNext = {!! json_encode(__('pagination.next')) !!};
-                
-                let paginationHTML = '<div class="flex items-center space-x-2">';
-                
-                // Previous button
-                if (page > 1) {
-                    paginationHTML += `<button onclick="window.goToPage(${page - 1})" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors">${tPrevious}</button>`;
-                } else {
-                    paginationHTML += `<button disabled class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-400 font-medium cursor-not-allowed">${tPrevious}</button>`;
-                }
-                
-                // Page numbers
-                for (let i = 1; i <= paginationState.totalPages; i++) {
-                    if (i === page) {
-                        paginationHTML += `<button class="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold">${i}</button>`;
-                    } else {
-                        paginationHTML += `<button onclick="window.goToPage(${i})" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors">${i}</button>`;
-                    }
-                }
-                
-                // Next button
-                if (page < paginationState.totalPages) {
-                    paginationHTML += `<button onclick="window.goToPage(${page + 1})" class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors">${tNext}</button>`;
-                } else {
-                    paginationHTML += `<button disabled class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-400 font-medium cursor-not-allowed">${tNext}</button>`;
-                }
-                
-                paginationHTML += '</div>';
-                paginationContainer.innerHTML = paginationHTML;
-                paginationContainer.classList.remove('hidden');
-            } else {
-                paginationContainer.classList.add('hidden');
-            }
-            
+
             // Update prices after rendering
             setTimeout(() => {
                 updateDashboardPrices();
@@ -538,37 +491,20 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return; // Skip Flexy orders, they stay in DZD
                 }
                 
-                // Update other orders based on selected currency
-                const priceUsd = parseFloat(element.getAttribute('data-price-usd')) || 0;
-                const priceDzd = parseFloat(element.getAttribute('data-price-dzd')) || 0;
-                const discount = parseFloat(element.getAttribute('data-discount')) || 0;
-                
-                let finalPrice = currency === 'DZD' ? priceDzd : priceUsd;
-                
-                if (discount > 0) {
-                    const discountAmount = (finalPrice * discount) / 100;
-                    finalPrice = finalPrice - discountAmount;
-                }
+                const amountDzd = parseFloat(element.getAttribute('data-amount-dzd')) || 0;
+                const amountUsd = parseFloat(element.getAttribute('data-amount-usd')) || 0;
                 
                 if (currency === 'DZD') {
-                    element.textContent = `${Math.round(finalPrice).toLocaleString()} DZD`;
+                    element.textContent = `${Math.round(amountDzd).toLocaleString()} DZD`;
                 } else {
-                    element.textContent = `$${finalPrice.toFixed(2)} USD`;
+                    element.textContent = `$${(amountUsd > 0 ? amountUsd : amountDzd).toFixed(2)} USD`;
                 }
             });
         }
         
-        // Function to navigate to a specific page (must be accessible globally)
-        window.goToPage = function(page) {
-            if (page >= 1 && page <= paginationState.totalPages) {
-                paginationState.currentPage = page;
-                renderOrders(paginationState.currentPage);
-            }
-        };
-        
-        // Initial render
+        // Initial render — all orders, newest first
         ordersContainer.classList.remove('hidden');
-        renderOrders(paginationState.currentPage);
+        renderOrders(filtered);
         
         // Listen for currency changes (but Flexy orders won't change)
         window.addEventListener('currencyChanged', function(e) {

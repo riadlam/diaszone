@@ -1,5 +1,12 @@
 <div class="space-y-4" id="diamond-packs-wrapper">
     <h2 class="text-2xl font-bold text-gray-900 mb-6 hidden lg:block">{{ $gameTitle ?? __('game.diamond_packs') }}</h2>
+
+    @if(!empty($item4gamerUnavailable))
+        <div class="hidden lg:block mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <span class="font-semibold">Not available right now.</span>
+            These products cannot be purchased at the moment. Please check back later.
+        </div>
+    @endif
     
     <!-- Region Filter (Steam Gift Cards) -->
     @if(isset($availableRegions) && $availableRegions->isNotEmpty())
@@ -74,9 +81,15 @@
                        data-pack-membership-name="{{ $pack->membership_name }}"
                        data-pack-discount="{{ $pack->discount_percentage }}"
                        data-pack-currency="{{ $currencyName }}"
-                       id="pack-checkbox-{{ $pack->id }}">
+                       id="pack-checkbox-{{ $pack->id }}"
+                       @if(!empty($item4gamerUnavailable)) disabled @endif>
                 
-                <div class="SKU_type bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-500 transition-all relative" data-pack-wrapper="{{ $pack->id }}">
+                <div class="SKU_type bg-white border-2 {{ !empty($item4gamerUnavailable) ? 'border-gray-200 opacity-60 grayscale' : 'border-gray-200 hover:border-purple-500' }} rounded-lg p-4 transition-all relative" data-pack-wrapper="{{ $pack->id }}">
+                    @if(!empty($item4gamerUnavailable))
+                        <span class="absolute top-2 left-2 z-10 rounded-md bg-gray-800/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Not Available
+                        </span>
+                    @endif
                     <!-- Quantity Selector (visible when checked) -->
                     <div class="pack-quantity-control absolute top-2 right-2 hidden flex items-center gap-2 bg-purple-50 rounded-lg px-2 py-1 border border-purple-200 z-10">
                         <button type="button" class="quantity-decrease w-6 h-6 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-sm border border-purple-200 transition-colors" data-pack-id="{{ $pack->id }}" title="Decrease quantity">−</button>
@@ -90,7 +103,7 @@
                         <button type="button" class="quantity-increase w-6 h-6 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-sm border border-purple-200 transition-colors" data-pack-id="{{ $pack->id }}" title="Increase quantity">+</button>
                     </div>
                     
-                    <label for="pack-checkbox-{{ $pack->id }}" class="cursor-pointer block">
+                    <label for="pack-checkbox-{{ $pack->id }}" class="{{ !empty($item4gamerUnavailable) ? 'cursor-not-allowed' : 'cursor-pointer' }} block">
                     <div class="flex items-start gap-4">
                         <!-- Image: Show diamond pack images for Mobile Legends, game thumbnail for other games (except Free Fire) -->
                         @if(($gameType ?? 'mobilelegends') === 'mobilelegends')

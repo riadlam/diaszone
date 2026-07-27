@@ -861,6 +861,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Get game type from order form wrapper
                 const orderFormWrapper = document.getElementById('order-form-wrapper');
                 const gameType = orderFormWrapper ? orderFormWrapper.getAttribute('data-game-type') || 'mobilelegends' : 'mobilelegends';
+                const item4gamerUnavailable = orderFormWrapper
+                    ? orderFormWrapper.getAttribute('data-item4gamer-unavailable') === '1'
+                    : false;
+
+                if (item4gamerUnavailable) {
+                    showValidationError('This product is not available right now. Please try again later.');
+                    return;
+                }
                 
                 // Collect selected packs with quantities
                 const selectedPacks = checkedPacks.map(checkbox => {

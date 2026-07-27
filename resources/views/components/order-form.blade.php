@@ -5,6 +5,12 @@
     @endif
     
     <form id="order-form" class="space-y-4">
+        @if(!empty($item4gamerUnavailable))
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p class="font-semibold">Not available</p>
+                <p class="mt-1 text-amber-800">This game’s products cannot be purchased right now. You can view packs, but checkout is disabled.</p>
+            </div>
+        @endif
         @php
             // Check if game has required_fields defined (from JSON import)
             $requiredFields = isset($game) && $game && $game->required_fields ? $game->required_fields : null;
@@ -109,8 +115,9 @@
         <!-- Buy Now Button -->
         <button type="submit" 
                 id="buy-now-btn"
-                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
-            {{ __('game.buy_now') }}
+                @if(!empty($item4gamerUnavailable)) disabled @endif
+                class="w-full {{ !empty($item4gamerUnavailable) ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700' }} text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+            {{ !empty($item4gamerUnavailable) ? 'Not Available' : __('game.buy_now') }}
         </button>
     </form>
 </div>

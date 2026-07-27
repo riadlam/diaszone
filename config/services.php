@@ -57,6 +57,21 @@ return [
     'item4gamer' => [
         'api_key' => env('ITEM4GAMER_API_KEY'),
         'base_url' => env('ITEM4GAMER_BASE_URL', 'https://item4gamer.com/wp-json/reseller/v1'),
+        // When false, Item4Gamer games show as Not Available and cannot be purchased
+        'purchases_enabled' => filter_var(env('ITEM4GAMER_PURCHASES_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+    // Games fulfilled via Digiflazz (everything else uses Item4Gamer)
+    'digiflazz_games' => [
+        'mobilelegends',
+        'freefire',
+        'pubg_mobile',
+        'pubgmobile',
+        'genshin_impact',
+        'bloodstrike',
+        'honorofkings',
+        'punishinggrayraven',
+        'wutheringwaves',
     ],
 
     'sofizpay' => [

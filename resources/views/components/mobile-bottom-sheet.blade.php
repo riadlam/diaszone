@@ -82,7 +82,7 @@
                 }
             @endphp
                 @php $packQuantity = $pack->special_quantity ?? 1; @endphp
-                <div class="mobile-pack-item-wrapper relative" data-pack-region="{{ $pack->region ?? '' }}">
+                <div class="mobile-pack-item-wrapper relative {{ !empty($item4gamerUnavailable) ? 'opacity-60' : '' }}" data-pack-region="{{ $pack->region ?? '' }}">
                     <input type="checkbox" 
                            class="hidden mobile-pack-checkbox" 
                            id="mobile-pack-checkbox-{{ $pack->id }}"
@@ -96,8 +96,14 @@
                     data-pack-name="{{ $pack->name }}"
                     data-pack-membership-name="{{ $pack->membership_name }}"
                     data-pack-discount="{{ $pack->discount_percentage }}"
-                    data-pack-currency="{{ $currencyName }}">
+                    data-pack-currency="{{ $currencyName }}"
+                    @if(!empty($item4gamerUnavailable)) disabled @endif>
                     
+                    @if(!empty($item4gamerUnavailable))
+                        <span class="absolute top-3 left-3 z-20 rounded-md bg-gray-800/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Not Available
+                        </span>
+                    @endif
                     <!-- Quantity Selector (visible when checked) -->
                     <div class="mobile-pack-quantity-control absolute top-2 right-2 hidden flex items-center gap-1.5 bg-purple-50 rounded-lg px-1.5 py-0.5 border border-purple-200 z-10">
                         <button type="button" class="mobile-quantity-decrease w-5 h-5 flex items-center justify-center rounded bg-white hover:bg-purple-100 text-purple-600 font-semibold text-xs border border-purple-200 transition-colors" data-pack-id="{{ $pack->id }}" title="Decrease" onclick="event.stopPropagation(); event.preventDefault();">−</button>
@@ -113,7 +119,7 @@
                     </div>
                     
                     <label for="mobile-pack-checkbox-{{ $pack->id }}" 
-                           class="mobile-pack-item w-full bg-white border border-gray-200 rounded-2xl p-4 active:scale-[0.98] transition-all text-left shadow-sm hover:shadow-md hover:border-purple-300 active:bg-purple-50/30 cursor-pointer block"
+                           class="mobile-pack-item w-full bg-white border border-gray-200 rounded-2xl p-4 transition-all text-left shadow-sm {{ !empty($item4gamerUnavailable) ? 'cursor-not-allowed grayscale' : 'active:scale-[0.98] hover:shadow-md hover:border-purple-300 active:bg-purple-50/30 cursor-pointer' }} block"
                            data-pack-wrapper="{{ $pack->id }}"
                            onclick="event.stopPropagation();">
                 <div class="flex items-center gap-4">

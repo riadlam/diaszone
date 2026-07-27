@@ -12,11 +12,11 @@
         <div id="offers-section" class="flex flex-col lg:flex-row">
             <!-- Left Column: Diamond Packs (Scrollable) - Hidden on mobile -->
             <div class="flex-1 hidden lg:block" style="margin-right: 15px !important;">
-                @include('components.diamond-packs', ['packs' => $packs, 'gameType' => $gameType, 'gameTitle' => $gameTitle, 'gameImage' => $gameImage ?? null])
+                @include('components.diamond-packs', ['packs' => $packs, 'gameType' => $gameType, 'gameTitle' => $gameTitle, 'gameImage' => $gameImage ?? null, 'item4gamerUnavailable' => $item4gamerUnavailable ?? false])
             </div>
             
             <!-- Right Column: Order Form (Sticky on desktop, full width on mobile) -->
-            <div id="order-form-wrapper" class="w-full lg:w-96 lg:mt-0" data-game-type="{{ $gameType }}">
+            <div id="order-form-wrapper" class="w-full lg:w-96 lg:mt-0" data-game-type="{{ $gameType }}" data-item4gamer-unavailable="{{ ($item4gamerUnavailable ?? false) ? '1' : '0' }}">
                 <!-- Mobile: Select Pack Button (moved here to be in same column) -->
                 <div class="lg:hidden mb-4" id="mobile-select-pack-container">
                     <button id="mobile-select-pack-btn" 
@@ -32,14 +32,14 @@
                     </button>
                 </div>
                 
-                @include('components.order-form', ['gameTitle' => $gameTitle, 'gameType' => $gameType, 'game' => $game ?? null])
+                @include('components.order-form', ['gameTitle' => $gameTitle, 'gameType' => $gameType, 'game' => $game ?? null, 'item4gamerUnavailable' => $item4gamerUnavailable ?? false])
             </div>
         </div>
     </div>
 </div>
 
 <!-- Mobile Bottom Sheet - Always accessible, outside hidden column -->
-@include('components.mobile-bottom-sheet', ['packs' => $packs, 'gameType' => $gameType, 'gameTitle' => $gameTitle, 'gameImage' => $gameImage ?? null])
+@include('components.mobile-bottom-sheet', ['packs' => $packs, 'gameType' => $gameType, 'gameTitle' => $gameTitle, 'gameImage' => $gameImage ?? null, 'item4gamerUnavailable' => $item4gamerUnavailable ?? false])
 
 <!-- Recharge Info Section -->
 @include('components.recharge-info', ['gameType' => $gameType, 'gameTitle' => $gameTitle, 'game' => $game ?? null, 'averageRating' => $averageRating ?? 0, 'totalReviews' => $totalReviews ?? 0, 'reviews' => $reviews ?? collect([])])
