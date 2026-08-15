@@ -45,6 +45,7 @@ return [
     'review_receipt_message' => 'Nous examinerons votre reçu et vous recontacterons sous peu. Veuillez rester à l\'écoute et surveiller les mises à jour du tableau de bord.',
     'redirected_to_orders' => 'Vous serez redirigé vers <strong>Mes commandes</strong> dans :seconds secondes...',
     'go_to_my_orders' => 'Aller à mes commandes',
+    'spin_lucky_wheel' => 'Tourner la roue',
     'back_to_home' => 'Retour à l\'accueil',
     'copied_to_clipboard' => '✓ Copié dans le presse-papiers!',
     'total_before_discounts' => 'Total avant remises',

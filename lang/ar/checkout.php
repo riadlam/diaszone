@@ -45,6 +45,7 @@ return [
     'review_receipt_message' => 'سنراجع إيصالك وسنعود إليك قريباً. يرجى متابعة التحديثات من لوحة التحكم.',
     'redirected_to_orders' => 'سيتم توجيهك إلى <strong>طلباتي</strong> خلال :seconds ثانية...',
     'go_to_my_orders' => 'انتقل إلى طلباتي',
+    'spin_lucky_wheel' => 'أدر عجلة الحظ',
     'back_to_home' => 'العودة إلى الصفحة الرئيسية',
     'copied_to_clipboard' => '✓ تم النسخ إلى الحافظة!',
     'total_before_discounts' => 'الإجمالي قبل الخصومات',

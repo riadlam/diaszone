@@ -669,10 +669,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h2 class="text-2xl font-bold text-gray-900 mb-2">{!! json_encode(__('checkout.payment_successful_title')) !!}</h2>
                     <p class="text-gray-600 mb-6">{!! json_encode(__('checkout.payment_successful_message')) !!}</p>
                     <p class="text-sm text-gray-500 mb-4">{!! json_encode(__('checkout.redirecting_to_orders')) !!} <span id="redirect-countdown">5</span> {!! json_encode(__('common.seconds')) !!}...</p>
-                    <button onclick="window.location.href='{{ route('dashboard.orders') }}'" 
-                            class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                        {!! json_encode(__('checkout.go_to_my_orders')) !!}
-                    </button>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <button onclick="window.location.href='{{ route('dashboard.orders') }}'" 
+                                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-5 rounded-lg transition-colors">
+                            {!! json_encode(__('checkout.go_to_my_orders')) !!}
+                        </button>
+                        <button onclick="window.location.href='{{ route('event.show', 'mobilelegends') }}'" 
+                                class="w-full bg-amber-500 hover:bg-amber-600 text-gray-950 font-semibold py-3 px-5 rounded-lg transition-colors">
+                            {!! json_encode(__('checkout.spin_lucky_wheel')) !!}
+                        </button>
+                    </div>
                 </div>
             `;
             document.body.appendChild(successMessage);

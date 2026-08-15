@@ -128,7 +128,52 @@ class WheelEventFeatureTest extends TestCase
 
         $this->get(route('event.show', 'mobilelegends'))
             ->assertOk()
-            ->assertSee(__('event.login_required'), false);
+            ->assertSee('wheel-stage', false)
+            ->assertSee('wheelLoginModal', false)
+            ->assertSee(__('event.login_modal_title'), false)
+            ->assertSee(__('event.spin'), false);
+    }
+
+    public function test_upcoming_event_is_publicly_teased_only_when_no_event_is_active(): void
+    {
+        $upcoming = $this->makeEvent([
+            'name' => 'September Starfall',
+            'description' => 'New skins and diamond prizes are coming.',
+            'starts_at' => now()->addDays(5),
+            'ends_at' => now()->addDays(12),
+            'background_path' => 'event-backgrounds/september-starfall.png',
+        ]);
+
+        $this->get(route('event.show', 'mobilelegends'))
+            ->assertOk()
+            ->assertSee(__('event.next_event'), false)
+            ->assertSee($upcoming->name, false)
+            ->assertSee($upcoming->description, false)
+            ->assertSee('data-next-event-countdown', false)
+            ->assertSee('/storage/event-backgrounds/september-starfall.png', false)
+            ->assertDontSee(__('event.login_required'), false);
+
+        $active = $this->makeEvent([
+            'name' => 'Active Wheel Event',
+            'starts_at' => now()->subDay(),
+            'ends_at' => now()->addDays(2),
+        ]);
+        $this->makeRewards($active, $this->makePack());
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('event.show', 'mobilelegends'))
+            ->assertOk()
+            ->assertSee(__('event.spin'), false)
+            ->assertDontSee($upcoming->description, false)
+            ->assertDontSee('class="next-event-countdown', false);
+    }
+
+    public function test_public_navigation_links_to_the_lucky_wheel(): void
+    {
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee(route('event.show', 'mobilelegends'), false)
+            ->assertSee(__('nav.lucky_wheel'), false);
     }
 
     public function test_event_page_renders_fixed_backdrop_for_mobile_legends_only(): void

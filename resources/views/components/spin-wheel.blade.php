@@ -5,6 +5,8 @@
     $spinUrl = $spinUrl ?? '#';
     $rewardsUrl = $rewardsUrl ?? '#';
     $gameUrl = $gameUrl ?? url('/');
+    $loginUrl = $loginUrl ?? route('login');
+    $requiresLogin = $requiresLogin ?? false;
     $milestoneMode = $milestoneMode ?? true;
     $initialClaims = $initialClaims ?? [];
 
@@ -34,6 +36,8 @@
         'spinUrl' => $spinUrl,
         'rewardsUrl' => $rewardsUrl,
         'gameUrl' => $gameUrl,
+        'loginUrl' => $loginUrl,
+        'requiresLogin' => (bool) $requiresLogin,
         'spinsLeft' => (int) $spinsLeft,
         'unlimitedSpins' => (bool) $unlimitedSpins,
         'csrf' => csrf_token(),
@@ -68,6 +72,8 @@
             'my_rewards' => __('event.my_rewards'),
             'no_rewards_yet' => __('event.no_rewards_yet'),
             'login_required' => __('event.login_required'),
+            'login_cta' => __('event.login_cta'),
+            'login_modal_title' => __('event.login_modal_title'),
             'whatsapp_prefill' => __('event.whatsapp_prefill', ['code' => ':code']),
         ],
     ];
@@ -168,6 +174,20 @@
                 <a href="{{ $facebookUrl }}" class="wheel-btn wheel-btn--facebook" id="wheelResultFacebook" target="_blank" rel="noopener" hidden></a>
                 <a href="{{ $gameUrl }}" class="wheel-btn wheel-btn--primary" id="wheelResultUse" hidden></a>
                 <button type="button" class="wheel-btn wheel-btn--ghost" id="wheelResultClose" data-wheel-close>{{ __('event.close') }}</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="wheel-login" id="wheelLoginModal" role="dialog" aria-modal="true" aria-labelledby="wheelLoginTitle">
+        <button type="button" class="wheel-login__backdrop" data-login-close aria-label="{{ __('event.close') }}"></button>
+        <div class="wheel-login__card">
+            <button type="button" class="wheel-login__dismiss" data-login-close aria-label="{{ __('event.close') }}">&times;</button>
+            <div class="wheel-login__badge" aria-hidden="true">★</div>
+            <h3 class="wheel-login__title" id="wheelLoginTitle">{{ __('event.login_modal_title') }}</h3>
+            <p class="wheel-login__text">{{ __('event.login_required') }}</p>
+            <div class="wheel-login__actions">
+                <a href="{{ $loginUrl }}" class="wheel-btn wheel-btn--primary" id="wheelLoginCta">{{ __('event.login_cta') }}</a>
+                <button type="button" class="wheel-btn wheel-btn--ghost" data-login-close>{{ __('event.close') }}</button>
             </div>
         </div>
     </div>
@@ -539,6 +559,95 @@
 
 .wheel-result.is-open {
     display: flex;
+}
+
+.wheel-login {
+    position: fixed;
+    inset: 0;
+    z-index: 125;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+}
+
+.wheel-login.is-open {
+    display: flex;
+}
+
+.wheel-login__backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    background: rgba(17, 24, 39, 0.55);
+    cursor: default;
+    animation: wheelFade 0.2s ease both;
+}
+
+.wheel-login__card {
+    position: relative;
+    z-index: 1;
+    width: min(420px, 100%);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 1.25rem;
+    padding: 1.75rem 1.5rem 1.5rem;
+    text-align: center;
+    box-shadow: 0 30px 60px -20px rgba(17, 24, 39, 0.45);
+    animation: wheelPop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.wheel-login__dismiss {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.wheel-login__dismiss:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.wheel-login__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 0.75rem;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #fbbf24, #f59e0b);
+    color: #111827;
+    font-size: 1.25rem;
+}
+
+.wheel-login__title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #111827;
+}
+
+.wheel-login__text {
+    margin: 0.6rem 0 1.25rem;
+    color: #4b5563;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.wheel-login__actions {
+    display: grid;
+    gap: 0.65rem;
 }
 
 .wheel-result__backdrop {
@@ -1016,6 +1125,7 @@
     const waLink = document.getElementById('wheelResultWhatsapp');
     const fbLink = document.getElementById('wheelResultFacebook');
     const useLink = document.getElementById('wheelResultUse');
+    const loginModal = document.getElementById('wheelLoginModal');
 
     const rewardsPanel = document.getElementById('myRewardsPanel');
     const rewardsList = document.getElementById('myRewardsList');
@@ -1754,7 +1864,22 @@
         }
     }
 
+    function openLoginModal() {
+        if (!loginModal) return;
+        loginModal.classList.add('is-open');
+    }
+
+    function closeLoginModal() {
+        if (!loginModal) return;
+        loginModal.classList.remove('is-open');
+    }
+
     function openRewards() {
+        if (cfg.requiresLogin) {
+            openLoginModal();
+            return;
+        }
+
         rewardsPanel.classList.add('is-open');
         renderRewards();
         loadRewards(true);
@@ -1809,6 +1934,11 @@
     async function spin() {
         if (spinning) return;
 
+        if (cfg.requiresLogin) {
+            openLoginModal();
+            return;
+        }
+
         ensureAudio();
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
@@ -1838,7 +1968,7 @@
             spinning = false;
             buttonLabel.textContent = T.spin || '';
             button.disabled = !unlimitedSpins && spinsLeft <= 0;
-            showToast((data && data.message) || T.login_required || T.error || '');
+            openLoginModal();
             return;
         }
 
@@ -2085,6 +2215,15 @@
         }
     });
 
+    if (loginModal) {
+        loginModal.addEventListener('click', function (event) {
+            if (event.target.closest('[data-login-close]')) {
+                event.preventDefault();
+                closeLoginModal();
+            }
+        });
+    }
+
     rewardsPanel.addEventListener('click', function (event) {
         if (event.target.closest('[data-rewards-close]')) {
             event.preventDefault();
@@ -2115,7 +2254,9 @@
         }
 
         if (event.key !== 'Escape') return;
-        if (iconPreview.classList.contains('is-open')) {
+        if (loginModal && loginModal.classList.contains('is-open')) {
+            closeLoginModal();
+        } else if (iconPreview.classList.contains('is-open')) {
             closeIconPreview();
         } else if (modal.classList.contains('is-open')) {
             closeResult();

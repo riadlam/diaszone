@@ -2,6 +2,7 @@
 
 return [
     'home' => 'Home',
+    'lucky_wheel' => 'Lucky Wheel',
     'about' => 'About Us',
     'contact' => 'Contact Us',
     'cart' => 'Cart',

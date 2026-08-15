@@ -9,17 +9,18 @@
     $available = $available ?? false;
     $snapshot = $snapshot ?? null;
     $event = $event ?? null;
+    $nextEvent = $nextEvent ?? null;
     $prizes = $prizes ?? [];
     $rewardSegments = collect($prizes)->filter(fn ($prize) => ! empty($prize['reward_id']))->keyBy('reward_id');
     $spinsLeft = $snapshot['available_spins'] ?? ($spinsLeft ?? 0);
     $unlimitedSpins = $snapshot['unlimited_spins'] ?? ($unlimitedSpins ?? false);
     $claims = $snapshot['claims'] ?? collect();
     $backdrop = $available
-        ? ($event?->backgroundUrl() ?? url('/storage/event-backgrounds/mlbb-jujutsu-kaisen-skins.png'))
+        ? ($event?->backgroundUrl() ?? $nextEvent?->backgroundUrl() ?? url('/storage/event-backgrounds/mlbb-jujutsu-kaisen-skins.png'))
         : null;
 @endphp
 
-<div class="event-page min-h-screen {{ $backdrop ? 'has-backdrop' : 'bg-white' }}">
+<div class="event-page min-h-[70vh] {{ $backdrop ? 'has-backdrop' : 'bg-white' }}">
     @if($backdrop)
         <div class="event-backdrop" aria-hidden="true">
             <div class="event-backdrop__image" style="background-image: url('{{ $backdrop }}');"></div>
@@ -39,7 +40,8 @@
                 </h1>
                 @if($event)
                     <span class="event-countdown inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100 whitespace-nowrap"
-                          data-ends-at="{{ $event->ends_at->toIso8601String() }}"
+                          data-event-countdown
+                          data-target-at="{{ $event->ends_at->toIso8601String() }}"
                           data-ends-label="{{ __('event.ends_in', ['time' => '%s']) }}"
                           data-ended-label="{{ __('event.event_ended') }}"
                           title="{{ __('event.event_window', [
@@ -54,7 +56,7 @@
         </div>
     </div>
 
-    <div class="container mx-auto px-4 py-8 lg:py-12">
+    <div class="container mx-auto px-4 pt-8 lg:pt-10 pb-6">
         @if(! $available)
             <div class="max-w-xl mx-auto text-center bg-gray-50 border border-gray-200 rounded-2xl p-8">
                 <h2 class="text-xl font-bold text-gray-900 mb-2">{{ __('event.not_available') }}</h2>
@@ -63,21 +65,53 @@
                     Mobile Legends
                 </a>
             </div>
-        @elseif($requiresLogin)
-            <div class="max-w-xl mx-auto text-center bg-amber-50 border border-amber-200 rounded-2xl p-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-2">{{ __('event.login_required') }}</h2>
-                <a href="{{ route('login') }}?redirect={{ urlencode(request()->fullUrl()) }}"
-                   class="inline-flex mt-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg">
-                    {{ __('event.login_cta') }}
-                </a>
-            </div>
         @elseif(! $event)
-            <div class="max-w-xl mx-auto text-center bg-gray-50 border border-gray-200 rounded-2xl p-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-2">{{ __('event.no_active_event') }}</h2>
-                <a href="{{ $gameUrl }}" class="inline-flex mt-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg">
-                    {{ __('event.go_to_game', ['game' => $gameTitle]) }}
-                </a>
-            </div>
+            @if($nextEvent)
+                <div class="next-event-card max-w-2xl mx-auto text-center bg-gray-50 border border-gray-200 rounded-2xl p-6 sm:p-9 shadow-xl">
+                    <span class="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-900">
+                        <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        {{ __('event.next_event') }}
+                    </span>
+                    <h2 class="mt-4 text-2xl sm:text-3xl font-bold text-gray-900">{{ $nextEvent->name }}</h2>
+                    <p class="mx-auto mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-gray-600">
+                        {{ filled($nextEvent->description) ? $nextEvent->description : __('event.next_event_fallback') }}
+                    </p>
+
+                    <div class="mt-7">
+                        <p class="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-purple-700">{{ __('event.starts_in') }}</p>
+                        <div class="next-event-countdown grid grid-cols-4 gap-2 sm:gap-3"
+                             data-next-event-countdown
+                             data-target-at="{{ $nextEvent->starts_at->toIso8601String() }}">
+                            @foreach([
+                                'days' => __('event.days_short'),
+                                'hours' => __('event.hours_short'),
+                                'minutes' => __('event.minutes_short'),
+                                'seconds' => __('event.seconds_short'),
+                            ] as $unit => $label)
+                                <div class="rounded-xl border border-purple-100 bg-purple-50 px-2 py-3 sm:px-4">
+                                    <strong class="block text-xl sm:text-3xl tabular-nums text-purple-700" data-countdown-unit="{{ $unit }}">00</strong>
+                                    <span class="mt-1 block text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $label }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <p class="mt-5 text-xs text-gray-500">
+                        {{ $nextEvent->starts_at->timezone('Africa/Algiers')->format('d M Y · H:i') }}
+                    </p>
+                    <a href="{{ $gameUrl }}" class="inline-flex mt-6 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg">
+                        {{ __('event.go_to_game', ['game' => $gameTitle]) }}
+                    </a>
+                </div>
+            @else
+                <div class="max-w-xl mx-auto text-center bg-gray-50 border border-gray-200 rounded-2xl p-8">
+                    <h2 class="text-xl font-bold text-gray-900 mb-2">{{ __('event.no_active_event') }}</h2>
+                    <p class="text-gray-600 text-sm">{{ __('event.next_event_fallback') }}</p>
+                    <a href="{{ $gameUrl }}" class="inline-flex mt-5 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg">
+                        {{ __('event.go_to_game', ['game' => $gameTitle]) }}
+                    </a>
+                </div>
+            @endif
         @else
             <div class="max-w-3xl mx-auto mb-6 flex flex-wrap gap-3 items-center justify-between">
                 <div class="flex flex-wrap gap-3 text-sm">
@@ -104,15 +138,17 @@
                     'spinUrl' => route('event.spin', ['gameSlug' => $gameSlug]),
                     'rewardsUrl' => route('event.rewards', ['gameSlug' => $gameSlug]),
                     'gameUrl' => $gameUrl,
+                    'loginUrl' => route('login', ['redirect' => request()->fullUrl()]),
+                    'requiresLogin' => $requiresLogin,
                     'milestoneMode' => true,
                     'initialClaims' => $claims->map(fn ($c) => app(\App\Services\WheelProgressService::class)->serializeClaim($c))->values(),
                 ])
             </div>
 
-            <div class="mt-12">
+            <div class="mt-10 max-w-3xl mx-auto">
                 <h2 class="text-xl lg:text-2xl font-bold text-gray-900 mb-1">{{ __('event.prizes_title') }}</h2>
                 <p class="text-gray-600 text-sm mb-5">{{ __('event.prizes_subtitle') }}</p>
-                <div class="max-w-3xl bg-white/90 backdrop-blur-md border border-gray-200 rounded-2xl overflow-hidden">
+                <div class="bg-white/90 backdrop-blur-md border border-gray-200 rounded-2xl overflow-hidden">
                     @foreach($event->activeRewards as $i => $reward)
                         @php($segment = $rewardSegments[$reward->id] ?? null)
                         <div class="flex items-center gap-4 px-4 py-3">
@@ -137,7 +173,7 @@
         @endif
 
         @if($available)
-            <div class="mt-12">
+            <div class="mt-10">
                 <h2 class="text-xl lg:text-2xl font-bold text-gray-900 mb-5">{{ __('event.how_title') }}</h2>
                 <div class="grid md:grid-cols-3 gap-4">
                     @foreach([1, 2, 3] as $step)
@@ -154,9 +190,9 @@
                         {{ __('event.rules') }}
                     </p>
                 </div>
-                <div class="mt-6">
+                <div class="mt-6 flex justify-center">
                     <a href="{{ $gameUrl }}"
-                       class="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md">
+                       class="inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-md">
                         {{ __('event.go_to_game', ['game' => $gameTitle]) }}
                     </a>
                 </div>
@@ -169,36 +205,67 @@
 @push('scripts')
 <script>
 (function () {
-    var chip = document.querySelector('.event-countdown');
-    if (!chip) return;
+    document.querySelectorAll('[data-event-countdown]').forEach(function (chip) {
+        var targetAt = new Date(chip.dataset.targetAt).getTime();
+        var value = chip.querySelector('[data-countdown-value]');
+        if (!value || isNaN(targetAt)) return;
 
-    var endsAt = new Date(chip.dataset.endsAt).getTime();
-    var value = chip.querySelector('[data-countdown-value]');
-    if (!value || isNaN(endsAt)) return;
+        function renderChip() {
+            var diff = targetAt - Date.now();
+            if (diff <= 0) {
+                value.textContent = chip.dataset.endedLabel;
+                return false;
+            }
 
-    function render() {
-        var diff = endsAt - Date.now();
-        if (diff <= 0) {
-            value.textContent = chip.dataset.endedLabel;
-            return false;
+            var minutes = Math.floor(diff / 60000);
+            var hours = Math.floor(minutes / 60);
+            var days = Math.floor(hours / 24);
+            var remaining = days > 0
+                ? days + 'd ' + (hours % 24) + 'h'
+                : (hours > 0 ? hours + 'h ' + (minutes % 60) + 'm' : (minutes % 60) + 'm');
+
+            value.textContent = chip.dataset.endsLabel.replace('%s', remaining);
+            return true;
         }
 
-        var minutes = Math.floor(diff / 60000);
-        var hours = Math.floor(minutes / 60);
-        var days = Math.floor(hours / 24);
-        var remaining = days > 0
-            ? days + 'd ' + (hours % 24) + 'h'
-            : (hours > 0 ? hours + 'h ' + (minutes % 60) + 'm' : (minutes % 60) + 'm');
+        if (renderChip()) {
+            var chipTimer = setInterval(function () {
+                if (!renderChip()) clearInterval(chipTimer);
+            }, 30000);
+        }
+    });
 
-        value.textContent = chip.dataset.endsLabel.replace('%s', remaining);
-        return true;
-    }
+    document.querySelectorAll('[data-next-event-countdown]').forEach(function (countdown) {
+        var targetAt = new Date(countdown.dataset.targetAt).getTime();
+        if (isNaN(targetAt)) return;
 
-    if (render()) {
-        var timer = setInterval(function () {
-            if (!render()) clearInterval(timer);
-        }, 30000);
-    }
+        function renderNextEvent() {
+            var total = Math.max(0, targetAt - Date.now());
+            var totalSeconds = Math.floor(total / 1000);
+            var values = {
+                days: Math.floor(totalSeconds / 86400),
+                hours: Math.floor((totalSeconds % 86400) / 3600),
+                minutes: Math.floor((totalSeconds % 3600) / 60),
+                seconds: totalSeconds % 60
+            };
+
+            Object.keys(values).forEach(function (unit) {
+                var element = countdown.querySelector('[data-countdown-unit="' + unit + '"]');
+                if (element) element.textContent = String(values[unit]).padStart(2, '0');
+            });
+
+            return total > 0;
+        }
+
+        if (renderNextEvent()) {
+            var eventTimer = setInterval(function () {
+                if (!renderNextEvent()) {
+                    clearInterval(eventTimer);
+                    window.location.reload();
+                }
+            }, 1000);
+        }
+    });
 })();
 </script>
 @endpush
@@ -292,11 +359,13 @@
 
 .event-page .wheel-result__backdrop,
 .event-page .wheel-rewards__backdrop,
-.event-page .wheel-icon-preview__backdrop { background: rgba(0, 0, 0, 0.72); }
+.event-page .wheel-icon-preview__backdrop,
+.event-page .wheel-login__backdrop { background: rgba(0, 0, 0, 0.72); }
 
 .event-page .wheel-result__card,
 .event-page .wheel-rewards__card,
-.event-page .wheel-icon-preview__card {
+.event-page .wheel-icon-preview__card,
+.event-page .wheel-login__card {
     background: #0f1118;
     border-color: rgba(255, 255, 255, 0.12);
     box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.9);
@@ -306,13 +375,15 @@
 .event-page .wheel-result__note-title,
 .event-page .wheel-rewards__title,
 .event-page .wheel-icon-preview__title,
+.event-page .wheel-login__title,
 .event-page .wheel-code__value,
 .event-page .wheel-reward-item__label { color: #f9fafb; }
 
 .event-page .wheel-result__prize { color: #c4b5fd; }
 
 .event-page .wheel-result.is-progress .wheel-result__prize,
-.event-page .wheel-result__note { color: #cbd5e1; }
+.event-page .wheel-result__note,
+.event-page .wheel-login__text { color: #cbd5e1; }
 
 .event-page .wheel-result__meta,
 .event-page .wheel-rewards__empty,
@@ -320,7 +391,8 @@
 .event-page .wheel-icon-preview__sub { color: #9ca3af; }
 
 .event-page .wheel-result__dismiss:hover,
-.event-page .wheel-rewards__dismiss:hover {
+.event-page .wheel-rewards__dismiss:hover,
+.event-page .wheel-login__dismiss:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #f9fafb;
 }

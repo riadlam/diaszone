@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\WheelClaim;
+use App\Models\WheelEvent;
 use App\Services\WheelProgressService;
 use App\Services\WheelQualificationService;
 use App\Support\MobileLegendsPackIcon;
@@ -56,6 +57,14 @@ class EventController extends Controller
 
         $available = $gameType === WheelQualificationService::GAME_TYPE;
         $event = $available ? $this->qualification->currentActiveEvent() : null;
+        $nextEvent = $available
+            ? WheelEvent::query()
+                ->forGame($gameType)
+                ->where('is_active', true)
+                ->where('starts_at', '>', now())
+                ->orderBy('starts_at')
+                ->first()
+            : null;
 
         if (! $available) {
             return view('pages.event', [
@@ -66,11 +75,29 @@ class EventController extends Controller
                 'gameUrl' => $this->gameUrl($gameType),
                 'requiresLogin' => false,
                 'event' => null,
+                'nextEvent' => null,
                 'snapshot' => null,
                 'prizes' => [],
             ]);
         }
 
+        if (! $event) {
+            return view('pages.event', [
+                'available' => true,
+                'requiresLogin' => false,
+                'gameSlug' => $gameSlug,
+                'gameType' => $gameType,
+                'gameTitle' => $gameTitle,
+                'gameUrl' => $this->gameUrl($gameType),
+                'gameImage' => app(HomeController::class)->findGameImage($gameType, $gameTitle),
+                'event' => null,
+                'nextEvent' => $nextEvent,
+                'snapshot' => null,
+                'prizes' => [],
+            ]);
+        }
+
+        // Guests can browse the live wheel; Spin / My Rewards ask them to log in.
         if (! Auth::check()) {
             return view('pages.event', [
                 'available' => true,
@@ -79,9 +106,14 @@ class EventController extends Controller
                 'gameType' => $gameType,
                 'gameTitle' => $gameTitle,
                 'gameUrl' => $this->gameUrl($gameType),
+                'gameImage' => app(HomeController::class)->findGameImage($gameType, $gameTitle),
                 'event' => $event,
+                'nextEvent' => null,
                 'snapshot' => null,
                 'prizes' => $this->wheelSegments($event),
+                'spinsLeft' => 0,
+                'unlimitedSpins' => false,
+                'currency' => 'Diamonds',
             ]);
         }
 
@@ -96,6 +128,7 @@ class EventController extends Controller
             'gameUrl' => $this->gameUrl($gameType),
             'gameImage' => app(HomeController::class)->findGameImage($gameType, $gameTitle),
             'event' => $event,
+            'nextEvent' => null,
             'snapshot' => $snapshot,
             'prizes' => $this->wheelSegments($event),
             'spinsLeft' => $snapshot['available_spins'],

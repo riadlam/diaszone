@@ -2,6 +2,7 @@
 
 return [
     'home' => 'Accueil',
+    'lucky_wheel' => 'Roue de la chance',
     'about' => 'À propos',
     'contact' => 'Contact',
     'cart' => 'Panier',

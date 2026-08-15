@@ -76,6 +76,8 @@ class WheelEventForm
                             ->after('starts_at'),
 
                         Textarea::make('description')
+                            ->label('Event announcement')
+                            ->helperText('Shown with the countdown on the Lucky Wheel page before this event starts.')
                             ->rows(3)
                             ->columnSpanFull(),
 

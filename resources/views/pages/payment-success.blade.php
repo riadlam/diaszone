@@ -50,11 +50,17 @@
             {{ __('order.redirecting_to_orders_in_seconds', ['seconds' => 5]) }}
         </p>
         
-        <!-- Manual Button -->
-        <a href="{{ route('dashboard.orders') }}" 
-           class="inline-block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-            {{ __('order.view_my_orders') }}
-        </a>
+        <!-- Manual Buttons -->
+        <div class="grid gap-3 sm:grid-cols-2">
+            <a href="{{ route('dashboard.orders') }}" 
+               class="inline-flex items-center justify-center w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-5 rounded-lg transition-colors">
+                {{ __('order.view_my_orders') }}
+            </a>
+            <a href="{{ route('event.show', 'mobilelegends') }}"
+               class="inline-flex items-center justify-center w-full bg-amber-500 hover:bg-amber-600 text-gray-950 font-semibold py-3 px-5 rounded-lg transition-colors">
+                {{ __('checkout.spin_lucky_wheel') }}
+            </a>
+        </div>
     </div>
 </div>
 

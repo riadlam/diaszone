@@ -45,6 +45,7 @@ return [
     'review_receipt_message' => 'We will review your receipt and get back to you shortly. Please stay tuned and watch for updates from the dashboard.',
     'redirected_to_orders' => 'You will be redirected to <strong>My Orders</strong> in :seconds seconds...',
     'go_to_my_orders' => 'Go to My Orders',
+    'spin_lucky_wheel' => 'Spin Lucky Wheel',
     'back_to_home' => 'Back to Home',
     'copied_to_clipboard' => '✓ Copied to clipboard!',
     'total_before_discounts' => 'Total Before Discounts',
