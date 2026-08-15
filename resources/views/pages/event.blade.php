@@ -16,7 +16,7 @@
     $unlimitedSpins = $snapshot['unlimited_spins'] ?? ($unlimitedSpins ?? false);
     $claims = $snapshot['claims'] ?? collect();
     $backdrop = $available
-        ? ($event?->backgroundUrl() ?? $nextEvent?->backgroundUrl() ?? url('/storage/event-backgrounds/mlbb-jujutsu-kaisen-skins.png'))
+        ? ($event?->backgroundUrl() ?? $nextEvent?->backgroundUrl() ?? \App\Support\PublicMedia::url('event-backgrounds/mlbb-jujutsu-kaisen-skins.png'))
         : null;
 @endphp
 

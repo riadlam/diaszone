@@ -35,7 +35,7 @@ class MobileLegendsPackIcon
         $path = self::path($pack);
 
         if (is_file(storage_path('app/public/'.$path))) {
-            return url('/storage/'.$path);
+            return PublicMedia::url($path);
         }
 
         return 'data:image/svg+xml;base64,'.base64_encode(self::fallbackSvg(self::filename($pack)));

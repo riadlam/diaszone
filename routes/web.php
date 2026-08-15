@@ -8,6 +8,7 @@ use App\Http\Controllers\CouponController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PublicMediaController;
 use App\Http\Controllers\Seller\SellerAuthController;
 use App\Http\Controllers\Seller\SellerController;
 use App\Http\Controllers\Seller\SellerStorefrontController;
@@ -15,6 +16,11 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Serves uploads from the public disk without relying on the public/storage symlink.
+Route::get('/media/{path}', [PublicMediaController::class, 'show'])
+    ->where('path', '.+')
+    ->name('media.show');
 
 // Test translation debug route
 Route::get('/test/translation', function () {

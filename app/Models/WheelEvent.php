@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicMedia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -48,7 +49,7 @@ class WheelEvent extends Model
     public function backgroundUrl(): ?string
     {
         return $this->background_path
-            ? url('/storage/'.ltrim($this->background_path, '/'))
+            ? PublicMedia::url($this->background_path)
             : null;
     }
 

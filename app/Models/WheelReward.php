@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicMedia;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -39,7 +40,7 @@ class WheelReward extends Model
     {
         return collect($this->image_paths ?? [])
             ->filter()
-            ->map(fn (string $path): string => url('/storage/'.ltrim($path, '/')))
+            ->map(fn (string $path): string => PublicMedia::url($path))
             ->values()
             ->all();
     }

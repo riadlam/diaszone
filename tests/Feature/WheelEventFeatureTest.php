@@ -20,6 +20,7 @@ use App\Services\WheelQualificationService;
 use App\Services\TelegramService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -150,7 +151,7 @@ class WheelEventFeatureTest extends TestCase
             ->assertSee($upcoming->name, false)
             ->assertSee($upcoming->description, false)
             ->assertSee('data-next-event-countdown', false)
-            ->assertSee('/storage/event-backgrounds/september-starfall.png', false)
+            ->assertSee('/media/event-backgrounds/september-starfall.png', false)
             ->assertDontSee(__('event.login_required'), false);
 
         $active = $this->makeEvent([
@@ -187,7 +188,7 @@ class WheelEventFeatureTest extends TestCase
             ->get(route('event.show', 'mobilelegends'))
             ->assertOk()
             ->assertSee('event-backdrop', false)
-            ->assertSee('/storage/event-backgrounds/mlbb-jujutsu-kaisen-skins.png', false);
+            ->assertSee('/media/event-backgrounds/mlbb-jujutsu-kaisen-skins.png', false);
 
         $this->actingAs($user)
             ->get(route('event.show', 'freefire'))
@@ -205,8 +206,22 @@ class WheelEventFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('event.show', 'mobilelegends'))
             ->assertOk()
-            ->assertSee('/storage/event-backgrounds/custom-art.png', false)
+            ->assertSee('/media/event-backgrounds/custom-art.png', false)
             ->assertDontSee('mlbb-jujutsu-kaisen-skins.png', false);
+    }
+
+    public function test_media_route_serves_uploaded_reward_images_and_blocks_other_paths(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('wheel-reward-icons/account.jpg', 'binary-image');
+
+        $this->get('/media/wheel-reward-icons/account.jpg')
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'max-age=2592000, public');
+
+        $this->get('/media/wheel-reward-icons/missing.jpg')->assertNotFound();
+        $this->get('/media/flexy_receipts/secret.jpg')->assertNotFound();
+        $this->get('/media/wheel-reward-icons/../../.env')->assertNotFound();
     }
 
     public function test_reward_track_and_wheel_hide_draw_counts(): void
@@ -258,7 +273,7 @@ class WheelEventFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('event.show', 'mobilelegends'))
             ->assertOk()
-            ->assertSee('/storage/images_homepage/diaslow.webp', false)
+            ->assertSee('/media/images_homepage/diaslow.webp', false)
             ->assertSee('wheelIconPreview', false);
 
         $reward->update(['image_paths' => [
@@ -270,16 +285,16 @@ class WheelEventFeatureTest extends TestCase
         $content = $this->actingAs($user)
             ->get(route('event.show', 'mobilelegends'))
             ->assertOk()
-            ->assertSee('/storage/wheel-reward-icons/custom.webp', false)
+            ->assertSee('/media/wheel-reward-icons/custom.webp', false)
             ->getContent();
 
         $segment = collect($this->wheelConfig($content)['segments'])
             ->firstWhere('reward_id', $reward->id);
 
-        $this->assertSame(url('/storage/wheel-reward-icons/custom.webp'), $segment['icon']);
+        $this->assertSame(url('/media/wheel-reward-icons/custom.webp'), $segment['icon']);
         $this->assertSame('cover', $segment['icon_fit']);
         $this->assertCount(3, $segment['gallery']);
-        $this->assertSame(url('/storage/wheel-reward-icons/account-3.webp'), $segment['gallery'][2]);
+        $this->assertSame(url('/media/wheel-reward-icons/account-3.webp'), $segment['gallery'][2]);
     }
 
     public function test_digiflazz_success_credits_one_spin_and_is_idempotent(): void
