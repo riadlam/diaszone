@@ -16,6 +16,17 @@ class DigiflazzStatus extends Model
         'additional_data' => 'array',
     ];
 
+    /**
+     * Deliveries the provider confirmed as fulfilled.
+     */
+    public function scopeSuccessful($query)
+    {
+        return $query->where(function ($inner) {
+            $inner->whereRaw("LOWER(digiflazz_statuses.status) = 'sukses'")
+                ->orWhere('digiflazz_statuses.rc', '00');
+        });
+    }
+
     public function order()
     {
         return $this->belongsTo(Order::class);

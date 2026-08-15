@@ -108,25 +108,7 @@
                         <!-- Image: Show diamond pack images for Mobile Legends, game thumbnail for other games (except Free Fire) -->
                         @if(($gameType ?? 'mobilelegends') === 'mobilelegends')
                                 <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-50 rounded-lg">
-                                    @php
-                                    // Mobile Legends images only
-                                        if (stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false) {
-                                            $imageName = 'weeklymlbb.webp';
-                                        } elseif (stripos($pack->name, 'Twilight Pass') !== false) {
-                                            $imageName = 'twlilightpass.jpg';
-                                        } else {
-                                            // Regular diamond packs
-                                            $imageName = 'diaslow.webp';
-                                            if ($pack->diamonds >= 2000) {
-                                                $imageName = 'diasbigbig.webp';
-                                            } elseif ($pack->diamonds >= 500) {
-                                                $imageName = 'diaslarge.webp';
-                                            } elseif ($pack->diamonds >= 100) {
-                                                $imageName = 'diasmid.webp';
-                                        }
-                                    }
-                                @endphp
-                                <img src="{{ url('storage_public/images_homepage/' . $imageName) }}" 
+                                <img src="{{ \App\Support\MobileLegendsPackIcon::url($pack) }}"
                                      alt="{{ $pack->diamonds }} {{ __('game.diamonds') }}" 
                                      class="w-full h-full object-contain"
                                      style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\User;
+use App\Models\WheelEvent;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -420,6 +422,9 @@ class TelegramService
             $message .= "\n";
         }
         $message .= "📧 <b>Email:</b> {$userEmail}\n";
+        if ($order->user_id) {
+            $message .= "✅ <b>Previous Successful Top-ups:</b> ".$order->priorSuccessfulTopupsCount()."\n";
+        }
         
         // Add game-specific details
         if ($gameType === 'mobilelegends') {
@@ -504,6 +509,61 @@ class TelegramService
         $createdAt = $order->created_at->setTimezone('Africa/Algiers');
         $message .= "\n⏰ <b>Created:</b> " . $createdAt->format('Y-m-d H:i:s') . " (Algeria Time)";
         
+        return $message;
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    public static function formatWheelSpinMessage(User $user, WheelEvent $event, array $result): string
+    {
+        $escape = fn ($value): string => htmlspecialchars(
+            (string) ($value ?? ''),
+            ENT_QUOTES | ENT_SUBSTITUTE,
+            'UTF-8'
+        );
+
+        $won = (bool) ($result['reward_unlocked'] ?? false);
+        $available = ($result['unlimited_spins'] ?? false)
+            ? 'Unlimited'
+            : (string) ($result['available_spins'] ?? 0);
+
+        $message = "🎡 <b>Lucky Wheel Spin</b>\n\n";
+        $message .= "🎪 <b>Event:</b> {$escape($event->name)}\n";
+        $message .= "👤 <b>User:</b> {$escape($user->name)} (#{$user->id})\n";
+        $message .= "📧 <b>Email:</b> {$escape($user->email)}\n";
+        $message .= "🎯 <b>Result:</b> ".($won ? 'Reward unlocked' : 'No prize')."\n";
+        $message .= "🎟️ <b>Spins Available:</b> {$escape($available)}\n";
+        $message .= "⏰ <b>Time:</b> ".now()->timezone('Africa/Algiers')->format('Y-m-d H:i:s');
+
+        return $message;
+    }
+
+    /**
+     * @param  array<string, mixed>  $claim
+     */
+    public static function formatWheelRewardMessage(User $user, WheelEvent $event, array $claim): string
+    {
+        $escape = fn ($value): string => htmlspecialchars(
+            (string) ($value ?? ''),
+            ENT_QUOTES | ENT_SUBSTITUTE,
+            'UTF-8'
+        );
+
+        $message = "🏆 <b>Lucky Wheel Reward Won</b>\n\n";
+        $message .= "🎪 <b>Event:</b> {$escape($event->name)}\n";
+        $message .= "👤 <b>User:</b> {$escape($user->name)} (#{$user->id})\n";
+        $message .= "📧 <b>Email:</b> {$escape($user->email)}\n";
+        $message .= "🎁 <b>Reward:</b> {$escape($claim['label'] ?? $claim['pack_name'] ?? 'Reward')}\n";
+        $message .= "🏷️ <b>Type:</b> ".(($claim['is_discount_reward'] ?? false) ? 'Discount coupon' : 'Pack reward')."\n";
+
+        $code = $claim['claim_code'] ?? $claim['coupon_code'] ?? null;
+        if ($code) {
+            $message .= "🔑 <b>Claim Code:</b> <code>{$escape($code)}</code>\n";
+        }
+
+        $message .= "⏰ <b>Won At:</b> ".now()->timezone('Africa/Algiers')->format('Y-m-d H:i:s');
+
         return $message;
     }
     

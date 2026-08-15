@@ -64,4 +64,55 @@ class DiamondPack extends Model
     {
         return $this->belongsTo(Game::class);
     }
+
+    public function orderItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function digiflazzStatuses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DigiflazzStatus::class);
+    }
+
+    /**
+     * Margin between what we sell at and what the pack costs us.
+     */
+    public function profitDzd(): ?float
+    {
+        if (! $this->price_dzd || $this->base_price_dzd === null) {
+            return null;
+        }
+
+        return (float) $this->price_dzd - (float) $this->base_price_dzd;
+    }
+
+    public function profitPercentage(): ?float
+    {
+        $base = (float) $this->base_price_dzd;
+
+        if ($base <= 0 || ! $this->price_dzd) {
+            return null;
+        }
+
+        return (((float) $this->price_dzd - $base) / $base) * 100;
+    }
+
+    /**
+     * A real DZD cost is a small fraction of the Digiflazz IDR price, so a cost
+     * anywhere near the IDR figure was never converted and makes the margin wrong.
+     */
+    public const UNCONVERTED_COST_RATIO = 0.25;
+
+    public function hasUnconvertedCost(): bool
+    {
+        return $this->base_price_dzd !== null
+            && (float) $this->price > 0
+            && (float) $this->base_price_dzd >= (float) $this->price * self::UNCONVERTED_COST_RATIO;
+    }
+
+    public function usesDigiflazz(): bool
+    {
+        return \App\Support\GameProvider::usesDigiflazz($this->game_type);
+    }
 }

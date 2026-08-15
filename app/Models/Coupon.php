@@ -100,8 +100,23 @@ class Coupon extends Model
         }
 
         // Check if game is allowed
-        if ($this->allowed_games !== null && !in_array($gameCode, $this->allowed_games)) {
-            return false;
+        if ($this->allowed_games !== null) {
+            $aliases = [
+                'mobilelegends' => 'mlbb',
+                'mlbb' => 'mobilelegends',
+                'pubgmobile' => 'pubg',
+                'pubg' => 'pubgmobile',
+            ];
+            $allowed = false;
+            foreach ($this->allowed_games as $allowedGame) {
+                if ($allowedGame === $gameCode || ($aliases[$gameCode] ?? null) === $allowedGame) {
+                    $allowed = true;
+                    break;
+                }
+            }
+            if (! $allowed) {
+                return false;
+            }
         }
 
         // Check if package is allowed

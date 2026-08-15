@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 class Order extends Model
 {
@@ -62,6 +63,117 @@ class Order extends Model
                 $q->whereRaw("LOWER(status) = 'sukses'")
                   ->orWhere('rc', '00');
             })->count();
+    }
+
+    /**
+     * Number of top-ups actually delivered to this customer before this order.
+     * Counts provider deliveries, not order rows, so multi-quantity orders and
+     * orders still marked as sending are represented correctly.
+     */
+    public function priorSuccessfulTopupsCount(): int
+    {
+        if (! $this->user_id) {
+            return 0;
+        }
+
+        $earlierOrders = static::query()
+            ->where('user_id', $this->user_id)
+            ->whereKeyNot($this->getKey())
+            ->when($this->created_at, fn ($query) => $query->where('created_at', '<=', $this->created_at))
+            ->select('id');
+
+        $digiflazz = DigiflazzStatus::query()
+            ->whereIn('order_id', (clone $earlierOrders))
+            ->where(function ($query) {
+                $query->whereRaw("LOWER(digiflazz_statuses.status) = 'sukses'")
+                    ->orWhere('digiflazz_statuses.rc', '00');
+            })
+            ->count();
+
+        $item4gamer = Item4GamerOrder::query()
+            ->whereIn('order_id', (clone $earlierOrders))
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'success'])
+            ->sum('quantity');
+
+        return (int) $digiflazz + (int) $item4gamer;
+    }
+
+    public function displayAmount(): float
+    {
+        if ($this->final_price !== null) {
+            return (float) $this->final_price;
+        }
+
+        if ($this->relationLoaded('orderItems') && $this->orderItems->isNotEmpty()) {
+            return (float) $this->orderItems->sum('total_dzd');
+        }
+
+        $price = (float) ($this->diamondPack?->price_dzd ?? 0);
+
+        return $price * max(1, (int) ($this->quantity ?: 1));
+    }
+
+    public function gameLabel(): string
+    {
+        $gameType = $this->orderItems->first()?->diamondPack?->game_type
+            ?? $this->diamondPack?->game_type;
+
+        return match ($gameType) {
+            'mobilelegends' => 'Mobile Legends',
+            'freefire' => 'Free Fire',
+            'pubgmobile', 'pubg_mobile' => 'PUBG Mobile',
+            'honorofkings' => 'Honor of Kings',
+            'bloodstrike' => 'Blood Strike',
+            default => $gameType ? ucwords(str_replace('_', ' ', $gameType)) : 'Unknown game',
+        };
+    }
+
+    public function playerIdentifier(): string
+    {
+        return match (true) {
+            filled($this->user_id_ml) => $this->user_id_ml.' ('.$this->zone_id_ml.')',
+            filled($this->player_id_ff) => $this->player_id_ff,
+            filled($this->player_id_pubg) => $this->player_id_pubg,
+            filled($this->player_id_hok) => $this->player_id_hok,
+            filled($this->user_id_bs) => $this->user_id_bs.($this->server_bs ? ' · '.$this->server_bs : ''),
+            filled($this->save_id) => $this->save_id.($this->server ? ' · '.$this->server : ''),
+            default => '—',
+        };
+    }
+
+    public function topupProgressLabel(): string
+    {
+        $required = $this->orderItems->isNotEmpty()
+            ? (int) $this->orderItems->sum('quantity')
+            : max(1, (int) ($this->quantity ?: 1));
+
+        $completed = $this->digiflazzStatuses
+            ->filter(fn ($status): bool => strtolower((string) $status->status) === 'sukses'
+                || (string) $status->rc === '00')
+            ->count();
+
+        $completed += (int) $this->item4gamerOrders
+            ->filter(fn ($provider): bool => in_array(strtolower((string) $provider->status), ['completed', 'success'], true))
+            ->sum('quantity');
+
+        if ($completed === 0 && $this->status === 'completed') {
+            $completed = $required;
+        }
+
+        return min($completed, $required).'/'.$required;
+    }
+
+    public function statusColor(): string
+    {
+        return match ($this->status) {
+            'completed' => 'success',
+            'sending', 'processing' => 'info',
+            'pending', 'pending_flexy', 'pending_bmccp', 'pending_cryptopay',
+            'pending_confirmation', 'pending_flexy_verification' => 'warning',
+            'cancelled', 'failed' => 'danger',
+            'refunded' => 'gray',
+            default => 'gray',
+        };
     }
 
     /**

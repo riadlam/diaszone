@@ -42,7 +42,7 @@ class CouponController extends Controller
 
         $request->validate([
             'code' => 'required|string|max:50',
-            'game_code' => 'required|string|in:mlbb,freefire,pubg',
+            'game_code' => 'required|string|in:mlbb,freefire,pubg,mobilelegends,pubgmobile',
             'package_id' => 'required|integer',
             'amount' => 'required|numeric|min:0',
         ]);
@@ -291,6 +291,15 @@ class CouponController extends Controller
 
             // Increment coupon usage count
             $coupon->incrementUsage();
+
+            try {
+                app(\App\Services\WheelProgressService::class)->markClaimUsedFromCoupon($coupon->id, $user->id);
+            } catch (\Throwable $e) {
+                Log::warning('Free order: failed to mark wheel claim used', [
+                    'coupon_id' => $coupon->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
             
             Log::info('Free order: Coupon usage count incremented', [
                 'new_count' => $coupon->used_count,

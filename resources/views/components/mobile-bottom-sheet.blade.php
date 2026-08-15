@@ -126,25 +126,7 @@
                     <!-- Image: Only show for Mobile Legends -->
                     @if(($gameType ?? 'mobilelegends') === 'mobilelegends')
                         <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                            @php
-                                // Mobile Legends images only
-                                if (stripos($pack->name, 'Weekly Diamond Pass') !== false || stripos($pack->name, 'Event Topup') !== false) {
-                                    $imageName = 'weeklymlbb.webp';
-                                } elseif (stripos($pack->name, 'Twilight Pass') !== false) {
-                                    $imageName = 'twlilightpass.jpg';
-                                } else {
-                                    // Regular diamond packs
-                                    $imageName = 'diaslow.webp';
-                                    if ($pack->diamonds >= 2000) {
-                                        $imageName = 'diasbigbig.webp';
-                                    } elseif ($pack->diamonds >= 500) {
-                                        $imageName = 'diaslarge.webp';
-                                    } elseif ($pack->diamonds >= 100) {
-                                        $imageName = 'diasmid.webp';
-                                    }
-                                }
-                            @endphp
-                            <img src="{{ url('storage_public/images_homepage/' . $imageName) }}" 
+                            <img src="{{ \App\Support\MobileLegendsPackIcon::url($pack) }}"
                                  alt="{{ $pack->diamonds }} {{ __('game.diamonds') }}" 
                                  class="w-12 h-12 object-contain"
                                  style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">

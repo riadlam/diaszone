@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EventController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Seller\SellerAuthController;
 use App\Http\Controllers\Seller\SellerController;
@@ -50,6 +51,19 @@ Route::get('/language/{locale}', function ($locale) {
 
     return redirect()->back();
 })->name('language.switch');
+
+// Lucky wheel event pages, one per game (e.g. /event/mobilelegends, /event/free-fire)
+Route::get('/event/{gameSlug}', [EventController::class, 'show'])
+    ->where('gameSlug', '[a-z0-9_-]+')
+    ->name('event.show');
+Route::middleware(['auth', 'throttle:30,1'])->group(function () {
+    Route::post('/event/{gameSlug}/spin', [EventController::class, 'spin'])
+        ->where('gameSlug', '[a-z0-9_-]+')
+        ->name('event.spin');
+    Route::get('/event/{gameSlug}/rewards', [EventController::class, 'rewards'])
+        ->where('gameSlug', '[a-z0-9_-]+')
+        ->name('event.rewards');
+});
 
 Route::get('/mobilelegends', [HomeController::class, 'mobileLegends'])->name('mobilelegends');
 Route::get('/free-fire-diamonds-top-up', function () {
@@ -246,6 +260,9 @@ Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin', 'throttle:60,
         Route::delete('/{game}/images/{image}', [\App\Http\Controllers\Admin\GameContentController::class, 'deleteImage'])->name('images.delete');
         Route::patch('/{game}/images/order', [\App\Http\Controllers\Admin\GameContentController::class, 'updateImageOrder'])->name('images.order');
     });
+
+    // Lucky Wheel events are managed in the Filament panel at /admin/wheel-events
+    Route::redirect('/wheel-events', '/admin/wheel-events')->name('wheel-events.index');
 
     // Seller Management Routes
     Route::prefix('sellers')->name('sellers.')->group(function () {

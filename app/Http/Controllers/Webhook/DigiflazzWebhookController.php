@@ -660,6 +660,17 @@ class DigiflazzWebhookController extends Controller
             }
         }
 
+            // Credit wheel spin for each successful Digiflazz Mobile Legends top-up (idempotent).
+            try {
+                $statusRecord->refresh();
+                app(\App\Services\WheelQualificationService::class)->creditFromDigiflazzStatus($statusRecord);
+            } catch (\Throwable $e) {
+                Log::warning('Digiflazz webhook: wheel spin credit failed', [
+                    'digiflazz_status_id' => $statusRecord->id ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
         // Update Telegram notification to reflect provider status change
         try {
                 $orderLocked->refresh();

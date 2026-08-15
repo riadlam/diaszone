@@ -326,7 +326,7 @@ class HomeController extends Controller
      * Find game image in top4gamers_images folder
      * Tries multiple matching strategies based on game_type and game name
      */
-    private function findGameImage($gameType, $gameName = null)
+    public function findGameImage($gameType, $gameName = null)
     {
         // Check public/storage first (symlinked path), then storage/app/public
         $top4gamersDir = public_path('storage/top4gamers_images');
