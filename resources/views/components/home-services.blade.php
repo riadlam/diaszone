@@ -1,5 +1,5 @@
 <!-- Home Services Section - Popular Games -->
-<div class="home-services">
+<div class="home-services" id="home-games">
     <div class="icon-box icon-box--14">
         @php
             // Limit to 12 games
