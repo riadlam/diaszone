@@ -28,3 +28,10 @@ Schedule::command('digiflazz:check-order-status')
     ->everyFiveMinutes()
     ->withoutOverlapping(10)
     ->appendOutputTo(storage_path('logs/digiflazz-order-status.log'));
+
+// Safety net for the lucky wheel: credit any qualifying top-up whose delivery
+// was written outside Eloquent or while the wheel credit failed.
+Schedule::command('wheel:backfill')
+    ->everyTenMinutes()
+    ->withoutOverlapping(10)
+    ->appendOutputTo(storage_path('logs/wheel-backfill.log'));

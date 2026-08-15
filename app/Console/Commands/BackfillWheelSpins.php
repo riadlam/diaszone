@@ -23,7 +23,7 @@ class BackfillWheelSpins extends Command
         if ($events->isEmpty()) {
             $this->warn('No wheel events found.');
 
-            return self::FAILURE;
+            return $eventId ? self::FAILURE : self::SUCCESS;
         }
 
         foreach ($events as $event) {

@@ -9,6 +9,7 @@ use App\Models\DiamondPack;
 use App\Models\DigiflazzStatus;
 use App\Models\Item4GamerOrder;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\User;
 use App\Models\WheelClaim;
 use App\Models\WheelEvent;
@@ -323,8 +324,9 @@ class WheelEventFeatureTest extends TestCase
             'rc' => '00',
         ]);
 
+        // Saving the delivery credits the spin on its own, and re-running the
+        // credit for the same delivery must never add a second spin.
         $service = app(WheelQualificationService::class);
-        $this->assertTrue($service->creditFromDigiflazzStatus($status));
         $this->assertFalse($service->creditFromDigiflazzStatus($status->fresh()));
 
         $progress = WheelUserProgress::where('user_id', $user->id)->first();
@@ -332,6 +334,57 @@ class WheelEventFeatureTest extends TestCase
         $this->assertSame(1, $progress->total_spins_earned);
         $this->assertSame(1, $progress->availableSpins());
         $this->assertSame(1, WheelSpinLedger::where('user_id', $user->id)->where('entry_type', 'credit')->count());
+    }
+
+    public function test_each_delivery_of_a_multi_quantity_order_credits_its_own_spin(): void
+    {
+        $user = User::factory()->create();
+        $pack = $this->makePack();
+        $event = $this->makeEvent();
+        $this->makeRewards($event, $pack);
+
+        $order = Order::create([
+            'order_number' => 'ORD-WHEEL-QTY3',
+            'user_id' => $user->id,
+            'status' => 'sending',
+            'diamond_pack_id' => $pack->id,
+            'user_id_ml' => '111',
+            'zone_id_ml' => '2222',
+            'quantity' => 3,
+            'created_at' => now()->subHour(),
+        ]);
+
+        $item = OrderItem::create([
+            'order_id' => $order->id,
+            'diamond_pack_id' => $pack->id,
+            'quantity' => 3,
+            'unit_price_dzd' => 100,
+            'subtotal_dzd' => 300,
+            'total_dzd' => 300,
+        ]);
+
+        // Deliveries recorded straight from the provider response (no webhook).
+        foreach (range(1, 3) as $index) {
+            DigiflazzStatus::create([
+                'order_id' => $order->id,
+                'order_item_id' => $item->id,
+                'diamond_pack_id' => $pack->id,
+                'ref_id' => 'order-'.$order->id.'-item-'.$item->id.'-'.$index,
+                'trxid' => 'trx-qty-'.$index,
+                'status' => 'Sukses',
+                'rc' => '00',
+                'event' => 'create',
+            ]);
+        }
+
+        $progress = WheelUserProgress::where('user_id', $user->id)->first();
+        $this->assertNotNull($progress);
+        $this->assertSame(3, $progress->total_spins_earned);
+        $this->assertSame(3, $progress->availableSpins());
+
+        // A late webhook for the same deliveries must not double credit.
+        $this->assertSame(0, app(WheelQualificationService::class)->backfillEvent($event->fresh()));
+        $this->assertSame(3, WheelSpinLedger::where('user_id', $user->id)->where('entry_type', 'credit')->count());
     }
 
     public function test_flexy_orders_do_not_credit_spins(): void

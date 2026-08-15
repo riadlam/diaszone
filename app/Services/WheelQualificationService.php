@@ -268,7 +268,7 @@ class WheelQualificationService
 
     private function isSuccessfulStatus(DigiflazzStatus $status): bool
     {
-        return strtolower((string) $status->status) === 'sukses'
+        return in_array(strtolower((string) $status->status), ['sukses', 'success'], true)
             || (string) $status->rc === '00';
     }
 

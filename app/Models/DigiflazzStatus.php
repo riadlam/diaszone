@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Observers\DigiflazzStatusObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 
+#[ObservedBy([DigiflazzStatusObserver::class])]
 class DigiflazzStatus extends Model
 {
     protected $table = 'digiflazz_statuses';
