@@ -1,7 +1,7 @@
 @php
     $slides = [
         [
-            'image' => url('storage_public/images_homepage/testslide.webp'),
+            'image' => url('storage_public/images_homepage/home_page.jpg'),
             'badge' => __('home.new_season'),
             'title' => __('home.top_up_now'),
             'text' => __('home.best_deals'),
