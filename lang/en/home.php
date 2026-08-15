@@ -11,7 +11,7 @@ return [
     // Hero Slider
     'new_season' => 'NEW SEASON',
     'top_up_now' => 'Top Up Now',
-    'best_deals' => 'Get the best deals on Mobile Legends diamonds',
+    'best_deals' => 'Get the best deals on the Market',
     
     // Page Sections
     'select_pack' => 'Select Pack',

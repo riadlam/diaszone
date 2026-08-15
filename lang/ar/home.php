@@ -11,7 +11,7 @@ return [
     // Hero Slider
     'new_season' => 'موسم جديد',
     'top_up_now' => 'اشحن الآن',
-    'best_deals' => 'احصل على أفضل العروض على ماسات Mobile Legends',
+    'best_deals' => 'احصل على أفضل العروض على ماسات ',
     
     // Page Sections
     'select_pack' => 'اختر الباقة',
