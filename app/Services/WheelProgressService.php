@@ -291,6 +291,7 @@ class WheelProgressService
             'applies_to' => 'specific',
             'allowed_packages' => $packIds,
             'allowed_games' => ['mlbb', 'mobilelegends'],
+            // One-time use only — same limits as the normal coupon system.
             'max_uses' => 1,
             'max_uses_per_user' => 1,
             'used_count' => 0,
@@ -321,6 +322,20 @@ class WheelProgressService
 
     public function serializeClaim(WheelClaim $claim): array
     {
+        $eligiblePackNames = [];
+
+        if ($claim->reward?->isDiscountReward()) {
+            $eligiblePackNames = $claim->reward->eligiblePacks()
+                ->orderBy('diamond_packs.name')
+                ->pluck('diamond_packs.name')
+                ->values()
+                ->all();
+
+            if (empty($eligiblePackNames) && $claim->reward->diamondPack?->name) {
+                $eligiblePackNames = [$claim->reward->diamondPack->name];
+            }
+        }
+
         return [
             'id' => $claim->id,
             'reward_type' => $claim->reward_type,
@@ -330,6 +345,7 @@ class WheelProgressService
             'discount_percentage' => $claim->reward?->discount_percentage,
             'label' => $claim->reward?->label,
             'pack_name' => $claim->reward?->diamondPack?->name,
+            'eligible_pack_names' => $eligiblePackNames,
             'unlocked_at' => optional($claim->unlocked_at)->toDateTimeString(),
             'fulfilled_at' => optional($claim->fulfilled_at)->toDateTimeString(),
             'used_at' => optional($claim->used_at)->toDateTimeString(),

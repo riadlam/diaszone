@@ -577,10 +577,12 @@ class CheckoutController extends Controller
                 'cart_items.*.save_id' => 'nullable|string', // User ID for new games (same as user_id)
                 'cart_items.*.game_user_id' => 'nullable|string', // User ID for games like Devil May Cry
                 'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency,coupon_free',
+                'coupon_code' => 'nullable|string|max:50',
             ]);
             
             $cartItems = $request->input('cart_items');
             $paymentMethod = $request->input('payment_method'); // flexy, bmccp, cryptocurrency, or coupon_free
+            $couponCode = $request->input('coupon_code');
             $userId = Auth::id();
             
             // Validate all packs exist and are from same game
@@ -741,7 +743,7 @@ class CheckoutController extends Controller
             // Create single order with multiple order_items
             return DB::transaction(function () use (
                 $userId, $user_id_ml, $zone_id_ml, $player_id_ff, $player_id_pubg,
-                $player_id_hok, $user_id_bs, $server_bs, $save_id, $server, $cartItems, $packs, $orderStatus
+                $player_id_hok, $user_id_bs, $server_bs, $save_id, $server, $cartItems, $packs, $orderStatus, $couponCode, $paymentMethod
             ) {
                 // Determine which pack to use as primary (first pack)
                 $primaryPack = reset($packs);
@@ -803,6 +805,44 @@ class CheckoutController extends Controller
                     $totalOriginalPrice += $subtotalDzd;
                     $totalDiscount += $discountAmount;
                     $totalFinalPrice += $totalDzd;
+                }
+
+                // Apply a validated coupon to paid orders (free 100% coupons stay on the coupon_free flow).
+                if ($couponCode && $paymentMethod !== 'coupon_free') {
+                    $coupon = \App\Models\Coupon::findByCode($couponCode);
+                    if (! $coupon || ! $coupon->canBeUsedByUser((int) $userId)) {
+                        throw new \Exception(__('coupons.already_used'));
+                    }
+
+                    $gameCode = match ($primaryPack->game_type) {
+                        'mobilelegends' => 'mobilelegends',
+                        'freefire' => 'freefire',
+                        'pubgmobile' => 'pubgmobile',
+                        default => $primaryPack->game_type,
+                    };
+
+                    if (! $coupon->appliesToPackage($gameCode, (int) $primaryPack->id)) {
+                        throw new \Exception(__('coupons.not_applicable'));
+                    }
+
+                    $packDiscountTotal = $totalDiscount;
+                    $couponDiscount = $coupon->calculateDiscount((float) $totalOriginalPrice);
+                    if ($couponDiscount['is_free']) {
+                        // 100% coupons must go through the dedicated free-order flow.
+                        throw new \Exception(__('coupons.invalid_code'));
+                    }
+
+                    $order->coupon_id = $coupon->id;
+                    $totalDiscount = $packDiscountTotal + $couponDiscount['discount_amount'];
+                    $totalFinalPrice = max(0, (float) $couponDiscount['final_amount'] - $packDiscountTotal);
+
+                    $coupon->consumeForOrder(
+                        (int) $userId,
+                        $order,
+                        (float) $couponDiscount['discount_amount'],
+                        (float) $totalOriginalPrice,
+                        (float) $totalFinalPrice
+                    );
                 }
                 
                 // Update order with total prices

@@ -57,7 +57,8 @@ return [
     'copy_code' => 'Copy code',
     'code_copied' => 'Copied!',
     'discount_ready' => 'Your discount code is ready',
-    'discount_ready_text' => 'Apply this code at checkout on an eligible Mobile Legends offer.',
+    'discount_ready_text' => 'Apply this code once at checkout on an eligible Mobile Legends offer.',
+    'discount_offer_restriction' => 'This discount is valid only for: :offers. It can be used one time only.',
     'coupon_code' => 'Coupon code',
 
     'prizes_title' => 'Reward track',

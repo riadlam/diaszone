@@ -396,7 +396,8 @@ class WheelEventFeatureTest extends TestCase
         $discountUnlock = $this->postJson(route('event.spin', 'mobilelegends'))
             ->assertOk()
             ->assertJsonPath('reward_unlocked', true)
-            ->assertJsonPath('claim.is_discount_reward', true);
+            ->assertJsonPath('claim.is_discount_reward', true)
+            ->assertJsonPath('claim.eligible_pack_names.0', $pack->name);
 
         $couponCode = $discountUnlock->json('claim.coupon_code') ?: $discountUnlock->json('claim.claim_code');
         $this->assertNotEmpty($couponCode);
@@ -404,6 +405,32 @@ class WheelEventFeatureTest extends TestCase
         $coupon = Coupon::findByCode($couponCode);
         $this->assertTrue($coupon->appliesToPackage('mobilelegends', $pack->id));
         $this->assertFalse($coupon->appliesToPackage('freefire', $pack->id));
+        $this->assertSame(1, $coupon->max_uses);
+        $this->assertSame(1, $coupon->max_uses_per_user);
+        $this->assertTrue($coupon->canBeUsedByUser($user->id));
+
+        $order = Order::create([
+            'order_number' => 'DZ-WHEEL-ONEUSE',
+            'user_id' => $user->id,
+            'diamond_pack_id' => $pack->id,
+            'status' => 'pending',
+            'original_price' => 55,
+            'final_price' => 49.5,
+            'user_id_ml' => '123',
+            'zone_id_ml' => '456',
+        ]);
+
+        $coupon->consumeForOrder($user->id, $order, 5.5, 55, 49.5);
+        $coupon->refresh();
+
+        $this->assertSame(1, $coupon->used_count);
+        $this->assertFalse($coupon->is_active);
+        $this->assertFalse($coupon->canBeUsedByUser($user->id));
+        $this->assertDatabaseHas('wheel_claims', [
+            'user_id' => $user->id,
+            'coupon_id' => $coupon->id,
+            'status' => 'used',
+        ]);
     }
 
     public function test_wheel_spin_and_reward_win_send_telegram_notifications(): void

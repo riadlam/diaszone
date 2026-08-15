@@ -277,32 +277,18 @@ class CouponController extends Controller
             
             Log::info('Free order: Order updated to sending status', ['order_id' => $order->id]);
 
-            // Record coupon usage
-            CouponUsage::create([
-                'coupon_id' => $coupon->id,
-                'user_id' => $user->id,
-                'order_id' => $order->id,
-                'discount_applied' => $discountInfo['discount_amount'],
-                'original_amount' => $discountInfo['original_amount'],
-                'final_amount' => $discountInfo['final_amount'],
-            ]);
+            // Record coupon usage (one-use coupons deactivate automatically when max is reached)
+            $coupon->consumeForOrder(
+                $user->id,
+                $order,
+                (float) $discountInfo['discount_amount'],
+                (float) $discountInfo['original_amount'],
+                (float) $discountInfo['final_amount']
+            );
             
-            Log::info('Free order: Coupon usage recorded');
-
-            // Increment coupon usage count
-            $coupon->incrementUsage();
-
-            try {
-                app(\App\Services\WheelProgressService::class)->markClaimUsedFromCoupon($coupon->id, $user->id);
-            } catch (\Throwable $e) {
-                Log::warning('Free order: failed to mark wheel claim used', [
-                    'coupon_id' => $coupon->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-            
-            Log::info('Free order: Coupon usage count incremented', [
-                'new_count' => $coupon->used_count,
+            Log::info('Free order: Coupon usage recorded', [
+                'new_count' => $coupon->fresh()->used_count,
+                'is_active' => $coupon->fresh()->is_active,
             ]);
 
             // Process the top-up via provider (same flow as processChargilyRecharge)

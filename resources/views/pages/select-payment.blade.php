@@ -921,6 +921,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Store applied coupon data
         let appliedCoupon = null;
         let originalOrderAmount = 0;
+
+        function orderCreatePayload(cartItems, paymentMethod) {
+            const payload = {
+                cart_items: cartItems,
+                payment_method: paymentMethod
+            };
+
+            if (appliedCoupon && appliedCoupon.code && !(appliedCoupon.discount && appliedCoupon.discount.is_free)) {
+                payload.coupon_code = appliedCoupon.code;
+            }
+
+            return payload;
+        }
         
         // Coupon DOM elements
         const couponInput = document.getElementById('coupon-code-input');
@@ -1321,10 +1334,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             'X-CSRF-TOKEN': csrfToken,
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ 
-                            cart_items: cartItems,
-                            payment_method: 'flexy'
-                        })
+                        body: JSON.stringify(orderCreatePayload(cartItems, 'flexy'))
                     });
                     
                     if (!response.ok) {
@@ -1446,10 +1456,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 'Accept': 'application/json',
                                 'X-CSRF-TOKEN': csrfToken,
                             },
-                            body: JSON.stringify({
-                                cart_items: cartItems,
-                                payment_method: 'cryptocurrency'
-                            })
+                            body: JSON.stringify(orderCreatePayload(cartItems, 'cryptocurrency'))
                         });
                         
                         const data = await response.json();
@@ -1508,10 +1515,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             'X-CSRF-TOKEN': csrfToken,
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ 
-                            cart_items: cartItems,
-                            payment_method: 'bmccp'
-                        })
+                        body: JSON.stringify(orderCreatePayload(cartItems, 'bmccp'))
                     });
                     
                     if (!response.ok) {

@@ -57,7 +57,8 @@ return [
     'copy_code' => 'Copier',
     'code_copied' => 'Copié !',
     'discount_ready' => 'Votre code de réduction est prêt',
-    'discount_ready_text' => 'Appliquez ce code au paiement sur une offre Mobile Legends éligible.',
+    'discount_ready_text' => 'Appliquez ce code une seule fois au paiement sur une offre Mobile Legends éligible.',
+    'discount_offer_restriction' => 'Cette réduction est valable uniquement pour : :offers. Elle ne peut être utilisée qu’une seule fois.',
     'coupon_code' => 'Code coupon',
 
     'prizes_title' => 'Parcours des récompenses',

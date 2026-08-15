@@ -83,6 +83,10 @@ class Coupon extends Model
             return false;
         }
 
+        if (! $this->isUsableByWheelWinner($userId)) {
+            return false;
+        }
+
         // Check user's usage count
         $userUsageCount = $this->usages()->where('user_id', $userId)->count();
         
@@ -165,6 +169,59 @@ class Coupon extends Model
     public function incrementUsage(): void
     {
         $this->increment('used_count');
+        $this->refresh();
+
+        if ($this->max_uses !== null && $this->used_count >= $this->max_uses) {
+            $this->forceFill(['is_active' => false])->save();
+        }
+    }
+
+    /**
+     * Record a successful one-time (or limited) coupon use against an order.
+     * Idempotent per coupon + order pair.
+     */
+    public function consumeForOrder(int $userId, Order $order, float $discountApplied, float $originalAmount, float $finalAmount): CouponUsage
+    {
+        $existing = CouponUsage::where('coupon_id', $this->id)
+            ->where('order_id', $order->id)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $usage = CouponUsage::create([
+            'coupon_id' => $this->id,
+            'user_id' => $userId,
+            'order_id' => $order->id,
+            'discount_applied' => $discountApplied,
+            'original_amount' => $originalAmount,
+            'final_amount' => $finalAmount,
+        ]);
+
+        $this->incrementUsage();
+
+        try {
+            app(\App\Services\WheelProgressService::class)->markClaimUsedFromCoupon($this->id, $userId);
+        } catch (\Throwable $e) {
+            // Wheel claim sync is best-effort; coupon usage itself already succeeded.
+        }
+
+        return $usage;
+    }
+
+    /**
+     * Wheel reward coupons may only be redeemed by the user who won them.
+     */
+    public function isUsableByWheelWinner(int $userId): bool
+    {
+        if ($this->created_by !== 'wheel_event') {
+            return true;
+        }
+
+        return WheelClaim::where('coupon_id', $this->id)
+            ->where('user_id', $userId)
+            ->exists();
     }
 
     /**

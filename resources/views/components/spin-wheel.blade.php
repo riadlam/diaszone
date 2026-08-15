@@ -68,6 +68,7 @@
             'code_copied' => __('event.code_copied'),
             'discount_ready' => __('event.discount_ready'),
             'discount_ready_text' => __('event.discount_ready_text'),
+            'discount_offer_restriction' => __('event.discount_offer_restriction', ['offers' => ':offers']),
             'coupon_code' => __('event.coupon_code'),
             'my_rewards' => __('event.my_rewards'),
             'no_rewards_yet' => __('event.no_rewards_yet'),
@@ -1690,6 +1691,10 @@
         modalKicker.textContent = T.you_won || '';
 
         if (claim.is_discount_reward) {
+            const eligibleOffers = Array.isArray(claim.eligible_pack_names)
+                ? claim.eligible_pack_names.filter(Boolean)
+                : [];
+
             modalBadge.textContent = '%';
             modalTitle.textContent = T.discount_ready || T.congrats || '';
             modalPrize.textContent = percent
@@ -1700,7 +1705,9 @@
             codeValue.textContent = code;
             codeBlock.hidden = !code;
 
-            note.textContent = T.discount_ready_text || '';
+            note.textContent = eligibleOffers.length && T.discount_offer_restriction
+                ? T.discount_offer_restriction.replace(':offers', eligibleOffers.join(', '))
+                : (T.discount_ready_text || '');
             note.hidden = false;
 
             useLink.textContent = T.claim || '';
