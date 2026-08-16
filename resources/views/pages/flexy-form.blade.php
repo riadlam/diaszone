@@ -163,38 +163,6 @@
             </div>
         </div>
 
-        <!-- Flexy Phone Number Notice - Very Prominent -->
-        <div class="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 rounded-xl shadow-2xl border-4 border-purple-400 p-6 mb-6 transform hover:scale-[1.01] transition-all duration-300 ring-4 ring-purple-300 ring-opacity-50">
-            <div class="flex items-center justify-center gap-4">
-                <div class="flex-shrink-0">
-                    <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-                    </svg>
-                </div>
-                <div class="text-center flex-1">
-                    <p class="text-white text-sm md:text-base font-semibold mb-2 uppercase tracking-wide">
-                        {{ __('checkout.send_flexy_payment_to') }}
-                    </p>
-                    <button type="button" 
-                            id="copy-phone-btn"
-                            onclick="copyPhoneNumber()"
-                            class="inline-block cursor-pointer group">
-                        <p id="phone-number" class="text-white text-3xl md:text-4xl font-black tracking-wider mb-1 group-hover:text-yellow-300 transition-colors duration-200">
-                            0673771763
-                        </p>
-                    </button>
-                    <p id="copy-feedback" class="text-purple-200 text-xs md:text-sm font-medium mt-1">
-                        {{ __('uploader.click_number_to_copy_or_call') }}
-                    </p>
-                </div>
-                <div class="flex-shrink-0">
-                    <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
-                    </svg>
-                </div>
-            </div>
-        </div>
-
         <!-- Flexy Upload Form -->
         <div class="bg-white rounded-xl shadow-lg border-2 border-purple-100 p-6">
             <form id="flexy-form" action="{{ route('flexy-submit') }}" method="POST" enctype="multipart/form-data">
@@ -532,50 +500,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
-    // Copy phone number to clipboard
-    window.copyPhoneNumber = function() {
-        const phoneNumber = '0673771763';
-        const feedback = document.getElementById('copy-feedback');
-        
-        // Copy to clipboard
-        navigator.clipboard.writeText(phoneNumber).then(function() {
-            // Show success feedback
-            if (feedback) {
-                const originalText = feedback.innerHTML;
-                feedback.innerHTML = '<span class="text-yellow-300 font-bold">{{ __('checkout.copied_to_clipboard') }}</span>';
-                feedback.classList.remove('text-purple-200');
-                feedback.classList.add('text-yellow-300');
-                
-                // Reset after 2 seconds
-                setTimeout(function() {
-                    feedback.innerHTML = originalText;
-                    feedback.classList.remove('text-yellow-300');
-                    feedback.classList.add('text-purple-200');
-                }, 2000);
-            }
-        }).catch(function(err) {
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = phoneNumber;
-            textArea.style.position = 'fixed';
-            textArea.style.opacity = '0';
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                if (feedback) {
-                    feedback.innerHTML = '<span class="text-yellow-300 font-bold">{{ __('checkout.copied_to_clipboard') }}</span>';
-                    setTimeout(function() {
-                        feedback.innerHTML = {!! json_encode(__('uploader.click_number_to_copy_or_call')) !!} + ' <a href="tel:0673771763" class="underline hover:text-yellow-300">' + {!! json_encode(__('uploader.call_directly')) !!} + '</a>';
-                    }, 2000);
-                }
-            } catch (err) {
-                console.error('Failed to copy:', err);
-            }
-            document.body.removeChild(textArea);
-        });
-    };
     
     // Update price based on selected currency (default to DZD for Flexy)
     function updateFlexyPrice() {
