@@ -1,6 +1,50 @@
 import './bootstrap';
 import './slider';
 
+// Reveal lazy images that CSS keeps at opacity:0 until .loaded
+(function revealLazyImages() {
+    const markLoaded = (img) => {
+        img.classList.add('loaded');
+        img.setAttribute('data-loaded', '1');
+    };
+
+    const watch = (img) => {
+        if (!(img instanceof HTMLImageElement)) return;
+        if (img.complete && img.naturalWidth > 0) {
+            markLoaded(img);
+            return;
+        }
+        img.addEventListener('load', () => markLoaded(img), { once: true });
+        img.addEventListener('error', () => markLoaded(img), { once: true });
+    };
+
+    const scan = (root = document) => {
+        root.querySelectorAll('img[loading="lazy"]').forEach(watch);
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => scan());
+    } else {
+        scan();
+    }
+
+    // Dynamically inserted images (cart, payment, etc.)
+    if (typeof MutationObserver !== 'undefined') {
+        const obs = new MutationObserver((mutations) => {
+            mutations.forEach((m) => {
+                m.addedNodes.forEach((node) => {
+                    if (!(node instanceof HTMLElement)) return;
+                    if (node.matches?.('img[loading="lazy"]')) watch(node);
+                    else scan(node);
+                });
+            });
+        });
+        const start = () => obs.observe(document.body, { childList: true, subtree: true });
+        if (document.body) start();
+        else document.addEventListener('DOMContentLoaded', start);
+    }
+})();
+
 // Pack Selection and Order Form Functionality
 // Currency Utility Functions
 window.CurrencyManager = {

@@ -581,13 +581,14 @@ select {
     will-change: transform;
 }
 
-/* Lazy loading placeholder */
+/* Lazy loading: reveal when the browser has the image (or on error) */
 img[loading="lazy"] {
     opacity: 0;
     transition: opacity 0.3s;
 }
 
-img[loading="lazy"].loaded {
+img[loading="lazy"].loaded,
+img[loading="lazy"][data-loaded="1"] {
     opacity: 1;
 }
 
