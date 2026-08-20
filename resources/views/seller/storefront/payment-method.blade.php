@@ -214,7 +214,7 @@ const tProcessing = {!! json_encode(__('seller.processing_text')) !!};
                         <div class="bg-slate-800 border-2 border-slate-700 rounded-xl p-4 hover:border-blue-500 peer-checked:border-blue-500 peer-checked:bg-slate-700/50 transition-all">
                             <div class="flex items-center gap-4">
                                 <div class="w-14 h-14 flex-shrink-0 flex items-center justify-center bg-slate-700/50 rounded-lg">
-                                    <img src="{{ asset('storage_public/images_homepage/algerie-post.png') }}" 
+                                    <img src="{{ \App\Support\PublicMedia::url('images_homepage/algerie-post.png') }}" 
                                          alt="Algerie Post" 
                                          class="w-full h-full object-contain p-1">
                                 </div>
@@ -259,7 +259,7 @@ const tProcessing = {!! json_encode(__('seller.processing_text')) !!};
                         <div class="bg-slate-800 border-2 border-slate-700 rounded-xl p-4 hover:border-orange-500 peer-checked:border-orange-500 peer-checked:bg-slate-700/50 transition-all">
                             <div class="flex items-center gap-4">
                                 <div class="w-14 h-14 flex-shrink-0 flex items-center justify-center bg-slate-700/50 rounded-lg">
-                                    <img src="{{ asset('storage_public/images_homepage/flexy.webp') }}" 
+                                    <img src="{{ \App\Support\PublicMedia::url('images_homepage/flexy.webp') }}" 
                                          alt="Flexy" 
                                          class="w-full h-full object-contain p-1">
                                 </div>
@@ -281,7 +281,7 @@ const tProcessing = {!! json_encode(__('seller.processing_text')) !!};
                             <div class="bg-slate-800 border-2 border-slate-700 rounded-xl p-4 grayscale">
                                 <div class="flex items-center gap-4">
                                     <div class="w-14 h-14 flex-shrink-0 flex items-center justify-center bg-slate-700/50 rounded-lg">
-                                        <img src="{{ asset('storage_public/images_homepage/flexy.webp') }}" alt="Flexy" class="w-full h-full object-contain p-1 grayscale">
+                                        <img src="{{ \App\Support\PublicMedia::url('images_homepage/flexy.webp') }}" alt="Flexy" class="w-full h-full object-contain p-1 grayscale">
                                     </div>
                                     <div class="flex-1">
                                         <h3 class="text-white font-bold">{{ __('seller.flexy') }}</h3>
@@ -325,7 +325,7 @@ const tProcessing = {!! json_encode(__('seller.processing_text')) !!};
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                <img src="{{ asset('storage_public/images_homepage/flexy.webp') }}" alt="Flexy" class="w-8 h-8 object-contain">
+                                <img src="{{ \App\Support\PublicMedia::url('images_homepage/flexy.webp') }}" alt="Flexy" class="w-8 h-8 object-contain">
                             </div>
                             <div>
                                 <h3 class="text-lg font-bold text-white">{{ __('seller.flexy_payment_title') }}</h3>

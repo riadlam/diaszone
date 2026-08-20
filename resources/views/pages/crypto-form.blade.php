@@ -150,12 +150,27 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ __('checkout.price_breakdown') }}</h2>
             <div class="space-y-3">
                 @php
-                    $unitPriceUsd = (float) ($order->diamondPack->price_usd ?? $unit_price);
-                    $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? 0);
-                    $discountAmountUsd = ($unitPriceUsd * $discount_percentage) / 100;
-                    $discountAmountDzd = ($unitPriceDzd * $discount_percentage) / 100;
-                    $totalAmountUsd = $unitPriceUsd - $discountAmountUsd;
-                    $totalAmountDzd = $unitPriceDzd - $discountAmountDzd;
+                    if (!empty($is_flash_sale) || $order->flash_sale_offer_id) {
+                        $finalDzdPrice = (float) ($order->final_price ?? 0);
+                        $originalDzdPrice = (float) ($order->original_price ?? $finalDzdPrice);
+                        $unitPriceUsd = $originalDzdPrice / 260;
+                        $unitPriceDzd = $originalDzdPrice;
+                        $totalAmountUsd = $finalDzdPrice / 260;
+                        $totalAmountDzd = $finalDzdPrice;
+                        $discountAmountUsd = max(0, $unitPriceUsd - $totalAmountUsd);
+                        $discountAmountDzd = max(0, $unitPriceDzd - $totalAmountDzd);
+                        $discount_percentage = $originalDzdPrice > 0
+                            ? (int) round(($discountAmountDzd / $originalDzdPrice) * 100)
+                            : 0;
+                    } else {
+                        $unitPriceUsd = (float) ($order->diamondPack->price_usd ?? $unit_price);
+                        $unitPriceDzd = (float) ($order->diamondPack->price_dzd ?? 0);
+                        $discount_percentage = (int) round((float) ($discount_percentage ?? 0));
+                        $discountAmountUsd = ($unitPriceUsd * $discount_percentage) / 100;
+                        $discountAmountDzd = ($unitPriceDzd * $discount_percentage) / 100;
+                        $totalAmountUsd = $unitPriceUsd - $discountAmountUsd;
+                        $totalAmountDzd = $unitPriceDzd - $discountAmountDzd;
+                    }
                 @endphp
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">{{ __('checkout.unit_price') }}</span>
@@ -236,9 +251,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (changePaymentBtn) {
         changePaymentBtn.addEventListener('click', async function() {
             const encryptedOrderId = '{{ $encrypted_order_id }}';
+            const isFlashSale = @json(!empty($is_flash_sale) || (bool) ($order->flash_sale_offer_id ?? false));
             
             if (!encryptedOrderId) {
                 window.location.href = '{{ route("select-payment") }}';
+                return;
+            }
+
+            // Flash sale: keep the order and return to select with flash context
+            if (isFlashSale) {
+                window.location.href = @json(route('select-payment', ['order_id' => $encrypted_order_id, 'flash' => 1]));
                 return;
             }
             

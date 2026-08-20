@@ -35,7 +35,7 @@
                                 <div class="bg-white border-2 border-gray-200 rounded-xl p-4 {{ $isComingSoon ? 'opacity-60 grayscale pointer-events-none' : 'hover:border-purple-400 hover:shadow-xl hover:scale-[1.02]' }} transition-all duration-300 peer-checked:border-purple-600 peer-checked:bg-gradient-to-br peer-checked:from-purple-50 peer-checked:to-pink-50 peer-checked:shadow-2xl peer-checked:shadow-purple-200/50 flex items-center gap-3">
                                     <!-- Payment Icon -->
                                     <div class="flex-shrink-0 {{ $isComingSoon ? '' : 'group-hover:scale-110' }} transition-transform duration-300" style="width: 57.6px; height: 57.6px; min-width: 57.6px; min-height: 57.6px; display: flex !important; align-items: center; justify-center; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); border-radius: 12.8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                                        <img src="{{ $baseUrl }}/storage_public/images_homepage/{{ $method['icon'] }}" 
+                                        <img src="{{ \App\Support\PublicMedia::url('images_homepage/'.$method['icon']) }}" 
                                              alt="{{ $method['name'] }}" 
                                              style="width: 100% !important; height: 100% !important; max-width: 57.6px !important; max-height: 57.6px !important; object-fit: contain !important; display: block !important; visibility: visible !important; opacity: 1 !important;"
                                              loading="lazy"
@@ -470,6 +470,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (totalEl) {
                 totalEl.textContent = sale.toLocaleString() + ' DZD';
                 totalEl.setAttribute('data-value', sale);
+            }
+            const payNowAmountEl = document.getElementById('pay-now-amount');
+            if (payNowAmountEl) {
+                payNowAmountEl.textContent = sale.toLocaleString() + ' DZD';
+                payNowAmountEl.setAttribute('data-value', sale);
             }
             if (original > sale) {
                 if (beforeEl) beforeEl.textContent = original.toLocaleString() + ' DZD';

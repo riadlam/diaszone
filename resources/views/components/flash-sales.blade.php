@@ -473,6 +473,11 @@
         const ok = await verifyMlIfNeeded(payload);
         if (!ok) return;
 
+        // Show validated nickname briefly before checkout redirect
+        if (current.gameType === 'mobilelegends') {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+
         const btn = form.querySelector('button[type="submit"]');
         btn.disabled = true;
         try {

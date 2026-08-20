@@ -1334,7 +1334,7 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
         
-        $order = Order::with('diamondPack')->find($orderId);
+        $order = Order::with(['diamondPack', 'flashSaleOffer', 'orderItems.diamondPack'])->find($orderId);
         
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
@@ -1343,6 +1343,7 @@ class CheckoutController extends Controller
         return view('pages.baridimob-form', [
             'order' => $order,
             'encrypted_order_id' => $encryptedOrderId,
+            'is_flash_sale' => $order->isFlashSale(),
         ]);
     }
     
@@ -3803,17 +3804,27 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
         
-        $order = Order::with('diamondPack')->find($orderId);
+        $order = Order::with(['diamondPack', 'flashSaleOffer', 'orderItems.diamondPack'])->find($orderId);
         
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
         }
-        
-        // Calculate order amount
-        $unitPrice = $order->diamondPack->price;
-        $discountPercentage = $order->diamondPack->discount_percentage ?? 0;
-        $discountAmount = ($unitPrice * $discountPercentage) / 100;
-        $totalAmount = $unitPrice - $discountAmount;
+
+        if ($order->isFlashSale()) {
+            $finalDzd = (float) ($order->final_price ?? 0);
+            $originalDzd = (float) ($order->original_price ?? $finalDzd);
+            $discountPercentage = $originalDzd > 0
+                ? (int) round((($originalDzd - $finalDzd) / $originalDzd) * 100)
+                : 0;
+            $unitPrice = $originalDzd / 260;
+            $totalAmount = $finalDzd / 260;
+            $discountAmount = max(0, $unitPrice - $totalAmount);
+        } else {
+            $unitPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price ?? 0);
+            $discountPercentage = (int) round((float) ($order->diamondPack->discount_percentage ?? 0));
+            $discountAmount = ($unitPrice * $discountPercentage) / 100;
+            $totalAmount = $unitPrice - $discountAmount;
+        }
         
         return view('pages.crypto-form', [
             'order' => $order,
@@ -3822,6 +3833,7 @@ class CheckoutController extends Controller
             'unit_price' => $unitPrice,
             'discount_percentage' => $discountPercentage,
             'discount_amount' => $discountAmount,
+            'is_flash_sale' => $order->isFlashSale(),
         ]);
     }
     

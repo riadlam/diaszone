@@ -211,14 +211,16 @@
                         
                         // Calculate discount for display (if original_price is available)
                         $originalPrice = (float) ($order->original_price ?? $finalDzdPrice);
-                        $discountAmountDzd = $originalPrice - $finalDzdPrice;
-                        $discountPercentage = $originalPrice > 0 ? ($discountAmountDzd / $originalPrice) * 100 : 0;
+                        $discountAmountDzd = max(0, $originalPrice - $finalDzdPrice);
+                        $discountPercentage = $originalPrice > 0
+                            ? (int) round(($discountAmountDzd / $originalPrice) * 100)
+                            : 0;
                         $discountAmountUsd = $discountAmountDzd / 260;
                     } else {
                         // Legacy single-pack order: calculate from pack
                         $usdPrice = (float) ($order->diamondPack->price_usd ?? $order->diamondPack->price);
                         $dzdPrice = (float) ($order->diamondPack->price_dzd ?? 0);
-                        $discountPercentage = (float) ($order->diamondPack->discount_percentage ?? 0);
+                        $discountPercentage = (int) round((float) ($order->diamondPack->discount_percentage ?? 0));
                         $discountAmountUsd = ($usdPrice * $discountPercentage) / 100;
                         $discountAmountDzd = ($dzdPrice * $discountPercentage) / 100;
                         $finalUsdPrice = $usdPrice - $discountAmountUsd;
@@ -445,9 +447,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (changePaymentBtn) {
         changePaymentBtn.addEventListener('click', async function() {
             const encryptedOrderId = '{{ $encrypted_order_id }}';
+            const isFlashSale = @json(!empty($is_flash_sale) || (bool) ($order->flash_sale_offer_id ?? false));
             
             if (!encryptedOrderId) {
                 window.location.href = '{{ route("select-payment") }}';
+                return;
+            }
+
+            // Flash sale: keep the order and return to select with flash context
+            if (isFlashSale) {
+                window.location.href = @json(route('select-payment', ['order_id' => $encrypted_order_id, 'flash' => 1]));
                 return;
             }
             
