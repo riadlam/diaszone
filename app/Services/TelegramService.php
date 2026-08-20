@@ -318,6 +318,17 @@ class TelegramService
         $userEmail = $order->user ? $escape($order->user->email) : 'N/A';
         
         $message = "🆕 <b>New Order Created</b>\n\n";
+        if (method_exists($order, 'isFlashSale') && $order->isFlashSale()) {
+            if (! $order->relationLoaded('flashSaleOffer')) {
+                $order->load('flashSaleOffer');
+            }
+            $offerName = $order->flashSaleOffer?->name;
+            $message .= "⚡ <b>FLASH SALE</b>";
+            if ($offerName) {
+                $message .= " — {$escape($offerName)}";
+            }
+            $message .= "\n";
+        }
         $message .= "📦 <b>Order:</b> {$escape($order->order_number)}\n";
         $message .= "🎮 <b>Game:</b> {$escape($gameName)}\n";
         
