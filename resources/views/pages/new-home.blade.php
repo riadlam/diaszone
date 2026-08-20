@@ -8,8 +8,9 @@
         background-color: #ffffff !important;
     }
 </style>
-<!-- Hero Slider -->
-@include('components.hero-slider')
+@include('components.hero-slider', [
+    'heroSlides' => $heroSlides ?? collect(),
+])
 
 @include('components.flash-sales', [
     'flashSales' => $flashSales ?? collect(),

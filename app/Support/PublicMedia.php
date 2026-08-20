@@ -15,6 +15,7 @@ class PublicMedia
         'event-backgrounds',
         'images_homepage',
         'flash-sale-images',
+        'hero-slides',
         'game-content-images',
         'top4gamers_images',
         'seller-logos',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DiamondPack;
 use App\Models\FlashSaleOffer;
+use App\Models\HeroSlide;
 use App\Models\Game;
 use App\Models\Review;
 use App\Models\ReviewLike;
@@ -161,7 +162,21 @@ class HomeController extends Controller
         // Countdown is session-based (22h) on the frontend; dates are ignored.
         $flashSaleEndsAt = null;
 
-        return view('pages.new-home', compact('games', 'topSellingGames', 'newProducts', 'giftCards', 'flashSales', 'flashSaleEndsAt'));
+        $heroSlides = HeroSlide::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        return view('pages.new-home', compact(
+            'games',
+            'topSellingGames',
+            'newProducts',
+            'giftCards',
+            'flashSales',
+            'flashSaleEndsAt',
+            'heroSlides'
+        ));
     }
     
     /**
