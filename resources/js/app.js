@@ -188,17 +188,18 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Format pack display name
             let displayName = '';
+            const membershipName = checkbox.dataset.packMembershipName || '';
             if (packName && (packName.includes('Weekly Diamond Pass') || packName.includes('Event Topup'))) {
                 const weeklyPassText = translations.weeklyDiamondPass || 'Weekly Diamond Pass';
                 displayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
             } else if (packName && packName.includes('Twilight Pass')) {
                 displayName = translations.twilightPass || 'Twilight Pass';
+            } else if (diamonds === 0) {
+                displayName = membershipName || packName || 'Special pack';
+            } else if (bonus > 0) {
+                displayName = `${diamonds.toLocaleString()} ${currencyText} + ${bonus.toLocaleString()} ${bonusText}`;
             } else {
-                if (bonus > 0) {
-                    displayName = `${diamonds.toLocaleString()} ${currencyText} + ${bonus.toLocaleString()} ${bonusText}`;
-                } else {
-                    displayName = `${diamonds.toLocaleString()} ${currencyText}`;
-                }
+                displayName = `${diamonds.toLocaleString()} ${currencyText}`;
             }
             
             return `
@@ -702,6 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         // Determine pack display name
                         let packDisplayName = '';
+                        const diamondsCount = parseInt(packInfo.diamonds || 0, 10);
                         if (packInfo.name) {
                             const translations = window.GameTranslations || {};
                             if (packInfo.name.includes('Weekly Diamond Pass') || packInfo.name.includes('Event Topup')) {
@@ -710,13 +712,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 packDisplayName = qty > 1 ? `${qty}x ${weeklyPassText}` : weeklyPassText;
                             } else if (packInfo.name.includes('Twilight Pass')) {
                                 packDisplayName = translations.twilightPass || 'Twilight Pass';
+                            } else if (diamondsCount === 0) {
+                                packDisplayName = packInfo.membership_name || packInfo.name;
                             } else {
                                 packDisplayName = packInfo.name;
                             }
+                        } else if (diamondsCount === 0) {
+                            packDisplayName = packInfo.membership_name || 'Special pack';
                         } else {
                             const gameType = packInfo.game_type || 'mobilelegends';
                             const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
-                            packDisplayName = `${packInfo.diamonds} ${currencyText}`;
+                            packDisplayName = `${diamondsCount} ${currencyText}`;
                         }
                         
                         // Determine game type and display appropriate fields
@@ -827,6 +833,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 packDisplayName = packQuantity > 1 ? `${packQuantity}x ${weeklyPassText}` : weeklyPassText;
             } else if (selectedPack.name && selectedPack.name.includes('Twilight Pass')) {
                 packDisplayName = translations.twilightPass || 'Twilight Pass';
+            } else if (parseInt(selectedPack.diamonds || 0, 10) === 0) {
+                packDisplayName = selectedPack.membership_name || selectedPack.name || 'Special pack';
             } else {
                 // Regular pack display
             if (selectedPack.bonus > 0) {

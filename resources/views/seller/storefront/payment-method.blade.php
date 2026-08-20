@@ -214,12 +214,12 @@ const tProcessing = {!! json_encode(__('seller.processing_text')) !!};
                         <div class="bg-slate-800 border-2 border-slate-700 rounded-xl p-4 hover:border-blue-500 peer-checked:border-blue-500 peer-checked:bg-slate-700/50 transition-all">
                             <div class="flex items-center gap-4">
                                 <div class="w-14 h-14 flex-shrink-0 flex items-center justify-center bg-slate-700/50 rounded-lg">
-                                    <img src="{{ asset('storage_public/images_homepage/barid_jazaair.webp') }}" 
-                                         alt="Baridimob" 
+                                    <img src="{{ asset('storage_public/images_homepage/algerie-post.png') }}" 
+                                         alt="Algerie Post" 
                                          class="w-full h-full object-contain p-1">
                                 </div>
                                 <div class="flex-1">
-                                    <h3 class="text-white font-bold">Algérie Poste</h3>
+                                    <h3 class="text-white font-bold">Algerie Post</h3>
                                     <p class="text-gray-400 text-sm">{{ __('seller.baridimob_desc') }}</p>
                                 </div>
                                 <div class="w-6 h-6 rounded-full border-2 border-slate-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 flex items-center justify-center transition-all">

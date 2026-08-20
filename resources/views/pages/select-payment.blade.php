@@ -554,10 +554,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Determine pack display name
                     let packDisplayName = '';
-                    if (pack.name) {
+                    const diamondsCount = parseInt(pack.diamonds || 0, 10);
+                    if (diamondsCount === 0) {
+                        packDisplayName = pack.membership_name || pack.name || 'Special pack';
+                    } else if (pack.name) {
                         packDisplayName = pack.name;
                     } else {
-                        packDisplayName = `${pack.diamonds} ${itemCurrencyText}`;
+                        packDisplayName = `${diamondsCount} ${itemCurrencyText}`;
                     }
                     
                     // Bonus display
@@ -770,7 +773,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Payment method selection logic
         const paymentMethods = {
-            'baridimob': 'Baridimob',
+            'baridimob': 'Algerie Post',
             'cryptocurrency': 'Cryptocurrency (USD)',
             'flexy': 'Flexy'
         };

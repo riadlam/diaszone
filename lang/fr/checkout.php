@@ -60,7 +60,7 @@ return [
     'order_number' => 'Numéro de commande',
     'unit_price' => 'Prix unitaire',
     'pack' => 'Pack',
-    'proceed_with_baridimob' => 'Continuer avec Baridimob',
+    'proceed_with_baridimob' => 'Continuer avec Algerie Post',
     'payment_successful_title' => 'Paiement réussi !',
     'payment_successful_message' => 'Votre paiement a été traité avec succès. Votre commande sera complétée sous peu.',
     'redirecting_to_orders' => 'Redirection vers vos commandes dans',

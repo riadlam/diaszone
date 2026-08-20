@@ -192,7 +192,7 @@
                                         @elseif($pack->price == 1.18)
                                             <h3 class="text-base font-bold text-gray-900">{{ __('game.premium_purchase_rebate_pack') }}</h3>
                                         @else
-                                            <h3 class="text-base font-bold text-gray-900">{{ __('game.special_pack') }}</h3>
+                                            <h3 class="text-base font-bold text-gray-900">{{ $pack->membership_name ?: $pack->name ?: __('game.special_pack') }}</h3>
                                         @endif
                                     @elseif($pack->diamonds == 1 && $pack->price == 0.96)
                                         <h3 class="text-base font-bold text-gray-900">{{ __('game.weekly_card') }}</h3>
@@ -207,13 +207,11 @@
                                         <h3 class="text-base font-bold text-gray-900">{{ ($packQuantity > 1 && stripos($pack->name ?? '', 'weekly') !== false) ? $packQuantity . 'x ' . __('game.weekly_diamond_pass') : __('game.weekly_diamond_pass') }}</h3>
                                     @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                         <h3 class="text-base font-bold text-gray-900">{{ __('game.twilight_pass') }}</h3>
+                                    @elseif((int) $pack->diamonds === 0)
+                                        <h3 class="text-base font-bold text-gray-900">{{ $pack->membership_name ?: $pack->name ?: __('game.special_pack') }}</h3>
                                     @else
-                                        @if($pack->diamonds == 0 && $pack->membership_name)
-                                            <h3 class="text-base font-bold text-gray-900">{{ $pack->membership_name }}</h3>
-                                        @else
-                                            <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
-                                            <span class="text-sm font-medium text-gray-600">{{ $currencyName }}</span>
-                                        @endif
+                                        <h3 class="text-base font-bold text-gray-900">{{ number_format($pack->diamonds) }}</h3>
+                                        <span class="text-sm font-medium text-gray-600">{{ $currencyName }}</span>
                                     @endif
                                 @endif
                             </div>

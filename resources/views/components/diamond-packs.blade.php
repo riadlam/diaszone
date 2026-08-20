@@ -142,7 +142,7 @@
                                             @elseif($pack->price == 1.18)
                                                 {{ __('game.premium_purchase_rebate_pack') }}
                                             @else
-                                                {{ __('game.special_pack') }}
+                                                {{ $pack->membership_name ?: $pack->name ?: __('game.special_pack') }}
                                             @endif
                                         @elseif($pack->diamonds == 1 && $pack->price == 0.96)
                                             {{ __('game.weekly_card') }}
@@ -160,12 +160,10 @@
                                             @endif
                                         @elseif(stripos($pack->name, 'Twilight Pass') !== false)
                                             {{ __('game.twilight_pass') }}
+                                        @elseif((int) $pack->diamonds === 0)
+                                            {{ $pack->membership_name ?: $pack->name ?: __('game.special_pack') }}
                                         @else
-                                            @if($pack->diamonds == 0 && $pack->membership_name)
-                                                {{ $pack->membership_name }}
-                                            @else
-                                                {{ $pack->diamonds }} {{ $currencyName }}
-                                            @endif
+                                            {{ $pack->diamonds }} {{ $currencyName }}
                                         @endif
                                     @endif
                                 </h3>
@@ -367,13 +365,11 @@ window.updatePricesOnPage = function() {
             } else if (packNameData && packNameData.includes('Twilight Pass')) {
                 packDisplayName = twilightPassText;
             } else {
-                // Check if diamonds is 0 and membership_name exists
                 const packMembershipName = packCard.getAttribute('data-pack-membership-name');
-                if (parseInt(packDiamonds) === 0 && packMembershipName) {
-                    packDisplayName = packMembershipName;
+                const bonusTextFinal = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} ${bonusText} ${packCurrency}` : '';
+                if (parseInt(packDiamonds) === 0) {
+                    packDisplayName = packMembershipName || packNameData || 'Special pack';
                 } else {
-                    // Use currency from data attribute (already extracted above)
-                    const bonusTextFinal = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} ${bonusText} ${packCurrency}` : '';
                     packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${packCurrency}${bonusTextFinal}`;
                 }
             }
@@ -1128,14 +1124,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (packNameData && packNameData.includes('Twilight Pass')) {
                     packDisplayName = twilightPassText;
                     } else {
-                        // Check if diamonds is 0 and membership_name exists
                         const packMembershipName = checkbox.dataset.packMembershipName;
-                        if (parseInt(packDiamonds) === 0 && packMembershipName) {
-                            packDisplayName = packMembershipName;
-                    } else {
                         const gameType = '{{ $gameType ?? "mobilelegends" }}';
-                            const currencyText = gameType === 'pubgmobile' ? '{{ __('game.uc') }}' : (gameType === 'honorofkings' ? '{{ __('game.tokens') }}' : (gameType === 'bloodstrike' ? '{{ __('game.golds') }}' : '{{ __('game.diamonds') }}'));
-                            const bonusTextFinal = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} ${bonusText}` : '';
+                        const currencyText = gameType === 'pubgmobile' ? '{{ __('game.uc') }}' : (gameType === 'honorofkings' ? '{{ __('game.tokens') }}' : (gameType === 'bloodstrike' ? '{{ __('game.golds') }}' : '{{ __('game.diamonds') }}'));
+                        const bonusTextFinal = parseInt(packBonus) > 0 ? ` + ${parseInt(packBonus).toLocaleString()} ${bonusText}` : '';
+                        if (parseInt(packDiamonds) === 0) {
+                            packDisplayName = packMembershipName || packNameData || 'Special pack';
+                        } else {
                             packDisplayName = `${parseInt(packDiamonds).toLocaleString()} ${currencyText}${bonusTextFinal}`;
                         }
                     }

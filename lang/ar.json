@@ -60,7 +60,7 @@
   "checkout.order_number": "رقم الطلب",
   "payment.flexy": "فليكسي (الجزائر)",
   "payment.crypto": "العملات المشفرة",
-  "payment.baridimob": "بريدي موب (الجزائر)",
+  "payment.baridimob": "الجزائر بوست",
   "payment.credit_card": "بطاقة ائتمان",
   "payment.select_method": "يرجى اختيار طريقة الدفع المفضلة لديك",
   "payment.processing": "جاري معالجة الدفع...",

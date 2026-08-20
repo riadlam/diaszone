@@ -54,7 +54,7 @@ return [
     'flexy' => 'Flexy',
     'ccp' => 'CCP',
     'usdt' => 'USDT',
-    'baridimob' => 'Baridimob',
+    'baridimob' => 'Algerie Post',
     'add_reference_notes' => 'Add any reference or notes about this transfer',
     'pdf_document' => 'PDF Document',
     'unsupported' => 'Unsupported',

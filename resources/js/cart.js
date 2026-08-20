@@ -255,9 +255,13 @@ const CartManager = {
                             packDisplayName = qty > 1 ? `${qty}x Weekly Diamond Pass` : 'Weekly Diamond Pass';
                         } else if (packInfo.name.includes('Twilight Pass')) {
                             packDisplayName = 'Twilight Pass';
+                        } else if (parseInt(packInfo.diamonds || 0, 10) === 0) {
+                            packDisplayName = packInfo.membership_name || packInfo.name;
                         } else {
                             packDisplayName = packInfo.name;
                         }
+                    } else if (parseInt(packInfo.diamonds || 0, 10) === 0) {
+                        packDisplayName = packInfo.membership_name || 'Special pack';
                     } else {
                         const gameType = packInfo.game_type || 'mobilelegends';
                         const currencyText = gameType === 'pubgmobile' ? 'UC' : (gameType === 'honorofkings' ? 'Tokens' : (gameType === 'bloodstrike' ? 'Golds' : 'Diamonds'));

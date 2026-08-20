@@ -187,7 +187,7 @@ return [
     'flexy' => 'فليكسي',
     'ccp' => 'CCP',
     'usdt' => 'USDT',
-    'baridimob' => 'بريديموب',
+    'baridimob' => 'Algerie Post',
     'add_reference_notes' => 'أضف أي مرجع أو ملاحظة حول هذا التحويل',
     'pdf_document' => 'ملف PDF',
     'unsupported' => 'غير مدعوم',

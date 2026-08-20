@@ -341,7 +341,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 packLinesHtml = orderItems.map((item, idx) => {
                     const pack = item.diamond_pack || {};
                     const qty = Math.max(1, parseInt(item.quantity || 1, 10));
-                    let name = pack.name || `${pack.diamonds || 0} ${currencyText}`;
+                    let name = pack.name
+                        || (parseInt(pack.diamonds || 0, 10) === 0
+                            ? (pack.membership_name || 'Special pack')
+                            : `${pack.diamonds || 0} ${currencyText}`);
                     const bonus = parseInt(pack.bonus_diamonds || 0, 10);
                     if (bonus > 0) {
                         name += ` + ${bonus} Bonus ${currencyText}`;
@@ -351,8 +354,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                     return `<p class="text-lg text-purple-600 font-semibold ${border}">${name}${qtyText}</p>`;
                 }).join('');
             } else {
+                const packDiamonds = parseInt(order.diamond_pack?.diamonds || 0, 10);
                 let packDisplayName = order.diamond_pack?.name
-                    || `${order.diamond_pack?.diamonds || 0} ${currencyText}`;
+                    || (packDiamonds === 0
+                        ? (order.diamond_pack?.membership_name || 'Special pack')
+                        : `${packDiamonds} ${currencyText}`);
                 const bonus = order.diamond_pack?.bonus_diamonds || 0;
                 if (bonus > 0) {
                     packDisplayName += ` + ${bonus} Bonus ${currencyText}`;

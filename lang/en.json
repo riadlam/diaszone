@@ -60,7 +60,7 @@
   "checkout.order_number": "Order Number",
   "payment.flexy": "Flexy (Algeria)",
   "payment.crypto": "Cryptocurrency",
-  "payment.baridimob": "BaridiMob (Algeria)",
+  "payment.baridimob": "Algerie Post",
   "payment.credit_card": "Credit Card",
   "payment.select_method": "Please select your preferred payment method",
   "payment.processing": "Processing Payment...",

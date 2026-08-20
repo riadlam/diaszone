@@ -159,7 +159,7 @@ class FlashSaleFeatureTest extends TestCase
         $this->actingAs($user)
             ->get(route('select-payment', ['order_id' => $encrypted, 'flash' => 1]))
             ->assertOk()
-            ->assertSee('Baridimob', false)
+            ->assertSee('Algerie Post', false)
             ->assertSee('Cryptocurrency', false)
             ->assertDontSee('value="flexy"', false)
             ->assertSee('Weekly Diamond Pass 3x', false);

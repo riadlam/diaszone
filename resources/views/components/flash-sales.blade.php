@@ -7,22 +7,22 @@
 @if($flashSales->isNotEmpty())
 <section class="flash-sale" data-flash-sale aria-label="{{ __('flash_sale.title') }}">
     <div class="container relative z-10 mx-auto w-full max-w-screen-2xl px-4 md:px-8 2xl:px-3 overflow-visible">
-        <div class="flash-sale__ribbon relative rounded-md flex items-center w-full h-9 lg:h-16">
-            <div class="flash-sale__blitz overflow-hidden relative z-20 ml-4 w-7 h-10 lg:w-16 lg:h-24" aria-hidden="true">
+        <div class="flash-sale__ribbon relative rounded-xl flex items-center w-full h-10 lg:h-14 px-1">
+            <div class="flash-sale__blitz overflow-hidden relative z-20 ml-3 w-6 h-8 lg:w-10 lg:h-12 shrink-0" aria-hidden="true">
                 <svg viewBox="0 0 64 96" class="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M36 4L12 52h16l-4 40 32-56H40L36 4z" fill="url(#flashBlitzGrad)"/>
                     <defs>
                         <linearGradient id="flashBlitzGrad" x1="12" y1="4" x2="52" y2="92" gradientUnits="userSpaceOnUse">
-                            <stop stop-color="#FDB37F"/>
-                            <stop offset="0.5" stop-color="#F3491B"/>
-                            <stop offset="1" stop-color="#EC1F3E"/>
+                            <stop stop-color="#e9d5ff"/>
+                            <stop offset="0.45" stop-color="#c084fc"/>
+                            <stop offset="1" stop-color="#7c3aed"/>
                         </linearGradient>
                     </defs>
                 </svg>
             </div>
-            <h2 class="font-extrabold text-sm lg:text-xl ml-3 text-white drop-shadow">{{ __('flash_sale.title') }}</h2>
+            <h2 class="font-extrabold text-sm lg:text-xl ml-2 text-white drop-shadow">{{ __('flash_sale.title') }}</h2>
             @if($flashSaleEndsAt)
-                <div class="flash-sale__timer ml-7 font-semibold h-[18px] lg:h-8 flex text-[9px] lg:text-base items-center px-2 lg:px-4 rounded-sm text-white"
+                <div class="flash-sale__timer ml-auto mr-3 font-semibold h-[22px] lg:h-8 flex text-[10px] lg:text-sm items-center px-2.5 lg:px-4 rounded-md text-white"
                      data-flash-countdown
                      data-target-at="{{ \Carbon\Carbon::parse($flashSaleEndsAt)->toIso8601String() }}">
                     <span data-cd-h>00</span>:<span data-cd-m>00</span>:<span data-cd-s>00</span>
@@ -30,7 +30,7 @@
             @endif
         </div>
 
-        <div class="flash-sale__track md:pt-10 pt-5 flex gap-[18px] overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1"
+        <div class="flash-sale__track md:pt-8 pt-4 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1"
              style="scrollbar-width: thin;">
             @foreach($flashSales as $offer)
                 @php
@@ -38,7 +38,7 @@
                     $image = $offer->imageUrl();
                 @endphp
                 <button type="button"
-                        class="flash-sale__card snap-start relative overflow-hidden py-4 px-2 block h-[100px] lg:h-[146px] shrink-0 w-[261px] lg:w-[375px] rounded-[10px] border border-[#F3491B] text-left"
+                        class="flash-sale__card snap-start relative overflow-hidden py-3 px-3 block min-h-[112px] lg:min-h-[148px] shrink-0 w-[280px] lg:w-[380px] rounded-xl border border-purple-300/40 text-left"
                         data-flash-offer
                         data-offer-id="{{ $offer->id }}"
                         data-offer-name="{{ e($offer->name) }}"
@@ -47,29 +47,28 @@
                         data-sale-price="{{ (float) $offer->sale_price_dzd }}"
                         data-original-price="{{ (float) $offer->original_price_dzd }}"
                         data-checkout-url="{{ route('api.flash-sales.checkout', $offer) }}">
-                    <div class="absolute inset-0 bg-black/60"></div>
-                    <div class="flex gap-5 relative z-20">
+                    <div class="flex items-center gap-3 relative z-10 h-full">
                         <div class="relative shrink-0">
                             @if($image)
                                 <img alt="{{ $offer->name }}"
                                      loading="lazy"
-                                     class="rounded-md lg:rounded-[10px] w-[62px] h-[62px] lg:w-[90px] lg:h-[90px] object-cover"
+                                     class="flash-sale__pack-img rounded-lg w-[78px] h-[78px] lg:w-[110px] lg:h-[110px] object-cover bg-white/10 shadow-md ring-2 ring-white/20"
                                      src="{{ $image }}">
                             @else
-                                <div class="rounded-md lg:rounded-[10px] w-[62px] h-[62px] lg:w-[90px] lg:h-[90px] bg-gradient-to-br from-orange-500 to-red-600"></div>
+                                <div class="rounded-lg w-[78px] h-[78px] lg:w-[110px] lg:h-[110px] bg-gradient-to-br from-purple-500 to-fuchsia-600"></div>
                             @endif
                             @if($discount > 0)
-                                <div class="flash-sale__badge relative rounded-xs py-1 lg:px-3 font-semibold text-[6px] lg:text-[10px] text-center w-[48px] lg:w-[70px] mx-auto -top-2 text-white">
+                                <div class="flash-sale__badge absolute -top-2 -right-2 rounded-md py-0.5 px-1.5 lg:px-2 font-bold text-[8px] lg:text-[10px] text-center text-white shadow">
                                     {{ __('flash_sale.off', ['percent' => $discount]) }}
                                 </div>
                             @endif
                         </div>
-                        <div>
-                            <p class="text-[9px] lg:text-sm text-[#9E9E9E]">{{ $offer->gameLabel() }}</p>
-                            <p class="mt-1 text-sm lg:text-lg font-semibold leading-none text-white">{{ $offer->name }}</p>
-                            <div class="lg:mt-2 flex items-center gap-1">
-                                <span class="text-[8px] lg:text-[10px] line-through text-gray-400">{{ number_format((float) $offer->original_price_dzd, 0) }} DZD</span>
-                                <strong class="text-[#FF6920] text-[10px] lg:text-sm font-semibold">{{ number_format((float) $offer->sale_price_dzd, 0) }} DZD</strong>
+                        <div class="min-w-0 flex-1 pr-1">
+                            <p class="text-[10px] lg:text-sm text-purple-200/90 truncate">{{ $offer->gameLabel() }}</p>
+                            <p class="mt-1 text-sm lg:text-lg font-semibold leading-snug text-white line-clamp-2">{{ $offer->name }}</p>
+                            <div class="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <span class="text-[10px] lg:text-xs line-through text-white/45">{{ number_format((float) $offer->original_price_dzd, 0) }} DZD</span>
+                                <strong class="text-fuchsia-300 text-sm lg:text-base font-bold">{{ number_format((float) $offer->sale_price_dzd, 0) }} DZD</strong>
                             </div>
                         </div>
                     </div>
@@ -80,23 +79,23 @@
 
     {{-- Buy modal --}}
     <div id="flash-sale-modal" class="flash-sale-modal hidden fixed inset-0 z-[120] items-center justify-center p-4" aria-hidden="true">
-        <div class="flash-sale-modal__backdrop absolute inset-0 bg-black/70" data-flash-close></div>
-        <div class="flash-sale-modal__panel relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl p-6" role="dialog" aria-modal="true">
-            <button type="button" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700" data-flash-close aria-label="Close">
+        <div class="flash-sale-modal__backdrop absolute inset-0 bg-black/60" data-flash-close></div>
+        <div class="flash-sale-modal__panel relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl border border-purple-100 p-6" role="dialog" aria-modal="true">
+            <button type="button" class="absolute top-3 right-3 text-gray-400 hover:text-purple-700" data-flash-close aria-label="Close">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
-            <p class="text-xs uppercase tracking-wide text-orange-600 font-semibold" data-flash-game-label></p>
+            <p class="text-xs uppercase tracking-wide text-purple-600 font-semibold" data-flash-game-label></p>
             <h3 class="text-xl font-bold text-gray-900 mt-1" data-flash-offer-title></h3>
             <p class="text-sm text-gray-500 mt-1">
                 <span class="line-through" data-flash-original></span>
-                <strong class="text-[#FF6920] ml-1" data-flash-sale></strong>
+                <strong class="text-purple-600 ml-1" data-flash-sale></strong>
             </p>
 
             <form id="flash-sale-form" class="mt-5 space-y-3">
                 <div data-flash-fields></div>
                 <p class="text-sm text-green-600 hidden" data-flash-nickname></p>
                 <p class="text-sm text-red-600 hidden" data-flash-error></p>
-                <button type="submit" class="w-full bg-gradient-to-r from-[#F3491B] to-[#EC1F3E] hover:opacity-95 text-white font-semibold py-3 rounded-lg transition">
+                <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-semibold py-3 rounded-lg transition shadow-md shadow-purple-200">
                     {{ __('flash_sale.buy_now') }}
                 </button>
             </form>
@@ -105,14 +104,16 @@
 
     {{-- Login gate --}}
     <div id="flash-sale-login" class="flash-sale-modal hidden fixed inset-0 z-[130] items-center justify-center p-4" aria-hidden="true">
-        <div class="flash-sale-modal__backdrop absolute inset-0 bg-black/70" data-flash-login-close></div>
-        <div class="flash-sale-modal__panel relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 text-center">
+        <div class="flash-sale-modal__backdrop absolute inset-0 bg-black/60" data-flash-login-close></div>
+        <div class="flash-sale-modal__panel relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-2xl border border-purple-100 p-6 text-center">
             <h3 class="text-lg font-bold text-gray-900">{{ __('flash_sale.login_modal_title') }}</h3>
             <p class="text-sm text-gray-600 mt-2">{{ __('flash_sale.login_required') }}</p>
-            <a href="{{ route('login') }}" class="mt-5 inline-flex w-full justify-center bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg">
+            <a id="flash-sale-login-link"
+               href="{{ route('login', ['redirect' => '/?flash_resume=1']) }}"
+               class="mt-5 inline-flex w-full justify-center bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-semibold py-3 rounded-lg shadow-md shadow-purple-200">
                 {{ __('nav.login') ?? 'Log in' }}
             </a>
-            <button type="button" class="mt-3 text-sm text-gray-500 underline" data-flash-login-close>Close</button>
+            <button type="button" class="mt-3 text-sm text-gray-500 underline" data-flash-login-close>{{ __('flash_sale.close') }}</button>
         </div>
     </div>
 </section>
@@ -120,20 +121,29 @@
 <style>
 .flash-sale { padding: 1.25rem 0 0.5rem; }
 .flash-sale__ribbon {
-    background: linear-gradient(103.06deg, #F3491B -8.3%, #F3491B 19.29%, #FDB37F 51.87%, #EC1F3E 82.25%, #EC1F3E 116.43%);
-    box-shadow: 0 8px 24px rgba(243, 73, 27, 0.25);
+    background: linear-gradient(105deg, #7c3aed 0%, #9333ea 40%, #c084fc 70%, #db2777 100%);
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.28);
 }
 .flash-sale__timer {
-    background: linear-gradient(103.06deg, #F3491B -8.3%, #F3491B 19.29%, #FDB37F 51.87%, #EC1F3E 82.25%, #EC1F3E 116.43%);
-    filter: brightness(0.92);
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(6px);
 }
 .flash-sale__badge {
-    background: linear-gradient(103.06deg, rgb(243, 73, 27) -8.3%, rgb(243, 73, 27) 19.29%, rgb(253, 179, 127) 51.87%, rgb(236, 31, 62) 82.25%, rgb(236, 31, 62) 116.43%);
+    background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%);
 }
-.flash-sale__card { background: #111; }
+.flash-sale__card {
+    background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 45%, #7e22ce 100%);
+    box-shadow: 0 10px 24px rgba(88, 28, 135, 0.25);
+}
+.flash-sale__card:hover {
+    border-color: rgba(216, 180, 254, 0.7);
+    box-shadow: 0 14px 28px rgba(124, 58, 237, 0.35);
+}
 .flash-sale__track::-webkit-scrollbar { height: 6px; }
-.flash-sale__track::-webkit-scrollbar-thumb { background: #F3491B88; border-radius: 999px; }
+.flash-sale__track::-webkit-scrollbar-thumb { background: #a855f788; border-radius: 999px; }
 .flash-sale-modal:not(.hidden) { display: flex; }
+.flash-sale__field-error { min-height: 1.1rem; }
 </style>
 
 <script>
@@ -141,13 +151,24 @@
     const root = document.querySelector('[data-flash-sale]');
     if (!root) return;
 
+    const DRAFT_KEY = 'diaszone_flash_sale_draft';
     const isLoggedIn = {{ auth()->check() ? 'true' : 'false' }};
     const loginUrl = @json(route('login'));
     const validateUrl = @json(route('api.validate-nickname'));
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const i18n = {
+        invalidIds: @json(__('flash_sale.invalid_user_zone')),
+        invalidPlayer: @json(__('flash_sale.invalid_player_id')),
+        notAvailable: @json(__('flash_sale.not_available')),
+        nickname: @json(__('flash_sale.nickname')),
+        userId: @json(__('game.user_id')),
+        zoneId: @json(__('game.zone_id')),
+        playerId: @json(__('game.player_id')),
+    };
 
     const modal = document.getElementById('flash-sale-modal');
     const loginModal = document.getElementById('flash-sale-login');
+    const loginLink = document.getElementById('flash-sale-login-link');
     const form = document.getElementById('flash-sale-form');
     const fieldsWrap = modal.querySelector('[data-flash-fields]');
     const errorEl = modal.querySelector('[data-flash-error]');
@@ -158,41 +179,77 @@
     function fieldsFor(gameType) {
         if (gameType === 'mobilelegends') {
             return [
-                { name: 'user_id', label: @json(__('game.user_id')), pattern: true },
-                { name: 'zone_id', label: @json(__('game.zone_id')), pattern: true },
+                { name: 'user_id', label: i18n.userId, pattern: true },
+                { name: 'zone_id', label: i18n.zoneId, pattern: true },
             ];
         }
         if (gameType === 'bloodstrike') {
             return [
-                { name: 'user_id_bs', label: 'User ID', pattern: true },
+                { name: 'user_id_bs', label: i18n.userId, pattern: true },
                 { name: 'server_bs', label: 'Server', select: [{ value: 'global', label: 'Global' }] },
             ];
         }
         if (['freefire', 'pubgmobile', 'pubg_mobile', 'honorofkings'].includes(gameType)) {
-            return [{ name: 'player_id', label: @json(__('game.player_id')), pattern: true }];
+            return [{ name: 'player_id', label: i18n.playerId, pattern: true }];
         }
-        return [{ name: 'save_id', label: 'User ID', pattern: false }];
+        return [{ name: 'save_id', label: i18n.userId, pattern: false }];
     }
 
-    function renderFields(gameType) {
+    function clearFieldErrors() {
+        fieldsWrap.querySelectorAll('[data-field-error]').forEach((el) => {
+            el.textContent = '';
+            el.classList.add('hidden');
+        });
+        fieldsWrap.querySelectorAll('input, select').forEach((el) => {
+            el.classList.remove('border-red-500', 'ring-1', 'ring-red-400');
+            el.classList.add('border-gray-200');
+        });
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+    }
+
+    function setFieldError(name, message) {
+        const input = fieldsWrap.querySelector(`[name="${name}"]`);
+        const err = fieldsWrap.querySelector(`[data-field-error="${name}"]`);
+        if (input) {
+            input.classList.remove('border-gray-200');
+            input.classList.add('border-red-500', 'ring-1', 'ring-red-400');
+        }
+        if (err) {
+            err.textContent = message;
+            err.classList.remove('hidden');
+        }
+    }
+
+    function renderFields(gameType, prefill = {}) {
         nicknameOk = false;
         nickEl.classList.add('hidden');
         nickEl.textContent = '';
         fieldsWrap.innerHTML = fieldsFor(gameType).map((f) => {
             if (f.select) {
-                const opts = f.select.map((o) => `<option value="${o.value}">${o.label}</option>`).join('');
-                return `<div><label class="block text-sm font-medium text-gray-700 mb-1">${f.label}</label>
-                    <select name="${f.name}" required class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm">${opts}</select></div>`;
+                const opts = f.select.map((o) => {
+                    const selected = String(prefill[f.name] || '') === String(o.value) ? 'selected' : '';
+                    return `<option value="${o.value}" ${selected}>${o.label}</option>`;
+                }).join('');
+                return `<div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">${f.label}</label>
+                    <select name="${f.name}" required class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:ring-purple-200">${opts}</select>
+                    <p class="flash-sale__field-error text-xs text-red-600 mt-1 hidden" data-field-error="${f.name}"></p>
+                </div>`;
             }
             const pattern = f.pattern ? 'pattern="[0-9]+"' : '';
-            return `<div><label class="block text-sm font-medium text-gray-700 mb-1">${f.label}</label>
-                <input type="text" name="${f.name}" required ${pattern}
-                    class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm"
-                    placeholder="${f.label}"></div>`;
+            const value = prefill[f.name] ? `value="${String(prefill[f.name]).replace(/"/g, '&quot;')}"` : '';
+            return `<div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">${f.label}</label>
+                <input type="text" name="${f.name}" required ${pattern} ${value}
+                    class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:ring-purple-200"
+                    placeholder="${f.label}" autocomplete="off">
+                <p class="flash-sale__field-error text-xs text-red-600 mt-1 hidden" data-field-error="${f.name}"></p>
+            </div>`;
         }).join('');
     }
 
-    function openModal(btn) {
+    function openModal(btn, prefill = {}) {
         current = {
             id: btn.dataset.offerId,
             name: btn.dataset.offerName,
@@ -206,16 +263,60 @@
         modal.querySelector('[data-flash-offer-title]').textContent = current.name;
         modal.querySelector('[data-flash-original]').textContent = Number(current.original).toLocaleString() + ' DZD';
         modal.querySelector('[data-flash-sale]').textContent = Number(current.sale).toLocaleString() + ' DZD';
-        errorEl.classList.add('hidden');
-        renderFields(current.gameType);
+        clearFieldErrors();
+        renderFields(current.gameType, prefill);
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
+        try {
+            root.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (_) {}
     }
 
     function closeModal() {
         modal.classList.add('hidden');
         modal.setAttribute('aria-hidden', 'true');
         current = null;
+    }
+
+    function saveDraft(fields) {
+        if (!current) return;
+        try {
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+                offerId: String(current.id),
+                fields: fields || {},
+                savedAt: Date.now(),
+            }));
+        } catch (_) {}
+    }
+
+    function readDraft() {
+        try {
+            const raw = sessionStorage.getItem(DRAFT_KEY);
+            if (!raw) return null;
+            const draft = JSON.parse(raw);
+            if (!draft || !draft.offerId) return null;
+            if (draft.savedAt && (Date.now() - draft.savedAt) > 2 * 60 * 60 * 1000) {
+                sessionStorage.removeItem(DRAFT_KEY);
+                return null;
+            }
+            return draft;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function clearDraft() {
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch (_) {}
+    }
+
+    function goToLogin() {
+        const fd = form ? Object.fromEntries(new FormData(form).entries()) : {};
+        saveDraft(fd);
+        const resumePath = '/?flash_resume=1';
+        if (loginLink) {
+            loginLink.href = loginUrl + (loginUrl.includes('?') ? '&' : '?') + 'redirect=' + encodeURIComponent(resumePath);
+        }
+        openLogin();
     }
 
     function openLogin() {
@@ -233,12 +334,19 @@
     });
     modal.querySelectorAll('[data-flash-close]').forEach((el) => el.addEventListener('click', closeModal));
     loginModal.querySelectorAll('[data-flash-login-close]').forEach((el) => el.addEventListener('click', closeLogin));
+    if (loginLink) {
+        loginLink.addEventListener('click', () => {
+            const fd = form ? Object.fromEntries(new FormData(form).entries()) : {};
+            saveDraft(fd);
+        });
+    }
 
     async function verifyMlIfNeeded(payload) {
         if (current.gameType !== 'mobilelegends') {
             nicknameOk = true;
             return true;
         }
+        clearFieldErrors();
         const res = await fetch(validateUrl, {
             method: 'POST',
             headers: {
@@ -249,12 +357,17 @@
             body: JSON.stringify({ user_id: payload.user_id, zone_id: payload.zone_id }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.success) {
-            errorEl.textContent = data.message || 'Invalid User ID / Zone ID';
+        const ok = res.ok && (data.result === true || data.success === true);
+        if (!ok) {
+            const msg = data.message || i18n.invalidIds;
+            setFieldError('user_id', msg);
+            setFieldError('zone_id', msg);
+            errorEl.textContent = msg;
             errorEl.classList.remove('hidden');
             return false;
         }
-        nickEl.textContent = (@json(__('flash_sale.nickname'))) + ': ' + (data.nickname || data.data?.username || data.username || 'OK');
+        const nick = data.nickname || data.data?.username || (typeof data.data === 'string' ? data.data : null) || data.username || 'OK';
+        nickEl.textContent = i18n.nickname + ': ' + nick;
         nickEl.classList.remove('hidden');
         nicknameOk = true;
         return true;
@@ -264,13 +377,14 @@
         e.preventDefault();
         if (!current) return;
         if (!isLoggedIn) {
-            openLogin();
+            goToLogin();
             return;
         }
 
-        errorEl.classList.add('hidden');
+        clearFieldErrors();
         const fd = new FormData(form);
         const payload = Object.fromEntries(fd.entries());
+        saveDraft(payload);
 
         const ok = await verifyMlIfNeeded(payload);
         if (!ok) return;
@@ -289,14 +403,23 @@
             });
             const data = await res.json().catch(() => ({}));
             if (res.status === 401 || data.require_login) {
-                openLogin();
+                goToLogin();
                 return;
             }
             if (!res.ok || !data.success) {
-                errorEl.textContent = data.message || @json(__('flash_sale.not_available'));
+                const msg = data.message || i18n.notAvailable;
+                if (data.errors) {
+                    Object.keys(data.errors).forEach((key) => {
+                        const first = Array.isArray(data.errors[key]) ? data.errors[key][0] : data.errors[key];
+                        setFieldError(key, first);
+                    });
+                }
+                errorEl.textContent = msg;
                 errorEl.classList.remove('hidden');
                 return;
             }
+
+            clearDraft();
 
             if (data.encrypted_order_id) {
                 try {
@@ -310,7 +433,7 @@
 
             window.location.href = data.redirect_url;
         } catch (err) {
-            errorEl.textContent = @json(__('flash_sale.not_available'));
+            errorEl.textContent = i18n.notAvailable;
             errorEl.classList.remove('hidden');
         } finally {
             btn.disabled = false;
@@ -331,6 +454,36 @@
         };
         tick();
         setInterval(tick, 1000);
+    }
+
+    // After Google login: reopen modal with saved fields
+    function maybeResumeAfterLogin() {
+        const params = new URLSearchParams(window.location.search);
+        const wantsResume = params.get('flash_resume') === '1' || params.get('flash_offer');
+        const draft = readDraft();
+        const offerId = params.get('flash_offer') || (draft && draft.offerId);
+        if (!offerId) return;
+        if (!isLoggedIn && !wantsResume) return;
+
+        const btn = root.querySelector('[data-flash-offer][data-offer-id="' + String(offerId).replace(/"/g, '') + '"]');
+        if (!btn) return;
+
+        openModal(btn, (draft && String(draft.offerId) === String(offerId)) ? (draft.fields || {}) : {});
+
+        if (wantsResume) {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('flash_resume');
+                url.searchParams.delete('flash_offer');
+                window.history.replaceState({}, '', url.pathname + (url.search || '') + url.hash);
+            } catch (_) {}
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', maybeResumeAfterLogin);
+    } else {
+        maybeResumeAfterLogin();
     }
 })();
 </script>

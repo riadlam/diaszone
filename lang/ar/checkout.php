@@ -60,7 +60,7 @@ return [
     'order_number' => 'رقم الطلب',
     'unit_price' => 'سعر الوحدة',
     'pack' => 'الباقة',
-    'proceed_with_baridimob' => 'المتابعة مع باريديموب',
+    'proceed_with_baridimob' => 'المتابعة مع الجزائر بوست',
     'payment_successful_title' => 'تم الدفع بنجاح!',
     'payment_successful_message' => 'تم معالجة دفعتك بنجاح. سيتم إكمال طلبك قريباً.',
     'redirecting_to_orders' => 'إعادة التوجيه إلى طلباتك خلال',

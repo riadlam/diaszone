@@ -149,7 +149,7 @@ return [
     'flexy' => 'Flexy',
     'ccp' => 'CCP',
     'usdt' => 'USDT',
-    'baridimob' => 'Baridimob',
+    'baridimob' => 'Algerie Post',
     'add_reference_notes' => 'Ajoutez une référence ou une note à ce transfert',
     'pdf_document' => 'Document PDF',
     'unsupported' => 'Non pris en charge',

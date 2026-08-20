@@ -174,6 +174,7 @@ class CheckoutController extends Controller
                     'discount' => (float) $pack->discount_percentage,
                     'game_type' => $gameType,
                     'name' => $pack->name ?? null,
+                    'membership_name' => $pack->membership_name ?? null,
                     'sort_order' => $pack->sort_order ?? 0,
                     'game_display_name' => $gameDisplayName,
                     'game_image' => $gameImagePath,
@@ -430,9 +431,9 @@ class CheckoutController extends Controller
         $paymentMethods = [
             [
                 'id' => 'baridimob',
-                'name' => 'Baridimob',
-                'icon' => 'baridimob.png',
-                'description' => 'Mobile payment method',
+                'name' => 'Algerie Post',
+                'icon' => 'algerie-post.png',
+                'description' => 'Pay via CIB / Edahabia',
                 'coming_soon' => false,
             ],
             [
@@ -1244,12 +1245,14 @@ class CheckoutController extends Controller
             // Build a friendly message when the external service returned no message
             $message = $result['message'] ?? null;
             if (empty($message) && ($result['result'] ?? false) === false) {
-                $message = 'Nickname not found or invalid for the provided User ID / Zone ID.';
+                $message = __('flash_sale.invalid_user_zone');
             }
 
             return response()->json([
                 'result' => $result['result'] ?? false,
+                'success' => (bool) ($result['result'] ?? false),
                 'data' => $result['data'] ?? null,
+                'nickname' => is_string($result['data'] ?? null) ? $result['data'] : ($result['data']['username'] ?? null),
                 'message' => $message,
             ], ($result['result'] === true) ? 200 : 400);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1278,7 +1281,7 @@ class CheckoutController extends Controller
             return response()->json([
                 'result' => false,
                 'success' => false,
-                'message' => 'Error validating nickname. Please try again.',
+                'message' => __('flash_sale.invalid_user_zone'),
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

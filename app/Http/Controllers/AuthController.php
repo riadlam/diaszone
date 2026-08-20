@@ -18,6 +18,11 @@ class AuthController extends Controller
     public function showLoginForm(Request $request)
     {
         if (Auth::check()) {
+            $redirect = $request->query('redirect');
+            if (is_string($redirect) && str_starts_with($redirect, '/') && ! str_starts_with($redirect, '//')) {
+                return redirect()->to(url($redirect));
+            }
+
             if (Auth::user()->isAdmin()) {
                 return redirect()->route('admin.dashboard');
             }
@@ -25,8 +30,14 @@ class AuthController extends Controller
             return redirect()->route('dashboard.myaccount');
         }
 
+        $redirect = $request->query('redirect');
+        if (is_string($redirect) && str_starts_with($redirect, '/') && ! str_starts_with($redirect, '//')) {
+            session(['url.intended' => url($redirect)]);
+        }
+
         return view('auth.login', [
             'signupHint' => $request->boolean('signup'),
+            'redirect' => is_string($redirect) ? $redirect : null,
         ]);
     }
 

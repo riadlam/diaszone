@@ -15,4 +15,7 @@ return [
     'verify' => 'Vérifier',
     'ends_in' => 'Se termine dans',
     'nickname' => 'Pseudo',
+    'close' => 'Fermer',
+    'invalid_user_zone' => 'ID utilisateur ou Zone ID invalide. Vérifiez et réessayez.',
+    'invalid_player_id' => 'ID joueur invalide. Vérifiez et réessayez.',
 ];
