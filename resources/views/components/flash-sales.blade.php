@@ -52,7 +52,7 @@
                             @if($image)
                                 <img alt="{{ $offer->name }}"
                                      loading="lazy"
-                                     class="flash-sale__pack-img rounded-lg w-[78px] h-[78px] lg:w-[110px] lg:h-[110px] object-cover bg-white/10 shadow-md ring-2 ring-white/20"
+                                     class="flash-sale__pack-img rounded-lg w-[78px] h-[78px] lg:w-[110px] lg:h-[110px] object-contain bg-white/90 shadow-md ring-2 ring-white/25"
                                      src="{{ $image }}">
                             @else
                                 <div class="rounded-lg w-[78px] h-[78px] lg:w-[110px] lg:h-[110px] bg-gradient-to-br from-purple-500 to-fuchsia-600"></div>

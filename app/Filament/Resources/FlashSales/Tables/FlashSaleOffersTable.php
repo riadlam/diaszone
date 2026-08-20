@@ -31,7 +31,7 @@ class FlashSaleOffersTable
             ->columns([
                 ImageColumn::make('image_path')
                     ->label('Image')
-                    ->disk('public')
+                    ->getStateUsing(fn (FlashSaleOffer $record): ?string => $record->imageUrl())
                     ->square()
                     ->size(48),
 

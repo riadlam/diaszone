@@ -41,7 +41,8 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            // Hosting blocks /storage (403). Serve via PublicMediaController at /media/{path}.
+            'url' => rtrim((string) env('APP_URL'), '/').'/media',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

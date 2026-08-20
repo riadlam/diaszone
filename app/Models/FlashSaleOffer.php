@@ -72,9 +72,12 @@ class FlashSaleOffer extends Model
 
     public function imageUrl(): ?string
     {
-        return $this->image_path
-            ? PublicMedia::url($this->image_path)
-            : null;
+        if (! $this->image_path) {
+            return null;
+        }
+
+        // Always go through /media — never /storage (blocked with 403 on production).
+        return PublicMedia::url((string) $this->image_path);
     }
 
     public function gameLabel(): string
