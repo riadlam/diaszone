@@ -93,25 +93,33 @@ class FlashSaleFeatureTest extends TestCase
         $this->assertCount(2, $offer->items);
     }
 
-    public function test_live_offer_appears_on_home_with_admin_image_expired_does_not(): void
+    public function test_active_offers_appear_on_home_regardless_of_dates(): void
     {
         $pack = $this->makePack();
         $live = $this->makeOffer($pack, [
             'name' => 'Live Bundle',
             'image_path' => 'flash-sale-images/live-card.webp',
         ]);
+        // Dates in the past must not hide an active offer anymore.
         $this->makeOffer($pack, [
-            'name' => 'Expired Bundle',
+            'name' => 'Dated Bundle',
             'starts_at' => now()->subDays(5),
             'ends_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $this->makeOffer($pack, [
+            'name' => 'Inactive Bundle',
+            'is_active' => false,
         ]);
 
         $response = $this->get(route('home'));
         $response->assertOk();
         $response->assertSee('Live Bundle', false);
+        $response->assertSee('Dated Bundle', false);
         $response->assertSee('data-flash-sale', false);
+        $response->assertSee('data-flash-countdown', false);
         $response->assertSee('/media/flash-sale-images/live-card.webp', false);
-        $response->assertDontSee('Expired Bundle', false);
+        $response->assertDontSee('Inactive Bundle', false);
         $response->assertSee((string) $live->id, false);
         $response->assertDontSee('Stock left', false);
     }

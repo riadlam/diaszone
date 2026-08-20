@@ -158,7 +158,8 @@ class HomeController extends Controller
             ->orderBy('id')
             ->get();
 
-        $flashSaleEndsAt = $flashSales->max('ends_at');
+        // Countdown is session-based (22h) on the frontend; dates are ignored.
+        $flashSaleEndsAt = null;
 
         return view('pages.new-home', compact('games', 'topSellingGames', 'newProducts', 'giftCards', 'flashSales', 'flashSaleEndsAt'));
     }

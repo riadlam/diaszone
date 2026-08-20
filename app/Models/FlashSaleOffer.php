@@ -41,21 +41,18 @@ class FlashSaleOffer extends Model
         return $this->hasMany(Order::class);
     }
 
+    /**
+     * Active offers shown on the storefront.
+     * Start/end dates are ignored — only the Active toggle controls visibility.
+     */
     public function scopeLive(Builder $query): Builder
     {
-        $now = now();
-
-        return $query
-            ->where('is_active', true)
-            ->where('starts_at', '<=', $now)
-            ->where('ends_at', '>', $now);
+        return $query->where('is_active', true);
     }
 
     public function isLive(): bool
     {
-        return $this->is_active
-            && $this->starts_at <= now()
-            && $this->ends_at > now();
+        return (bool) $this->is_active;
     }
 
     public function discountPercent(): int
@@ -87,20 +84,6 @@ class FlashSaleOffer extends Model
 
     public function statusLabel(): string
     {
-        if (! $this->is_active) {
-            return 'inactive';
-        }
-
-        $now = now();
-
-        if ($this->starts_at > $now) {
-            return 'upcoming';
-        }
-
-        if ($this->ends_at <= $now) {
-            return 'ended';
-        }
-
-        return 'live';
+        return $this->is_active ? 'live' : 'inactive';
     }
 }

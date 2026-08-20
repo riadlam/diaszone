@@ -63,13 +63,16 @@ class FlashSaleOfferForm
                             ->lte('original_price_dzd'),
 
                         DateTimePicker::make('starts_at')
-                            ->label('Starts at')
+                            ->label('Starts at (ignored on storefront)')
+                            ->helperText('Storefront ignores start/end dates. Use Active to show/hide. Countdown is always 22 hours per visitor session.')
                             ->seconds(false)
+                            ->default(now())
                             ->required(),
 
                         DateTimePicker::make('ends_at')
-                            ->label('Ends at')
+                            ->label('Ends at (ignored on storefront)')
                             ->seconds(false)
+                            ->default(now()->addDays(30))
                             ->required()
                             ->after('starts_at'),
 

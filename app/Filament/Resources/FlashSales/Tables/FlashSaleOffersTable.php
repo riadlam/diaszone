@@ -51,8 +51,6 @@ class FlashSaleOffersTable
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'live' => 'success',
-                        'upcoming' => 'info',
-                        'ended' => 'gray',
                         default => 'danger',
                     }),
 

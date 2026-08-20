@@ -1,7 +1,6 @@
 @php
     /** @var \Illuminate\Support\Collection<\App\Models\FlashSaleOffer> $flashSales */
     $flashSales = $flashSales ?? collect();
-    $flashSaleEndsAt = $flashSaleEndsAt ?? ($flashSales->max('ends_at'));
 @endphp
 
 @if($flashSales->isNotEmpty())
@@ -21,16 +20,15 @@
                 </svg>
             </div>
             <h2 class="font-extrabold text-sm lg:text-xl ml-2 text-white drop-shadow">{{ __('flash_sale.title') }}</h2>
-            @if($flashSaleEndsAt)
-                <div class="flash-sale__timer ml-auto mr-3 font-semibold h-[22px] lg:h-8 flex text-[10px] lg:text-sm items-center px-2.5 lg:px-4 rounded-md text-white"
-                     data-flash-countdown
-                     data-target-at="{{ \Carbon\Carbon::parse($flashSaleEndsAt)->toIso8601String() }}">
-                    <span data-cd-h>00</span>:<span data-cd-m>00</span>:<span data-cd-s>00</span>
-                </div>
-            @endif
+            <div class="flash-sale__timer ml-auto mr-3 font-semibold h-[22px] lg:h-8 flex text-[10px] lg:text-sm items-center px-2.5 lg:px-4 rounded-md text-white"
+                 data-flash-countdown
+                 data-session-hours="22">
+                <span data-cd-h>22</span>:<span data-cd-m>00</span>:<span data-cd-s>00</span>
+            </div>
         </div>
 
-        <div class="flash-sale__track md:pt-8 pt-4 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1"
+        <div class="flash-sale__track md:pt-8 pt-4 flex gap-4 overflow-x-auto pb-2 -mx-1 px-1"
+             data-flash-track
              style="scrollbar-width: thin;">
             @foreach($flashSales as $offer)
                 @php
@@ -142,10 +140,21 @@
     border-color: rgba(216, 180, 254, 0.7);
     box-shadow: 0 14px 28px rgba(124, 58, 237, 0.35);
 }
+.flash-sale__track {
+    scroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .flash-sale__track::-webkit-scrollbar { height: 6px; }
 .flash-sale__track::-webkit-scrollbar-thumb { background: #a855f788; border-radius: 999px; }
+.flash-sale__track.is-auto-scrolling {
+    scrollbar-width: none;
+}
+.flash-sale__track.is-auto-scrolling::-webkit-scrollbar { display: none; }
 .flash-sale-modal:not(.hidden) { display: flex; }
 .flash-sale__field-error { min-height: 1.1rem; }
+@media (prefers-reduced-motion: reduce) {
+    .flash-sale__track.is-auto-scrolling { scroll-behavior: auto; }
+}
 </style>
 
 <script>
@@ -331,8 +340,12 @@
         loginModal.setAttribute('aria-hidden', 'true');
     }
 
-    root.querySelectorAll('[data-flash-offer]').forEach((btn) => {
-        btn.addEventListener('click', () => openModal(btn));
+    root.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-flash-offer]');
+        if (!btn || !root.contains(btn)) return;
+        // Ignore clicks inside the login/buy modals' nested structure if any
+        if (btn.closest('.flash-sale-modal')) return;
+        openModal(btn);
     });
     modal.querySelectorAll('[data-flash-close]').forEach((el) => el.addEventListener('click', closeModal));
     loginModal.querySelectorAll('[data-flash-login-close]').forEach((el) => el.addEventListener('click', closeLogin));
@@ -342,6 +355,75 @@
             saveDraft(fd);
         });
     }
+
+    // Slow seamless auto-scroll marquee
+    (function setupAutoScroll() {
+        const track = root.querySelector('[data-flash-track]');
+        if (!track) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        const seed = Array.from(track.querySelectorAll('[data-flash-offer]'));
+        if (seed.length === 0) return;
+
+        const seedCount = seed.length;
+        let guard = 0;
+        while (track.scrollWidth < Math.max(track.clientWidth * 2, 600) && guard < 10) {
+            seed.forEach((card) => {
+                const clone = card.cloneNode(true);
+                clone.setAttribute('aria-hidden', 'true');
+                clone.tabIndex = -1;
+                track.appendChild(clone);
+            });
+            guard += 1;
+        }
+
+        track.classList.add('is-auto-scrolling');
+
+        const loopWidth = () => {
+            const items = track.querySelectorAll('[data-flash-offer]');
+            if (items.length <= seedCount) return track.scrollWidth;
+            // Distance from start of first set to start of second set
+            return Math.max(1, items[seedCount].offsetLeft - items[0].offsetLeft);
+        };
+
+        let paused = false;
+        let resumeTimer = null;
+        const speed = 0.4; // px per frame — slow continuous drift
+
+        const pause = () => {
+            paused = true;
+            if (resumeTimer) clearTimeout(resumeTimer);
+        };
+        const scheduleResume = (ms = 1800) => {
+            if (resumeTimer) clearTimeout(resumeTimer);
+            resumeTimer = setTimeout(() => { paused = false; }, ms);
+        };
+
+        track.addEventListener('pointerenter', pause);
+        track.addEventListener('pointerleave', () => scheduleResume(400));
+        track.addEventListener('focusin', pause);
+        track.addEventListener('focusout', () => scheduleResume(400));
+        track.addEventListener('touchstart', () => {
+            pause();
+            scheduleResume(2500);
+        }, { passive: true });
+        track.addEventListener('wheel', () => {
+            pause();
+            scheduleResume(2000);
+        }, { passive: true });
+
+        const step = () => {
+            if (!paused) {
+                const width = loopWidth();
+                track.scrollLeft += speed;
+                if (track.scrollLeft >= width) {
+                    track.scrollLeft -= width;
+                }
+            }
+            requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    })();
 
     async function verifyMlIfNeeded(payload) {
         if (current.gameType !== 'mobilelegends') {
@@ -444,9 +526,36 @@
 
     const cd = root.querySelector('[data-flash-countdown]');
     if (cd) {
-        const target = new Date(cd.dataset.targetAt).getTime();
+        const SESSION_KEY = 'diaszone_flash_sale_ends_at';
+        const hours = Math.max(1, parseInt(cd.dataset.sessionHours || '22', 10) || 22);
+        const durationMs = hours * 60 * 60 * 1000;
+
+        const ensureSessionEnd = () => {
+            try {
+                const stored = parseInt(sessionStorage.getItem(SESSION_KEY) || '', 10);
+                if (stored && stored > Date.now()) {
+                    return stored;
+                }
+            } catch (_) {}
+            const endsAt = Date.now() + durationMs;
+            try {
+                sessionStorage.setItem(SESSION_KEY, String(endsAt));
+            } catch (_) {}
+            return endsAt;
+        };
+
+        let target = ensureSessionEnd();
+
         const tick = () => {
-            const diff = Math.max(0, target - Date.now());
+            let diff = target - Date.now();
+            if (diff <= 0) {
+                // New 22h cycle within the same session when it hits zero
+                target = Date.now() + durationMs;
+                try {
+                    sessionStorage.setItem(SESSION_KEY, String(target));
+                } catch (_) {}
+                diff = durationMs;
+            }
             const h = Math.floor(diff / 3600000);
             const m = Math.floor((diff % 3600000) / 60000);
             const s = Math.floor((diff % 60000) / 1000);
