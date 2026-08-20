@@ -335,7 +335,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Build pack lines from order_items (correct qty / multi-pack), fallback to primary pack
             const orderItems = Array.isArray(order.order_items) ? order.order_items : [];
             let packLinesHtml = '';
-            if (orderItems.length > 0) {
+            if (order.is_flash_sale && order.flash_sale_name) {
+                packLinesHtml = `<p class="text-lg text-purple-600 font-semibold mb-2">${order.flash_sale_name}</p>`;
+            } else if (orderItems.length > 0) {
                 packLinesHtml = orderItems.map((item, idx) => {
                     const pack = item.diamond_pack || {};
                     const qty = Math.max(1, parseInt(item.quantity || 1, 10));

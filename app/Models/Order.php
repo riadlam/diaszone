@@ -12,6 +12,8 @@ class Order extends Model
         'order_number',
         'user_id',
         'diamond_pack_id',
+        'flash_sale_offer_id',
+        'flash_sale_name',
         'status',
         'flexy_id',
         'bmccp_id',
@@ -55,6 +57,16 @@ class Order extends Model
         'seller_profit_paid_at' => 'datetime',
         'quantity' => 'integer',
     ];
+
+    public function flashSaleOffer(): BelongsTo
+    {
+        return $this->belongsTo(FlashSaleOffer::class);
+    }
+
+    public function isFlashSale(): bool
+    {
+        return $this->flash_sale_offer_id !== null;
+    }
 
     public function successfulDigiflazzTopupsCount(): int
     {

@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
                     // Free Fire / PUBG Mobile / Honor of Kings: Player ID (static value from form)
-                    const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || '';
+                    const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id || item.save_id || '';
                     orderInfoHTML = `
                         <div>
                             <h4 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Order Information</h4>
@@ -701,7 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     return;
                                 }
                             } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
-                                const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok;
+                                const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id || item.save_id;
                                 if (!playerId) {
                                     proceedCheckoutBtn.innerHTML = originalText;
                                     proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');

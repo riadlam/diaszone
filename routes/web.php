@@ -8,6 +8,7 @@ use App\Http\Controllers\CouponController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\PublicMediaController;
 use App\Http\Controllers\Seller\SellerAuthController;
 use App\Http\Controllers\Seller\SellerController;
@@ -170,6 +171,12 @@ Route::post('/api/packs', [CheckoutController::class, 'getPacks'])
 Route::post('/api/orders/create', [CheckoutController::class, 'createOrder'])
     ->middleware(['auth', 'throttle:20,1']) // Logged-in customers only; 20 orders per minute per IP
     ->name('api.orders.create');
+Route::post('/api/flash-sales/{offer}/checkout', [FlashSaleController::class, 'checkout'])
+    ->middleware(['auth', 'throttle:20,1'])
+    ->name('api.flash-sales.checkout');
+Route::post('/api/flash-sales/prepare-payment', [FlashSaleController::class, 'preparePayment'])
+    ->middleware(['auth', 'throttle:20,1'])
+    ->name('api.flash-sales.prepare-payment');
 Route::post('/api/orders/get-by-encrypted-id', [CheckoutController::class, 'getOrderByEncryptedId'])
     ->middleware('throttle:10,1') // 10 requests per minute (prevent brute force)
     ->name('api.orders.get-by-encrypted-id');

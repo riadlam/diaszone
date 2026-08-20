@@ -13,6 +13,7 @@ class PublicMedia
         'wheel-reward-icons',
         'event-backgrounds',
         'images_homepage',
+        'flash-sale-images',
     ];
 
     /**

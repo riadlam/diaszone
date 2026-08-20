@@ -450,9 +450,39 @@ class CheckoutController extends Controller
                 'coming_soon' => false,
             ],
         ];
+
+        $flashSaleMode = false;
+        $flashEncryptedOrderId = null;
+        $flashOrderPayload = null;
+
+        $orderIdParam = $request->query('order_id');
+        $wantsFlash = $request->boolean('flash') || $request->query('flash') === '1';
+
+        if ($wantsFlash && $orderIdParam) {
+            try {
+                $orderId = Crypt::decryptString($orderIdParam);
+                $order = Order::with(['orderItems.diamondPack', 'diamondPack', 'flashSaleOffer'])
+                    ->find($orderId);
+
+                if ($order && $order->isFlashSale() && (! Auth::check() || (int) $order->user_id === (int) Auth::id())) {
+                    $flashSaleMode = true;
+                    $flashEncryptedOrderId = $orderIdParam;
+                    $flashOrderPayload = $this->buildOrderApiPayload($order);
+                    $paymentMethods = array_values(array_filter(
+                        $paymentMethods,
+                        fn (array $method) => in_array($method['id'], ['baridimob', 'cryptocurrency'], true)
+                    ));
+                }
+            } catch (\Throwable $e) {
+                // Fall through to normal cart checkout.
+            }
+        }
         
         return view('pages.select-payment', [
             'paymentMethods' => $paymentMethods,
+            'flashSaleMode' => $flashSaleMode,
+            'flashEncryptedOrderId' => $flashEncryptedOrderId,
+            'flashOrderPayload' => $flashOrderPayload,
         ]);
     }
     
@@ -1057,6 +1087,9 @@ class CheckoutController extends Controller
                 'payment_method' => $order->payment_method,
                 'quantity' => (int) ($order->quantity ?? 0),
                 'flexy_id' => $order->flexy_id,
+                'flash_sale_offer_id' => $order->flash_sale_offer_id,
+                'flash_sale_name' => $order->flash_sale_name,
+                'is_flash_sale' => $order->isFlashSale(),
                 'user_id_ml' => $order->user_id_ml,
                 'zone_id_ml' => $order->zone_id_ml,
                 'player_id_ff' => $order->player_id_ff,
@@ -1103,7 +1136,13 @@ class CheckoutController extends Controller
                 $orderData['amount_dzd'] = 0;
             }
 
-            if (! empty($orderItemsPayload)) {
+            $orderData['original_price'] = $order->original_price !== null
+                ? (float) $order->original_price
+                : $orderData['amount_dzd'];
+
+            if ($order->isFlashSale() && $order->final_price !== null) {
+                $orderData['amount_usd'] = round(((float) $order->final_price) / 260, 2);
+            } elseif (! empty($orderItemsPayload)) {
                 $orderData['amount_usd'] = round(collect($orderItemsPayload)->sum('total_usd'), 2);
             } elseif ($order->diamondPack) {
                 $unitUsd = (float) ($orderData['diamond_pack']['price_usd'] ?? 0);

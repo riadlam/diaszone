@@ -280,7 +280,7 @@ const CartManager = {
                             <p><span class="font-medium">Server:</span> ${item.server_bs || 'Global'}</p>
                         `;
                     } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
-                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || 'N/A';
+                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id || item.save_id || 'N/A';
                         orderInfoHTML = `<p><span class="font-medium">Player ID:</span> ${playerId}</p>`;
                     } else {
                         // New games - User ID (save_id) and optionally Server

@@ -441,35 +441,100 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addToCart: function(item, quantity = 1) {
             const cart = this.getCart();
-            quantity = Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
-            
-            // Check if pack already exists in cart
+            const finalQuantity = (item.quantity !== undefined && item.quantity !== null)
+                ? Math.max(1, Math.min(20, parseInt(item.quantity) || 1))
+                : Math.max(1, Math.min(20, parseInt(quantity) || 1));
+
             const existingIndex = cart.findIndex(cartItem => cartItem.pack_id === item.pack_id);
-            
+
+            const applyPlayerFields = (target) => {
+                if ('save_id' in item) {
+                    const val = item.save_id;
+                    target.save_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                    if (target.save_id) {
+                        target.user_id = target.save_id;
+                    }
+                }
+                if ('user_id' in item) {
+                    const val = item.user_id;
+                    target.user_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('zone_id' in item) {
+                    const val = item.zone_id;
+                    target.zone_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('player_id' in item) {
+                    const val = item.player_id;
+                    target.player_id = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('player_id_ff' in item) {
+                    const val = item.player_id_ff;
+                    target.player_id_ff = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('player_id_pubg' in item) {
+                    const val = item.player_id_pubg;
+                    target.player_id_pubg = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('player_id_hok' in item) {
+                    const val = item.player_id_hok;
+                    target.player_id_hok = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('user_id_bs' in item) {
+                    const val = item.user_id_bs;
+                    target.user_id_bs = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('server_bs' in item) {
+                    const val = item.server_bs;
+                    target.server_bs = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if ('server' in item) {
+                    const val = item.server;
+                    target.server = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+            };
+
+            const hasPlayerUpdate = (
+                (item.user_id !== undefined && item.user_id !== null && item.user_id !== '') ||
+                (item.zone_id !== undefined && item.zone_id !== null && item.zone_id !== '') ||
+                (item.player_id !== undefined && item.player_id !== null && item.player_id !== '') ||
+                (item.player_id_ff !== undefined && item.player_id_ff !== null && item.player_id_ff !== '') ||
+                (item.player_id_pubg !== undefined && item.player_id_pubg !== null && item.player_id_pubg !== '') ||
+                (item.player_id_hok !== undefined && item.player_id_hok !== null && item.player_id_hok !== '') ||
+                (item.user_id_bs !== undefined && item.user_id_bs !== null && item.user_id_bs !== '') ||
+                (item.save_id !== undefined && item.save_id !== null && item.save_id !== '')
+            );
+
             if (existingIndex >= 0) {
-                // Update existing item quantity
-                cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + quantity));
-                cart[existingIndex].quantity = Math.min(20, cart[existingIndex].quantity); // Cap at 20
+                // Buy Now / validation must replace qty; checkbox re-select should add.
+                if (hasPlayerUpdate) {
+                    cart[existingIndex].quantity = finalQuantity;
+                } else {
+                    cart[existingIndex].quantity = Math.max(1, Math.min(20, (cart[existingIndex].quantity || 1) + finalQuantity));
+                }
+                applyPlayerFields(cart[existingIndex]);
             } else {
-                // Add new item
-            const cartItem = {
+                const cartItem = {
                     id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
                     pack_id: item.pack_id,
-                    quantity: quantity,
-                user_id: item.user_id || null,
-                zone_id: item.zone_id || null,
-                player_id: item.player_id || null,
-                player_id_ff: item.player_id_ff || null,
-                player_id_pubg: item.player_id_pubg || null,
-                player_id_hok: item.player_id_hok || null,
-                user_id_bs: item.user_id_bs || null,
-                server_bs: item.server_bs || null,
-                server: item.server || null,
-                timestamp: new Date().toISOString()
-            };
+                    quantity: finalQuantity,
+                    user_id: item.user_id || item.save_id || null,
+                    zone_id: item.zone_id || null,
+                    player_id: item.player_id || null,
+                    player_id_ff: item.player_id_ff || null,
+                    player_id_pubg: item.player_id_pubg || null,
+                    player_id_hok: item.player_id_hok || null,
+                    user_id_bs: item.user_id_bs || null,
+                    server_bs: item.server_bs || null,
+                    server: item.server || null,
+                    save_id: item.save_id || null,
+                    timestamp: new Date().toISOString()
+                };
+                if (cartItem.save_id && !cartItem.user_id) {
+                    cartItem.user_id = cartItem.save_id;
+                }
                 cart.push(cartItem);
             }
-            
+
             localStorage.setItem('diaszone_cart', JSON.stringify(cart));
             this.updateCartUI();
             return cart;
@@ -666,7 +731,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (serverBs) gameInfo += `<p><span class="font-medium">Server:</span> ${serverBs}</p>`;
                         } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
                             // Free Fire / PUBG Mobile / Honor of Kings: Player ID
-                            const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id;
+                            const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id || item.save_id;
                             if (playerId) gameInfo += `<p><span class="font-medium">Player ID:</span> ${playerId}</p>`;
                         } else {
                             // Mobile Legends: User ID and Zone ID
@@ -918,55 +983,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
                 // Free Fire / PUBG Mobile / Honor of Kings - Player ID only
-                const playerIdField = document.getElementById('player_id');
-                
+                // Form may render as player_id, save_id, or game_user_id depending on required_fields.
+                const playerIdField = document.getElementById('player_id')
+                    || document.getElementById('save_id')
+                    || document.getElementById('game_user_id')
+                    || document.querySelector('#order-form input[name="player_id"], #order-form input[name="save_id"], #order-form input[name="game_user_id"]');
+
                 if (!playerIdField) {
                     console.error('Player ID field not found for game type:', gameType);
                     alert('Player ID field not found. Please refresh the page.');
                     return;
                 }
-                
-                // Safely get value
+
                 let playerId = '';
                 try {
                     playerId = playerIdField.value ? String(playerIdField.value).trim() : '';
                 } catch (error) {
-                    console.error('Error accessing player_id field value:', error);
+                    console.error('Error accessing player id field value:', error);
                     alert('Error reading Player ID field. Please refresh the page.');
                     return;
                 }
-                
+
                 if (!playerId) {
                     alert('Please enter your Player ID');
                     return;
                 }
-                
+
                 if (!/^\d+$/.test(playerId)) {
                     alert('Player ID must contain only numbers');
                     return;
                 }
-                
-                // Store player_id for all selected packs
+
                 selectedPacks.forEach(pack => {
                     pack.player_id = playerId;
-                
-                // Store in game-specific field for clarity
-                if (gameType === 'freefire') {
+                    if (gameType === 'freefire') {
                         pack.player_id_ff = playerId;
-                } else if (gameType === 'pubgmobile') {
+                    } else if (gameType === 'pubgmobile') {
                         pack.player_id_pubg = playerId;
-                } else if (gameType === 'honorofkings') {
+                        pack.save_id = playerId;
+                    } else if (gameType === 'honorofkings') {
                         pack.player_id_hok = playerId;
-                }
+                    }
                 });
-                
-                // Clear form
+
                 try {
                     playerIdField.value = '';
                 } catch (error) {
-                    console.error('Error clearing player_id field:', error);
+                    console.error('Error clearing player id field:', error);
                 }
-                
+
             } else if (gameType === 'mobilelegends') {
                 // Mobile Legends - User ID and Zone ID with nickname validation
                 isValidating = true; // Set flag to prevent cart addition

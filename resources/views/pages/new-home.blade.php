@@ -11,6 +11,11 @@
 <!-- Hero Slider -->
 @include('components.hero-slider')
 
+@include('components.flash-sales', [
+    'flashSales' => $flashSales ?? collect(),
+    'flashSaleEndsAt' => $flashSaleEndsAt ?? null,
+])
+
 <!-- Home Services Section -->
 @include('components.home-services', ['games' => $games])
 

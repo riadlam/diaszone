@@ -396,11 +396,16 @@ function closeCheckoutAuthModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const flashSaleMode = @json(!empty($flashSaleMode));
+    const flashEncryptedOrderId = @json($flashEncryptedOrderId ?? null);
+    const flashOrderPayload = @json($flashOrderPayload ?? null);
+    const flashPrepareUrl = @json(route('api.flash-sales.prepare-payment'));
+
     // Check if cart exists in localStorage
     const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
     
-    // If cart is empty, redirect to home
-    if (!cart || cart.length === 0) {
+    // If cart is empty (and not a flash-sale checkout), redirect to home
+    if ((!cart || cart.length === 0) && !flashSaleMode) {
         console.log('Cart is empty, redirecting to home...');
         window.location.href = '{{ route("home") }}';
         return;
@@ -433,6 +438,53 @@ document.addEventListener('DOMContentLoaded', function() {
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        if (flashSaleMode && flashOrderPayload) {
+            const orderInfoContent = document.getElementById('order-info-content');
+            const emptyCartMessage = document.getElementById('empty-cart-message');
+            const paymentInfoSection = document.getElementById('payment-info-section');
+            if (emptyCartMessage) emptyCartMessage.style.display = 'none';
+            if (orderInfoContent) {
+                orderInfoContent.style.display = 'block';
+                const o = flashOrderPayload;
+                const name = o.flash_sale_name || 'Flash Sale';
+                orderInfoContent.innerHTML = `
+                    <div class="space-y-1">
+                        <p class="font-semibold text-gray-900">${name}</p>
+                        <p class="text-gray-600">${o.game_name || ''}</p>
+                        <p class="text-purple-600 font-bold">${Number(o.amount_dzd || o.amount || 0).toLocaleString()} DZD</p>
+                    </div>`;
+            }
+            if (skeleton) skeleton.style.display = 'none';
+            if (content) content.style.display = 'block';
+            if (paymentInfoSection) paymentInfoSection.style.display = 'block';
+
+            const totalEl = document.getElementById('total-amount');
+            const beforeEl = document.getElementById('total-before-discount');
+            const beforeRow = document.getElementById('total-before-discount-row');
+            const discountRow = document.getElementById('discount-row');
+            const discountAmount = document.getElementById('discount-amount');
+            const sale = Number(flashOrderPayload.amount_dzd || flashOrderPayload.amount || 0);
+            const original = Number(flashOrderPayload.original_price || sale);
+            if (totalEl) {
+                totalEl.textContent = sale.toLocaleString() + ' DZD';
+                totalEl.setAttribute('data-value', sale);
+            }
+            if (original > sale) {
+                if (beforeEl) beforeEl.textContent = original.toLocaleString() + ' DZD';
+                if (beforeRow) beforeRow.style.display = 'flex';
+                if (discountAmount) discountAmount.textContent = '-' + (original - sale).toLocaleString() + ' DZD';
+                if (discountRow) discountRow.style.display = 'flex';
+            }
+            const flexyFeeRow = document.getElementById('flexy-fee-row');
+            if (flexyFeeRow) flexyFeeRow.style.display = 'none';
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            return;
         }
         
         try {
@@ -525,7 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             `;
                         }
                     } else if (itemGameType === 'freefire' || itemGameType === 'pubgmobile' || itemGameType === 'honorofkings') {
-                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || '';
+                        const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id || item.save_id || '';
                         if (playerId) {
                             orderFieldsHTML = `
                                 <p class="text-gray-600"><span class="font-medium text-gray-700">${tPlayerId}:</span> ${playerId}</p>
@@ -1202,6 +1254,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 const paymentMethod = selectedMethod.value;
+
+                // Flash sale: order already exists — only attach payment method.
+                if (flashSaleMode && flashEncryptedOrderId) {
+                    if (paymentMethod === 'flexy') {
+                        return;
+                    }
+                    isProcessing = true;
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = {!! json_encode(__('common.processing_dots')) !!};
+                    try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                        const mapped = paymentMethod === 'baridimob' ? 'bmccp' : paymentMethod;
+                        const response = await fetch(flashPrepareUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                            },
+                            body: JSON.stringify({
+                                encrypted_order_id: flashEncryptedOrderId,
+                                payment_method: mapped,
+                            }),
+                        });
+                        const data = await response.json();
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Payment failed');
+                        }
+                        window.location.href = data.redirect_url;
+                    } catch (error) {
+                        console.error('Flash payment error:', error);
+                        alert(error.message || 'An error occurred. Please try again.');
+                        isProcessing = false;
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = {!! json_encode(__('checkout.pay_now')) !!};
+                    }
+                    return;
+                }
                 
                 // Get cart data
                 const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
