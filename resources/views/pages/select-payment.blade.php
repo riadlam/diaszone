@@ -1033,9 +1033,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (cart.length === 0) return;
             
             const item = cart[0];
-            const totalAmountEl = document.getElementById('total-amount');
-            const amount = parseFloat(totalAmountEl?.getAttribute('data-value') || 0);
-            originalOrderAmount = amount;
+            const quantity = Math.max(1, parseInt(item.quantity, 10) || 1);
             
             // Determine game code
             let gameCode = 'mlbb';
@@ -1060,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         code: code,
                         game_code: gameCode,
                         package_id: item.pack_id,
-                        amount: amount
+                        quantity: quantity
                     })
                 });
                 
@@ -1078,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         discount_value: data.coupon.discount_value,
                         discount: data.discount
                     };
+                    originalOrderAmount = Number(data.discount?.original_amount || 0);
                     
                     // Show applied coupon UI
                     showAppliedCoupon(data);
@@ -1118,46 +1117,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 appliedDiscountEl.textContent = discountText;
             }
             
-            // Show price breakdown
+            // Show price breakdown (list price → coupon → payable)
             if (couponPriceBreakdown) {
                 couponPriceBreakdown.classList.remove('hidden');
                 
-                const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : 'DZD';
-                const formatPrice = (price) => currency === 'DZD' 
-                    ? Math.round(price).toLocaleString() + ' DZD'
-                    : '$' + price.toFixed(2) + ' USD';
+                const formatDzd = (price) => Math.round(Number(price) || 0).toLocaleString() + ' DZD';
+                const couponOnly = Number(data.discount.discount_amount || 0);
                 
-                document.getElementById('coupon-original-price').textContent = formatPrice(data.discount.original_amount);
-                document.getElementById('coupon-discount-amount').textContent = '-' + formatPrice(data.discount.discount_amount);
+                document.getElementById('coupon-original-price').textContent = formatDzd(data.discount.original_amount);
+                document.getElementById('coupon-discount-amount').textContent = '-' + formatDzd(couponOnly);
                 document.getElementById('coupon-final-price').textContent = data.discount.is_free 
                     ? '{{ __("coupons.free") }}' 
-                    : formatPrice(data.discount.final_amount);
+                    : formatDzd(data.discount.final_amount);
             }
         }
         
-        // Update payment prices with coupon discount
+        // Update payment prices with coupon discount (payable already includes pack sale stacking)
         function updatePricesWithCoupon(discount) {
             const totalAmountEl = document.getElementById('total-amount');
             const payNowAmountEl = document.getElementById('pay-now-amount');
+            const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value || '';
+            const flexyFee = selectedPaymentMethod === 'flexy' ? 50 : 0;
+            const payable = Math.max(0, Number(discount.final_amount || 0) + flexyFee);
             
-            const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : 'DZD';
-            const formatPrice = (price) => currency === 'DZD' 
-                ? Math.round(price).toLocaleString() + ' DZD'
-                : '$' + price.toFixed(2) + ' USD';
+            const formatDzd = (price) => Math.round(price).toLocaleString() + ' DZD';
             
             if (totalAmountEl) {
-                totalAmountEl.textContent = discount.is_free ? '{{ __("coupons.free") }}' : formatPrice(discount.final_amount);
-                totalAmountEl.setAttribute('data-value', discount.final_amount);
+                totalAmountEl.textContent = discount.is_free && flexyFee === 0 ? '{{ __("coupons.free") }}' : formatDzd(payable);
+                totalAmountEl.setAttribute('data-value', payable);
             }
             
             if (payNowAmountEl) {
-                payNowAmountEl.textContent = discount.is_free ? '{{ __("coupons.free") }}' : formatPrice(discount.final_amount);
-                payNowAmountEl.setAttribute('data-value', discount.final_amount);
+                payNowAmountEl.textContent = discount.is_free && flexyFee === 0 ? '{{ __("coupons.free") }}' : formatDzd(payable);
+                payNowAmountEl.setAttribute('data-value', payable);
             }
             
             // If it's a free order (100% discount), change button text
             const submitBtn = document.getElementById('pay-submit-btn');
-            if (submitBtn && discount.is_free) {
+            if (submitBtn && discount.is_free && flexyFee === 0) {
                 submitBtn.textContent = '{{ __("coupons.complete_free_order") }}';
                 submitBtn.classList.add('bg-green-600', 'hover:bg-green-700');
                 submitBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');

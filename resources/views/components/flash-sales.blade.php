@@ -95,8 +95,14 @@
                 <div data-flash-fields></div>
                 <p class="text-sm text-green-600 hidden" data-flash-nickname></p>
                 <p class="text-sm text-red-600 hidden" data-flash-error></p>
-                <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-semibold py-3 rounded-lg transition shadow-md shadow-purple-200">
-                    {{ __('flash_sale.buy_now') }}
+                <button type="submit"
+                        id="flash-sale-submit"
+                        class="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:from-purple-600 disabled:hover:to-fuchsia-600 text-white font-semibold py-3 rounded-lg transition shadow-md shadow-purple-200">
+                    <svg data-flash-spinner class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span data-flash-submit-label>{{ __('flash_sale.buy_now') }}</span>
                 </button>
             </form>
         </div>
@@ -175,17 +181,35 @@
         userId: @json(__('game.user_id')),
         zoneId: @json(__('game.zone_id')),
         playerId: @json(__('game.player_id')),
+        buyNow: @json(__('flash_sale.buy_now')),
+        processing: @json(__('common.processing_dots')),
     };
 
     const modal = document.getElementById('flash-sale-modal');
     const loginModal = document.getElementById('flash-sale-login');
     const loginLink = document.getElementById('flash-sale-login-link');
     const form = document.getElementById('flash-sale-form');
+    const submitBtn = document.getElementById('flash-sale-submit') || form.querySelector('button[type="submit"]');
+    const submitLabel = submitBtn?.querySelector('[data-flash-submit-label]');
+    const submitSpinner = submitBtn?.querySelector('[data-flash-spinner]');
     const fieldsWrap = modal.querySelector('[data-flash-fields]');
     const errorEl = modal.querySelector('[data-flash-error]');
     const nickEl = modal.querySelector('[data-flash-nickname]');
     let current = null;
     let nicknameOk = false;
+    let isSubmitting = false;
+
+    function setSubmitLoading(loading) {
+        if (!submitBtn) return;
+        submitBtn.disabled = loading;
+        submitBtn.setAttribute('aria-busy', loading ? 'true' : 'false');
+        if (submitSpinner) {
+            submitSpinner.classList.toggle('hidden', !loading);
+        }
+        if (submitLabel) {
+            submitLabel.textContent = loading ? i18n.processing : i18n.buyNow;
+        }
+    }
 
     function fieldsFor(gameType) {
         if (gameType === 'mobilelegends') {
@@ -459,28 +483,31 @@
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!current) return;
+        if (!current || isSubmitting) return;
         if (!isLoggedIn) {
             goToLogin();
             return;
         }
 
+        isSubmitting = true;
+        setSubmitLoading(true);
+        let navigatingAway = false;
         clearFieldErrors();
         const fd = new FormData(form);
         const payload = Object.fromEntries(fd.entries());
         saveDraft(payload);
 
-        const ok = await verifyMlIfNeeded(payload);
-        if (!ok) return;
-
-        // Show validated nickname briefly before checkout redirect
-        if (current.gameType === 'mobilelegends') {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
-
-        const btn = form.querySelector('button[type="submit"]');
-        btn.disabled = true;
         try {
+            const ok = await verifyMlIfNeeded(payload);
+            if (!ok) {
+                return;
+            }
+
+            // Show validated nickname briefly before checkout redirect
+            if (current.gameType === 'mobilelegends') {
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+
             const res = await fetch(current.url, {
                 method: 'POST',
                 headers: {
@@ -520,12 +547,17 @@
                 } catch (_) {}
             }
 
+            navigatingAway = true;
             window.location.href = data.redirect_url;
+            return;
         } catch (err) {
             errorEl.textContent = i18n.notAvailable;
             errorEl.classList.remove('hidden');
         } finally {
-            btn.disabled = false;
+            if (!navigatingAway) {
+                isSubmitting = false;
+                setSubmitLoading(false);
+            }
         }
     });
 

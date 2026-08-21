@@ -853,16 +853,16 @@ class CheckoutController extends Controller
                         throw new \Exception(__('coupons.not_applicable'));
                     }
 
-                    $packDiscountTotal = $totalDiscount;
                     $couponDiscount = $coupon->calculateDiscount((float) $totalOriginalPrice);
                     if ($couponDiscount['is_free']) {
                         // 100% coupons must go through the dedicated free-order flow.
                         throw new \Exception(__('coupons.invalid_code'));
                     }
 
+                    // Coupon applies to list price only — pack sale % is not stacked (customer pays list − coupon).
                     $order->coupon_id = $coupon->id;
-                    $totalDiscount = $packDiscountTotal + $couponDiscount['discount_amount'];
-                    $totalFinalPrice = max(0, (float) $couponDiscount['final_amount'] - $packDiscountTotal);
+                    $totalFinalPrice = max(0, (float) $couponDiscount['final_amount']);
+                    $totalDiscount = max(0, (float) $totalOriginalPrice - $totalFinalPrice);
 
                     $coupon->consumeForOrder(
                         (int) $userId,
@@ -2326,20 +2326,17 @@ class CheckoutController extends Controller
                         if ($orderLocked->coupon_id) {
                             $orderLocked->load('coupon');
                             if ($orderLocked->coupon) {
-                                // Re-calculate coupon discount on the original total (before pack discounts)
-                                // This matches how coupons are typically applied in the order creation flow
+                                // Coupon on list price only — do not stack pack sale %.
                                 $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($totalOriginalPrice);
                                 $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
-                                $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
-                                // Ensure final price doesn't go below 0
-                                $calculatedFinalPrice = max(0, $calculatedFinalPrice);
+                                $calculatedFinalPrice = max(0, (float) $couponDiscountInfo['final_amount']);
                                 
                                 Log::info('Chargily: Coupon discount recalculated', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
                                     'original_total' => $totalOriginalPrice,
                                     'coupon_discount' => $orderDiscountAmount,
-                                    'pack_discounts' => $totalDiscount,
+                                    'pack_discounts_ignored' => $totalDiscount,
                                     'calculated_final_price' => $calculatedFinalPrice,
                                 ]);
                             } else {
@@ -2402,7 +2399,9 @@ class CheckoutController extends Controller
                             
                             // Update order with recalculated total prices
                             $orderLocked->original_price = $totalOriginalPrice;
-                            $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->discount_amount = $orderLocked->coupon_id
+                                ? $orderDiscountAmount
+                                : ($totalDiscount + $orderDiscountAmount);
                             $orderLocked->final_price = $calculatedFinalPrice;
                             $orderLocked->save();
                         }
@@ -2679,18 +2678,17 @@ class CheckoutController extends Controller
                         if ($orderLocked->coupon_id) {
                             $orderLocked->load('coupon');
                             if ($orderLocked->coupon) {
-                                // Re-calculate coupon discount on the original total (before pack discounts)
+                                // Coupon on list price only — do not stack pack sale %.
                                 $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($totalOriginalPrice);
                                 $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
-                                $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
-                                $calculatedFinalPrice = max(0, $calculatedFinalPrice);
+                                $calculatedFinalPrice = max(0, (float) $couponDiscountInfo['final_amount']);
                                 
                                 Log::info('Chargily: Coupon discount recalculated (Free Fire)', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
                                     'original_total' => $totalOriginalPrice,
                                     'coupon_discount' => $orderDiscountAmount,
-                                    'pack_discounts' => $totalDiscount,
+                                    'pack_discounts_ignored' => $totalDiscount,
                                     'calculated_final_price' => $calculatedFinalPrice,
                                 ]);
                             }
@@ -2745,7 +2743,9 @@ class CheckoutController extends Controller
                             
                             // Update order with recalculated total prices
                             $orderLocked->original_price = $totalOriginalPrice;
-                            $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->discount_amount = $orderLocked->coupon_id
+                                ? $orderDiscountAmount
+                                : ($totalDiscount + $orderDiscountAmount);
                             $orderLocked->final_price = $calculatedFinalPrice;
                             $orderLocked->save();
                         }

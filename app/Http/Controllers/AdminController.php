@@ -946,18 +946,17 @@ class AdminController extends Controller
                         if ($orderLocked->coupon_id) {
                             $orderLocked->load('coupon');
                             if ($orderLocked->coupon) {
-                                // Re-calculate coupon discount on the original total
+                                // Coupon on list price only — do not stack pack sale %.
                                 $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($totalOriginalPrice);
                                 $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
-                                $calculatedFinalPrice = $couponDiscountInfo['final_amount'] - $totalDiscount;
-                                $calculatedFinalPrice = max(0, $calculatedFinalPrice);
+                                $calculatedFinalPrice = max(0, (float) $couponDiscountInfo['final_amount']);
                                 
                                 Log::info('Admin: Coupon discount recalculated', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
                                     'original_total' => $totalOriginalPrice,
                                     'coupon_discount' => $orderDiscountAmount,
-                                    'pack_discounts' => $totalDiscount,
+                                    'pack_discounts_ignored' => $totalDiscount,
                                     'calculated_final_price' => $calculatedFinalPrice
                                 ]);
                             }
@@ -1000,7 +999,9 @@ class AdminController extends Controller
                             
                             // Update order prices
                             $orderLocked->original_price = $totalOriginalPrice;
-                            $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->discount_amount = $orderLocked->coupon_id
+                                ? $orderDiscountAmount
+                                : ($totalDiscount + $orderDiscountAmount);
                             $orderLocked->final_price = $calculatedFinalPrice;
                             $orderLocked->save();
                         }
@@ -1057,18 +1058,17 @@ class AdminController extends Controller
                         if ($orderLocked->coupon_id) {
                             $orderLocked->load('coupon');
                             if ($orderLocked->coupon) {
-                                // Re-calculate coupon discount on the original total (before pack discount)
+                                // Coupon on list price only — do not stack pack sale %.
                                 $couponDiscountInfo = $orderLocked->coupon->calculateDiscount($subtotalDzd);
                                 $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
-                                $calculatedFinal = $couponDiscountInfo['final_amount'] - $packDiscountAmount;
-                                $calculatedFinal = max(0, $calculatedFinal);
+                                $calculatedFinal = max(0, (float) $couponDiscountInfo['final_amount']);
                                 
                                 Log::info('Admin: Coupon discount recalculated (legacy order)', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
                                     'original_total' => $subtotalDzd,
                                     'coupon_discount' => $orderDiscountAmount,
-                                    'pack_discount' => $packDiscountAmount,
+                                    'pack_discount_ignored' => $packDiscountAmount,
                                     'calculated_final_price' => $calculatedFinal
                                 ]);
                             }
@@ -1112,7 +1112,9 @@ class AdminController extends Controller
                             
                             // Update order prices
                             $orderLocked->original_price = $subtotalDzd;
-                            $orderLocked->discount_amount = $packDiscountAmount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->discount_amount = $orderLocked->coupon_id
+                                ? $orderDiscountAmount
+                                : ($packDiscountAmount + $orderDiscountAmount);
                             $orderLocked->final_price = $calculatedFinal;
                             $orderLocked->save();
                         }

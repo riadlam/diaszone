@@ -44,7 +44,9 @@ class CouponController extends Controller
             'code' => 'required|string|max:50',
             'game_code' => 'required|string|in:mlbb,freefire,pubg,mobilelegends,pubgmobile',
             'package_id' => 'required|integer',
-            'amount' => 'required|numeric|min:0',
+            'quantity' => 'nullable|integer|min:1|max:20',
+            // Client amount is ignored for discount math — we recalculate from catalog list price.
+            'amount' => 'nullable|numeric|min:0',
         ]);
 
         $coupon = Coupon::findByCode($request->code);
@@ -88,8 +90,24 @@ class CouponController extends Controller
             ], 400);
         }
 
-        // Check minimum order amount
-        if ($coupon->min_order_amount && $request->amount < $coupon->min_order_amount) {
+        $pack = DiamondPack::query()->whereKey($request->package_id)->where('is_active', true)->first();
+        if (! $pack) {
+            return response()->json([
+                'success' => false,
+                'message' => __('coupons.not_applicable'),
+                'error_code' => 'NOT_APPLICABLE',
+            ], 400);
+        }
+
+        $quantity = max(1, min(20, (int) ($request->input('quantity') ?? 1)));
+        $unitPriceDzd = (float) ($pack->price_dzd ?? ((float) $pack->price * 260));
+        $packDiscountPct = (float) ($pack->discount_percentage ?? 0);
+        $listTotalDzd = round($unitPriceDzd * $quantity, 2);
+        $packDiscountDzd = round(($unitPriceDzd * $packDiscountPct / 100) * $quantity, 2);
+
+        // Coupons always apply to the catalog list price (before pack sale %).
+        // Pack sale is NOT stacked — payable is list − coupon (higher than sale+coupon stacking).
+        if ($coupon->min_order_amount && $listTotalDzd < (float) $coupon->min_order_amount) {
             return response()->json([
                 'success' => false,
                 'message' => __('coupons.min_amount_required', ['amount' => $coupon->min_order_amount]),
@@ -97,8 +115,8 @@ class CouponController extends Controller
             ], 400);
         }
 
-        // Calculate discount
-        $discountInfo = $coupon->calculateDiscount($request->amount);
+        $discountInfo = $coupon->calculateDiscount($listTotalDzd);
+        $payableDzd = max(0, round((float) $discountInfo['final_amount'], 2));
 
         return response()->json([
             'success' => true,
@@ -109,8 +127,15 @@ class CouponController extends Controller
                 'discount_type' => $coupon->discount_type,
                 'discount_value' => $coupon->discount_value,
             ],
-            'discount' => $discountInfo,
-            'is_free' => $discountInfo['is_free'],
+            'discount' => [
+                'original_amount' => $discountInfo['original_amount'],
+                'discount_amount' => $discountInfo['discount_amount'],
+                'pack_discount_amount' => 0,
+                'sale_price_ignored' => $packDiscountDzd,
+                'final_amount' => $payableDzd,
+                'is_free' => $payableDzd <= 0.009 || (bool) $discountInfo['is_free'],
+            ],
+            'is_free' => $payableDzd <= 0.009 || (bool) $discountInfo['is_free'],
         ]);
     }
 
