@@ -1016,6 +1016,132 @@ class CheckoutController extends Controller
     }
 
     /**
+     * Block re-opening / re-starting gateway payment after pay, cancel, or wrong method.
+     * Prevents payment spam and coupon-priced orders from being charged repeatedly.
+     *
+     * @return \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse|null
+     */
+    protected function denyPaymentScreenAccess(Order $order, string $gateway, string $encryptedOrderId, bool $asJson = false)
+    {
+        if ($order->user_id !== null) {
+            if (! Auth::check()) {
+                if ($asJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Please sign in to continue payment.',
+                        'require_login' => true,
+                    ], 401);
+                }
+
+                return redirect()->route('login', [
+                    'redirect' => $gateway === 'bmccp'
+                        ? '/select/bmccp/'.rawurlencode($encryptedOrderId)
+                        : '/select/crypto/'.rawurlencode($encryptedOrderId),
+                ]);
+            }
+
+            if ((int) $order->user_id !== (int) Auth::id()) {
+                if ($asJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You do not have access to this order.',
+                    ], 403);
+                }
+
+                return redirect()->route('home')->with('error', 'You do not have access to this order.');
+            }
+        }
+
+        if ($this->orderAlreadyPaidOrProcessing($order)) {
+            $message = 'This order was already paid or is being processed.';
+            if ($asJson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'order_status' => $order->status,
+                    'redirect_url' => route('payment.success', ['encrypted_order_id' => $encryptedOrderId]),
+                ], 409);
+            }
+
+            return redirect()
+                ->route('payment.success', ['encrypted_order_id' => $encryptedOrderId])
+                ->with('info', $message);
+        }
+
+        if (in_array($order->status, ['cancelled', 'refunded'], true)) {
+            $message = 'This order is no longer payable.';
+            if ($asJson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'order_status' => $order->status,
+                ], 409);
+            }
+
+            return redirect()->route('select-payment')->with('error', $message);
+        }
+
+        $allowedByGateway = match ($gateway) {
+            'bmccp' => ['pending_bmccp', 'pending'],
+            'cryptocurrency' => ['pending_cryptopay', 'pending'],
+            'flexy' => ['pending_flexy', 'pending'],
+            default => ['pending'],
+        };
+
+        if (! in_array($order->status, $allowedByGateway, true)) {
+            $message = 'This order cannot be paid with the selected payment method.';
+            if ($asJson) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'order_status' => $order->status,
+                ], 409);
+            }
+
+            return redirect()->route('select-payment')->with('error', $message);
+        }
+
+        $method = strtolower((string) ($order->payment_method ?? ''));
+        if ($method !== '') {
+            $methodOk = match ($gateway) {
+                'bmccp' => in_array($method, ['bmccp', 'baridimob'], true),
+                'cryptocurrency' => in_array($method, ['cryptocurrency', 'crypto'], true),
+                'flexy' => $method === 'flexy',
+                default => true,
+            };
+            if (! $methodOk) {
+                $message = 'This order is locked to a different payment method.';
+                if ($asJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $message,
+                    ], 409);
+                }
+
+                return redirect()->route('select-payment')->with('error', $message);
+            }
+        }
+
+        return null;
+    }
+
+    protected function orderAlreadyPaidOrProcessing(Order $order): bool
+    {
+        if (in_array($order->status, ['sending', 'completed', 'pending_confirmation'], true)) {
+            return true;
+        }
+
+        if ($order->sofizpayCibTransaction && $order->sofizpayCibTransaction->status === 'paid') {
+            return true;
+        }
+
+        return SofizPayCibTransaction::query()
+            ->where('order_id', $order->id)
+            ->where('status', 'paid')
+            ->exists();
+    }
+
+    /**
      * Build the order JSON shape used by the dashboard and get-by-encrypted-id API.
      *
      * @param  \Illuminate\Support\Collection<string, \App\Models\Game>|null  $gamesByType
@@ -1333,10 +1459,14 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
         
-        $order = Order::with(['diamondPack', 'flashSaleOffer', 'orderItems.diamondPack'])->find($orderId);
+        $order = Order::with(['diamondPack', 'flashSaleOffer', 'orderItems.diamondPack', 'sofizpayCibTransaction'])->find($orderId);
         
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
+        }
+
+        if ($deny = $this->denyPaymentScreenAccess($order, 'bmccp', $encryptedOrderId)) {
+            return $deny;
         }
         
         return view('pages.baridimob-form', [
@@ -1395,7 +1525,7 @@ class CheckoutController extends Controller
         }
         
         // Load order with relationships - support both single-pack and multi-item orders
-        $order = Order::with(['diamondPack', 'orderItems.diamondPack', 'coupon'])->find($orderId);
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack', 'coupon', 'sofizpayCibTransaction'])->find($orderId);
         
         if (! $order) {
             Log::error('Baridimob: Order not found', ['order_id' => $orderId]);
@@ -1404,6 +1534,10 @@ class CheckoutController extends Controller
                 'success' => false,
                 'message' => 'Order not found',
             ], 404);
+        }
+
+        if ($deny = $this->denyPaymentScreenAccess($order, 'bmccp', $request->encrypted_order_id, true)) {
+            return $deny;
         }
         
         Log::info('Baridimob: Order loaded', [
@@ -3876,6 +4010,10 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Order not found');
         }
 
+        if ($deny = $this->denyPaymentScreenAccess($order, 'cryptocurrency', $encryptedOrderId)) {
+            return $deny;
+        }
+
         if ($order->isFlashSale()) {
             $finalDzd = (float) ($order->final_price ?? 0);
             $originalDzd = (float) ($order->original_price ?? $finalDzd);
@@ -3919,6 +4057,10 @@ class CheckoutController extends Controller
         
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
+        }
+
+        if ($deny = $this->denyPaymentScreenAccess($order, 'cryptocurrency', $encryptedOrderId)) {
+            return $deny;
         }
         
         // Calculate order total amount in DZD (backend calculation - prevents client manipulation)

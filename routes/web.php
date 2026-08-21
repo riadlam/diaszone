@@ -128,6 +128,7 @@ Route::get('/payment/sofizpay/cib/return', [CheckoutController::class, 'sofizpay
     ->middleware('throttle:30,1')
     ->name('payment.sofizpay.cib.return');
 Route::post('/api/baridimob/process', [CheckoutController::class, 'processBaridimobPayment'])
+    ->middleware('throttle:10,1')
     ->name('api.baridimob.process');
 Route::post('/webhook/baridimob', [CheckoutController::class, 'baridimobWebhook'])
     ->name('baridimob.webhook');
