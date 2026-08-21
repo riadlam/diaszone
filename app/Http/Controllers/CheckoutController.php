@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\SofizPayCibTransaction;
 use App\Models\VipResellerStatus;
 use App\Services\DigiflazzService;
+use App\Services\FlashSaleService;
 use App\Services\NowPaymentsService;
 use App\Services\SofizPayCibService;
 use App\Services\TelegramService;
@@ -469,10 +470,6 @@ class CheckoutController extends Controller
                     $flashSaleMode = true;
                     $flashEncryptedOrderId = $orderIdParam;
                     $flashOrderPayload = $this->buildOrderApiPayload($order);
-                    $paymentMethods = array_values(array_filter(
-                        $paymentMethods,
-                        fn (array $method) => in_array($method['id'], ['baridimob', 'cryptocurrency'], true)
-                    ));
                 }
             } catch (\Throwable $e) {
                 // Fall through to normal cart checkout.
@@ -1307,7 +1304,7 @@ class CheckoutController extends Controller
         }
         
         // Load order with relationships - support both single-pack and multi-item orders
-        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack', 'flashSaleOffer'])->find($orderId);
         
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
@@ -1315,6 +1312,8 @@ class CheckoutController extends Controller
         
         return view('pages.flexy-form', [
             'order' => $order,
+            'is_flash_sale' => $order->isFlashSale(),
+            'encrypted_order_id' => $encryptedOrderId,
         ]);
     }
     
@@ -1935,14 +1934,30 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Expected Baridimob (DZD) total for SofizPay: seller storefront and coupons use persisted `final_price`;
-     * otherwise totals are derived from `diamond_packs` (and multi-item lines without coupon).
+     * Expected Baridimob (DZD) total for SofizPay: flash sales and coupons use listed/persisted `final_price`;
+     * seller storefront uses persisted `final_price`; otherwise totals are derived from `diamond_packs`.
      */
     private function calculateOrderBaridimobAmountDzd(Order $order): float
     {
-        $order->loadMissing(['diamondPack', 'orderItems.diamondPack', 'coupon']);
+        $order->loadMissing(['diamondPack', 'orderItems.diamondPack', 'coupon', 'flashSaleOffer']);
         $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
         $fromPacks = $this->recalculateOrderTotalDzdFromDiamondPacks($order);
+
+        // Flash sale: charge the listed offer sale price (must match order.final_price).
+        if ($order->isFlashSale()) {
+            try {
+                return app(FlashSaleService::class)->resolveChargeAmountDzd($order);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                Log::error('SofizPay: Flash sale amount validation failed', [
+                    'order_id' => $order->id,
+                    'errors' => $e->errors(),
+                    'final_price' => $order->final_price,
+                    'offer_sale_price' => $order->flashSaleOffer?->sale_price_dzd,
+                ]);
+
+                return 0.0;
+            }
+        }
 
         if ($order->seller_id && ! $hasOrderItems && $order->diamondPack) {
             $fp = (float) ($order->final_price ?? 0);
@@ -2335,41 +2350,67 @@ class CheckoutController extends Controller
                             }
                         }
                         
-                        // Validate final order price (accounting for coupon discount)
-                        $storedFinalPrice = (float) ($orderLocked->final_price ?? 0);
-                        $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
-                        
-                        if ($finalPriceDiff > 1.0) {
-                            Log::error('Chargily: Final price validation failed - potential manipulation detected', [
-                                'order_id' => $orderLocked->id,
-                                'order_number' => $orderLocked->order_number,
-                                'stored_final_price' => $storedFinalPrice,
-                                'calculated_final_price' => $calculatedFinalPrice,
-                                'difference' => $finalPriceDiff,
-                                'has_coupon' => ! empty($orderLocked->coupon_id),
-                                'coupon_discount' => $orderDiscountAmount,
-                                'pack_discounts' => $totalDiscount,
-                                'original_price' => $totalOriginalPrice,
-                            ]);
-                            $result = [
-                                'result' => false,
-                                'message' => 'Price validation failed. Final order price does not match calculated price.',
-                                'stored_price' => $storedFinalPrice,
-                                'calculated_price' => $calculatedFinalPrice,
-                            ];
+                        // Flash sale: charge/sale price is offer.sale_price_dzd, not catalog sum.
+                        // Keep listed flash totals; still allow Digiflazz one-by-one on order_items.
+                        if ($orderLocked->isFlashSale()) {
+                            try {
+                                $flashCharge = app(FlashSaleService::class)->resolveChargeAmountDzd($orderLocked);
+                            } catch (\Illuminate\Validation\ValidationException $e) {
+                                Log::error('Chargily: Flash sale amount validation failed', [
+                                    'order_id' => $orderLocked->id,
+                                    'errors' => $e->errors(),
+                                ]);
+                                $result = [
+                                    'result' => false,
+                                    'message' => 'Flash sale price validation failed.',
+                                ];
 
-                            return;
+                                return;
+                            }
+
+                            $orderLocked->loadMissing('flashSaleOffer');
+                            $orderLocked->original_price = (float) ($orderLocked->flashSaleOffer?->original_price_dzd ?? $orderLocked->original_price ?? $totalOriginalPrice);
+                            $orderLocked->discount_amount = max(0, (float) $orderLocked->original_price - $flashCharge);
+                            $orderLocked->final_price = $flashCharge;
+                            $orderLocked->save();
+                        } else {
+                            // Validate final order price (accounting for coupon discount)
+                            $storedFinalPrice = (float) ($orderLocked->final_price ?? 0);
+                            $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
+                            
+                            if ($finalPriceDiff > 1.0) {
+                                Log::error('Chargily: Final price validation failed - potential manipulation detected', [
+                                    'order_id' => $orderLocked->id,
+                                    'order_number' => $orderLocked->order_number,
+                                    'stored_final_price' => $storedFinalPrice,
+                                    'calculated_final_price' => $calculatedFinalPrice,
+                                    'difference' => $finalPriceDiff,
+                                    'has_coupon' => ! empty($orderLocked->coupon_id),
+                                    'coupon_discount' => $orderDiscountAmount,
+                                    'pack_discounts' => $totalDiscount,
+                                    'original_price' => $totalOriginalPrice,
+                                ]);
+                                $result = [
+                                    'result' => false,
+                                    'message' => 'Price validation failed. Final order price does not match calculated price.',
+                                    'stored_price' => $storedFinalPrice,
+                                    'calculated_price' => $calculatedFinalPrice,
+                                ];
+
+                                return;
+                            }
+                            
+                            // Update order with recalculated total prices
+                            $orderLocked->original_price = $totalOriginalPrice;
+                            $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->final_price = $calculatedFinalPrice;
+                            $orderLocked->save();
                         }
-                        
-                        // Update order with recalculated total prices
-                        $orderLocked->original_price = $totalOriginalPrice;
-                        $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
-                        $orderLocked->final_price = $calculatedFinalPrice;
-                        $orderLocked->save();
                         
                         Log::info('Chargily: Price validation passed, proceeding with top-up', [
                             'order_id' => $orderLocked->id,
-                            'final_price' => $totalFinalPrice,
+                            'final_price' => $orderLocked->final_price,
+                            'is_flash_sale' => $orderLocked->isFlashSale(),
                             'items_count' => $orderLocked->orderItems->count(),
                         ]);
                         
@@ -2655,39 +2696,64 @@ class CheckoutController extends Controller
                             }
                         }
                         
-                        // Validate final order price (accounting for coupon discount)
-                        $storedFinalPrice = (float) ($orderLocked->final_price ?? 0);
-                        $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
-                        
-                        if ($finalPriceDiff > 1.0) {
-                            Log::error('Chargily: Final price validation failed - potential manipulation detected (Free Fire)', [
-                                'order_id' => $orderLocked->id,
-                                'order_number' => $orderLocked->order_number,
-                                'stored_final_price' => $storedFinalPrice,
-                                'calculated_final_price' => $calculatedFinalPrice,
-                                'difference' => $finalPriceDiff,
-                                'has_coupon' => ! empty($orderLocked->coupon_id),
-                                'coupon_discount' => $orderDiscountAmount,
-                            ]);
-                            $result = [
-                                'result' => false,
-                                'message' => 'Price validation failed. Final order price does not match calculated price.',
-                                'stored_price' => $storedFinalPrice,
-                                'calculated_price' => $calculatedFinalPrice,
-                            ];
+                        // Flash sale: charge/sale price is offer.sale_price_dzd, not catalog sum.
+                        if ($orderLocked->isFlashSale()) {
+                            try {
+                                $flashCharge = app(FlashSaleService::class)->resolveChargeAmountDzd($orderLocked);
+                            } catch (\Illuminate\Validation\ValidationException $e) {
+                                Log::error('Chargily: Flash sale amount validation failed (Free Fire)', [
+                                    'order_id' => $orderLocked->id,
+                                    'errors' => $e->errors(),
+                                ]);
+                                $result = [
+                                    'result' => false,
+                                    'message' => 'Flash sale price validation failed.',
+                                ];
 
-                            return;
+                                return;
+                            }
+
+                            $orderLocked->loadMissing('flashSaleOffer');
+                            $orderLocked->original_price = (float) ($orderLocked->flashSaleOffer?->original_price_dzd ?? $orderLocked->original_price ?? $totalOriginalPrice);
+                            $orderLocked->discount_amount = max(0, (float) $orderLocked->original_price - $flashCharge);
+                            $orderLocked->final_price = $flashCharge;
+                            $orderLocked->save();
+                        } else {
+                            // Validate final order price (accounting for coupon discount)
+                            $storedFinalPrice = (float) ($orderLocked->final_price ?? 0);
+                            $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
+                            
+                            if ($finalPriceDiff > 1.0) {
+                                Log::error('Chargily: Final price validation failed - potential manipulation detected (Free Fire)', [
+                                    'order_id' => $orderLocked->id,
+                                    'order_number' => $orderLocked->order_number,
+                                    'stored_final_price' => $storedFinalPrice,
+                                    'calculated_final_price' => $calculatedFinalPrice,
+                                    'difference' => $finalPriceDiff,
+                                    'has_coupon' => ! empty($orderLocked->coupon_id),
+                                    'coupon_discount' => $orderDiscountAmount,
+                                ]);
+                                $result = [
+                                    'result' => false,
+                                    'message' => 'Price validation failed. Final order price does not match calculated price.',
+                                    'stored_price' => $storedFinalPrice,
+                                    'calculated_price' => $calculatedFinalPrice,
+                                ];
+
+                                return;
+                            }
+                            
+                            // Update order with recalculated total prices
+                            $orderLocked->original_price = $totalOriginalPrice;
+                            $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->final_price = $calculatedFinalPrice;
+                            $orderLocked->save();
                         }
-                        
-                        // Update order with recalculated total prices
-                        $orderLocked->original_price = $totalOriginalPrice;
-                        $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
-                        $orderLocked->final_price = $calculatedFinalPrice;
-                        $orderLocked->save();
                         
                         Log::info('Chargily: Price validation passed, proceeding with top-up (Free Fire)', [
                             'order_id' => $orderLocked->id,
-                            'final_price' => $totalFinalPrice,
+                            'final_price' => $orderLocked->final_price,
+                            'is_flash_sale' => $orderLocked->isFlashSale(),
                             'items_count' => $orderLocked->orderItems->count(),
                         ]);
                         
@@ -3849,7 +3915,7 @@ class CheckoutController extends Controller
             return redirect()->route('select-payment')->with('error', 'Invalid order ID');
         }
         
-        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->find($orderId);
+        $order = Order::with(['diamondPack', 'orderItems.diamondPack', 'flashSaleOffer'])->find($orderId);
         
         if (! $order) {
             return redirect()->route('select-payment')->with('error', 'Order not found');
@@ -3858,8 +3924,19 @@ class CheckoutController extends Controller
         // Calculate order total amount in DZD (backend calculation - prevents client manipulation)
         $totalAmountDzd = 0;
         $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
-        
-        if ($hasOrderItems) {
+
+        if ($order->isFlashSale()) {
+            try {
+                $totalAmountDzd = app(FlashSaleService::class)->resolveChargeAmountDzd($order);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                Log::error('NOWPayments: Flash sale amount validation failed', [
+                    'order_id' => $order->id,
+                    'errors' => $e->errors(),
+                ]);
+
+                return redirect()->route('select-payment')->with('error', 'Flash sale price validation failed. Please try again.');
+            }
+        } elseif ($hasOrderItems) {
             // Multi-item order: sum from order items
             $totalAmountDzd = $order->orderItems->sum('total_dzd');
             

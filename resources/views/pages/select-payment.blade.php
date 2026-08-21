@@ -467,14 +467,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const discountAmount = document.getElementById('discount-amount');
             const sale = Number(flashOrderPayload.amount_dzd || flashOrderPayload.amount || 0);
             const original = Number(flashOrderPayload.original_price || sale);
+            const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value || null;
+            const flexyFee = selectedPaymentMethod === 'flexy' ? 50 : 0;
+            const payTotal = sale + flexyFee;
             if (totalEl) {
-                totalEl.textContent = sale.toLocaleString() + ' DZD';
-                totalEl.setAttribute('data-value', sale);
+                totalEl.textContent = payTotal.toLocaleString() + ' DZD';
+                totalEl.setAttribute('data-value', payTotal);
             }
             const payNowAmountEl = document.getElementById('pay-now-amount');
             if (payNowAmountEl) {
-                payNowAmountEl.textContent = sale.toLocaleString() + ' DZD';
-                payNowAmountEl.setAttribute('data-value', sale);
+                payNowAmountEl.textContent = payTotal.toLocaleString() + ' DZD';
+                payNowAmountEl.setAttribute('data-value', payTotal);
             }
             if (original > sale) {
                 if (beforeEl) beforeEl.textContent = original.toLocaleString() + ' DZD';
@@ -483,7 +486,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (discountRow) discountRow.style.display = 'flex';
             }
             const flexyFeeRow = document.getElementById('flexy-fee-row');
-            if (flexyFeeRow) flexyFeeRow.style.display = 'none';
+            if (flexyFeeRow) {
+                if (flexyFee > 0) {
+                    flexyFeeRow.style.display = 'flex';
+                    const flexyFeeAmount = document.getElementById('flexy-fee-amount');
+                    if (flexyFeeAmount) {
+                        flexyFeeAmount.textContent = flexyFee.toLocaleString() + ' DZD';
+                        flexyFeeAmount.setAttribute('data-value', flexyFee);
+                    }
+                } else {
+                    flexyFeeRow.style.display = 'none';
+                }
+            }
 
             if (submitBtn) {
                 submitBtn.disabled = false;
@@ -1265,9 +1279,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Flash sale: order already exists — only attach payment method.
                 if (flashSaleMode && flashEncryptedOrderId) {
-                    if (paymentMethod === 'flexy') {
-                        return;
-                    }
                     isProcessing = true;
                     submitBtn.disabled = true;
                     submitBtn.textContent = {!! json_encode(__('common.processing_dots')) !!};

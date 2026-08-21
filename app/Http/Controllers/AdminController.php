@@ -8,6 +8,7 @@ use App\Models\Coupon;
 use App\Models\VipResellerStatus;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
+use App\Services\FlashSaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -962,27 +963,47 @@ class AdminController extends Controller
                             }
                         }
                         
-                        // Validate final order price (accounting for coupon discount)
-                        $storedFinalPrice = (float)($orderLocked->final_price ?? 0);
-                        $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
-                        
-                        if ($finalPriceDiff > 1.0) {
-                            Log::error('Admin: Final price validation failed', [
-                                'order_id' => $orderLocked->id,
-                                'stored_final_price' => $storedFinalPrice,
-                                'calculated_final_price' => $calculatedFinalPrice,
-                                'difference' => $finalPriceDiff,
-                                'has_coupon' => !empty($orderLocked->coupon_id)
-                            ]);
-                            $result = ['result' => false, 'message' => 'Price validation failed'];
-                            return;
+                        // Flash sale: listed sale price is authoritative (not catalog sum of lines).
+                        if ($orderLocked->isFlashSale()) {
+                            try {
+                                $flashCharge = app(FlashSaleService::class)->resolveChargeAmountDzd($orderLocked);
+                            } catch (\Illuminate\Validation\ValidationException $e) {
+                                Log::error('Admin: Flash sale amount validation failed', [
+                                    'order_id' => $orderLocked->id,
+                                    'errors' => $e->errors(),
+                                ]);
+                                $result = ['result' => false, 'message' => 'Flash sale price validation failed'];
+                                return;
+                            }
+
+                            $orderLocked->loadMissing('flashSaleOffer');
+                            $orderLocked->original_price = (float) ($orderLocked->flashSaleOffer?->original_price_dzd ?? $orderLocked->original_price ?? $totalOriginalPrice);
+                            $orderLocked->discount_amount = max(0, (float) $orderLocked->original_price - $flashCharge);
+                            $orderLocked->final_price = $flashCharge;
+                            $orderLocked->save();
+                        } else {
+                            // Validate final order price (accounting for coupon discount)
+                            $storedFinalPrice = (float)($orderLocked->final_price ?? 0);
+                            $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
+                            
+                            if ($finalPriceDiff > 1.0) {
+                                Log::error('Admin: Final price validation failed', [
+                                    'order_id' => $orderLocked->id,
+                                    'stored_final_price' => $storedFinalPrice,
+                                    'calculated_final_price' => $calculatedFinalPrice,
+                                    'difference' => $finalPriceDiff,
+                                    'has_coupon' => !empty($orderLocked->coupon_id)
+                                ]);
+                                $result = ['result' => false, 'message' => 'Price validation failed'];
+                                return;
+                            }
+                            
+                            // Update order prices
+                            $orderLocked->original_price = $totalOriginalPrice;
+                            $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->final_price = $calculatedFinalPrice;
+                            $orderLocked->save();
                         }
-                        
-                        // Update order prices
-                        $orderLocked->original_price = $totalOriginalPrice;
-                        $orderLocked->discount_amount = $totalDiscount + $orderDiscountAmount; // Total discount (pack + coupon)
-                        $orderLocked->final_price = $calculatedFinalPrice;
-                        $orderLocked->save();
                         
                         // Submit top-ups for each order_item
                         foreach ($orderLocked->orderItems as $orderItem) {
@@ -1053,28 +1074,48 @@ class AdminController extends Controller
                             }
                         }
                         
-                        // Validate final price (accounting for coupon discount)
-                        $storedFinal = (float)($orderLocked->final_price ?? 0);
-                        $finalPriceDiff = abs($storedFinal - $calculatedFinal);
-                        
-                        if ($finalPriceDiff > 1.0) {
-                            Log::error('Admin: Price validation failed (legacy order)', [
-                                'order_id' => $orderLocked->id,
-                                'stored_price' => $storedFinal,
-                                'calculated_price' => $calculatedFinal,
-                                'difference' => $finalPriceDiff,
-                                'has_coupon' => !empty($orderLocked->coupon_id),
-                                'coupon_discount' => $orderDiscountAmount
-                            ]);
-                            $result = ['result' => false, 'message' => 'Price validation failed'];
-                            return;
+                        // Flash sale single-line orders still use listed sale price.
+                        if ($orderLocked->isFlashSale()) {
+                            try {
+                                $flashCharge = app(FlashSaleService::class)->resolveChargeAmountDzd($orderLocked);
+                            } catch (\Illuminate\Validation\ValidationException $e) {
+                                Log::error('Admin: Flash sale amount validation failed (legacy)', [
+                                    'order_id' => $orderLocked->id,
+                                    'errors' => $e->errors(),
+                                ]);
+                                $result = ['result' => false, 'message' => 'Flash sale price validation failed'];
+                                return;
+                            }
+
+                            $orderLocked->loadMissing('flashSaleOffer');
+                            $orderLocked->original_price = (float) ($orderLocked->flashSaleOffer?->original_price_dzd ?? $orderLocked->original_price ?? $subtotalDzd);
+                            $orderLocked->discount_amount = max(0, (float) $orderLocked->original_price - $flashCharge);
+                            $orderLocked->final_price = $flashCharge;
+                            $orderLocked->save();
+                        } else {
+                            // Validate final price (accounting for coupon discount)
+                            $storedFinal = (float)($orderLocked->final_price ?? 0);
+                            $finalPriceDiff = abs($storedFinal - $calculatedFinal);
+                            
+                            if ($finalPriceDiff > 1.0) {
+                                Log::error('Admin: Price validation failed (legacy order)', [
+                                    'order_id' => $orderLocked->id,
+                                    'stored_price' => $storedFinal,
+                                    'calculated_price' => $calculatedFinal,
+                                    'difference' => $finalPriceDiff,
+                                    'has_coupon' => !empty($orderLocked->coupon_id),
+                                    'coupon_discount' => $orderDiscountAmount
+                                ]);
+                                $result = ['result' => false, 'message' => 'Price validation failed'];
+                                return;
+                            }
+                            
+                            // Update order prices
+                            $orderLocked->original_price = $subtotalDzd;
+                            $orderLocked->discount_amount = $packDiscountAmount + $orderDiscountAmount; // Total discount (pack + coupon)
+                            $orderLocked->final_price = $calculatedFinal;
+                            $orderLocked->save();
                         }
-                        
-                        // Update order prices
-                        $orderLocked->original_price = $subtotalDzd;
-                        $orderLocked->discount_amount = $packDiscountAmount + $orderDiscountAmount; // Total discount (pack + coupon)
-                        $orderLocked->final_price = $calculatedFinal;
-                        $orderLocked->save();
                         
                         // Submit top-ups (legacy logic)
                         $submitted = $orderLocked->digiflazzStatuses()

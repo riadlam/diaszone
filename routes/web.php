@@ -271,6 +271,9 @@ Route::prefix('adm')->name('admin.')->middleware(['auth', 'admin', 'throttle:60,
     // Lucky Wheel events are managed in the Filament panel at /admin/wheel-events
     Route::redirect('/wheel-events', '/admin/wheel-events')->name('wheel-events.index');
 
+    // Coupons are managed in the Filament panel at /admin/coupons
+    Route::redirect('/coupons', '/admin/coupons')->name('coupons.index');
+
     // Seller Management Routes
     Route::prefix('sellers')->name('sellers.')->group(function () {
         Route::get('/', [SellerManagementController::class, 'index'])->name('index');

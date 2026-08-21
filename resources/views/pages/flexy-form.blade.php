@@ -121,8 +121,10 @@
                         
                         // Calculate discount for display (if original_price is available)
                         $originalPrice = (float) ($order->original_price ?? $finalDzdPrice);
-                        $discountAmountDzd = $originalPrice - $finalDzdPrice;
-                        $discountPercentage = $originalPrice > 0 ? ($discountAmountDzd / $originalPrice) * 100 : 0;
+                        $discountAmountDzd = max(0, $originalPrice - $finalDzdPrice);
+                        $discountPercentage = $originalPrice > 0
+                            ? (int) round(($discountAmountDzd / $originalPrice) * 100)
+                            : 0;
                         $discountAmountUsd = $discountAmountDzd / 260;
                     } else {
                         // Legacy single-pack order: calculate from pack
@@ -325,9 +327,15 @@ document.addEventListener('DOMContentLoaded', function() {
         changePaymentBtn.addEventListener('click', async function() {
             const encryptedOrderIdInput = document.querySelector('input[name="encrypted_order_id"]');
             const encryptedOrderId = encryptedOrderIdInput ? encryptedOrderIdInput.value : null;
+            const isFlashSale = @json(!empty($is_flash_sale) || (bool) ($order->flash_sale_offer_id ?? false));
             
             if (!encryptedOrderId) {
                 window.location.href = '{{ route("select-payment") }}';
+                return;
+            }
+
+            if (isFlashSale) {
+                window.location.href = @json(route('select-payment', ['order_id' => $encrypted_order_id ?? request()->query('order_id'), 'flash' => 1]));
                 return;
             }
             

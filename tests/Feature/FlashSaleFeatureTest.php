@@ -152,7 +152,7 @@ class FlashSaleFeatureTest extends TestCase
         $this->assertSame($pack->id, $order->orderItems->first()->diamond_pack_id);
     }
 
-    public function test_select_payment_hides_flexy_for_flash_orders(): void
+    public function test_select_payment_shows_flexy_for_flash_orders(): void
     {
         $user = User::factory()->create(['status' => 'active']);
         $pack = $this->makePack();
@@ -169,8 +169,36 @@ class FlashSaleFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('Algerie Post', false)
             ->assertSee('Cryptocurrency', false)
-            ->assertDontSee('value="flexy"', false)
+            ->assertSee('value="flexy"', false)
             ->assertSee('Weekly Diamond Pass 3x', false);
+    }
+
+    public function test_prepare_payment_sets_flexy_status_and_redirect(): void
+    {
+        $user = User::factory()->create(['status' => 'active']);
+        $pack = $this->makePack();
+        $offer = $this->makeOffer($pack);
+        $order = app(FlashSaleService::class)->createCheckoutOrder($offer, $user, [
+            'user_id' => '1',
+            'zone_id' => '2',
+        ]);
+        $encrypted = Crypt::encryptString((string) $order->id);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('api.flash-sales.prepare-payment'), [
+                'encrypted_order_id' => $encrypted,
+                'payment_method' => 'flexy',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $redirectUrl = $response->json('redirect_url');
+        $this->assertIsString($redirectUrl);
+        $this->assertStringContainsString('/flexy', $redirectUrl);
+
+        $order->refresh();
+        $this->assertSame('flexy', $order->payment_method);
+        $this->assertSame('pending_flexy', $order->status);
     }
 
     public function test_prepare_payment_sets_baridimob_status(): void
@@ -224,5 +252,47 @@ class FlashSaleFeatureTest extends TestCase
             'user_id' => '1',
             'zone_id' => '2',
         ])->assertUnauthorized();
+    }
+
+    public function test_flash_charge_amount_matches_listed_sale_price_not_catalog_sum(): void
+    {
+        $user = User::factory()->create(['status' => 'active']);
+        $pack = $this->makePack(['price_dzd' => 400]);
+        $offer = $this->makeOffer($pack, [
+            'original_price_dzd' => 1200,
+            'sale_price_dzd' => 999,
+        ], 3);
+
+        $order = app(FlashSaleService::class)->createCheckoutOrder($offer, $user, [
+            'user_id' => '123',
+            'zone_id' => '456',
+        ]);
+
+        // Catalog lines = 1200, listed flash charge must stay 999
+        $this->assertEquals(1200.0, (float) $order->orderItems->sum('total_dzd'));
+        $this->assertEquals(999.0, app(FlashSaleService::class)->resolveChargeAmountDzd($order));
+
+        $controller = app(\App\Http\Controllers\CheckoutController::class);
+        $method = new \ReflectionMethod($controller, 'calculateOrderBaridimobAmountDzd');
+        $method->setAccessible(true);
+
+        $this->assertEquals(999.0, $method->invoke($controller, $order->fresh(['orderItems.diamondPack', 'flashSaleOffer', 'coupon'])));
+    }
+
+    public function test_flash_charge_amount_rejects_tampered_final_price(): void
+    {
+        $user = User::factory()->create(['status' => 'active']);
+        $pack = $this->makePack();
+        $offer = $this->makeOffer($pack, ['sale_price_dzd' => 999], 2);
+        $order = app(FlashSaleService::class)->createCheckoutOrder($offer, $user, [
+            'user_id' => '1',
+            'zone_id' => '2',
+        ]);
+
+        $order->final_price = 50;
+        $order->save();
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(FlashSaleService::class)->resolveChargeAmountDzd($order->fresh('flashSaleOffer'));
     }
 }

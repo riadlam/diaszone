@@ -68,6 +68,7 @@ class FlashSaleService
                 'server' => $ids['server'],
                 'original_price' => $locked->original_price_dzd,
                 'final_price' => $locked->sale_price_dzd,
+                'discount_amount' => max(0, (float) $locked->original_price_dzd - (float) $locked->sale_price_dzd),
                 'quantity' => $locked->items->sum('quantity'),
             ]);
 
@@ -120,6 +121,46 @@ class FlashSaleService
 
             return $order->fresh(['orderItems.diamondPack', 'flashSaleOffer']);
         });
+    }
+
+    /**
+     * Canonical DZD amount the customer must pay for a flash-sale order.
+     * Always derived from the listed FlashSaleOffer.sale_price_dzd, and must match order.final_price.
+     *
+     * @throws ValidationException
+     */
+    public function resolveChargeAmountDzd(Order $order): float
+    {
+        if (! $order->isFlashSale()) {
+            throw ValidationException::withMessages([
+                'order' => ['Order is not a flash sale order.'],
+            ]);
+        }
+
+        $order->loadMissing('flashSaleOffer');
+        $offer = $order->flashSaleOffer;
+        if (! $offer) {
+            throw ValidationException::withMessages([
+                'offer' => [__('flash_sale.not_available')],
+            ]);
+        }
+
+        $listed = round((float) $offer->sale_price_dzd, 2);
+        $stored = round((float) ($order->final_price ?? 0), 2);
+
+        if ($listed <= 0) {
+            throw ValidationException::withMessages([
+                'offer' => [__('flash_sale.not_available')],
+            ]);
+        }
+
+        if ($stored > 0 && abs($stored - $listed) > 1.0) {
+            throw ValidationException::withMessages([
+                'amount' => [__('flash_sale.not_available')],
+            ]);
+        }
+
+        return $listed;
     }
 
     /**

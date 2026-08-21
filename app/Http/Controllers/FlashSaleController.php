@@ -72,7 +72,7 @@ class FlashSaleController extends Controller
     }
 
     /**
-     * Attach Baridimob / Crypto to an existing flash order and return the payment URL.
+     * Attach Baridimob / Crypto / Flexy to an existing flash order and return the payment URL.
      */
     public function preparePayment(Request $request): JsonResponse
     {
@@ -86,7 +86,7 @@ class FlashSaleController extends Controller
 
         $data = $request->validate([
             'encrypted_order_id' => 'required|string',
-            'payment_method' => 'required|string|in:bmccp,cryptocurrency,baridimob',
+            'payment_method' => 'required|string|in:bmccp,cryptocurrency,baridimob,flexy',
         ]);
 
         try {
@@ -100,11 +100,26 @@ class FlashSaleController extends Controller
             return response()->json(['success' => false, 'message' => 'Order not found.'], 404);
         }
 
-        if (! in_array($order->status, ['pending', 'pending_bmccp', 'pending_cryptopay'], true)) {
+        if (! in_array($order->status, ['pending', 'pending_bmccp', 'pending_cryptopay', 'pending_flexy'], true)) {
             return response()->json(['success' => false, 'message' => 'Order cannot be paid.'], 422);
         }
 
         $method = $data['payment_method'] === 'baridimob' ? 'bmccp' : $data['payment_method'];
+
+        if ($method === 'flexy') {
+            $order->payment_method = 'flexy';
+            $order->status = 'pending_flexy';
+            $order->save();
+
+            $encryptedId = Crypt::encryptString((string) $order->id);
+
+            return response()->json([
+                'success' => true,
+                'encrypted_order_id' => $encryptedId,
+                'redirect_url' => route('flexy-form', ['order_id' => $encryptedId]),
+            ]);
+        }
+
         $status = $method === 'bmccp' ? 'pending_bmccp' : 'pending_cryptopay';
 
         $order->payment_method = $method;
