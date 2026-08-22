@@ -17,6 +17,9 @@ class WheelQualificationService
     /**
      * Credit one spin for a successful Digiflazz status when it qualifies.
      * Idempotent via unique source_key.
+     *
+     * Paid gateways (Flexy, Algerie Post / bmccp, crypto) all qualify once Digiflazz
+     * reports success and the order belongs to a logged-in user during an active event.
      */
     public function creditFromDigiflazzStatus(DigiflazzStatus $status): bool
     {
@@ -71,11 +74,6 @@ class WheelQualificationService
             })
             ->whereHas('order', function ($q) use ($event) {
                 $q->whereNotNull('user_id')
-                    ->whereNull('flexy_id')
-                    ->where(function ($payment) {
-                        $payment->whereNull('payment_method')
-                            ->orWhereRaw('LOWER(payment_method) <> ?', ['flexy']);
-                    })
                     ->where(function ($seller) {
                         $seller->whereNull('seller_id')
                             ->orWhere('is_direct_topup', false);
@@ -233,12 +231,9 @@ class WheelQualificationService
 
     private function orderQualifies(Order $order, DigiflazzStatus $status): bool
     {
-        if ($order->flexy_id) {
-            return false;
-        }
-
         $paymentMethod = strtolower((string) $order->payment_method);
-        if ($paymentMethod === 'flexy' || $paymentMethod === 'coupon_free') {
+        // Free coupon orders do not earn spins; paid Flexy / Algerie Post / crypto do.
+        if ($paymentMethod === 'coupon_free') {
             return false;
         }
 

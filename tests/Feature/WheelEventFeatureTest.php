@@ -387,33 +387,65 @@ class WheelEventFeatureTest extends TestCase
         $this->assertSame(3, WheelSpinLedger::where('user_id', $user->id)->where('entry_type', 'credit')->count());
     }
 
-    public function test_flexy_orders_do_not_credit_spins(): void
+    public function test_flexy_and_bmccp_orders_credit_spins_when_digiflazz_succeeds(): void
     {
         $user = User::factory()->create();
         $pack = $this->makePack();
         $event = $this->makeEvent();
         $this->makeRewards($event, $pack);
 
+        foreach (['flexy', 'bmccp'] as $method) {
+            $order = Order::create([
+                'order_number' => 'ORD-WHEEL-'.strtoupper($method),
+                'user_id' => $user->id,
+                'status' => 'completed',
+                'diamond_pack_id' => $pack->id,
+                'payment_method' => $method,
+                'created_at' => now()->subHour(),
+            ]);
+
+            DigiflazzStatus::create([
+                'order_id' => $order->id,
+                'diamond_pack_id' => $pack->id,
+                'ref_id' => 'ref-'.$method,
+                'trxid' => 'trx-'.$method,
+                'status' => 'Sukses',
+                'rc' => '00',
+            ]);
+        }
+
+        $progress = WheelUserProgress::where('user_id', $user->id)->first();
+        $this->assertNotNull($progress);
+        $this->assertSame(2, $progress->total_spins_earned);
+        $this->assertSame(2, WheelSpinLedger::where('user_id', $user->id)->where('entry_type', 'credit')->count());
+    }
+
+    public function test_guest_orders_do_not_credit_spins(): void
+    {
+        $pack = $this->makePack();
+        $event = $this->makeEvent();
+        $this->makeRewards($event, $pack);
+
         $order = Order::create([
-            'order_number' => 'ORD-WHEEL-FLEXY',
-            'user_id' => $user->id,
+            'order_number' => 'ORD-WHEEL-GUEST',
+            'user_id' => null,
             'status' => 'completed',
             'diamond_pack_id' => $pack->id,
-            'payment_method' => 'flexy',
+            'payment_method' => 'bmccp',
             'created_at' => now()->subHour(),
         ]);
 
-        $status = DigiflazzStatus::create([
+        DigiflazzStatus::create([
             'order_id' => $order->id,
             'diamond_pack_id' => $pack->id,
-            'ref_id' => 'ref-flexy',
-            'trxid' => 'trx-flexy',
+            'ref_id' => 'ref-guest',
+            'trxid' => 'trx-guest',
             'status' => 'Sukses',
             'rc' => '00',
         ]);
 
-        $this->assertFalse(app(WheelQualificationService::class)->creditFromDigiflazzStatus($status));
-        $this->assertDatabaseMissing('wheel_spin_ledger', ['user_id' => $user->id]);
+        $this->assertDatabaseCount('wheel_spin_ledger', 0);
+        $this->assertDatabaseCount('wheel_user_progress', 0);
     }
 
     public function test_milestone_draw_unlocks_pack_claim_code_then_discount_coupon(): void
