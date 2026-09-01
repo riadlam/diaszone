@@ -13,6 +13,18 @@ class MobileLegendsPackIcon
             return 'startlight-1.png';
         }
 
+        if ($code === 'starlightplus') {
+            return 'starlightplus.png';
+        }
+
+        if ($code === 'mpic') {
+            return 'mpic.png';
+        }
+
+        if ($code === 'superpass') {
+            return 'superpass.png';
+        }
+
         if (stripos($pack->name, 'Weekly Diamond Pass') !== false
             || stripos($pack->name, 'Event Topup') !== false) {
             return 'weeklymlbb.webp';
@@ -58,6 +70,21 @@ class MobileLegendsPackIcon
             'startlight-1.png' => '
                 <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
                 <path d="M64 28l8 18 19 2-14 13 4 19-17-10-17 10 4-19-14-13 19-2z" fill="#fde68a" stroke="#fff" stroke-width="2"/>
+            ',
+            'starlightplus.png' => '
+                <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
+                <path d="M64 28l8 18 19 2-14 13 4 19-17-10-17 10 4-19-14-13 19-2z" fill="#fde68a" stroke="#fff" stroke-width="2"/>
+                <text x="64" y="108" text-anchor="middle" font-size="10" font-weight="700" fill="#fde68a">PLUS</text>
+            ',
+            'mpic.png' => '
+                <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
+                <path d="M64 28l8 18 19 2-14 13 4 19-17-10-17 10 4-19-14-13 19-2z" fill="url(#gem)" stroke="#fff" stroke-width="2"/>
+                <text x="64" y="108" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">EPIC</text>
+            ',
+            'superpass.png' => '
+                <rect x="20" y="34" width="88" height="60" rx="10" fill="#fbbf24" stroke="#fff" stroke-width="3"/>
+                <path d="M20 52h88" stroke="#fff" stroke-width="4" opacity=".8"/>
+                <path d="m64 48 14 15-14 19-14-19z" fill="url(#gem)" stroke="#fff" stroke-width="2"/>
             ',
             'twlilightpass.jpg' => '
                 <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
