@@ -8,6 +8,11 @@ class MobileLegendsPackIcon
 {
     public static function filename(DiamondPack $pack): string
     {
+        $code = strtolower((string) ($pack->code ?? ''));
+        if (in_array($code, ['startlight-1', 'starlight-1'], true)) {
+            return 'startlight-1.png';
+        }
+
         if (stripos($pack->name, 'Weekly Diamond Pass') !== false
             || stripos($pack->name, 'Event Topup') !== false) {
             return 'weeklymlbb.webp';
@@ -49,6 +54,10 @@ class MobileLegendsPackIcon
                 <path d="M19 47h90" stroke="#fff" stroke-width="8" opacity=".85"/>
                 <path d="M42 17v19M86 17v19" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
                 <path d="m64 55 17 18-17 23-17-23z" fill="url(#gem)" stroke="#fff" stroke-width="3"/>
+            ',
+            'startlight-1.png' => '
+                <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
+                <path d="M64 28l8 18 19 2-14 13 4 19-17-10-17 10 4-19-14-13 19-2z" fill="#fde68a" stroke="#fff" stroke-width="2"/>
             ',
             'twlilightpass.jpg' => '
                 <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
