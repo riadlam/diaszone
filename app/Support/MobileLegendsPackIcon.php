@@ -25,6 +25,10 @@ class MobileLegendsPackIcon
             return 'superpass.png';
         }
 
+        if ($code === 'mlbb-weekly-elite') {
+            return 'mlbb-weekly-elite.png';
+        }
+
         if (stripos($pack->name, 'Weekly Diamond Pass') !== false
             || stripos($pack->name, 'Event Topup') !== false) {
             return 'weeklymlbb.webp';
@@ -85,6 +89,11 @@ class MobileLegendsPackIcon
                 <rect x="20" y="34" width="88" height="60" rx="10" fill="#fbbf24" stroke="#fff" stroke-width="3"/>
                 <path d="M20 52h88" stroke="#fff" stroke-width="4" opacity=".8"/>
                 <path d="m64 48 14 15-14 19-14-19z" fill="url(#gem)" stroke="#fff" stroke-width="2"/>
+            ',
+            'mlbb-weekly-elite.png' => '
+                <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
+                <path d="m64 30 12 14-12 16-12-16z" fill="url(#gem)" stroke="#fff" stroke-width="2"/>
+                <text x="64" y="108" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">ELITE</text>
             ',
             'twlilightpass.jpg' => '
                 <rect x="18" y="18" width="92" height="92" rx="22" fill="url(#card)"/>
