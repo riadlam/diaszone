@@ -113,7 +113,14 @@
                                      class="w-full h-full object-contain"
                                      style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
                             </div>
-                        @elseif(($gameType ?? '') !== 'freefire' && !empty($gameImage ?? null))
+                        @elseif(($gameType ?? '') === 'freefire')
+                            <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-50 rounded-lg">
+                                <img src="{{ \App\Support\FreeFirePackIcon::url() }}"
+                                     alt="{{ $pack->diamonds }} {{ __('game.diamonds') }}"
+                                     class="w-full h-full object-contain"
+                                     style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain !important;">
+                            </div>
+                        @elseif(!empty($gameImage ?? null))
                             <!-- Show game image thumbnail for games other than Mobile Legends and Free Fire -->
                             <div class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden">
                                 <img src="{{ asset($gameImage) }}" 
@@ -122,7 +129,7 @@
                                      style="display: block !important; width: 100% !important; height: 100% !important; object-fit: cover !important;">
                             </div>
                         @else
-                            <!-- Free Fire and games without images: Empty space to maintain layout -->
+                            <!-- Games without images: Empty space to maintain layout -->
                             <div class="flex-shrink-0 w-12 h-12"></div>
                         @endif
                         
