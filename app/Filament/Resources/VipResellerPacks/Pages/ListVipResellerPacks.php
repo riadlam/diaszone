@@ -14,13 +14,8 @@ class ListVipResellerPacks extends ListRecords
     {
         return [
             CreateAction::make()
-                ->modalHeading('New VIP pack')
-                ->modalWidth('4xl')
-                ->mutateFormDataUsing(function (array $data): array {
-                    $data['code'] = trim((string) ($data['code'] ?? ''));
-
-                    return $data;
-                }),
+                ->url(VipResellerPackResource::getUrl('create'))
+                ->openUrlInNewTab(),
         ];
     }
 }

@@ -1,25 +1,38 @@
 <?php
 
-namespace App\Filament\Resources\VipResellerPacks\Tables;
+namespace App\Filament\Resources\VipResellerCategories\RelationManagers;
 
-use App\Filament\Resources\VipResellerCategories\VipResellerCategoryResource;
+use App\Filament\Resources\VipResellerPacks\Schemas\VipResellerPackForm;
 use App\Filament\Resources\VipResellerPacks\VipResellerPackResource;
 use App\Models\VipResellerPack;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
-class VipResellerPacksTable
+class PacksRelationManager extends RelationManager
 {
-    public static function configure(Table $table): Table
+    protected static string $relationship = 'packs';
+
+    protected static ?string $title = 'Services / packs';
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public function form(Schema $schema): Schema
+    {
+        return VipResellerPackForm::configure($schema);
+    }
+
+    public function table(Table $table): Table
     {
         return $table
             ->defaultSort('sort_order')
@@ -43,17 +56,8 @@ class VipResellerPacksTable
 
                 TextColumn::make('name')
                     ->searchable()
-                    ->limit(40),
-
-                TextColumn::make('category.name')
-                    ->label('Category')
-                    ->sortable()
-                    ->badge()
-                    ->color('info')
-                    ->url(fn (VipResellerPack $record): ?string => $record->category_id
-                        ? VipResellerCategoryResource::getUrl('edit', ['record' => $record->category_id])
-                        : null)
-                    ->openUrlInNewTab(),
+                    ->limit(45)
+                    ->wrap(),
 
                 TextColumn::make('price_dzd')
                     ->label('DZD')
@@ -73,7 +77,7 @@ class VipResellerPacksTable
                     ->toggleable(),
 
                 TextColumn::make('provider_status')
-                    ->label('Status')
+                    ->label('VIP')
                     ->badge()
                     ->color(fn (?string $state): string => $state === 'available' ? 'success' : 'danger')
                     ->formatStateUsing(fn (?string $state): string => $state === 'available' ? 'Available' : 'Empty'),
@@ -86,32 +90,22 @@ class VipResellerPacksTable
                     ->label('Active'),
             ])
             ->filters([
-                SelectFilter::make('category_id')
-                    ->label('Category')
-                    ->relationship('category', 'name')
-                    ->searchable()
-                    ->preload(),
-                SelectFilter::make('provider_status')
-                    ->label('Provider status')
-                    ->options([
-                        'available' => 'Available',
-                        'empty' => 'Empty',
-                    ]),
                 TernaryFilter::make('is_active')->label('Active'),
             ])
+            ->headerActions([
+                CreateAction::make()
+                    ->label('Add pack')
+                    ->url(fn (): string => VipResellerPackResource::getUrl('create', [
+                        'category_id' => $this->getOwnerRecord()->getKey(),
+                    ]))
+                    ->openUrlInNewTab(),
+            ])
             ->recordActions([
-                EditAction::make()
+                Action::make('edit')
+                    ->label('Edit')
+                    ->icon('heroicon-o-pencil-square')
                     ->url(fn (VipResellerPack $record): string => VipResellerPackResource::getUrl('edit', ['record' => $record]))
                     ->openUrlInNewTab(),
-                Action::make('category')
-                    ->label('Category')
-                    ->icon('heroicon-o-tag')
-                    ->color('gray')
-                    ->url(fn (VipResellerPack $record): ?string => $record->category_id
-                        ? VipResellerCategoryResource::getUrl('edit', ['record' => $record->category_id])
-                        : null)
-                    ->openUrlInNewTab()
-                    ->visible(fn (VipResellerPack $record): bool => filled($record->category_id)),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

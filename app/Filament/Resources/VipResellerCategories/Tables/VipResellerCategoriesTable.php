@@ -2,14 +2,16 @@
 
 namespace App\Filament\Resources\VipResellerCategories\Tables;
 
+use App\Filament\Resources\VipResellerCategories\VipResellerCategoryResource;
 use App\Models\VipResellerCategory;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
@@ -20,11 +22,16 @@ class VipResellerCategoriesTable
         return $table
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
+            ->recordUrl(
+                fn (VipResellerCategory $record): string => VipResellerCategoryResource::getUrl('edit', ['record' => $record]),
+                shouldOpenInNewTab: true,
+            )
             ->columns([
                 ImageColumn::make('image_path')
                     ->label('Image')
                     ->getStateUsing(fn (VipResellerCategory $record): ?string => $record->imageUrl())
-                    ->height(40),
+                    ->height(40)
+                    ->square(),
 
                 TextColumn::make('name')
                     ->searchable()
@@ -54,17 +61,22 @@ class VipResellerCategoriesTable
                     ->label('Order')
                     ->sortable(),
 
-                IconColumn::make('is_active')
-                    ->label('On')
-                    ->boolean(),
+                ToggleColumn::make('is_active')
+                    ->label('Active'),
             ])
             ->filters([
                 TernaryFilter::make('is_active')->label('Active'),
             ])
             ->recordActions([
                 EditAction::make()
-                    ->modalHeading('Edit VIP category')
-                    ->modalWidth('3xl'),
+                    ->url(fn (VipResellerCategory $record): string => VipResellerCategoryResource::getUrl('edit', ['record' => $record]))
+                    ->openUrlInNewTab(),
+                Action::make('managePacks')
+                    ->label('Services')
+                    ->icon('heroicon-o-cube')
+                    ->color('info')
+                    ->url(fn (VipResellerCategory $record): string => VipResellerCategoryResource::getUrl('edit', ['record' => $record]).'#relation-manager')
+                    ->openUrlInNewTab(),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

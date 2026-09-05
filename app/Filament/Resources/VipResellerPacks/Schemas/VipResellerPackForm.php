@@ -187,15 +187,15 @@ class VipResellerPackForm
                             ->numeric()
                             ->required()
                             ->minValue(0)
-                            ->prefix('DZD'),
+                            ->prefix('DZD')
+                            ->helperText('Must be > 0 for the pack to appear on the storefront.'),
 
                         TextInput::make('base_price_dzd')
                             ->label('Base cost (DZD)')
                             ->numeric()
-                            ->required()
                             ->minValue(0)
                             ->prefix('DZD')
-                            ->helperText('Your cost in DZD for margin.'),
+                            ->helperText('Your cost in DZD for margin (optional).'),
 
                         TextInput::make('price_usd')
                             ->label('Price (USD)')
@@ -206,6 +206,8 @@ class VipResellerPackForm
                             ->label('Discount %')
                             ->numeric()
                             ->default(0)
+                            ->minValue(0)
+                            ->maxValue(100)
                             ->suffix('%')
                             ->columnSpanFull(),
                     ]),

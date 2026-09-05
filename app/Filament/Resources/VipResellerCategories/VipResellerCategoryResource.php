@@ -2,7 +2,10 @@
 
 namespace App\Filament\Resources\VipResellerCategories;
 
+use App\Filament\Resources\VipResellerCategories\Pages\CreateVipResellerCategory;
+use App\Filament\Resources\VipResellerCategories\Pages\EditVipResellerCategory;
 use App\Filament\Resources\VipResellerCategories\Pages\ListVipResellerCategories;
+use App\Filament\Resources\VipResellerCategories\RelationManagers\PacksRelationManager;
 use App\Filament\Resources\VipResellerCategories\Schemas\VipResellerCategoryForm;
 use App\Filament\Resources\VipResellerCategories\Tables\VipResellerCategoriesTable;
 use App\Models\VipResellerCategory;
@@ -43,10 +46,19 @@ class VipResellerCategoryResource extends Resource
         return VipResellerCategoriesTable::configure($table);
     }
 
+    public static function getRelations(): array
+    {
+        return [
+            PacksRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [
             'index' => ListVipResellerCategories::route('/'),
+            'create' => CreateVipResellerCategory::route('/create'),
+            'edit' => EditVipResellerCategory::route('/{record}/edit'),
         ];
     }
 }

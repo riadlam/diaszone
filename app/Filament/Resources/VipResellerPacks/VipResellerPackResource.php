@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\VipResellerPacks;
 
+use App\Filament\Resources\VipResellerPacks\Pages\CreateVipResellerPack;
+use App\Filament\Resources\VipResellerPacks\Pages\EditVipResellerPack;
 use App\Filament\Resources\VipResellerPacks\Pages\ListVipResellerPacks;
 use App\Filament\Resources\VipResellerPacks\Schemas\VipResellerPackForm;
 use App\Filament\Resources\VipResellerPacks\Tables\VipResellerPacksTable;
@@ -47,6 +49,8 @@ class VipResellerPackResource extends Resource
     {
         return [
             'index' => ListVipResellerPacks::route('/'),
+            'create' => CreateVipResellerPack::route('/create'),
+            'edit' => EditVipResellerPack::route('/{record}/edit'),
         ];
     }
 }
