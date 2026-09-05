@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
             PubgMobileUcPackSeeder::class,
             HonorOfKingsPackSeeder::class,
             BloodStrikePackSeeder::class,
-            VipResellerNetflixSeeder::class,
+            VipResellerDigitalCatalogSeeder::class,
         ]);
     }
 }

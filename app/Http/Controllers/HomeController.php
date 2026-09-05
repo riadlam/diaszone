@@ -21,7 +21,34 @@ class HomeController extends Controller
 
     public function digital()
     {
-        return view('pages.digital', $this->homeLikePageData('digital'));
+        $heroSlides = HeroSlide::query()
+            ->active()
+            ->forPlacement('digital')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        $categories = \App\Models\VipResellerCategory::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(function (\App\Models\VipResellerCategory $category) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'slug' => $category->slug,
+                    'image_path' => $category->imageUrl(),
+                    'route' => route('digital.category', $category->slug),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return view('pages.digital', [
+            'heroSlides' => $heroSlides,
+            'categories' => $categories,
+        ]);
     }
 
     public function digitalCategory(string $slug)
