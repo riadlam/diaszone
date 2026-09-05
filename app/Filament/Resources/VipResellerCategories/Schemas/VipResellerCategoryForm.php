@@ -17,7 +17,7 @@ class VipResellerCategoryForm
         return $schema
             ->components([
                 Section::make('Category')
-                    ->description('VIP Reseller product category (e.g. Netflix). filter_game is used later for API price sync.')
+                    ->description('VIP Reseller product category (e.g. Netflix). filter_game must match the VIP brand so the pack picker can load services.')
                     ->columns(2)
                     ->schema([
                         TextInput::make('name')
@@ -34,8 +34,9 @@ class VipResellerCategoryForm
 
                         TextInput::make('filter_game')
                             ->label('VIP filter_game')
+                            ->required()
                             ->maxLength(255)
-                            ->helperText('Passed to VIP type=services filter_game (e.g. Netflix).')
+                            ->helperText('Required. Exact VIP brand/category string for type=services (e.g. Netflix, CapCut Pro). Used by the pack code picker.')
                             ->placeholder('Netflix'),
 
                         TextInput::make('product_url')

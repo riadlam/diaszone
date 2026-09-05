@@ -433,5 +433,173 @@ class VipResellerService
             ];
         }
     }
+
+    /**
+     * List VIP game-feature services (for Filament product picker).
+     *
+     * @return array{result: bool, data: list<array<string, mixed>>, message: string}
+     */
+    public function getServices(?string $filterGame = null, ?string $filterStatus = 'available'): array
+    {
+        $filterGame = $filterGame !== null ? trim($filterGame) : null;
+        if ($filterGame === '') {
+            $filterGame = null;
+        }
+
+        $filterStatus = $filterStatus !== null ? trim($filterStatus) : null;
+        if ($filterStatus === '') {
+            $filterStatus = null;
+        }
+
+        $cacheKey = 'vipreseller.services.'.md5(($filterGame ?? '').'|'.($filterStatus ?? ''));
+
+        try {
+            if (empty($this->apiKey) || empty($this->sign)) {
+                Log::error('Provider credentials missing for services list', [
+                    'api_key_empty' => empty($this->apiKey),
+                    'sign_empty' => empty($this->sign),
+                ]);
+
+                return [
+                    'result' => false,
+                    'data' => [],
+                    'message' => 'API credentials not configured. Please contact support.',
+                ];
+            }
+
+            $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+            if (is_array($cached) && ($cached['result'] ?? false) === true) {
+                return $cached;
+            }
+
+            $formData = [
+                'key' => $this->apiKey,
+                'sign' => $this->sign,
+                'type' => 'services',
+            ];
+
+            if ($filterGame !== null) {
+                $formData['filter_game'] = $filterGame;
+            }
+
+            if ($filterStatus !== null) {
+                $formData['filter_status'] = $filterStatus;
+            }
+
+            $url = rtrim($this->baseUrl, '/').'/game-feature';
+
+            Log::info('Provider services list request', [
+                'url' => $url,
+                'filter_game' => $filterGame,
+                'filter_status' => $filterStatus,
+            ]);
+
+            $response = Http::asForm()
+                ->connectTimeout(8)
+                ->timeout(30)
+                ->withHeaders([
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ])
+                ->post($url, $formData);
+
+            $data = $response->json();
+
+            Log::info('Provider services list response', [
+                'http_status' => $response->status(),
+                'result' => is_array($data) ? ($data['result'] ?? null) : null,
+                'count' => is_array($data['data'] ?? null) ? count($data['data']) : 0,
+            ]);
+
+            if (! $response->successful() || ! is_array($data) || ($data['result'] ?? false) !== true) {
+                return [
+                    'result' => false,
+                    'data' => [],
+                    'message' => is_array($data)
+                        ? (string) ($data['message'] ?? 'Failed to load VIP services.')
+                        : 'Failed to load VIP services.',
+                ];
+            }
+
+            $rows = is_array($data['data'] ?? null) ? $data['data'] : [];
+            $normalized = [];
+
+            foreach ($rows as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $code = trim((string) ($row['code'] ?? ''));
+                if ($code === '') {
+                    continue;
+                }
+
+                $price = is_array($row['price'] ?? null) ? $row['price'] : [];
+                $status = strtolower(trim((string) ($row['status'] ?? 'available')));
+                if ($status === 'tersedia') {
+                    $status = 'available';
+                } elseif ($status === 'kosong') {
+                    $status = 'empty';
+                }
+
+                $normalized[] = [
+                    'code' => $code,
+                    'game' => (string) ($row['game'] ?? ''),
+                    'name' => (string) ($row['name'] ?? $code),
+                    'description' => (string) ($row['description'] ?? ''),
+                    'price_basic' => isset($price['basic']) ? (float) $price['basic'] : null,
+                    'price_premium' => isset($price['premium']) ? (float) $price['premium'] : null,
+                    'price_special' => isset($price['special']) ? (float) $price['special'] : null,
+                    'server' => isset($row['server']) ? (string) $row['server'] : null,
+                    'status' => in_array($status, ['available', 'empty'], true) ? $status : 'available',
+                ];
+            }
+
+            $payload = [
+                'result' => true,
+                'data' => $normalized,
+                'message' => (string) ($data['message'] ?? 'Daftar layanan berhasil didapatkan.'),
+            ];
+
+            \Illuminate\Support\Facades\Cache::put($cacheKey, $payload, 90);
+
+            return $payload;
+        } catch (\Throwable $e) {
+            Log::error('Provider services list error: '.$e->getMessage(), [
+                'filter_game' => $filterGame,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'result' => false,
+                'data' => [],
+                'message' => 'Error loading VIP services: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Find one normalized service by code within a filter_game list.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findServiceByCode(string $code, ?string $filterGame = null): ?array
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return null;
+        }
+
+        // Prefer available, then all statuses for that filter
+        foreach (['available', null] as $status) {
+            $response = $this->getServices($filterGame, $status);
+            foreach ($response['data'] ?? [] as $service) {
+                if (strcasecmp((string) ($service['code'] ?? ''), $code) === 0) {
+                    return $service;
+                }
+            }
+        }
+
+        return null;
+    }
 }
 

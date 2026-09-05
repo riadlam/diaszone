@@ -23,7 +23,7 @@ class EditVipResellerPack extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $data['code'] = strtoupper(trim((string) ($data['code'] ?? '')));
+        $data['code'] = trim((string) ($data['code'] ?? ''));
 
         return $data;
     }

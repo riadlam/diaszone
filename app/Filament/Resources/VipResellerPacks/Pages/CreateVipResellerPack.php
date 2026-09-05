@@ -15,7 +15,7 @@ class CreateVipResellerPack extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['code'] = strtoupper(trim((string) ($data['code'] ?? '')));
+        $data['code'] = trim((string) ($data['code'] ?? ''));
 
         return $data;
     }
