@@ -1,0 +1,292 @@
+
+avatar
+ Library untuk PHP VIPayment PHP SDK.
+Confused about how to integrate with the VIPayment API? We offer VIPayment API integration services starting at IDR 100,000 (order and status).
+Game Feature
+Order
+Order Joki
+Status
+Service
+Get Stock
+Get Nickname Game
+Webhook
+Back to top
+Make an Order
+ 
+[POST] https://vip-reseller.co.id/api/game-feature
+
+Parameter	Type	Value	Req.
+key	string	contains your apikey, check here .	Yes
+sign	string	contains the formula md5(API ID + API KEY), check here .	Yes
+type	string	order	Yes
+service	string	contains service code, check here .	Yes
+data_no	string	contains destination ID data	Yes
+data_zone	string	contains destination zone data if any	No
+post_additional_data	string	contains additional data if any	No
+Example Response
+JSON
+{
+    "result": true,
+    "data": {
+        "trxid": "some1d",
+        "data": "136216325",
+        "zone": "2685",
+        "service": "Mobile Legends B - 1048 Diamonds",
+        "status": "waiting",
+        "note": "",
+        "balance": 100000,
+        "price": 195695
+    },
+    "message": "Pesanan berhasil, pesanan akan diproses."
+}
+Making a Jockey Order
+ 
+[POST] https://vip-reseller.co.id/api/game-feature
+
+Parameter	Type	Value	Req.
+key	string	contains your apikey, check here .	Yes
+sign	string	contains the md5 formula (API ID + API KEY), check here .	Yes
+type	string	order	Yes
+service	string	contains service code, check here .	Yes
+data_no	string	contains email data / account username	Yes
+data_zone	string	contains account password data	yes
+additional_data	string	contains additional data Login|Nickname|Hero|Notes Separate with |	yes
+quantity	integer	number of orders /star -> Max Package Jockey: 1 . Min Single Jockey : 3	yes
+Example Response
+JSON
+{
+    "result": true,
+    "data": {
+        "trxid": "some1d",
+        "data": "example@gmail.com",
+        "zone": "password951",
+        "additional_data": "Login|Nickname|Hero|Catatan",
+        "service": "Mobile Legends Joki Ranked (Satuan) - Legend \/\u2b50",
+        "status": "waiting",
+        "note": "",
+        "balance": 100000,
+        "price": 195695
+    },
+    "message": "Pesanan berhasil, pesanan akan diproses."
+}
+Check Order Status
+ 
+[POST] https://vip-reseller.co.id/api/game-feature
+
+Parameter	Type	Value	Req.
+key	string	contains your apikey.	Yes
+sign	string	contains the md5 formula (API ID + API KEY).	Yes
+type	string	status	Yes
+trxid	string	contains transaction ID	No
+limit	integer	contains transaction limits, remove the 'trxid' parameter if you want to see multiple transactions at once.	No
+Example Response
+JSON
+{
+    "result": true,
+    "data": [
+        {
+            "trxid": "some1d",
+            "data": "136216325",
+            "zone": "2685",
+            "service": "Mobile Legends B - 1048 Diamonds",
+            "status": "success",
+            "note": "",
+            "price": 195695
+        }
+    ],
+    "message": "Detail transaksi berhasil didapatkan."
+}
+JSON
+{
+    "result": true,
+    "data": [
+        {
+            "trxid": "some1d",
+            "data": "136216325",
+            "zone": "2685",
+            "service": "Mobile Legends B - 1048 Diamonds",
+            "status": "success",
+            "note": "",
+            "price": 195695
+        },
+        {
+            "trxid": "some1d",
+            "data": "136216325",
+            "zone": "2600",
+            "service": "Mobile Legends B - 1048 Diamonds",
+            "status": "error",
+            "note": "Zone tujuan salah.",
+            "price": 195695
+        }
+    ],
+    "message": "Detail transaksi berhasil didapatkan."
+}
+Getting Service
+ 
+[POST] https://vip-reseller.co.id/api/game-feature
+
+Parameter	Type	Value	Req.
+key	string	contains your apikey.	Yes
+sign	string	contains the md5 formula (API ID + API KEY).	Yes
+type	string	services	Yes
+filter_game	string	Contains the brand or category you want to capture. For example, Mobile Legends or CapCut Pro	No
+filter_status	string	contains the status you want to retrieve available / empty	No
+Example Response
+JSON
+{
+    "result": true,
+    "data": [
+        {
+            "code": "ML14-S14",
+            "game": "Mobile Legends A",
+            "name": "14 Diamonds ( 13 + 1 Bonus )",
+            "price": {
+                "basic": 3310,
+                "premium": 3260,
+                "special": 3235
+            },
+            "description": "14 Diamonds ( 13 + 1 Bonus )",
+            "server": "1",
+            "status": "empty"
+        },
+        {
+            "code": "MLGIFT269-S1",
+            "game": "Mobile Legends Gift",
+            "name": "SKIN 269 Diamonds [NORMAL]",
+            "price": {
+                "basic": 37660,
+                "premium": 36584,
+                "special": 36315
+            },
+            "description": "
+ Wajib berteman dengan akun gift setelah order cek riwayat pesanan<\/li>\r\n
+ Estimasi terkirim 7-10 hari (sesuai antrian) setelah berteman<\/li>\r\n
+ Dilarang ganti nickname selama belum sukses<\/li>\r\n
+ Dilarang unfollow selama belum sukses<\/li>\r\n
+Khusus PO SKIN hanya bisa diorder sebelum skin rilis (max H-2)<\/li>", "server": "1", "status": "available" } ], "message": "Daftar layanan berhasil didapatkan." } 
+                    
+Get product stock
+ 
+[POST] https://vip-reseller.co.id/api/game-feature
+
+Parameter	Type	Value	Req.
+key	string	contains your apikey.	Yes
+sign	string	contains the md5 formula (API ID + API KEY).	Yes
+type	string	service-stock	Yes
+service	string	contains service code, check here .	Yes
+Example Response
+JSON
+{
+    "result": true,
+    "data": {
+        "code": "CODE-1234",
+        "name": "PRODUK 1 BULAN",
+        "price": {
+            "basic": 2000,
+            "premium": 1500,
+            "special": 1200
+        },
+        "description": "deskripsi produk",
+        "stock": 12,
+        "server": 1,
+        "status": "available"
+    },
+    "message": "Stok tersedia."
+}
+Get Game Nickname
+ 
+[POST] https://vip-reseller.co.id/api/game-feature
+
+Parameter	Type	Value	Req.
+key	string	contains your apikey.	Yes
+sign	string	contains the md5 formula (API ID + API KEY).	Yes
+type	string	get-nickname	Yes
+code	string	look here	Yes
+target	string	user_id	Yes
+additional_target	string	zone_id	Yes
+Example Response
+JSON
+{
+    "result": true,
+    "data": "Itacimo",
+    "message": "Success."
+}
+Example Response Mobile Legends Region
+JSON
+{
+    "result": true,
+    "data": "Itacimo",
+    "country": {
+        "code": "ID",
+        "name": "Indonesia"
+    },
+    "message": "Success."
+}
+Webhook
+ 
+Front whitelist IP 178.248.73.218 .
+[POST] urlcallback.com
+
+Header	Type	Value
+Content-Type	string	application/json
+X-Client-Signature	string	contains the md5 formula (API ID + API KEY).
+Parameter	Type	Value
+trxid	string	VPXXXXXXX.
+data	string	xxxxxxxxx.
+zone	string	xxxx
+service	string	service
+status	string	waiting / processing / success / error
+note	string	note-xxxxx
+price	integer	xxxxxx
+Example Request
+JSON
+{
+    "data": {
+        "trxid": "some1d",
+        "data": "136216325",
+        "zone": "2685",
+        "service": "Mobile Legends B - 1048 Diamonds",
+        "status": "success",
+        "note": "",
+        "price": 195695
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+avatar
+ Daftar Harga
+Pulsa & PPOB
+Game & Streaming
+Sosmed
+
+Netflix Premium
+Kode	Produk	Harga	Status
+Member	Reseller	H2H
+NTFLXSHARE30DGAR14D-S1	Profile Sharing 30 Hari [ 1 Profile ] [ VIA LINK LOGIN - KHUSUS PC/LAPTOP/TV ] [ GARANSI 14 HARI ]	Rp 13.500	Rp 13.000	Rp 12.750	Tersedia
+NTFLXSHARE30DGAR28D-S1	Profile Sharing 30 Hari [ 1 Profile ] [ VIA LINK LOGIN - KHUSUS PC/LAPTOP/TV ] [ GARANSI 28 HARI ]	Rp 20.000	Rp 19.000	Rp 18.750	Tersedia
+
+2019 - 2026 © PT VIPAYMENT DIGITAL SOLUTION,All rights ReservedPage Load: 0.8842s.
+
+
+
+
+
+2019 - 2026 © PT VIPAYMENT DIGITAL SOLUTION,All rights ReservedPage Load: 0.0921s.

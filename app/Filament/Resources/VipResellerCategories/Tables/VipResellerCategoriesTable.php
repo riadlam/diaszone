@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources\HeroSlides\Tables;
+namespace App\Filament\Resources\VipResellerCategories\Tables;
 
-use App\Models\HeroSlide;
+use App\Models\VipResellerCategory;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -10,11 +10,10 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
-class HeroSlidesTable
+class VipResellerCategoriesTable
 {
     public static function configure(Table $table): Table
     {
@@ -24,31 +23,32 @@ class HeroSlidesTable
             ->columns([
                 ImageColumn::make('image_path')
                     ->label('Image')
-                    ->getStateUsing(fn (HeroSlide $record): ?string => $record->imageUrl())
-                    ->height(48),
+                    ->getStateUsing(fn (VipResellerCategory $record): ?string => $record->imageUrl())
+                    ->height(40),
 
-                TextColumn::make('placement')
-                    ->label('Page')
-                    ->badge()
-                    ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        'digital' => 'Digital',
-                        default => 'Home',
-                    })
-                    ->color(fn (?string $state): string => match ($state) {
-                        'digital' => 'info',
-                        default => 'gray',
-                    })
-                    ->sortable(),
-
-                TextColumn::make('title')
-                    ->label('Label')
+                TextColumn::make('name')
                     ->searchable()
+                    ->sortable()
+                    ->weight('bold'),
+
+                TextColumn::make('slug')
+                    ->searchable()
+                    ->copyable()
+                    ->color('gray'),
+
+                TextColumn::make('filter_game')
+                    ->label('VIP filter')
                     ->placeholder('—'),
 
-                TextColumn::make('link_url')
-                    ->label('Link')
-                    ->limit(40)
-                    ->placeholder('No link'),
+                TextColumn::make('product_url')
+                    ->label('URL')
+                    ->limit(30)
+                    ->placeholder('—'),
+
+                TextColumn::make('packs_count')
+                    ->counts('packs')
+                    ->label('Packs')
+                    ->alignCenter(),
 
                 TextColumn::make('sort_order')
                     ->label('Order')
@@ -59,12 +59,6 @@ class HeroSlidesTable
                     ->boolean(),
             ])
             ->filters([
-                SelectFilter::make('placement')
-                    ->label('Page')
-                    ->options([
-                        'home' => 'Home',
-                        'digital' => 'Digital',
-                    ]),
                 TernaryFilter::make('is_active')->label('Active'),
             ])
             ->recordActions([

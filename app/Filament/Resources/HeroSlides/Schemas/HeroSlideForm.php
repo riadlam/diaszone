@@ -18,7 +18,7 @@ class HeroSlideForm
                 Section::make('Hero slide')
                     ->description('Image-only coverflow slide. Optional link opens when the slide is clicked.')
                     ->schema([
-                        Select::make('page')
+                        Select::make('placement')
                             ->label('Page')
                             ->options([
                                 'home' => 'Home',

@@ -12,6 +12,7 @@ class Order extends Model
         'order_number',
         'user_id',
         'diamond_pack_id',
+        'vipreseller_pack_id',
         'flash_sale_offer_id',
         'flash_sale_name',
         'status',
@@ -258,6 +259,14 @@ class Order extends Model
     public function diamondPack(): BelongsTo
     {
         return $this->belongsTo(DiamondPack::class);
+    }
+
+    /**
+     * Get the VIP Reseller pack for this order (when fulfilled via VipReseller).
+     */
+    public function vipResellerPack(): BelongsTo
+    {
+        return $this->belongsTo(VipResellerPack::class, 'vipreseller_pack_id');
     }
 
     /**

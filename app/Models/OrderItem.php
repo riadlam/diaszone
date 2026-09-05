@@ -11,6 +11,7 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'diamond_pack_id',
+        'vipreseller_pack_id',
         'quantity',
         'unit_price_dzd',
         'unit_price_usd',
@@ -44,6 +45,19 @@ class OrderItem extends Model
     public function diamondPack(): BelongsTo
     {
         return $this->belongsTo(DiamondPack::class);
+    }
+
+    /**
+     * Get the VIP Reseller pack for this item (streaming / VIP-fulfilled products).
+     */
+    public function vipResellerPack(): BelongsTo
+    {
+        return $this->belongsTo(VipResellerPack::class, 'vipreseller_pack_id');
+    }
+
+    public function isVipResellerItem(): bool
+    {
+        return $this->vipreseller_pack_id !== null;
     }
 
     /**

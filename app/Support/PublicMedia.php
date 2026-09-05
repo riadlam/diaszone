@@ -20,6 +20,8 @@ class PublicMedia
         'top4gamers_images',
         'seller-logos',
         'seller-banners',
+        'vipreseller-categories',
+        'vipreseller-packs',
     ];
 
     /**

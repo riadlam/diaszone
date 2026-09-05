@@ -26,9 +26,9 @@ class HomeController extends Controller
 
     /**
      * Shared catalog + section data for home and digital pages.
-     * Hero slides are filtered by $page; product sections are placeholders until digital products exist.
+     * Hero slides are filtered by $placement; product sections are placeholders until digital products exist.
      */
-    private function homeLikePageData(string $page): array
+    private function homeLikePageData(string $placement): array
     {
         // Get all unique active games from diamond_packs
         $games = DiamondPack::where('is_active', true)
@@ -178,7 +178,7 @@ class HomeController extends Controller
 
         $heroSlides = HeroSlide::query()
             ->active()
-            ->forPage($page)
+            ->forPlacement($placement)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();

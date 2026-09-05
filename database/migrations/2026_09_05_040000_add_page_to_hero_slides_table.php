@@ -8,7 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (! Schema::hasTable('hero_slides') || Schema::hasColumn('hero_slides', 'page')) {
+        if (! Schema::hasTable('hero_slides')) {
+            return;
+        }
+
+        // Prefer placement; keep adding page only for legacy envs that haven't renamed yet.
+        if (Schema::hasColumn('hero_slides', 'placement') || Schema::hasColumn('hero_slides', 'page')) {
             return;
         }
 
