@@ -541,18 +541,16 @@ class VipResellerService
                     $status = 'empty';
                 }
 
-                $normalized[] = [
-                    'code' => $code,
-                    'game' => (string) ($row['game'] ?? ''),
-                    'name' => (string) ($row['name'] ?? $code),
-                    'description' => (string) ($row['description'] ?? ''),
-                    'price_basic' => isset($price['basic']) ? (float) $price['basic'] : null,
-                    'price_premium' => isset($price['premium']) ? (float) $price['premium'] : null,
-                    'price_special' => isset($price['special']) ? (float) $price['special'] : null,
-                    'server' => isset($row['server']) ? (string) $row['server'] : null,
-                    'status' => in_array($status, ['available', 'empty'], true) ? $status : 'available',
-                ];
-            }
+                    $normalized[] = [
+                        'code' => $code,
+                        'game' => (string) ($row['game'] ?? ''),
+                        'name' => (string) ($row['name'] ?? $code),
+                        'description' => (string) ($row['description'] ?? ''),
+                        'price_special' => isset($price['special']) ? (float) $price['special'] : null,
+                        'server' => isset($row['server']) ? (string) $row['server'] : null,
+                        'status' => in_array($status, ['available', 'empty'], true) ? $status : 'available',
+                    ];
+                }
 
             $payload = [
                 'result' => true,
@@ -600,6 +598,179 @@ class VipResellerService
         }
 
         return null;
+    }
+
+    /**
+     * Place a VIP service order (streaming / email-only products).
+     * data_zone is optional (Netflix returns empty zone).
+     *
+     * @return array{result: bool, data: mixed, message: string}
+     */
+    public function placeServiceOrder(string $code, string $dataNo, ?string $dataZone = null): array
+    {
+        try {
+            if (empty($this->apiKey) || empty($this->sign)) {
+                Log::error('Provider credentials missing for service order', [
+                    'api_key_empty' => empty($this->apiKey),
+                    'sign_empty' => empty($this->sign),
+                ]);
+
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'API credentials not configured. Please contact support.',
+                ];
+            }
+
+            $code = trim($code);
+            $dataNo = trim($dataNo);
+            $dataZone = $dataZone !== null ? trim($dataZone) : '';
+
+            if ($code === '' || $dataNo === '') {
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'Missing required parameters: service code or destination.',
+                ];
+            }
+
+            $formData = [
+                'key' => $this->apiKey,
+                'sign' => $this->sign,
+                'type' => 'order',
+                'service' => $code,
+                'data_no' => $dataNo,
+            ];
+
+            if ($dataZone !== '') {
+                $formData['data_zone'] = $dataZone;
+            }
+
+            $url = rtrim($this->baseUrl, '/').'/game-feature';
+
+            Log::info('Provider service order request', [
+                'url' => $url,
+                'service' => $code,
+                'data_no' => $dataNo,
+                'has_zone' => $dataZone !== '',
+            ]);
+
+            $response = Http::asForm()
+                ->connectTimeout(8)
+                ->timeout(45)
+                ->withHeaders([
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ])
+                ->post($url, $formData);
+
+            $data = $response->json();
+
+            Log::info('Provider service order response', [
+                'http_status' => $response->status(),
+                'result' => is_array($data) ? ($data['result'] ?? null) : null,
+                'trxid' => is_array($data['data'] ?? null) ? ($data['data']['trxid'] ?? null) : null,
+                'status' => is_array($data['data'] ?? null) ? ($data['data']['status'] ?? null) : null,
+            ]);
+
+            if ($response->successful() && is_array($data) && ($data['result'] ?? false) === true) {
+                return [
+                    'result' => true,
+                    'data' => $data['data'] ?? null,
+                    'message' => (string) ($data['message'] ?? 'Order placed successfully'),
+                ];
+            }
+
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => is_array($data)
+                    ? (string) ($data['message'] ?? 'Failed to place order. Please try again.')
+                    : 'Failed to place order. Please try again.',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Provider service order error: '.$e->getMessage(), [
+                'code' => $code,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => 'Error placing order: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Check VIP order status by trxid.
+     *
+     * @return array{result: bool, data: mixed, message: string}
+     */
+    public function checkOrderStatus(string $trxid): array
+    {
+        try {
+            if (empty($this->apiKey) || empty($this->sign)) {
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'API credentials not configured.',
+                ];
+            }
+
+            $trxid = trim($trxid);
+            if ($trxid === '') {
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'Missing trxid.',
+                ];
+            }
+
+            $formData = [
+                'key' => $this->apiKey,
+                'sign' => $this->sign,
+                'type' => 'status',
+                'trxid' => $trxid,
+            ];
+
+            $url = rtrim($this->baseUrl, '/').'/game-feature';
+
+            $response = Http::asForm()
+                ->connectTimeout(8)
+                ->timeout(30)
+                ->withHeaders([
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ])
+                ->post($url, $formData);
+
+            $data = $response->json();
+
+            if ($response->successful() && is_array($data) && ($data['result'] ?? false) === true) {
+                return [
+                    'result' => true,
+                    'data' => $data['data'] ?? null,
+                    'message' => (string) ($data['message'] ?? 'OK'),
+                ];
+            }
+
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => is_array($data)
+                    ? (string) ($data['message'] ?? 'Failed to check status.')
+                    : 'Failed to check status.',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Provider status check error: '.$e->getMessage(), [
+                'trxid' => $trxid,
+            ]);
+
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => 'Error checking status: '.$e->getMessage(),
+            ];
+        }
     }
 }
 

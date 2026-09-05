@@ -265,12 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             checkoutButton.classList.add('hidden');
             
             // Fetch pack data from server
-            const packIds = cart.map(item => item.pack_id).filter(Boolean);
-            const packs = await CartManager.fetchPacks(packIds);
-            const packsMap = {};
-            packs.forEach(pack => {
-                packsMap[pack.id] = pack;
-            });
+            const packsMap = await CartManager.fetchPacksForCart(cart);
             
             // Calculate totals
             let totalBeforeDiscount = 0;
@@ -280,12 +275,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Display all cart items with quantity controls
             cartItemsList.innerHTML = cart.map((item, index) => {
-                const pack = packsMap[item.pack_id];
+                const pack = CartManager.resolvePackForCartItem(item, packsMap);
                 
                 if (!pack) {
+                    const missingId = item.vipreseller_pack_id || item.pack_id;
                     return `
                         <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                            <p class="text-sm text-red-500">Pack not found (ID: ${item.pack_id})</p>
+                            <p class="text-sm text-red-500">Pack not found (ID: ${missingId})</p>
                         </div>
                     `;
                 }
@@ -354,7 +350,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Determine order information fields based on game type
                 // These values are static (read-only) - they come from what the user filled in the order form before adding to cart
                 let orderInfoHTML = '';
-                if (gameType === 'bloodstrike') {
+                if (gameType === 'vipreseller' || item.vipreseller_pack_id) {
+                    orderInfoHTML = `
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wide">Order Information</h4>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 font-mono text-xs cursor-default" readonly>
+                                    ${item.email || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (gameType === 'bloodstrike') {
                     // Blood Strike: User ID and Server (static values from form)
                     const userIdBs = item.user_id_bs || '';
                     const serverBs = item.server_bs || 'Global';
@@ -558,20 +566,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const cart = CartManager.getCart();
             if (cart.length > 0) {
                 // Get pack IDs and fetch fresh data
-                const packIds = cart.map(item => item.pack_id).filter(Boolean);
-                CartManager.fetchPacks(packIds).then(packs => {
-                    const packsMap = {};
-                    packs.forEach(pack => {
-                        packsMap[pack.id] = pack;
-                    });
-                    
+                CartManager.fetchPacksForCart(cart).then(packsMap => {
                     // Recalculate totals
                     let totalBeforeDiscount = 0;
                     let totalDiscount = 0;
                     let totalAmount = 0;
                     
                     cart.forEach(item => {
-                        const pack = packsMap[item.pack_id];
+                        const pack = CartManager.resolvePackForCartItem(item, packsMap);
                         if (!pack) return;
                         
                         const quantity = item.quantity || 1; // Use actual item quantity
@@ -667,15 +669,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         
                         // Validate each item has required fields based on game type
-                        const packIds = cart.map(item => item.pack_id).filter(Boolean);
-                        const packs = await CartManager.fetchPacks(packIds);
-                        const packsMap = {};
-                        packs.forEach(pack => {
-                            packsMap[pack.id] = pack;
-                        });
+                        const packsMap = await CartManager.fetchPacksForCart(cart);
                         
                         for (const item of cart) {
-                            if (!item.pack_id) {
+                            if (!item.pack_id && !item.vipreseller_pack_id) {
                                 proceedCheckoutBtn.innerHTML = originalText;
                                 proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
                                 proceedCheckoutBtn.style.pointerEvents = '';
@@ -683,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 return;
                             }
                             
-                            const pack = packsMap[item.pack_id];
+                            const pack = CartManager.resolvePackForCartItem(item, packsMap);
                             if (!pack) {
                                 proceedCheckoutBtn.innerHTML = originalText;
                                 proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
@@ -693,6 +690,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             
                             const gameType = pack.game_type || 'mobilelegends';
+
+                            if (gameType === 'vipreseller' || item.vipreseller_pack_id) {
+                                if (!item.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)) {
+                                    proceedCheckoutBtn.innerHTML = originalText;
+                                    proceedCheckoutBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                    proceedCheckoutBtn.style.pointerEvents = '';
+                                    alert('Please enter a valid email for each digital product.');
+                                    return;
+                                }
+                                continue;
+                            }
                             
                             // Validate based on game type
                             if (gameType === 'bloodstrike') {
@@ -734,9 +742,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
 
-                        // Validate product availability with Digiflazz
+                        // Validate product availability with Digiflazz (diamond packs only)
                         try {
-                            const cartItemsForValidation = cart.map(item => ({
+                            const diamondItems = cart.filter(item => item.pack_id && !item.vipreseller_pack_id);
+                            if (diamondItems.length === 0) {
+                                // VIP-only cart — skip Digiflazz availability check
+                                window.location.href = '{{ route("select-payment") }}';
+                                return;
+                            }
+
+                            const cartItemsForValidation = diamondItems.map(item => ({
                                 pack_id: parseInt(item.pack_id),
                                 quantity: parseInt(item.quantity) || 1,
                             })).filter(item => item.pack_id); // Filter out items without pack_id

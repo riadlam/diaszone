@@ -334,14 +334,17 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             // Build pack lines from order_items (correct qty / multi-pack), fallback to primary pack
             const orderItems = Array.isArray(order.order_items) ? order.order_items : [];
+            const isVipOrder = !!(order.is_vipreseller || order.vipreseller_pack || orderItems.some(i => i.vipreseller_pack));
             let packLinesHtml = '';
             if (order.is_flash_sale && order.flash_sale_name) {
                 packLinesHtml = `<p class="text-lg text-purple-600 font-semibold mb-2">${order.flash_sale_name}</p>`;
             } else if (orderItems.length > 0) {
                 packLinesHtml = orderItems.map((item, idx) => {
+                    const vipPack = item.vipreseller_pack || {};
                     const pack = item.diamond_pack || {};
                     const qty = Math.max(1, parseInt(item.quantity || 1, 10));
-                    let name = pack.name
+                    let name = vipPack.name
+                        || pack.name
                         || (parseInt(pack.diamonds || 0, 10) === 0
                             ? (pack.membership_name || 'Special pack')
                             : `${pack.diamonds || 0} ${currencyText}`);
@@ -355,7 +358,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }).join('');
             } else {
                 const packDiamonds = parseInt(order.diamond_pack?.diamonds || 0, 10);
-                let packDisplayName = order.diamond_pack?.name
+                let packDisplayName = order.vipreseller_pack?.name
+                    || order.diamond_pack?.name
                     || (packDiamonds === 0
                         ? (order.diamond_pack?.membership_name || 'Special pack')
                         : `${packDiamonds} ${currencyText}`);
@@ -370,8 +374,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             // Determine game type and display appropriate fields (only show if values exist)
             let gameInfo = `<p class="text-sm text-gray-600 mb-1"><span class="font-medium">${translations.game}:</span> ${gameName}</p>`;
-            
-            if (gameType === 'bloodstrike') {
+
+            if (isVipOrder || gameType === 'vipreseller') {
+                if (order.customer_email) {
+                    gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">Email:</span> ${order.customer_email}</p>`;
+                }
+            } else if (gameType === 'bloodstrike') {
                 // Blood Strike: User ID and Server
                 if (order.user_id_bs) {
                     gameInfo += `<p class="text-sm text-gray-600"><span class="font-medium">${translations.user_id}:</span> ${order.user_id_bs}</p>`;
@@ -433,6 +441,50 @@ document.addEventListener('DOMContentLoaded', async function() {
                         </a>
                     `;
             }
+
+            let deliveryHtml = '';
+            if (isVipOrder || gameType === 'vipreseller') {
+                if (order.status === 'sending') {
+                    deliveryHtml = `
+                        <div class="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                            <p class="font-semibold mb-1">Processing</p>
+                            <p>Your order is being prepared. Delivery is usually ready within 10–15 minutes.</p>
+                        </div>
+                    `;
+                } else if (order.status === 'completed') {
+                    const profile = order.delivery_profile
+                        || (orderItems.find(i => i.delivery_profile)?.delivery_profile)
+                        || null;
+                    const link = order.delivery_link
+                        || (orderItems.find(i => i.delivery_link)?.delivery_link)
+                        || null;
+                    const note = order.delivery_note
+                        || (orderItems.find(i => i.delivery_note)?.delivery_note)
+                        || null;
+                    if (profile || link || note) {
+                        const safeLink = link ? String(link).replace(/"/g, '&quot;') : '';
+                        deliveryHtml = `
+                            <div class="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 space-y-2">
+                                <p class="font-semibold">Delivery ready</p>
+                                ${profile ? `<p><span class="font-medium">Profile:</span> ${profile}</p>` : ''}
+                                ${link ? `
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <a href="${safeLink}" target="_blank" rel="noopener noreferrer"
+                                           class="inline-flex items-center px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold">
+                                            Open login link
+                                        </a>
+                                        <button type="button"
+                                                class="inline-flex items-center px-3 py-1.5 rounded-lg border border-green-300 bg-white hover:bg-green-100 text-green-800 text-xs font-semibold"
+                                                onclick="navigator.clipboard.writeText(${JSON.stringify(link)}).then(() => this.textContent = 'Copied!').catch(() => {})">
+                                            Copy link
+                                        </button>
+                                    </div>
+                                ` : (note ? `<p class="break-all text-xs">${note}</p>` : '')}
+                            </div>
+                        `;
+                    }
+                }
+            }
             
             // Prefer stored order totals (includes quantity / multi-item)
             const amountDzd = parseFloat(order.amount_dzd ?? order.amount ?? 0) || 0;
@@ -476,6 +528,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     <div class="text-sm text-gray-500 border-t border-gray-200 pt-4">
                         <p>${translations.created}: ${new Date(order.created_at).toLocaleString()}</p>
                     </div>
+                    ${deliveryHtml}
                     ${continuePaymentBtn}
                 </div>
             `;
@@ -484,7 +537,63 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Update prices after rendering
             setTimeout(() => {
                 updateDashboardPrices();
+                pollVipProcessingOrders(allOrders);
             }, 0);
+        }
+
+        let vipPollTimer = null;
+        async function refreshDashboardOrders() {
+            try {
+                const res = await fetch('{{ route("api.orders.mine") }}', {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json();
+                const rows = (data.success && Array.isArray(data.orders))
+                    ? data.orders.map((row) => ({
+                        order: row.order,
+                        encryptedId: row.encrypted_id,
+                    }))
+                    : [];
+                diaszoneRenderDashboardOrders(rows);
+            } catch (e) {
+                console.error('Could not refresh orders', e);
+            }
+        }
+
+        function pollVipProcessingOrders(allOrders) {
+            if (vipPollTimer) {
+                clearInterval(vipPollTimer);
+                vipPollTimer = null;
+            }
+            const processing = (allOrders || []).filter(r => {
+                const o = r.order || {};
+                return o.status === 'sending' && (o.is_vipreseller || o.game_type === 'vipreseller');
+            });
+            if (processing.length === 0) return;
+
+            vipPollTimer = setInterval(async () => {
+                let changed = false;
+                for (const result of processing) {
+                    try {
+                        const res = await fetch(`/api/orders/${result.order.id}/status`, {
+                            headers: { 'Accept': 'application/json' },
+                            credentials: 'same-origin',
+                        });
+                        if (!res.ok) continue;
+                        const data = await res.json();
+                        if (data.status && data.status !== result.order.status) {
+                            changed = true;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+                if (changed) {
+                    clearInterval(vipPollTimer);
+                    vipPollTimer = null;
+                    await refreshDashboardOrders();
+                }
+            }, 30000);
         }
         
         // Update prices when currency changes (but keep Flexy orders in DZD)

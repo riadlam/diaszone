@@ -18,8 +18,6 @@ class VipResellerPack extends Model
         'description',
         'product_url',
         'image_path',
-        'price_basic',
-        'price_premium',
         'price_special',
         'price_dzd',
         'base_price_dzd',
@@ -34,8 +32,6 @@ class VipResellerPack extends Model
 
     protected $casts = [
         'category_id' => 'integer',
-        'price_basic' => 'decimal:2',
-        'price_premium' => 'decimal:2',
         'price_special' => 'decimal:2',
         'price_dzd' => 'decimal:2',
         'base_price_dzd' => 'decimal:2',
@@ -45,6 +41,15 @@ class VipResellerPack extends Model
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (VipResellerPack $pack): void {
+            // Only H2H (price_special) is used for our VIP category pricing.
+            $pack->price_basic = null;
+            $pack->price_premium = null;
+        });
+    }
 
     public function category(): BelongsTo
     {

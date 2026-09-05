@@ -490,7 +490,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? Math.max(1, Math.min(20, parseInt(item.quantity) || 1))
                 : Math.max(1, Math.min(20, parseInt(quantity) || 1));
 
-            const existingIndex = cart.findIndex(cartItem => cartItem.pack_id === item.pack_id);
+            const existingIndex = cart.findIndex(cartItem => {
+                if (item.vipreseller_pack_id) {
+                    return cartItem.vipreseller_pack_id === item.vipreseller_pack_id;
+                }
+                return cartItem.pack_id === item.pack_id && !cartItem.vipreseller_pack_id;
+            });
 
             const applyPlayerFields = (target) => {
                 if ('save_id' in item) {
@@ -536,6 +541,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     const val = item.server;
                     target.server = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
                 }
+                if ('email' in item) {
+                    const val = item.email;
+                    target.email = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+                }
+                if (item.name) {
+                    target.name = item.name;
+                }
             };
 
             const hasPlayerUpdate = (
@@ -546,7 +558,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 (item.player_id_pubg !== undefined && item.player_id_pubg !== null && item.player_id_pubg !== '') ||
                 (item.player_id_hok !== undefined && item.player_id_hok !== null && item.player_id_hok !== '') ||
                 (item.user_id_bs !== undefined && item.user_id_bs !== null && item.user_id_bs !== '') ||
-                (item.save_id !== undefined && item.save_id !== null && item.save_id !== '')
+                (item.save_id !== undefined && item.save_id !== null && item.save_id !== '') ||
+                (item.email !== undefined && item.email !== null && item.email !== '')
             );
 
             if (existingIndex >= 0) {
@@ -560,7 +573,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const cartItem = {
                     id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
-                    pack_id: item.pack_id,
+                    pack_id: item.pack_id || null,
+                    vipreseller_pack_id: item.vipreseller_pack_id || null,
+                    pack_type: item.pack_type || (item.vipreseller_pack_id ? 'vipreseller' : 'diamond'),
+                    email: item.email || null,
+                    name: item.name || null,
                     quantity: finalQuantity,
                     user_id: item.user_id || item.save_id || null,
                     zone_id: item.zone_id || null,
@@ -617,18 +634,53 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateCartUI();
         },
         
-        // Fetch pack data from server
-        fetchPacks: async function(packIds) {
-            // Filter out already cached packs
-            const uncachedIds = packIds.filter(id => !this.packCache[id]);
-            
-            if (uncachedIds.length === 0) {
-                // All packs are cached, return them
-                return packIds.map(id => this.packCache[id]).filter(Boolean);
+        packCacheKey: function(packOrId, isVip = false) {
+            if (packOrId && typeof packOrId === 'object') {
+                if (packOrId.vipreseller_pack_id || packOrId.pack_type === 'vipreseller') {
+                    return 'vip-' + (packOrId.vipreseller_pack_id || packOrId.id);
+                }
+                return String(packOrId.id);
             }
-            
+            return isVip ? ('vip-' + packOrId) : String(packOrId);
+        },
+
+        resolvePackForCartItem: function(item, packsMap) {
+            if (item.vipreseller_pack_id) {
+                return packsMap['vip-' + item.vipreseller_pack_id] || null;
+            }
+            return packsMap[item.pack_id] || packsMap[String(item.pack_id)] || null;
+        },
+
+        // Fetch pack data from server (diamond ids and/or VIP ids)
+        fetchPacks: async function(packIds, vipIds = []) {
+            if (!Array.isArray(packIds)) {
+                packIds = [];
+            }
+            if (!Array.isArray(vipIds)) {
+                vipIds = vipIds ? [vipIds] : [];
+            }
+            vipIds = vipIds.map(id => parseInt(id, 10)).filter(id => id > 0);
+
+            const uncachedDiamondIds = packIds.filter(id => id && !this.packCache[String(id)]);
+            const uncachedVipIds = vipIds.filter(id => !this.packCache['vip-' + id]);
+
+            if (uncachedDiamondIds.length === 0 && uncachedVipIds.length === 0) {
+                const result = [];
+                packIds.forEach(id => {
+                    if (this.packCache[String(id)]) result.push(this.packCache[String(id)]);
+                });
+                vipIds.forEach(id => {
+                    if (this.packCache['vip-' + id]) result.push(this.packCache['vip-' + id]);
+                });
+                return result;
+            }
+
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const body = {};
+                if (uncachedDiamondIds.length > 0) body.ids = uncachedDiamondIds;
+                if (uncachedVipIds.length > 0) body.vip_ids = uncachedVipIds;
+
                 const response = await fetch('/api/packs', {
                     method: 'POST',
                     headers: {
@@ -636,26 +688,50 @@ document.addEventListener('DOMContentLoaded', () => {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ ids: uncachedIds })
+                    body: JSON.stringify(body)
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch packs');
                 }
-                
+
                 const data = await response.json();
-                
-                // Cache the fetched packs
-                Object.keys(data.packs).forEach(id => {
-                    this.packCache[id] = data.packs[id];
+
+                Object.keys(data.packs || {}).forEach(key => {
+                    const pack = data.packs[key];
+                    const cacheKey = String(key).startsWith('vip-')
+                        ? String(key)
+                        : (pack.pack_type === 'vipreseller' ? ('vip-' + pack.id) : String(pack.id));
+                    this.packCache[cacheKey] = pack;
                 });
-                
-                // Return all requested packs (cached + newly fetched)
-                return packIds.map(id => this.packCache[id]).filter(Boolean);
+
+                const result = [];
+                packIds.forEach(id => {
+                    if (this.packCache[String(id)]) result.push(this.packCache[String(id)]);
+                });
+                vipIds.forEach(id => {
+                    if (this.packCache['vip-' + id]) result.push(this.packCache['vip-' + id]);
+                });
+                return result;
             } catch (error) {
                 console.error('Error fetching packs:', error);
                 return [];
             }
+        },
+
+        fetchPacksForCart: async function(cart) {
+            const packIds = cart.filter(item => item.pack_id && !item.vipreseller_pack_id).map(item => item.pack_id);
+            const vipIds = cart.map(item => item.vipreseller_pack_id).filter(Boolean);
+            const packs = await this.fetchPacks(packIds, vipIds);
+            const packsMap = {};
+            packs.forEach(pack => {
+                const key = this.packCacheKey(pack);
+                packsMap[key] = pack;
+                if (!String(key).startsWith('vip-')) {
+                    packsMap[pack.id] = pack;
+                }
+            });
+            return packsMap;
         },
         
         updateCartUI: async function() {
@@ -705,22 +781,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     `).join('');
                     
                     // Fetch pack data from server
-                    const packIds = cart.map(item => item.pack_id).filter(Boolean);
-                    const packs = await this.fetchPacks(packIds);
-                    const packsMap = {};
-                    packs.forEach(pack => {
-                        packsMap[pack.id] = pack;
-                    });
+                    const packsMap = await this.fetchPacksForCart(cart);
                     
                     // Get selected currency
                     const currency = window.CurrencyManager ? window.CurrencyManager.getCurrency() : (localStorage.getItem('diaszone_currency') || 'DZD');
                     
                     cartItems.innerHTML = cart.map(item => {
-                        const packInfo = packsMap[item.pack_id];
+                        const packInfo = this.resolvePackForCartItem(item, packsMap);
                         if (!packInfo) {
+                            const missingId = item.vipreseller_pack_id || item.pack_id;
                             return `
                                 <div class="px-4 py-3 border-b border-gray-100">
-                                    <p class="text-sm text-red-500">Pack not found (ID: ${item.pack_id})</p>
+                                    <p class="text-sm text-red-500">Pack not found (ID: ${missingId})</p>
                                 </div>
                             `;
                         }
@@ -762,7 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 packDisplayName = packInfo.name;
                             }
                         } else if (diamondsCount === 0) {
-                            packDisplayName = packInfo.membership_name || 'Special pack';
+                            packDisplayName = packInfo.membership_name || item.name || 'Special pack';
                         } else {
                             const gameType = packInfo.game_type || 'mobilelegends';
                             const currencyText = gameType === 'pubgmobile' ? (translations.uc || 'UC') : (gameType === 'honorofkings' ? (translations.tokens || 'Tokens') : (gameType === 'bloodstrike' ? (translations.golds || 'Golds') : (translations.diamonds || 'Diamonds')));
@@ -773,7 +845,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         const gameType = packInfo.game_type || 'mobilelegends';
                         let gameInfo = '';
                         
-                        if (gameType === 'bloodstrike') {
+                        if (gameType === 'vipreseller' || item.vipreseller_pack_id) {
+                            if (item.email) gameInfo += `<p><span class="font-medium">Email:</span> ${item.email}</p>`;
+                        } else if (gameType === 'bloodstrike') {
                             // Blood Strike: User ID and Server
                             const userIdBs = item.user_id_bs || item.user_id;
                             const serverBs = item.server_bs || item.server;

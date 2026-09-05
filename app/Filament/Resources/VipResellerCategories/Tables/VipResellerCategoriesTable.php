@@ -62,7 +62,9 @@ class VipResellerCategoriesTable
                 TernaryFilter::make('is_active')->label('Active'),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->modalHeading('Edit VIP category')
+                    ->modalWidth('3xl'),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

@@ -34,11 +34,18 @@ class CheckoutController extends Controller
         $request->validate([
             'ids' => 'nullable|array',
             'ids.*' => 'integer|min:1',
+            'vip_ids' => 'nullable|array',
+            'vip_ids.*' => 'integer|min:1',
         ]);
         
         $packIds = $request->input('ids', []);
+        $vipIds = $request->input('vip_ids', []);
+        if (! is_array($vipIds)) {
+            $vipIds = [$vipIds];
+        }
+        $vipIds = array_values(array_filter(array_map('intval', $vipIds), fn ($id) => $id > 0));
         
-        if (empty($packIds)) {
+        if (empty($packIds) && empty($vipIds)) {
             return response()->json(['packs' => []]);
         }
         
@@ -52,10 +59,8 @@ class CheckoutController extends Controller
             return $id > 0;
         });
         
-        if (empty($packIds)) {
-            return response()->json(['packs' => []]);
-        }
-        
+        $packs = collect();
+        if (! empty($packIds)) {
         // Fetch packs from database
         $packs = DiamondPack::whereIn('id', $packIds)
             ->where('is_active', true)
@@ -182,6 +187,35 @@ class CheckoutController extends Controller
                 ];
             })
             ->keyBy('id');
+        }
+
+        if (! empty($vipIds)) {
+            $vipPacks = \App\Models\VipResellerPack::query()
+                ->with('category')
+                ->whereIn('id', $vipIds)
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($vipPacks as $vipPack) {
+                $packs['vip-'.$vipPack->id] = [
+                    'id' => $vipPack->id,
+                    'pack_type' => 'vipreseller',
+                    'vipreseller_pack_id' => $vipPack->id,
+                    'diamonds' => 0,
+                    'bonus' => 0,
+                    'price' => (float) ($vipPack->price_usd ?? 0),
+                    'price_usd' => (float) ($vipPack->price_usd ?? 0),
+                    'price_dzd' => (float) $vipPack->price_dzd,
+                    'discount' => (float) ($vipPack->discount_percentage ?? 0),
+                    'game_type' => 'vipreseller',
+                    'name' => $vipPack->name,
+                    'membership_name' => null,
+                    'sort_order' => $vipPack->sort_order ?? 0,
+                    'game_display_name' => $vipPack->category?->name ?? 'Digital',
+                    'game_image' => $vipPack->imageUrl() ?? $vipPack->category?->imageUrl(),
+                ];
+            }
+        }
         
         return response()->json(['packs' => $packs]);
     }
@@ -197,11 +231,20 @@ class CheckoutController extends Controller
         }
 
         $digiflazz = $order->digiflazzStatuses()->latest()->first();
+        $vipStatus = $order->vipResellerStatuses()->latest()->first();
+        $parsed = $vipStatus
+            ? \App\Services\VipResellerFulfillmentService::parseDeliveryNote($vipStatus->note ?? $vipStatus->message)
+            : ['profile' => null, 'link' => null, 'raw' => null];
 
         return response()->json([
             'order_id' => $order->id,
             'status' => $order->status,
             'notes' => $order->notes,
+            'customer_email' => $order->customer_email,
+            'delivery_profile' => $parsed['profile'],
+            'delivery_link' => $parsed['link'] ?? $vipStatus?->sn,
+            'delivery_note' => $parsed['raw'],
+            'provider_status' => $vipStatus?->status,
             'digiflazz' => $digiflazz ? $digiflazz->toArray() : null,
         ], 200);
     }
@@ -492,49 +535,69 @@ class CheckoutController extends Controller
         try {
             $request->validate([
                 'cart_items' => 'required|array|min:1',
-                'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
+                'cart_items.*.pack_id' => 'nullable|integer|exists:diamond_packs,id',
+                'cart_items.*.vipreseller_pack_id' => 'nullable|integer|exists:vipreseller_packs,id',
                 'cart_items.*.quantity' => 'nullable|integer|min:1|max:20',
             ]);
-            
+
             $cartItems = $request->input('cart_items');
             $totalAmountDzd = 0;
-            
+
             // Calculate total in DZD from cart items (backend validation)
             foreach ($cartItems as $item) {
-                $pack = \App\Models\DiamondPack::find($item['pack_id']);
+                $quantity = max(1, min(20, (int) ($item['quantity'] ?? 1)));
+
+                if (! empty($item['vipreseller_pack_id'])) {
+                    $vipPack = \App\Models\VipResellerPack::find($item['vipreseller_pack_id']);
+                    if (! $vipPack || ! $vipPack->is_active) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "VIP pack ID {$item['vipreseller_pack_id']} not found or inactive",
+                        ], 404);
+                    }
+
+                    $unitPriceDzd = (float) ($vipPack->price_dzd ?? 0);
+                    $discountPercentage = (float) ($vipPack->discount_percentage ?? 0);
+                    $subtotalDzd = $unitPriceDzd * $quantity;
+                    $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                    $totalAmountDzd += $subtotalDzd - $discountAmount;
+
+                    continue;
+                }
+
+                $pack = \App\Models\DiamondPack::find($item['pack_id'] ?? null);
                 if (! $pack || ! $pack->is_active) {
                     return response()->json([
                         'success' => false,
-                        'message' => "Pack ID {$item['pack_id']} not found or inactive",
+                        'message' => 'Pack ID '.($item['pack_id'] ?? '?').' not found or inactive',
                     ], 404);
                 }
-                
-                $quantity = max(1, min(20, (int) ($item['quantity'] ?? 1)));
+
                 $unitPriceDzd = $pack->price_dzd ?? ($pack->price * 260);
                 $discountPercentage = $pack->discount_percentage ?? 0;
-                
+
                 $subtotalDzd = $unitPriceDzd * $quantity;
                 $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
                 $itemTotalDzd = $subtotalDzd - $discountAmount;
-                
+
                 $totalAmountDzd += $itemTotalDzd;
             }
-            
+
             // Convert DZD to USD (divide by 260)
             $totalAmountUsd = round($totalAmountDzd / 260, 2);
-            
+
             return response()->json([
                 'success' => true,
                 'total_dzd' => round($totalAmountDzd, 2),
                 'total_usd' => $totalAmountUsd,
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Convert cart to USD error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to convert price. Please try again.',
@@ -545,6 +608,187 @@ class CheckoutController extends Controller
     /**
      * API endpoint to create order from cart data
      */
+    /**
+     * Create an order for VIP Reseller digital products (e.g. Netflix).
+     */
+    protected function createVipResellerOrder(Request $request)
+    {
+        $cartItems = $request->input('cart_items', []);
+        $paymentMethod = $request->input('payment_method');
+        $userId = Auth::id();
+
+        if (! $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please log in to purchase digital products.',
+            ], 401);
+        }
+
+        $email = null;
+        $packs = [];
+        $categoryId = null;
+
+        foreach ($cartItems as $item) {
+            $packId = (int) ($item['vipreseller_pack_id'] ?? 0);
+            $pack = \App\Models\VipResellerPack::query()
+                ->with('category')
+                ->where('id', $packId)
+                ->where('is_active', true)
+                ->first();
+
+            if (! $pack) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Digital pack not found or inactive.',
+                ], 404);
+            }
+
+            if ((float) $pack->price_dzd <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This product is not priced yet. Please contact support.',
+                ], 422);
+            }
+
+            if ($categoryId === null) {
+                $categoryId = $pack->category_id;
+            } elseif ((int) $categoryId !== (int) $pack->category_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'All digital products must be from the same category.',
+                ], 422);
+            }
+
+            $itemEmail = trim((string) ($item['email'] ?? ''));
+            if ($itemEmail === '' || ! filter_var($itemEmail, FILTER_VALIDATE_EMAIL)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A valid email is required for this product.',
+                ], 422);
+            }
+            if ($email === null) {
+                $email = $itemEmail;
+            } elseif (strcasecmp($email, $itemEmail) !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Use the same email for all items in this order.',
+                ], 422);
+            }
+
+            $packs[$pack->id] = $pack;
+        }
+
+        $orderStatus = 'pending';
+        if ($paymentMethod === 'flexy') {
+            $orderStatus = 'pending_flexy';
+        } elseif ($paymentMethod === 'bmccp') {
+            $orderStatus = 'pending_bmccp';
+        } elseif ($paymentMethod === 'cryptocurrency') {
+            $orderStatus = 'pending_cryptopay';
+        } elseif ($paymentMethod === 'coupon_free') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Free coupons are not available for digital VIP products.',
+            ], 422);
+        }
+
+        try {
+            return DB::transaction(function () use ($userId, $email, $cartItems, $packs, $orderStatus, $paymentMethod) {
+                $primaryPack = reset($packs);
+
+                $order = Order::create([
+                    'order_number' => Order::generateOrderNumber(),
+                    'user_id' => $userId,
+                    'diamond_pack_id' => null,
+                    'vipreseller_pack_id' => $primaryPack->id,
+                    'status' => $orderStatus,
+                    'customer_email' => $email,
+                    'payment_method' => $paymentMethod,
+                ]);
+
+                $totalOriginalPrice = 0;
+                $totalDiscount = 0;
+                $totalFinalPrice = 0;
+
+                foreach ($cartItems as $item) {
+                    $pack = $packs[(int) $item['vipreseller_pack_id']];
+                    $quantity = max(1, min(20, (int) ($item['quantity'] ?? 1)));
+                    $unitPriceDzd = (float) $pack->price_dzd;
+                    $unitPriceUsd = $pack->price_usd !== null ? (float) $pack->price_usd : null;
+                    $discountPercentage = (float) ($pack->discount_percentage ?? 0);
+                    $subtotalDzd = $unitPriceDzd * $quantity;
+                    $discountAmount = ($unitPriceDzd * $discountPercentage / 100) * $quantity;
+                    $totalDzd = $subtotalDzd - $discountAmount;
+
+                    \App\Models\OrderItem::create([
+                        'order_id' => $order->id,
+                        'diamond_pack_id' => null,
+                        'vipreseller_pack_id' => $pack->id,
+                        'quantity' => $quantity,
+                        'unit_price_dzd' => $unitPriceDzd,
+                        'unit_price_usd' => $unitPriceUsd,
+                        'discount_percentage' => $discountPercentage,
+                        'subtotal_dzd' => $subtotalDzd,
+                        'discount_amount_dzd' => $discountAmount,
+                        'total_dzd' => $totalDzd,
+                    ]);
+
+                    $totalOriginalPrice += $subtotalDzd;
+                    $totalDiscount += $discountAmount;
+                    $totalFinalPrice += $totalDzd;
+                }
+
+                $order->original_price = $totalOriginalPrice;
+                $order->discount_amount = $totalDiscount;
+                $order->final_price = $totalFinalPrice;
+                $order->save();
+
+                if ($order->status !== 'pending_flexy') {
+                    try {
+                        $order->load(['orderItems.vipResellerPack', 'user']);
+                        $message = TelegramService::formatOrderMessage($order);
+                        $messageId = TelegramService::sendMessage($message);
+                        if ($messageId) {
+                            $order->tlg_message_id = $messageId;
+                            $order->save();
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Telegram notification failed for VIP order', [
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                $encryptedId = Crypt::encryptString((string) $order->id);
+
+                return response()->json([
+                    'success' => true,
+                    'orders' => [
+                        [
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => $order->status,
+                            'final_price' => $order->final_price,
+                            'encrypted_id' => $encryptedId,
+                        ],
+                    ],
+                    'items_count' => count($cartItems),
+                ], 201);
+            });
+        } catch (\Throwable $e) {
+            Log::error('VIP order creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create order. Please try again.',
+            ], 500);
+        }
+    }
+
     public function createOrder(Request $request)
     {
         Log::info('=== ORDER CREATION STARTED ===', [
@@ -591,8 +835,10 @@ class CheckoutController extends Controller
         try {
             $request->validate([
                 'cart_items' => 'required|array|min:1|max:10', // Allow up to 10 different packs
-                'cart_items.*.pack_id' => 'required|exists:diamond_packs,id',
+                'cart_items.*.pack_id' => 'nullable|integer|min:1',
+                'cart_items.*.vipreseller_pack_id' => 'nullable|integer|exists:vipreseller_packs,id',
                 'cart_items.*.quantity' => 'nullable|integer|min:1|max:20', // Quantity per pack
+                'cart_items.*.email' => 'nullable|email|max:255',
                 'cart_items.*.user_id' => 'nullable|string',
                 'cart_items.*.zone_id' => 'nullable|string',
                 'cart_items.*.player_id' => 'nullable|string',
@@ -607,8 +853,38 @@ class CheckoutController extends Controller
                 'payment_method' => 'nullable|string|in:flexy,bmccp,cryptocurrency,coupon_free',
                 'coupon_code' => 'nullable|string|max:50',
             ]);
-            
+
             $cartItems = $request->input('cart_items');
+
+            // VIP Reseller digital cart (Netflix etc.) — separate path from diamond packs.
+            $vipCount = 0;
+            $diamondCount = 0;
+            foreach ($cartItems as $item) {
+                if (! empty($item['vipreseller_pack_id'])) {
+                    $vipCount++;
+                }
+                if (! empty($item['pack_id'])) {
+                    $diamondCount++;
+                }
+            }
+            if ($vipCount > 0 && $diamondCount > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot mix digital VIP products with game top-ups in one order.',
+                ], 422);
+            }
+            if ($vipCount > 0) {
+                return $this->createVipResellerOrder($request);
+            }
+            foreach ($cartItems as $item) {
+                if (empty($item['pack_id']) || ! \App\Models\DiamondPack::where('id', $item['pack_id'])->exists()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid pack in cart.',
+                    ], 422);
+                }
+            }
+            
             $paymentMethod = $request->input('payment_method'); // flexy, bmccp, cryptocurrency, or coupon_free
             $couponCode = $request->input('coupon_code');
             $userId = Auth::id();
@@ -957,13 +1233,23 @@ class CheckoutController extends Controller
      */
     public function listMyOrders(Request $request)
     {
-        $orders = Order::with('diamondPack', 'orderItems.diamondPack', 'flexy')
+        $orders = Order::with([
+            'diamondPack',
+            'vipResellerPack.category',
+            'orderItems.diamondPack',
+            'orderItems.vipResellerPack.category',
+            'vipResellerStatuses',
+            'flexy',
+        ])
             ->where('user_id', Auth::id())
             ->orderByDesc('created_at')
             ->limit(200)
             ->get();
 
         $gameTypes = $orders->map(function (Order $order) {
+            if ($order->vipreseller_pack_id || $order->orderItems->contains(fn ($i) => $i->vipreseller_pack_id)) {
+                return null;
+            }
             if ($order->orderItems && $order->orderItems->count() > 0) {
                 return $order->orderItems->first()->diamondPack->game_type ?? null;
             }
@@ -1148,22 +1434,33 @@ class CheckoutController extends Controller
      */
     protected function buildOrderApiPayload(Order $order, $gamesByType = null): array
     {
+            $isVipOrder = (bool) ($order->vipreseller_pack_id
+                || ($order->orderItems && $order->orderItems->contains(fn ($i) => $i->vipreseller_pack_id)));
+
             $gameType = null;
-            if ($order->orderItems && $order->orderItems->count() > 0) {
+            if ($isVipOrder) {
+                $gameType = 'vipreseller';
+            } elseif ($order->orderItems && $order->orderItems->count() > 0) {
                 $gameType = $order->orderItems->first()->diamondPack->game_type ?? 'mobilelegends';
             } else {
                 $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             }
             
             $gameModel = null;
-            if ($gamesByType) {
-                $gameModel = $gamesByType->get($gameType);
-            }
-            if (! $gameModel) {
-                $gameModel = \App\Models\Game::where('game_type', $gameType)->where('is_active', true)->first();
+            if (! $isVipOrder) {
+                if ($gamesByType) {
+                    $gameModel = $gamesByType->get($gameType);
+                }
+                if (! $gameModel) {
+                    $gameModel = \App\Models\Game::where('game_type', $gameType)->where('is_active', true)->first();
+                }
             }
             $gameName = null;
-            if ($gameModel) {
+            if ($isVipOrder) {
+                $vipPack = $order->vipResellerPack
+                    ?? $order->orderItems?->first(fn ($i) => $i->vipResellerPack)?->vipResellerPack;
+                $gameName = $vipPack?->category?->name ?? 'Digital';
+            } elseif ($gameModel) {
                 $gameNameFromModel = $gameModel->name;
                 if (strpos($gameNameFromModel, ' - ') !== false) {
                     $gameName = explode(' - ', $gameNameFromModel)[0];
@@ -1176,11 +1473,30 @@ class CheckoutController extends Controller
                 $gameName = ucfirst(str_replace('_', ' ', $gameType));
             }
 
-            $orderItemsPayload = $order->orderItems ? $order->orderItems->map(function ($item) {
+            $vipStatuses = $order->relationLoaded('vipResellerStatuses')
+                ? $order->vipResellerStatuses
+                : $order->vipResellerStatuses()->get();
+            $vipByItemId = $vipStatuses->keyBy('order_item_id');
+
+            $orderItemsPayload = $order->orderItems ? $order->orderItems->map(function ($item) use ($vipByItemId) {
                 $qty = max(1, (int) ($item->quantity ?? 1));
-                $unitUsd = (float) ($item->unit_price_usd ?? ($item->diamondPack->price_usd ?? $item->diamondPack->price ?? 0));
-                $discountPct = (float) ($item->discount_percentage ?? ($item->diamondPack->discount_percentage ?? 0));
+                $unitUsd = (float) ($item->unit_price_usd
+                    ?? $item->diamondPack?->price_usd
+                    ?? $item->diamondPack?->price
+                    ?? $item->vipResellerPack?->price_usd
+                    ?? 0);
+                $discountPct = (float) ($item->discount_percentage
+                    ?? $item->diamondPack?->discount_percentage
+                    ?? $item->vipResellerPack?->discount_percentage
+                    ?? 0);
                 $lineUsd = ($unitUsd * (1 - ($discountPct / 100))) * $qty;
+
+                $vipStatus = $item->vipreseller_pack_id
+                    ? ($vipByItemId->get($item->id) ?? $vipByItemId->first(fn ($s) => (int) $s->order_item_id === (int) $item->id))
+                    : null;
+                $parsed = $vipStatus
+                    ? \App\Services\VipResellerFulfillmentService::parseDeliveryNote($vipStatus->note ?? $vipStatus->message)
+                    : ['profile' => null, 'link' => null, 'raw' => null];
 
                 return [
                     'id' => $item->id,
@@ -1201,8 +1517,24 @@ class CheckoutController extends Controller
                         'game_type' => $item->diamondPack->game_type ?? 'mobilelegends',
                         'name' => $item->diamondPack->name ?? null,
                     ] : null,
+                    'vipreseller_pack' => $item->vipResellerPack ? [
+                        'id' => $item->vipResellerPack->id,
+                        'name' => $item->vipResellerPack->name,
+                        'price_dzd' => (float) ($item->vipResellerPack->price_dzd ?? 0),
+                        'price_usd' => (float) ($item->vipResellerPack->price_usd ?? 0),
+                        'category' => $item->vipResellerPack->category?->name,
+                    ] : null,
+                    'delivery_profile' => $parsed['profile'],
+                    'delivery_link' => $parsed['link'] ?? $vipStatus?->sn,
+                    'delivery_note' => $parsed['raw'],
+                    'provider_status' => $vipStatus?->status,
                 ];
             })->toArray() : [];
+
+            $primaryVipStatus = $vipStatuses->sortByDesc('id')->first();
+            $primaryParsed = $primaryVipStatus
+                ? \App\Services\VipResellerFulfillmentService::parseDeliveryNote($primaryVipStatus->note ?? $primaryVipStatus->message)
+                : ['profile' => null, 'link' => null, 'raw' => null];
             
             $orderData = [
                 'id' => $order->id,
@@ -1223,11 +1555,17 @@ class CheckoutController extends Controller
                 'server_bs' => $order->server_bs,
             'save_id' => $order->save_id,
             'server' => $order->server,
+                'customer_email' => $order->customer_email,
                 'notes' => $order->notes,
                 'created_at' => $order->created_at->format('Y-m-d H:i:s'),
                 'updated_at' => $order->updated_at->format('Y-m-d H:i:s'),
                 'game_type' => $gameType,
                 'game_name' => $gameName,
+                'is_vipreseller' => $isVipOrder,
+                'delivery_profile' => $primaryParsed['profile'],
+                'delivery_link' => $primaryParsed['link'] ?? $primaryVipStatus?->sn,
+                'delivery_note' => $primaryParsed['raw'],
+                'provider_status' => $primaryVipStatus?->status,
                 'diamond_pack' => $order->diamondPack ? [
                     'id' => $order->diamondPack->id,
                     'diamonds' => $order->diamondPack->diamonds,
@@ -1238,6 +1576,13 @@ class CheckoutController extends Controller
                     'discount_percentage' => (float) $order->diamondPack->discount_percentage,
                     'game_type' => $order->diamondPack->game_type ?? 'mobilelegends',
                     'name' => $order->diamondPack->name ?? null,
+                ] : null,
+                'vipreseller_pack' => $order->vipResellerPack ? [
+                    'id' => $order->vipResellerPack->id,
+                    'name' => $order->vipResellerPack->name,
+                    'price_dzd' => (float) ($order->vipResellerPack->price_dzd ?? 0),
+                    'price_usd' => (float) ($order->vipResellerPack->price_usd ?? 0),
+                    'category' => $order->vipResellerPack->category?->name,
                 ] : null,
             'order_items' => $orderItemsPayload,
             ];
@@ -1254,6 +1599,11 @@ class CheckoutController extends Controller
                 $qty = max(1, (int) ($order->quantity ?? 1));
                 $discountAmount = ($unitPrice * $discountPercentage) / 100;
                 $orderData['amount'] = ($unitPrice - $discountAmount) * $qty;
+                $orderData['amount_dzd'] = $orderData['amount'];
+            } elseif ($order->vipResellerPack) {
+                $unitPrice = (float) ($order->vipResellerPack->price_dzd ?? 0);
+                $qty = max(1, (int) ($order->quantity ?? 1));
+                $orderData['amount'] = $unitPrice * $qty;
                 $orderData['amount_dzd'] = $orderData['amount'];
             } else {
                 $orderData['amount'] = 0;
@@ -1274,7 +1624,7 @@ class CheckoutController extends Controller
                 $qty = max(1, (int) ($order->quantity ?? 1));
                 $orderData['amount_usd'] = round(($unitUsd * (1 - ($discountPercentage / 100))) * $qty, 2);
             } else {
-                $orderData['amount_usd'] = 0;
+                $orderData['amount_usd'] = round(($orderData['amount_dzd'] ?? 0) / 260, 2);
             }
 
         return $orderData;
@@ -1299,7 +1649,14 @@ class CheckoutController extends Controller
 
         try {
             $orderId = Crypt::decryptString($request->input('encrypted_order_id'));
-            $order = Order::with('diamondPack', 'orderItems.diamondPack', 'flexy')->findOrFail($orderId);
+            $order = Order::with([
+                'diamondPack',
+                'vipResellerPack.category',
+                'orderItems.diamondPack',
+                'orderItems.vipResellerPack.category',
+                'vipResellerStatuses',
+                'flexy',
+            ])->findOrFail($orderId);
 
             if ($deny = $this->denyOrderAccessUnlessAllowed($order)) {
                 return $deny;
@@ -2134,6 +2491,13 @@ class CheckoutController extends Controller
     private function processBaridimobPaidRecharge(Order $order)
     {
         try {
+            $order->load(['orderItems.vipResellerPack', 'vipResellerPack', 'diamondPack']);
+
+            // VIP Reseller digital products (Netflix etc.)
+            if ($order->vipreseller_pack_id || $order->orderItems->contains(fn ($i) => $i->vipreseller_pack_id)) {
+                return app(\App\Services\VipResellerFulfillmentService::class)->fulfillPaidOrder($order);
+            }
+
             // Load order with diamond pack relationship
             $order->load('diamondPack');
             
@@ -4724,7 +5088,12 @@ class CheckoutController extends Controller
     private function processNowPaymentsRecharge(Order $order)
     {
         try {
-            $order->load('orderItems.diamondPack', 'diamondPack');
+            $order->load(['orderItems.vipResellerPack', 'orderItems.diamondPack', 'vipResellerPack', 'diamondPack']);
+
+            if ($order->vipreseller_pack_id || $order->orderItems->contains(fn ($i) => $i->vipreseller_pack_id)) {
+                return app(\App\Services\VipResellerFulfillmentService::class)->fulfillPaidOrder($order);
+            }
+
             $gameType = $order->game_type ?? ($order->diamondPack->game_type ?? null);
             
             if (! $gameType) {

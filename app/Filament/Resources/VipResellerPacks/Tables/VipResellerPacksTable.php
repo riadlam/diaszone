@@ -76,7 +76,14 @@ class VipResellerPacksTable
                 TernaryFilter::make('is_active')->label('Active'),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->modalHeading('Edit VIP pack')
+                    ->modalWidth('4xl')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['code'] = trim((string) ($data['code'] ?? ''));
+
+                        return $data;
+                    }),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

@@ -18,7 +18,12 @@ const CartManager = {
             : Math.max(1, Math.min(20, parseInt(quantity) || 1)); // Enforce 1-20 limit
         
         // Check if pack already exists in cart
-        const existingIndex = cart.findIndex(cartItem => cartItem.pack_id === item.pack_id);
+        const existingIndex = cart.findIndex(cartItem => {
+            if (item.vipreseller_pack_id) {
+                return cartItem.vipreseller_pack_id === item.vipreseller_pack_id;
+            }
+            return cartItem.pack_id === item.pack_id && !cartItem.vipreseller_pack_id;
+        });
         
         if (existingIndex >= 0) {
             // Check if this is a nickname validation update (has user_id/zone_id or player_id)
@@ -29,7 +34,8 @@ const CartManager = {
                                       (item.player_id_pubg !== undefined && item.player_id_pubg !== null && item.player_id_pubg !== '') ||
                                       (item.player_id_hok !== undefined && item.player_id_hok !== null && item.player_id_hok !== '') ||
                                       (item.user_id_bs !== undefined && item.user_id_bs !== null && item.user_id_bs !== '') ||
-                                      (item.save_id !== undefined && item.save_id !== null && item.save_id !== '');
+                                      (item.save_id !== undefined && item.save_id !== null && item.save_id !== '') ||
+                                      (item.email !== undefined && item.email !== null && item.email !== '');
             
             if (isValidationUpdate) {
                 // Replace quantity when updating with validation data (nickname validation flow)
@@ -87,11 +93,19 @@ const CartManager = {
                 const val = item.server;
                 cart[existingIndex].server = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
             }
+            if ('email' in item) {
+                const val = item.email;
+                cart[existingIndex].email = (val !== undefined && val !== null && val !== '') ? String(val).trim() : null;
+            }
         } else {
             // Add new item
         const cartItem = {
                 id: Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9),
-                pack_id: item.pack_id,
+                pack_id: item.pack_id || null,
+                vipreseller_pack_id: item.vipreseller_pack_id || null,
+                pack_type: item.pack_type || (item.vipreseller_pack_id ? 'vipreseller' : 'diamond'),
+                email: item.email || null,
+                name: item.name || null,
                 quantity: finalQuantity,
                 user_id: item.user_id || item.save_id || null, // Use save_id as fallback for user_id
                 zone_id: item.zone_id || null,

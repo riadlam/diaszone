@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\VipResellerCategories;
 
-use App\Filament\Resources\VipResellerCategories\Pages\CreateVipResellerCategory;
-use App\Filament\Resources\VipResellerCategories\Pages\EditVipResellerCategory;
 use App\Filament\Resources\VipResellerCategories\Pages\ListVipResellerCategories;
 use App\Filament\Resources\VipResellerCategories\Schemas\VipResellerCategoryForm;
 use App\Filament\Resources\VipResellerCategories\Tables\VipResellerCategoriesTable;
@@ -49,8 +47,6 @@ class VipResellerCategoryResource extends Resource
     {
         return [
             'index' => ListVipResellerCategories::route('/'),
-            'create' => CreateVipResellerCategory::route('/create'),
-            'edit' => EditVipResellerCategory::route('/{record}/edit'),
         ];
     }
 }

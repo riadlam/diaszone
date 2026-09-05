@@ -271,6 +271,57 @@ class TelegramService
      */
     public static function formatOrderMessage($order): string
     {
+        $isVip = (bool) ($order->vipreseller_pack_id
+            || ($order->relationLoaded('orderItems')
+                ? $order->orderItems->contains(fn ($i) => $i->vipreseller_pack_id)
+                : $order->orderItems()->whereNotNull('vipreseller_pack_id')->exists()));
+
+        if ($isVip) {
+            if (! $order->relationLoaded('orderItems')) {
+                $order->load('orderItems.vipResellerPack.category', 'vipResellerPack.category', 'user');
+            } else {
+                $order->loadMissing('orderItems.vipResellerPack.category', 'vipResellerPack.category', 'user');
+            }
+
+            $escape = function ($s) {
+                if (is_null($s)) {
+                    return '';
+                }
+
+                return htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            };
+
+            $categoryName = $order->vipResellerPack?->category?->name
+                ?? $order->orderItems->first(fn ($i) => $i->vipResellerPack)?->vipResellerPack?->category?->name
+                ?? 'Digital';
+            $amount = ! empty($order->final_price)
+                ? $order->final_price
+                : ($order->orderItems->sum('total_dzd') ?: ($order->vipResellerPack?->price_dzd ?? 0));
+
+            $message = "🆕 <b>New Order Created</b>\n\n";
+            $message .= "📦 <b>Order:</b> {$escape($order->order_number)}\n";
+            $message .= "🎮 <b>Product:</b> {$escape($categoryName)}\n";
+            if ($order->orderItems && $order->orderItems->count() > 0) {
+                $message .= "💎 <b>Packs:</b>\n";
+                foreach ($order->orderItems as $item) {
+                    $name = $item->vipResellerPack?->name ?? 'VIP pack';
+                    $message .= "   • {$item->quantity}× {$escape($name)}\n";
+                }
+            } elseif ($order->vipResellerPack) {
+                $message .= "💎 <b>Pack:</b> {$escape($order->vipResellerPack->name)}\n";
+            }
+            if ($order->customer_email) {
+                $message .= "✉️ <b>Email:</b> {$escape($order->customer_email)}\n";
+            }
+            $message .= "💰 <b>Amount:</b> ".number_format((float) $amount, 0)." DZD\n";
+            $message .= "📊 <b>Status:</b> {$escape($order->status)}\n";
+            $userName = $order->user ? $escape($order->user->name) : 'Guest';
+            $userEmail = $order->user ? $escape($order->user->email) : 'N/A';
+            $message .= "👤 <b>Customer:</b> {$userName} ({$userEmail})\n";
+
+            return $message;
+        }
+
         $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
         $gameName = 'Mobile Legends';
         $currencyText = 'Diamonds';

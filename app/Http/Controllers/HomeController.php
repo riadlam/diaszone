@@ -24,6 +24,27 @@ class HomeController extends Controller
         return view('pages.digital', $this->homeLikePageData('digital'));
     }
 
+    public function digitalCategory(string $slug)
+    {
+        $category = \App\Models\VipResellerCategory::query()
+            ->where('slug', $slug)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $packs = \App\Models\VipResellerPack::query()
+            ->where('category_id', $category->id)
+            ->where('is_active', true)
+            ->where('price_dzd', '>', 0)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+
+        return view('pages.digital-category', [
+            'category' => $category,
+            'packs' => $packs,
+        ]);
+    }
+
     /**
      * Shared catalog + section data for home and digital pages.
      * Hero slides are filtered by $placement; product sections are placeholders until digital products exist.

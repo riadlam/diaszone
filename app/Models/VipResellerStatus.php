@@ -12,14 +12,22 @@ class VipResellerStatus extends Model
 
     protected $fillable = [
         'order_id',
+        'order_item_id',
+        'diamond_pack_id',
+        'buyer_sku_code',
         'trxid',
+        'ref_id',
         'data',
         'zone',
         'status',
         'balance',
         'note',
         'price',
+        'sn',
         'additional_data',
+        'event',
+        'customer_no',
+        'message',
     ];
 
     protected $casts = [

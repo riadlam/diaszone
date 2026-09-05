@@ -21,7 +21,7 @@ class VipResellerPackForm
         return $schema
             ->components([
                 Section::make('VIP service')
-                    ->description('Pick a live VIP Reseller service. Code and IDR prices fill automatically. You set DZD sell/cost prices yourself.')
+                    ->description('Pick a live VIP Reseller service. Code + H2H (IDR) fill automatically. Edit the display name for the website. Set DZD prices yourself.')
                     ->columns(2)
                     ->schema([
                         Select::make('category_id')
@@ -36,8 +36,6 @@ class VipResellerPackForm
                                 $set('code', null);
                                 $set('name', null);
                                 $set('description', null);
-                                $set('price_basic', null);
-                                $set('price_premium', null);
                                 $set('price_special', null);
                                 $set('server', null);
                                 $set('provider_status', 'available');
@@ -100,10 +98,10 @@ class VipResellerPackForm
                                     return;
                                 }
 
+                                // Prefill display name from VIP; admin can edit afterward for the website.
                                 $set('name', $service['name'] ?? $state);
                                 $set('description', $service['description'] ?? null);
-                                $set('price_basic', $service['price_basic'] ?? null);
-                                $set('price_premium', $service['price_premium'] ?? null);
+                                // Only H2H (special) — we do not store Member/Reseller tiers.
                                 $set('price_special', $service['price_special'] ?? null);
                                 $set('server', $service['server'] ?? null);
                                 $set('provider_status', $service['status'] ?? 'available');
@@ -116,18 +114,16 @@ class VipResellerPackForm
                             ->columnSpanFull(),
 
                         TextInput::make('name')
-                            ->label('Name')
+                            ->label('Display name')
                             ->required()
                             ->maxLength(255)
-                            ->disabled()
-                            ->dehydrated()
+                            ->helperText('Shown on the website. Prefills from VIP — change it anytime.')
                             ->columnSpanFull(),
 
                         Textarea::make('description')
                             ->label('Description')
                             ->rows(3)
-                            ->disabled()
-                            ->dehydrated()
+                            ->helperText('Optional website description. Prefills from VIP.')
                             ->columnSpanFull(),
 
                         TextInput::make('product_url')
@@ -183,7 +179,7 @@ class VipResellerPackForm
                     ]),
 
                 Section::make('Sell prices (manual)')
-                    ->description('Set your DiasZone sell price and cost in DZD. IDR tiers above come from VIP automatically.')
+                    ->description('Set your DiasZone sell price and cost in DZD.')
                     ->columns(3)
                     ->schema([
                         TextInput::make('price_dzd')
@@ -214,30 +210,17 @@ class VipResellerPackForm
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('VIP provider prices (IDR)')
-                    ->description('Auto-filled from VIP Member / Reseller / H2H when you pick a service. Not editable.')
-                    ->columns(3)
+                Section::make('VIP cost (IDR)')
+                    ->description('Only Special (H2H) — auto-filled from VIP when you pick a service.')
+                    ->columns(1)
                     ->schema([
-                        TextInput::make('price_basic')
-                            ->label('Basic (Member)')
-                            ->numeric()
-                            ->prefix('Rp')
-                            ->disabled()
-                            ->dehydrated(),
-
-                        TextInput::make('price_premium')
-                            ->label('Premium (Reseller)')
-                            ->numeric()
-                            ->prefix('Rp')
-                            ->disabled()
-                            ->dehydrated(),
-
                         TextInput::make('price_special')
                             ->label('Special (H2H)')
                             ->numeric()
                             ->prefix('Rp')
                             ->disabled()
-                            ->dehydrated(),
+                            ->dehydrated()
+                            ->helperText('This is the only VIP cost we store and use.'),
                     ]),
             ]);
     }
@@ -277,7 +260,7 @@ class VipResellerPackForm
 
             $special = $service['price_special'] ?? null;
             $priceLabel = $special !== null
-                ? 'Rp '.number_format((float) $special, 0, ',', '.')
+                ? 'Rp '.number_format((float) $special, 0, ',', '.').' H2H'
                 : '—';
 
             $statusBadge = ($service['status'] ?? '') === 'empty' ? ' [empty]' : '';
@@ -306,6 +289,6 @@ class VipResellerPackForm
 
         $count = count($response['data'] ?? []);
 
-        return "Loaded {$count} available service(s) for filter_game \"{$filterGame}\".";
+        return "Loaded {$count} available service(s) for filter_game \"{$filterGame}\" (prices show H2H).";
     }
 }

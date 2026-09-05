@@ -703,6 +703,11 @@ class AdminController extends Controller
                 ];
             }
 
+            $order->load(['orderItems.vipResellerPack', 'vipResellerPack', 'orderItems.diamondPack']);
+            if ($order->vipreseller_pack_id || $order->orderItems->contains(fn ($i) => $i->vipreseller_pack_id)) {
+                return app(\App\Services\VipResellerFulfillmentService::class)->fulfillPaidOrder($order);
+            }
+
             // Only process Mobile Legends orders for now
             // Support both single-pack and multi-item orders
             $hasOrderItems = $order->orderItems && $order->orderItems->count() > 0;
@@ -1647,10 +1652,15 @@ class AdminController extends Controller
                     }
                 }
 
-                // Update order status based on VIP Reseller status (waiting, success, error)
-                if ($oldStatus !== $mappedStatus) {
-                    $this->updateOrderFromWebhook($vipResellerStatus, $webhookData);
-                }
+                // Update order status + parse digital delivery note
+                app(\App\Services\VipResellerFulfillmentService::class)->applyStatusPayload($trxid, [
+                    'status' => $status,
+                    'note' => $note,
+                    'message' => $note,
+                    'price' => $price,
+                    'data' => $data,
+                    'service' => $service,
+                ]);
             } else {
                 // Create new record if not found
                 // Try to find order from additional_data if available
@@ -1674,6 +1684,15 @@ class AdminController extends Controller
                             ->latest()
                             ->first();
                     }
+
+                    // Digital VIP packs: match by customer email (data_no)
+                    if (!$order && !empty($data)) {
+                        $order = Order::where('customer_email', $data)
+                            ->whereNotNull('vipreseller_pack_id')
+                            ->whereIn('status', ['sending', 'completed'])
+                            ->latest()
+                            ->first();
+                    }
                     
                     if ($order) {
                         $orderId = $order->id;
@@ -1693,6 +1712,7 @@ class AdminController extends Controller
                         'webhook_created' => now()->toDateTimeString(),
                         'api_status' => $status,
                         'webhook_data' => $webhookData,
+                        'provider' => 'vipreseller',
                     ],
                 ]);
 
@@ -1702,8 +1722,14 @@ class AdminController extends Controller
                     'status' => $mappedStatus,
                 ]);
 
-                // Update order status based on VIP Reseller status
-                $this->updateOrderFromWebhook($vipResellerStatus, $webhookData);
+                app(\App\Services\VipResellerFulfillmentService::class)->applyStatusPayload($trxid, [
+                    'status' => $status,
+                    'note' => $note,
+                    'message' => $note,
+                    'price' => $price,
+                    'data' => $data,
+                    'service' => $service,
+                ]);
             }
 
             return response()->json([

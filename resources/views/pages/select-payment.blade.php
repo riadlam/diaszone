@@ -395,6 +395,35 @@ function closeCheckoutAuthModal() {
     document.body.classList.remove('overflow-hidden');
 }
 
+function mapCartItemForApi(item) {
+    const cartItem = {
+        quantity: item.quantity || 1,
+    };
+
+    if (item.vipreseller_pack_id) {
+        cartItem.vipreseller_pack_id = parseInt(item.vipreseller_pack_id, 10);
+        if (item.email) cartItem.email = item.email;
+        return cartItem;
+    }
+
+    cartItem.pack_id = item.pack_id;
+    if (item.user_id) cartItem.user_id = item.user_id;
+    if (item.zone_id) cartItem.zone_id = item.zone_id;
+    if (item.player_id_ff) cartItem.player_id_ff = item.player_id_ff;
+    if (item.player_id_pubg) cartItem.player_id_pubg = item.player_id_pubg;
+    if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
+    if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
+    if (item.server_bs) cartItem.server_bs = item.server_bs;
+    if (item.save_id) cartItem.save_id = item.save_id;
+    if (item.game_user_id) cartItem.game_user_id = item.game_user_id;
+    if (item.server) cartItem.server = item.server;
+    if (item.player_id !== undefined && !cartItem.user_id && !cartItem.player_id_ff && !cartItem.player_id_pubg && !cartItem.player_id_hok && !cartItem.user_id_bs) {
+        cartItem.user_id = item.player_id;
+    }
+
+    return cartItem;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const flashSaleMode = @json(!empty($flashSaleMode));
     const flashEncryptedOrderId = @json($flashEncryptedOrderId ?? null);
@@ -509,30 +538,32 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const cart = JSON.parse(localStorage.getItem('diaszone_cart') || '[]');
             
-            // Get pack IDs from cart
-            const packIds = cart.map(item => item.pack_id).filter(Boolean);
-            
-            // Fetch pack data
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            const response = await fetch('/api/packs', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ ids: packIds })
-            });
-            
-            if (!response.ok) {
-                throw new Error({!! json_encode(__('seller.failed_to_fetch_pack_data')) !!});
+            let packsMap = {};
+            if (window.CartManager && typeof CartManager.fetchPacksForCart === 'function') {
+                packsMap = await CartManager.fetchPacksForCart(cart);
+            } else {
+                const packIds = cart.filter(item => item.pack_id && !item.vipreseller_pack_id).map(item => item.pack_id);
+                const vipIds = cart.map(item => item.vipreseller_pack_id).filter(Boolean);
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const response = await fetch('/api/packs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: packIds, vip_ids: vipIds })
+                });
+                
+                if (!response.ok) {
+                    throw new Error({!! json_encode(__('seller.failed_to_fetch_pack_data')) !!});
+                }
+                
+                const data = await response.json();
+                Object.keys(data.packs || {}).forEach(id => {
+                    packsMap[id] = data.packs[id];
+                });
             }
-            
-            const data = await response.json();
-            const packsMap = {};
-            Object.keys(data.packs).forEach(id => {
-                packsMap[id] = data.packs[id];
-            });
             
             // Display order information
             const orderInfoSection = document.getElementById('order-info-section');
@@ -551,7 +582,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Display each cart item
                 cart.forEach((item, index) => {
-                    const pack = packsMap[item.pack_id];
+                    const pack = (window.CartManager && CartManager.resolvePackForCartItem)
+                        ? CartManager.resolvePackForCartItem(item, packsMap)
+                        : (packsMap['vip-' + item.vipreseller_pack_id] || packsMap[item.pack_id]);
                     if (!pack) return;
                     
                     const quantity = parseInt(item.quantity) || 1;
@@ -589,7 +622,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Determine order information fields based on game type (show for each item)
                     let orderFieldsHTML = '';
-                    if (itemGameType === 'bloodstrike') {
+                    if (itemGameType === 'vipreseller' || item.vipreseller_pack_id) {
+                        if (item.email) {
+                            orderFieldsHTML = `
+                                <p class="text-gray-600"><span class="font-medium text-gray-700">Email:</span> ${item.email}</p>
+                            `;
+                        }
+                    } else if (itemGameType === 'bloodstrike') {
                         const userIdBs = item.user_id_bs || '';
                         const serverBs = item.server_bs || 'Global';
                         if (userIdBs) {
@@ -683,7 +722,9 @@ document.addEventListener('DOMContentLoaded', function() {
             let flexyFee = 0; // 50 DZD fee for Flexy
             
             cart.forEach(item => {
-                const pack = packsMap[item.pack_id];
+                const pack = (window.CartManager && CartManager.resolvePackForCartItem)
+                    ? CartManager.resolvePackForCartItem(item, packsMap)
+                    : (packsMap['vip-' + item.vipreseller_pack_id] || packsMap[item.pack_id]);
                 if (!pack) return;
                 
                 // Use actual quantity from cart item (multi-offer support)
@@ -826,10 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Prepare cart items for API
-                const cartItems = cart.map(item => ({
-                    pack_id: item.pack_id,
-                    quantity: item.quantity || 1,
-                }));
+                const cartItems = cart.map(mapCartItemForApi);
                 
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const response = await fetch('/api/cart/convert-to-usd', {
@@ -1325,20 +1363,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     try {
                         // First create the order
                         const item = cart[0];
-                        const cartItems = cart.map(item => {
-                            const cartItem = { pack_id: item.pack_id };
-                            if (item.user_id) cartItem.user_id = item.user_id;
-                            if (item.zone_id) cartItem.zone_id = item.zone_id;
-                            if (item.player_id_ff) cartItem.player_id_ff = item.player_id_ff;
-                            if (item.player_id_pubg) cartItem.player_id_pubg = item.player_id_pubg;
-                            if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
-                            if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
-                            if (item.server_bs) cartItem.server_bs = item.server_bs;
-                            if (item.save_id) cartItem.save_id = item.save_id; // User ID for new games
-                            if (item.game_user_id) cartItem.game_user_id = item.game_user_id; // User ID for Devil May Cry
-                            if (item.server) cartItem.server = item.server; // Generic server for new games
-                            return cartItem;
-                        });
+                        const cartItems = cart.map(mapCartItemForApi);
                         
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                         
@@ -1410,25 +1435,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     try {
                     // Prepare cart items for API - include all game-specific fields and quantity
-                    const cartItems = cart.map(item => {
-                        const cartItem = { 
-                            pack_id: item.pack_id,
-                            quantity: item.quantity || 1 // Include quantity
-                        };
-                        
-                        // Include all possible fields - backend will validate based on game type
-                        if (item.user_id) cartItem.user_id = item.user_id;
-                        if (item.zone_id) cartItem.zone_id = item.zone_id;
-                        if (item.player_id_ff) cartItem.player_id_ff = item.player_id_ff;
-                        if (item.player_id_pubg) cartItem.player_id_pubg = item.player_id_pubg;
-                        if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
-                        if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
-                        if (item.server_bs) cartItem.server_bs = item.server_bs;
-                        if (item.save_id) cartItem.save_id = item.save_id; // User ID for new games
-                        if (item.server) cartItem.server = item.server; // Generic server for new games
-                        
-                        return cartItem;
-                    });
+                    const cartItems = cart.map(mapCartItemForApi);
                     
                     // Always create a new order via API (regardless of existing encrypted_order_id)
                     // This allows users to create multiple orders that will all show in "My Orders"
@@ -1531,29 +1538,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Prepare cart items for API
                         // Cart items already have all game-specific IDs set when added to cart
-                        const cartItems = cart.map(item => {
-                            const cartItem = { 
-                                pack_id: item.pack_id,
-                                quantity: item.quantity || 1,
-                            };
-                            
-                            // Copy all game-specific IDs from cart item (already set correctly)
-                            if (item.user_id !== undefined) cartItem.user_id = item.user_id;
-                            if (item.zone_id !== undefined) cartItem.zone_id = item.zone_id;
-                            if (item.player_id_ff !== undefined) cartItem.player_id_ff = item.player_id_ff;
-                            if (item.player_id_pubg !== undefined) cartItem.player_id_pubg = item.player_id_pubg;
-                            if (item.player_id_hok !== undefined) cartItem.player_id_hok = item.player_id_hok;
-                            if (item.user_id_bs !== undefined) cartItem.user_id_bs = item.user_id_bs;
-                            if (item.server_bs !== undefined) cartItem.server_bs = item.server_bs;
-                            if (item.save_id !== undefined) cartItem.save_id = item.save_id; // User ID for new games
-                            if (item.server !== undefined) cartItem.server = item.server; // Generic server for new games
-                            // Fallback for games that use generic player_id
-                            if (item.player_id !== undefined && !cartItem.user_id && !cartItem.player_id_ff && !cartItem.player_id_pubg && !cartItem.player_id_hok && !cartItem.user_id_bs) {
-                                cartItem.user_id = item.player_id;
-                            }
-                            
-                            return cartItem;
-                        });
+                        const cartItems = cart.map(mapCartItemForApi);
                         
                         const response = await fetch('/api/orders/create', {
                             method: 'POST',
@@ -1594,25 +1579,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                     
                     // Prepare cart items for API - include all game-specific fields and quantity
-                    const cartItems = cart.map(item => {
-                        const cartItem = { 
-                            pack_id: item.pack_id,
-                            quantity: item.quantity || 1 // Include quantity
-                        };
-                        
-                        // Add game-specific fields based on what's available
-                        if (item.user_id) cartItem.user_id = item.user_id;
-                        if (item.zone_id) cartItem.zone_id = item.zone_id;
-                        if (item.player_id_ff) cartItem.player_id_ff = item.player_id_ff;
-                        if (item.player_id_pubg) cartItem.player_id_pubg = item.player_id_pubg;
-                        if (item.player_id_hok) cartItem.player_id_hok = item.player_id_hok;
-                        if (item.user_id_bs) cartItem.user_id_bs = item.user_id_bs;
-                        if (item.server_bs) cartItem.server_bs = item.server_bs;
-                        if (item.save_id) cartItem.save_id = item.save_id; // User ID for new games
-                        if (item.server) cartItem.server = item.server; // Generic server for new games
-                        
-                        return cartItem;
-                    });
+                    const cartItems = cart.map(mapCartItemForApi);
                     
                     const response = await fetch('{{ route("api.orders.create") }}', {
                         method: 'POST',

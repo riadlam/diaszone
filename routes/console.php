@@ -29,6 +29,12 @@ Schedule::command('digiflazz:check-order-status')
     ->withoutOverlapping(10)
     ->appendOutputTo(storage_path('logs/digiflazz-order-status.log'));
 
+// VIP Reseller digital delivery can take ~10+ minutes; poll as webhook backup.
+Schedule::command('vipreseller:check-order-status')
+    ->everyTwoMinutes()
+    ->withoutOverlapping(8)
+    ->appendOutputTo(storage_path('logs/vipreseller-order-status.log'));
+
 // Safety net for the lucky wheel: credit any qualifying top-up whose delivery
 // was written outside Eloquent or while the wheel credit failed.
 Schedule::command('wheel:backfill')

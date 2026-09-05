@@ -13,7 +13,14 @@ class ListVipResellerPacks extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->modalHeading('New VIP pack')
+                ->modalWidth('4xl')
+                ->mutateFormDataUsing(function (array $data): array {
+                    $data['code'] = trim((string) ($data['code'] ?? ''));
+
+                    return $data;
+                }),
         ];
     }
 }
