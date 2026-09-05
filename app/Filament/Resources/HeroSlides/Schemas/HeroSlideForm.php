@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\HeroSlides\Schemas;
 
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
@@ -17,6 +18,16 @@ class HeroSlideForm
                 Section::make('Hero slide')
                     ->description('Image-only coverflow slide. Optional link opens when the slide is clicked.')
                     ->schema([
+                        Select::make('page')
+                            ->label('Page')
+                            ->options([
+                                'home' => 'Home',
+                                'digital' => 'Digital',
+                            ])
+                            ->default('home')
+                            ->required()
+                            ->native(false),
+
                         TextInput::make('title')
                             ->label('Alt / admin label')
                             ->helperText('Used for accessibility and the admin list. Not shown as overlay text on the homepage.')
@@ -24,7 +35,7 @@ class HeroSlideForm
 
                         FileUpload::make('image_path')
                             ->label('Slide image')
-                            ->helperText('Recommended ~1800×770 (desktop) or similar wide banner. Shown coverflow on home.')
+                            ->helperText('Recommended ~1800×770 (desktop) or similar wide banner. Shown coverflow on home or digital.')
                             ->disk('public')
                             ->directory('hero-slides')
                             ->visibility('public')

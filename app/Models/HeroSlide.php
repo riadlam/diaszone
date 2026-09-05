@@ -14,6 +14,7 @@ class HeroSlide extends Model
         'link_url',
         'sort_order',
         'is_active',
+        'page',
     ];
 
     protected $casts = [
@@ -24,6 +25,11 @@ class HeroSlide extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeForPage(Builder $query, string $page): Builder
+    {
+        return $query->where('page', $page);
     }
 
     public function imageUrl(): ?string

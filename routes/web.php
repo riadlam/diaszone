@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/digital', [HomeController::class, 'digital'])->name('digital');
 
 // Test translation debug route
 Route::get('/test/translation', function () {

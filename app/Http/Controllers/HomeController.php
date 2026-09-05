@@ -16,6 +16,20 @@ class HomeController extends Controller
 {
     public function index()
     {
+        return view('pages.new-home', $this->homeLikePageData('home'));
+    }
+
+    public function digital()
+    {
+        return view('pages.digital', $this->homeLikePageData('digital'));
+    }
+
+    /**
+     * Shared catalog + section data for home and digital pages.
+     * Hero slides are filtered by $page; product sections are placeholders until digital products exist.
+     */
+    private function homeLikePageData(string $page): array
+    {
         // Get all unique active games from diamond_packs
         $games = DiamondPack::where('is_active', true)
             ->select('game_type')
@@ -164,11 +178,12 @@ class HomeController extends Controller
 
         $heroSlides = HeroSlide::query()
             ->active()
+            ->forPage($page)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
-        return view('pages.new-home', compact(
+        return compact(
             'games',
             'topSellingGames',
             'newProducts',
@@ -176,7 +191,7 @@ class HomeController extends Controller
             'flashSales',
             'flashSaleEndsAt',
             'heroSlides'
-        ));
+        );
     }
     
     /**

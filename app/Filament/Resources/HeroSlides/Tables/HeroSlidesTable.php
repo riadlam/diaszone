@@ -10,6 +10,7 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
@@ -25,6 +26,19 @@ class HeroSlidesTable
                     ->label('Image')
                     ->getStateUsing(fn (HeroSlide $record): ?string => $record->imageUrl())
                     ->height(48),
+
+                TextColumn::make('page')
+                    ->label('Page')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'digital' => 'Digital',
+                        default => 'Home',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'digital' => 'info',
+                        default => 'gray',
+                    })
+                    ->sortable(),
 
                 TextColumn::make('title')
                     ->label('Label')
@@ -45,6 +59,12 @@ class HeroSlidesTable
                     ->boolean(),
             ])
             ->filters([
+                SelectFilter::make('page')
+                    ->label('Page')
+                    ->options([
+                        'home' => 'Home',
+                        'digital' => 'Digital',
+                    ]),
                 TernaryFilter::make('is_active')->label('Active'),
             ])
             ->recordActions([
