@@ -4219,8 +4219,14 @@ class CheckoutController extends Controller
         // Send Telegram notification for status change to pending_confirmation
         if ($oldStatus === 'pending_flexy' && $order->status === 'pending_confirmation') {
             try {
-                // Load order with all relationships for multi-item orders
-                $order->load('diamondPack', 'orderItems.diamondPack', 'user');
+                // Load order with all relationships for multi-item / VIP orders
+                $order->load([
+                    'diamondPack',
+                    'orderItems.diamondPack',
+                    'orderItems.vipResellerPack.category',
+                    'vipResellerPack.category',
+                    'user',
+                ]);
                 $message = TelegramService::formatOrderMessage($order);
                 // Add confirm button for pending_confirmation orders
                 $messageId = TelegramService::sendMessage($message, true);

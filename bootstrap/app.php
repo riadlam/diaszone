@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Add language middleware to web group
         $middleware->web(append: [
             \App\Http\Middleware\LanguageMiddleware::class,
+            \App\Http\Middleware\PausePublicSite::class,
         ]);
         
         // Exclude webhook / public JSON API routes from CSRF verification

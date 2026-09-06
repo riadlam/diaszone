@@ -22,10 +22,6 @@ class VipResellerCategoriesTable
         return $table
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
-            ->recordUrl(
-                fn (VipResellerCategory $record): string => VipResellerCategoryResource::getUrl('edit', ['record' => $record]),
-                shouldOpenInNewTab: true,
-            )
             ->columns([
                 ImageColumn::make('image_path')
                     ->label('Image')
@@ -69,14 +65,13 @@ class VipResellerCategoriesTable
             ])
             ->recordActions([
                 EditAction::make()
-                    ->url(fn (VipResellerCategory $record): string => VipResellerCategoryResource::getUrl('edit', ['record' => $record]))
-                    ->openUrlInNewTab(),
+                    ->modalHeading('Edit VIP category')
+                    ->modalWidth('3xl'),
                 Action::make('managePacks')
                     ->label('Services')
                     ->icon('heroicon-o-cube')
                     ->color('info')
-                    ->url(fn (VipResellerCategory $record): string => VipResellerCategoryResource::getUrl('edit', ['record' => $record]).'#relation-manager')
-                    ->openUrlInNewTab(),
+                    ->url(fn (VipResellerCategory $record): string => VipResellerCategoryResource::getUrl('edit', ['record' => $record])),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

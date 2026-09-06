@@ -564,8 +564,13 @@ class AdminController extends Controller
             'from_admin' => 'sometimes|boolean', // Flag to ensure this is from admin dashboard
         ]);
 
-        // Load order with relationships (support multi-item orders)
-        $order = Order::with(['diamondPack', 'orderItems.diamondPack'])->where('order_number', $orderNumber)->firstOrFail();
+        // Load order with relationships (support multi-item / VIP orders)
+        $order = Order::with([
+            'diamondPack',
+            'orderItems.diamondPack',
+            'orderItems.vipResellerPack',
+            'vipResellerPack',
+        ])->where('order_number', $orderNumber)->firstOrFail();
         $oldStatus = $order->status;
         $newStatus = $request->status;
         
@@ -576,8 +581,15 @@ class AdminController extends Controller
         // Send Telegram notification for important status changes (skip pending_flexy)
         if ($newStatus !== 'pending_flexy' && in_array($newStatus, ['pending_confirmation', 'sending', 'completed'])) {
             try {
-                // Load order with all relationships for multi-item orders
-                $order->load('diamondPack', 'orderItems.diamondPack', 'user', 'seller');
+                // Load order with all relationships for multi-item / VIP orders
+                $order->load([
+                    'diamondPack',
+                    'orderItems.diamondPack',
+                    'orderItems.vipResellerPack.category',
+                    'vipResellerPack.category',
+                    'user',
+                    'seller',
+                ]);
                 $message = TelegramService::formatOrderMessage($order);
                 // Add confirm button only for pending_confirmation orders
                 $addButton = ($newStatus === 'pending_confirmation');
@@ -632,9 +644,15 @@ class AdminController extends Controller
             ]);
             
             $rechargeResult = $this->processRecharge($order);
-            
+
+            // VIP digital fulfill leaves order as "sending" until provider success.
+            $order->refresh();
+
             if ($rechargeResult['success']) {
                 $message .= ". Recharge processed successfully.";
+                if (($rechargeResult['status'] ?? null) === 'waiting' || $order->status === 'sending') {
+                    $message .= ' Order is Processing (awaiting VIP delivery).';
+                }
             } else {
                 $message .= ". Warning: " . $rechargeResult['message'];
             }
@@ -1950,7 +1968,14 @@ class AdminController extends Controller
                 
                 if ($callbackData === 'confirm_order' && $messageId) {
                     // Find order by tlg_message_id
-                    $order = Order::with(['diamondPack', 'user'])
+                    $order = Order::with([
+                        'diamondPack',
+                        'user',
+                        'orderItems.vipResellerPack',
+                        'orderItems.diamondPack',
+                        'vipResellerPack',
+                        'vipResellerStatuses',
+                    ])
                         ->where('tlg_message_id', $messageId)
                         ->first();
                     
@@ -1968,6 +1993,15 @@ class AdminController extends Controller
                         TelegramService::answerCallbackQuery(
                             $callbackQueryId,
                             '✅ Order is already completed',
+                            false
+                        );
+                        return response()->json(['ok' => true]);
+                    }
+
+                    if ($order->status === 'sending') {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            '⏳ Order already confirmed and processing',
                             false
                         );
                         return response()->json(['ok' => true]);
@@ -2018,7 +2052,8 @@ class AdminController extends Controller
                         false
                     );
 
-                    // Process recharge (same logic as admin dashboard)
+                    // Process recharge (same logic as admin dashboard) — VIP + Digiflazz
+                    $order->load(['orderItems.vipResellerPack', 'vipResellerPack', 'orderItems.diamondPack', 'diamondPack']);
                     $rechargeResult = $this->processRecharge($order);
 
                     // processRecharge() may already update DB status (e.g. to "sending" for pending provider response).
@@ -2028,17 +2063,21 @@ class AdminController extends Controller
                     // Decide order status based on recharge result
                     // If provider returned final success -> completed
                     // If provider returned waiting/pending -> sending (await webhook)
-                    // If provider returned error -> sending (requires attention)
+                    // If provider returned error -> keep pending_confirmation for VIP fail, else sending
                     $newStatus = $order->status; // default keep current DB status
                     if (isset($rechargeResult['status'])) {
                         if ($rechargeResult['status'] === 'success') {
                             $newStatus = 'completed';
                         } elseif ($rechargeResult['status'] === 'waiting') {
                             $newStatus = 'sending';
+                        } elseif (($rechargeResult['success'] ?? false) === false) {
+                            // Failed to place VIP/Digiflazz order — leave for retry confirmation
+                            $newStatus = 'pending_confirmation';
                         } else {
-                            // error or unknown
                             $newStatus = 'sending';
                         }
+                    } elseif (($rechargeResult['success'] ?? false) === false) {
+                        $newStatus = 'pending_confirmation';
                     }
 
                     if ($order->status !== $newStatus) {
@@ -2053,6 +2092,7 @@ class AdminController extends Controller
                         'new_status' => $newStatus,
                         'tlg_message_id' => $messageId,
                         'recharge_result' => $rechargeResult,
+                        'is_vip' => (bool) ($order->vipreseller_pack_id || $order->orderItems()->whereNotNull('vipreseller_pack_id')->exists()),
                     ]);
                     // If order completed after processing, credit seller profit
                     try {
@@ -2062,7 +2102,13 @@ class AdminController extends Controller
                     } catch (\Exception $e) {
                         Log::warning('Admin: Failed to credit seller profit after processing recharge', ['order_id' => $order->id, 'error' => $e->getMessage()]);
                     }
-                    $order->load('diamondPack', 'user', 'vipResellerStatuses');
+                    $order->load([
+                        'diamondPack',
+                        'user',
+                        'vipResellerStatuses',
+                        'orderItems.vipResellerPack.category',
+                        'vipResellerPack.category',
+                    ]);
                     
                     // Update Telegram message with proper header
                     $updatedMessage = TelegramService::formatOrderMessage($order);
@@ -2071,12 +2117,16 @@ class AdminController extends Controller
                     if ($order->status === 'completed') {
                         $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
                     } elseif ($order->status === 'sending') {
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
-                        // Check VIP Reseller status
                         $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
-                        if ($latestVipStatus && $latestVipStatus->status === 'waiting') {
+                        if ($latestVipStatus && in_array(strtolower((string) $latestVipStatus->status), ['waiting', 'processing', 'pending'], true)) {
                             $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                        } else {
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
                         }
+                    } elseif ($order->status === 'pending_confirmation') {
+                        $failMsg = e((string) ($rechargeResult['message'] ?? 'Recharge failed'));
+                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⚠️ <b>Confirm failed — retry</b>', $updatedMessage);
+                        $updatedMessage .= "\n\n⚠️ ".$failMsg;
                     }
                     
                     TelegramService::editMessageText($messageId, $updatedMessage);

@@ -3,16 +3,14 @@
 namespace App\Filament\Resources\VipResellerCategories\RelationManagers;
 
 use App\Filament\Resources\VipResellerPacks\Schemas\VipResellerPackForm;
-use App\Filament\Resources\VipResellerPacks\VipResellerPackResource;
 use App\Models\VipResellerPack;
-use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
+use Filament\Actions\EditAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
@@ -37,10 +35,6 @@ class PacksRelationManager extends RelationManager
         return $table
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
-            ->recordUrl(
-                fn (VipResellerPack $record): string => VipResellerPackResource::getUrl('edit', ['record' => $record]),
-                shouldOpenInNewTab: true,
-            )
             ->columns([
                 ImageColumn::make('image_path')
                     ->label('Icon')
@@ -95,17 +89,24 @@ class PacksRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->label('Add pack')
-                    ->url(fn (): string => VipResellerPackResource::getUrl('create', [
-                        'category_id' => $this->getOwnerRecord()->getKey(),
-                    ]))
-                    ->openUrlInNewTab(),
+                    ->modalHeading('New VIP pack')
+                    ->modalWidth('4xl')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['code'] = trim((string) ($data['code'] ?? ''));
+                        $data['category_id'] = $this->getOwnerRecord()->getKey();
+
+                        return $data;
+                    }),
             ])
             ->recordActions([
-                Action::make('edit')
-                    ->label('Edit')
-                    ->icon('heroicon-o-pencil-square')
-                    ->url(fn (VipResellerPack $record): string => VipResellerPackResource::getUrl('edit', ['record' => $record]))
-                    ->openUrlInNewTab(),
+                EditAction::make()
+                    ->modalHeading('Edit VIP pack')
+                    ->modalWidth('4xl')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['code'] = trim((string) ($data['code'] ?? ''));
+
+                        return $data;
+                    }),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

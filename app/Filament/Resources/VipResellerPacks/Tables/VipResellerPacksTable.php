@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\VipResellerPacks\Tables;
 
 use App\Filament\Resources\VipResellerCategories\VipResellerCategoryResource;
-use App\Filament\Resources\VipResellerPacks\VipResellerPackResource;
 use App\Models\VipResellerPack;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -24,10 +23,6 @@ class VipResellerPacksTable
         return $table
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
-            ->recordUrl(
-                fn (VipResellerPack $record): string => VipResellerPackResource::getUrl('edit', ['record' => $record]),
-                shouldOpenInNewTab: true,
-            )
             ->columns([
                 ImageColumn::make('image_path')
                     ->label('Icon')
@@ -49,11 +44,7 @@ class VipResellerPacksTable
                     ->label('Category')
                     ->sortable()
                     ->badge()
-                    ->color('info')
-                    ->url(fn (VipResellerPack $record): ?string => $record->category_id
-                        ? VipResellerCategoryResource::getUrl('edit', ['record' => $record->category_id])
-                        : null)
-                    ->openUrlInNewTab(),
+                    ->color('info'),
 
                 TextColumn::make('price_dzd')
                     ->label('DZD')
@@ -101,8 +92,13 @@ class VipResellerPacksTable
             ])
             ->recordActions([
                 EditAction::make()
-                    ->url(fn (VipResellerPack $record): string => VipResellerPackResource::getUrl('edit', ['record' => $record]))
-                    ->openUrlInNewTab(),
+                    ->modalHeading('Edit VIP pack')
+                    ->modalWidth('4xl')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['code'] = trim((string) ($data['code'] ?? ''));
+
+                        return $data;
+                    }),
                 Action::make('category')
                     ->label('Category')
                     ->icon('heroicon-o-tag')
@@ -110,7 +106,6 @@ class VipResellerPacksTable
                     ->url(fn (VipResellerPack $record): ?string => $record->category_id
                         ? VipResellerCategoryResource::getUrl('edit', ['record' => $record->category_id])
                         : null)
-                    ->openUrlInNewTab()
                     ->visible(fn (VipResellerPack $record): bool => filled($record->category_id)),
                 DeleteAction::make(),
             ])

@@ -122,7 +122,11 @@ class VipResellerFulfillmentService
                 $orderLocked->save();
             }
 
-            return ['success' => true, 'message' => 'VIP order submitted; waiting for delivery'];
+            return [
+                'success' => true,
+                'message' => 'VIP order submitted; waiting for delivery',
+                'status' => 'waiting',
+            ];
         });
     }
 
