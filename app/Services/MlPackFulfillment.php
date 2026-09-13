@@ -37,6 +37,11 @@ class MlPackFulfillment
     protected function placeVip(DiamondPack $pack, Order $order, ?int $orderItemId, ?string $refId): array
     {
         $service = trim((string) $pack->vip_reseller_code);
+        $alreadyPlaced = $this->reuseExistingVipStatus($pack, $order, $orderItemId, $service);
+        if ($alreadyPlaced !== null) {
+            return $alreadyPlaced;
+        }
+
         $result = $this->vip->placeGameOrder(
             $service,
             (string) $order->user_id_ml,
@@ -76,11 +81,7 @@ class MlPackFulfillment
             ],
         ];
 
-        if (! empty($statusData['trxid'])) {
-            VipResellerStatus::updateOrCreate(['trxid' => $statusData['trxid']], $statusData);
-        } else {
-            VipResellerStatus::create($statusData);
-        }
+        VipResellerStatus::upsertByTrxid($statusData);
 
         Log::info('ML pack routed to VIP Reseller', [
             'order_id' => $order->id,
@@ -109,5 +110,67 @@ class MlPackFulfillment
         }
 
         return ! ($order->diamondPack?->usesVipReseller() ?? false);
+    }
+
+    /**
+     * A confirm retry must not place a second VIP order when the first write
+     * collided and left the original transaction row unlinked.
+     *
+     * @return array{result: bool, data: array<string, mixed>, message: string, provider: string}|null
+     */
+    protected function reuseExistingVipStatus(DiamondPack $pack, Order $order, ?int $orderItemId, string $service): ?array
+    {
+        $existing = VipResellerStatus::query()
+            ->where('customer_no', $order->user_id_ml)
+            ->whereIn('status', ['waiting', 'processing', 'success'])
+            ->whereNotNull('trxid')
+            ->where('created_at', '>=', now()->subMinutes(30))
+            ->where(function ($query) use ($order, $orderItemId, $service) {
+                if ($orderItemId) {
+                    $query->where('order_item_id', $orderItemId);
+                }
+                $query->orWhere(function ($inner) use ($order, $service) {
+                    $inner->where(function ($linked) use ($order) {
+                        $linked->where('order_id', $order->id)->orWhereNull('order_id');
+                    })->where(function ($sku) use ($service) {
+                        $sku->where('buyer_sku_code', $service)->orWhereNull('buyer_sku_code');
+                    })->whereNull('order_item_id');
+                });
+            })
+            ->latest('id')
+            ->first();
+
+        if (! $existing) {
+            return null;
+        }
+
+        $existing->fill([
+            'order_id' => $order->id,
+            'order_item_id' => $orderItemId,
+            'diamond_pack_id' => $pack->id,
+            'buyer_sku_code' => $service,
+        ]);
+        $existing->save();
+
+        Log::info('ML VIP top-up reused existing transaction', [
+            'order_id' => $order->id,
+            'order_item_id' => $orderItemId,
+            'trxid' => $existing->trxid,
+            'status' => $existing->status,
+        ]);
+
+        return [
+            'result' => true,
+            'provider' => 'vipreseller',
+            'data' => [
+                'trxid' => $existing->trxid,
+                'status' => $existing->status,
+                'note' => $existing->message,
+                'data' => $order->user_id_ml,
+                'zone' => $order->zone_id_ml,
+                'service' => $service,
+            ],
+            'message' => $existing->message ?: 'Order already placed',
+        ];
     }
 }

@@ -1262,11 +1262,7 @@ class AdminController extends Controller
                 'additional_data' => array_merge($additionalData, ['service' => $apiData['service'] ?? $packageCode ?? $serviceUsed]),
             ];
 
-            if (!empty($vipData['trxid'])) {
-                $vipResellerStatus = VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
-            } else {
-                $vipResellerStatus = VipResellerStatus::create($vipData);
-            }
+            $vipResellerStatus = VipResellerStatus::upsertByTrxid($vipData);
 
             Log::info('provider status saved', [
                 'vipreseller_status_id' => $vipResellerStatus->id,
@@ -1468,6 +1464,40 @@ class AdminController extends Controller
                 ];
             }
         } catch (\Exception $e) {
+            $duplicateTrxid = str_contains($e->getMessage(), 'digiflazz_statuses_trxid_unique');
+            if ($duplicateTrxid) {
+                Log::warning('Recharge duplicate VIP transaction treated as already placed', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'error' => $e->getMessage(),
+                ]);
+
+                $this->linkDuplicateVipStatus($order, $e->getMessage());
+                $order->refresh();
+                $order->load('orderItems.diamondPack', 'diamondPack');
+                if ($order->allPackTopupsDelivered()) {
+                    $order->status = 'completed';
+                    $order->save();
+
+                    return [
+                        'success' => true,
+                        'status' => 'success',
+                        'message' => 'Top-up already placed',
+                    ];
+                }
+
+                if ($order->status !== 'completed') {
+                    $order->status = 'sending';
+                    $order->save();
+                }
+
+                return [
+                    'success' => true,
+                    'status' => 'waiting',
+                    'message' => 'Top-up already placed',
+                ];
+            }
+
             Log::error('Recharge exception: ' . $e->getMessage(), [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
@@ -1498,6 +1528,30 @@ class AdminController extends Controller
                 'message' => 'Error processing recharge: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Attach the already-stored VIP transaction to this order after a duplicate insert.
+     */
+    private function linkDuplicateVipStatus(Order $order, string $error): void
+    {
+        if (! preg_match("/Duplicate entry '([^']+)'/", $error, $matches)) {
+            return;
+        }
+
+        $status = VipResellerStatus::query()->where('trxid', $matches[1])->first();
+        if (! $status) {
+            return;
+        }
+
+        $order->loadMissing('orderItems');
+        $item = $order->orderItems->first();
+        $status->order_id = $status->order_id ?: $order->id;
+        if (! $status->order_item_id && $item) {
+            $status->order_item_id = $item->id;
+            $status->diamond_pack_id = $status->diamond_pack_id ?: $item->diamond_pack_id;
+        }
+        $status->save();
     }
 
     /**
@@ -1781,9 +1835,9 @@ class AdminController extends Controller
                     $orderId = $webhookData['order_id'];
                 } else {
                     // Try to find order by user_id_ml and zone_id_ml (Mobile Legends)
-                    $order = Order::where('user_id_ml', $data)
+                        $order = Order::where('user_id_ml', $data)
                         ->where('zone_id_ml', $zone)
-                        ->whereIn('status', ['sending', 'completed'])
+                        ->whereIn('status', ['pending_confirmation', 'sending', 'completed'])
                         ->latest()
                         ->first();
                     
@@ -1809,7 +1863,7 @@ class AdminController extends Controller
                     }
                 }
                 
-                $vipResellerStatus = VipResellerStatus::create([
+                $vipResellerStatus = VipResellerStatus::upsertByTrxid([
                     'order_id' => $orderId,
                     'trxid' => $trxid,
                     'data' => $data,

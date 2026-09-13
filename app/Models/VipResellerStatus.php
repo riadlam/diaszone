@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\QueryException;
 
 class VipResellerStatus extends Model
 {
@@ -48,6 +49,49 @@ class VipResellerStatus extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * Insert or update the status for a provider transaction id.
+     * A webhook and the place call can both try to store the same trxid.
+     */
+    public static function upsertByTrxid(array $data): self
+    {
+        $trxid = $data['trxid'] ?? null;
+        if ($trxid === null || $trxid === '') {
+            return static::create($data);
+        }
+
+        try {
+            return static::writeByTrxid((string) $trxid, $data);
+        } catch (QueryException $e) {
+            if ((int) ($e->errorInfo[1] ?? 0) !== 1062) {
+                throw $e;
+            }
+
+            return static::writeByTrxid((string) $trxid, $data);
+        }
+    }
+
+    protected static function writeByTrxid(string $trxid, array $data): self
+    {
+        $existing = static::query()->where('trxid', $trxid)->first();
+        if (! $existing) {
+            return static::create($data);
+        }
+
+        $payload = [];
+        foreach ($data as $key => $value) {
+            if ($value === null || $key === 'trxid') {
+                continue;
+            }
+            $payload[$key] = $value;
+        }
+
+        $existing->fill($payload);
+        $existing->save();
+
+        return $existing;
     }
 
     // Accessors to provide compatibility with legacy field names
