@@ -2928,14 +2928,14 @@ class CheckoutController extends Controller
                     for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
                                 
-                                $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                                $lastResult = app(\App\Services\MlPackFulfillment::class)->place(
                                     $orderItem->diamondPack,
                                     $orderLocked,
-                                    $refId,
-                                    $orderItem->id
+                                    $orderItem->id,
+                                    $refId
                                 );
                                 
-                                Log::info('Chargily: Digiflazz placeOrder attempt', [
+                                Log::info('Chargily: pack top-up placed', [
                                     'order_id' => $orderLocked->id,
                                     'order_item_id' => $orderItem->id,
                                     'pack_id' => $orderItem->diamond_pack_id,
@@ -2973,8 +2973,8 @@ class CheckoutController extends Controller
                     $result = $lastResult;
                 }
 
-                // If Digiflazz is used, create a lightweight VipResellerStatus mirror so admin/telegram can show provider info immediately
-                if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+                // VIP pack rows are already stored and must not be rewritten as Digiflazz.
+                if ((config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) && (($result['provider'] ?? null) !== 'vipreseller')) {
                     try {
                         $apiData = $result['data'] ?? [];
                         $balance = $apiData['buyer_last_saldo'] ?? $apiData['balance'] ?? null;
@@ -3727,7 +3727,7 @@ class CheckoutController extends Controller
 
             // Map API status to our enum (note: when using Digiflazz, final status must come from Digiflazz webhook)
             $status = match (strtolower($apiStatus)) {
-                'waiting' => 'waiting',
+                'waiting', 'processing' => 'waiting',
                 'success', 'completed', 'paid' => 'success',
                 default => 'error',
             };
@@ -3890,8 +3890,16 @@ class CheckoutController extends Controller
                         ]);
                     }
 
-                    // Provider success - set order to completed
-                    if ($oldOrderStatus !== 'completed') {
+                    // Provider success - set order to completed only when every required top-up succeeded.
+                    $order->loadMissing('orderItems.diamondPack', 'diamondPack');
+                    $awaitingRemaining = (($result['provider'] ?? null) === 'vipreseller')
+                        && ! $order->allPackTopupsDelivered();
+                    if ($awaitingRemaining) {
+                        if ($oldOrderStatus !== 'sending' && $oldOrderStatus !== 'completed') {
+                            $order->status = 'sending';
+                            $order->save();
+                        }
+                    } elseif ($oldOrderStatus !== 'completed') {
                         $order->status = 'completed';
                         $order->save();
                         Log::info('Chargily: Order status updated to completed (provider success)', [
@@ -5113,8 +5121,9 @@ class CheckoutController extends Controller
             $useDigiflazz = in_array($gameType, $digiflazzGames);
             
             if ($useDigiflazz) {
-                // Use Digiflazz for ML, FF, PUBG
-                if (! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
+                // Use Digiflazz for ML, FF, PUBG. A VIP-only Mobile Legends cart does not need Digiflazz credentials.
+                $needsDigiflazz = app(\App\Services\MlPackFulfillment::class)->orderNeedsDigiflazz($order);
+                if ($needsDigiflazz && ! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
                     Log::error('NOWPayments recharge: Digiflazz not configured', ['order_id' => $order->id]);
 
                     return ['success' => false, 'message' => 'Digiflazz not configured'];
@@ -5181,14 +5190,14 @@ class CheckoutController extends Controller
                         for ($i = 0; $i < $remaining; $i++) {
                             $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
                             
-                            $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                            $lastResult = app(\App\Services\MlPackFulfillment::class)->place(
                                 $orderItem->diamondPack,
                                 $orderLocked,
-                                $refId,
-                                $orderItem->id
+                                $orderItem->id,
+                                $refId
                             );
                             
-                            Log::info('NOWPayments recharge: Digiflazz placeOrder', [
+                            Log::info('NOWPayments recharge: pack top-up placed', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'ref_id' => $refId,

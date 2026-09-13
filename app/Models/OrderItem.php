@@ -89,6 +89,29 @@ class OrderItem extends Model
     }
 
     /**
+     * Delivered quantity for this line, counted from the provider that actually topped it up.
+     */
+    public function deliveredTopupsCount(): int
+    {
+        $this->loadMissing('diamondPack');
+
+        if ($this->diamondPack?->usesVipReseller()) {
+            return $this->digiflazzStatuses()
+                ->whereRaw("LOWER(status) = 'success'")
+                ->count();
+        }
+
+        if ($this->vipreseller_pack_id) {
+            return \App\Models\VipResellerStatus::query()
+                ->where('order_item_id', $this->id)
+                ->where('status', 'success')
+                ->count();
+        }
+
+        return $this->successfulTopupsCount();
+    }
+
+    /**
      * Check if Item4Gamer order for this item is completed.
      */
     public function isItem4GamerCompleted(): bool

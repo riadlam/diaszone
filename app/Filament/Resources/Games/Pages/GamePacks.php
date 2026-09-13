@@ -6,6 +6,7 @@ use App\Filament\Resources\Games\GameResource;
 use App\Models\DiamondPack;
 use App\Support\GameProvider;
 use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\Page;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -92,6 +93,14 @@ class GamePacks extends Page implements HasTable
                     ->placeholder('No SKU')
                     ->searchable()
                     ->sortable(),
+
+                TextColumn::make('vip_reseller_code')
+                    ->label('VIP code')
+                    ->placeholder('Digiflazz')
+                    ->copyable()
+                    ->searchable()
+                    ->visible(fn (): bool => $this->gameType === 'mobilelegends')
+                    ->tooltip('When set, this Mobile Legends pack is topped up through VIP Reseller'),
 
                 TextColumn::make('name')
                     ->label('Pack')
@@ -197,6 +206,29 @@ class GamePacks extends Page implements HasTable
                         ->whereNotNull('base_price_dzd')
                         ->where('base_price_dzd', '>', 0)
                         ->whereColumn('price_dzd', '<=', 'base_price_dzd')),
+            ])
+            ->recordActions([
+                Action::make('vipResellerCode')
+                    ->label('VIP code')
+                    ->icon('heroicon-o-pencil-square')
+                    ->visible(fn (): bool => $this->gameType === 'mobilelegends')
+                    ->modalHeading('VIP Reseller code')
+                    ->modalDescription('If this is set, the pack is topped up through VIP Reseller. Leave it empty to keep Digiflazz.')
+                    ->fillForm(fn (DiamondPack $record): array => [
+                        'vip_reseller_code' => $record->vip_reseller_code,
+                    ])
+                    ->schema([
+                        TextInput::make('vip_reseller_code')
+                            ->label('VIP Reseller service code')
+                            ->helperText('Sent as the VIP order service. Empty keeps the Digiflazz buyer SKU.')
+                            ->maxLength(64),
+                    ])
+                    ->action(function (DiamondPack $record, array $data): void {
+                        $code = trim((string) ($data['vip_reseller_code'] ?? ''));
+                        $record->update([
+                            'vip_reseller_code' => $code === '' ? null : $code,
+                        ]);
+                    }),
             ]);
     }
 

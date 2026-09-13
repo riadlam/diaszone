@@ -884,6 +884,19 @@ class AdminController extends Controller
             }
             
             if (empty($packageCode)) {
+                $vipCode = null;
+                if ($hasOrderItems && $firstItem && $firstItem->diamondPack) {
+                    $vipCode = $firstItem->diamondPack->usesVipReseller() ? $firstItem->diamondPack->vip_reseller_code : null;
+                } elseif ($order->diamondPack?->usesVipReseller()) {
+                    $vipCode = $order->diamondPack->vip_reseller_code;
+                }
+
+                if ($vipCode) {
+                    $packageCode = $vipCode;
+                }
+            }
+
+            if (empty($packageCode)) {
                 Log::warning('Recharge skipped: Missing package code', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
@@ -1039,14 +1052,14 @@ class AdminController extends Controller
                             
                             $remaining = max(0, $orderItem->quantity - $submitted);
                             
-                $digService = app(\App\Services\DigiflazzService::class);
+                $fulfillment = app(\App\Services\MlPackFulfillment::class);
                             for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . \Illuminate\Support\Str::random(8);
-                                $result = $digService->placeOrderWithRefId(
+                                $result = $fulfillment->place(
                                     $orderItem->diamondPack,
                                     $orderLocked,
-                                    $refId,
-                                    $orderItem->id
+                                    $orderItem->id,
+                                    $refId
                                 );
                                 
                                 Log::info('Admin: Digiflazz placeOrder attempt', [
@@ -1151,9 +1164,9 @@ class AdminController extends Controller
                         
                         $remaining = max(0, $required - $submitted);
                         
-                        $digService = app(\App\Services\DigiflazzService::class);
+                        $fulfillment = app(\App\Services\MlPackFulfillment::class);
                         for ($i = 0; $i < $remaining; $i++) {
-                            $result = $digService->placeOrder($orderLocked->diamondPack, $orderLocked);
+                            $result = $fulfillment->place($orderLocked->diamondPack, $orderLocked);
                             Log::info('Admin: Digiflazz placeOrder attempt (legacy)', [
                                 'order_id' => $orderLocked->id,
                                 'attempt' => $i + 1,
@@ -1175,11 +1188,22 @@ class AdminController extends Controller
                 $apiData = $result['data'] ?? [];
                 $apiStatus = $apiData['status'] ?? ($apiData['rc'] ?? ($result['message'] ?? null));
             } else {
-                $result = $vipReseller->placeOrder(
-                    $packageCode,
-                    $order->user_id_ml,
-                    $order->zone_id_ml
-                );
+                $vipPack = ($hasOrderItems && $firstItem && $firstItem->diamondPack)
+                    ? $firstItem->diamondPack
+                    : $order->diamondPack;
+                if ($vipPack && $vipPack->usesVipReseller()) {
+                    $result = app(\App\Services\MlPackFulfillment::class)->place(
+                        $vipPack,
+                        $order,
+                        $hasOrderItems ? $firstItem->id : null
+                    );
+                } else {
+                    $result = $vipReseller->placeOrder(
+                        $packageCode,
+                        $order->user_id_ml,
+                        $order->zone_id_ml
+                    );
+                }
                 $apiData = $result['data'] ?? [];
                 $apiStatus = $apiData['status'] ?? 'error';
             }
@@ -1188,8 +1212,10 @@ class AdminController extends Controller
             $apiData = $result['data'] ?? [];
             $apiStatus = $apiData['status'] ?? ($apiData['rc'] ?? ($result['message'] ?? null));
 
-            // Determine which service we used
-            $serviceUsed = (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) ? 'digiflazz' : 'vipreseller';
+            // Determine which service this response came from. A VIP pack code wins over the Digiflazz default.
+            $serviceUsed = (($result['provider'] ?? null) === 'vipreseller')
+                ? 'vipreseller'
+                : ((config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) ? 'digiflazz' : 'vipreseller');
 
             // Map API status to our enum (waiting, success, error), supporting Digiflazz codes
             if ($serviceUsed === 'digiflazz') {
@@ -1205,7 +1231,7 @@ class AdminController extends Controller
                 }
             } else {
                 $status = match(strtolower((string)$apiStatus)) {
-                    'waiting' => 'waiting',
+                    'waiting', 'processing' => 'waiting',
                     'success', 'completed', 'paid' => 'success',
                     default => 'error',
                 };
@@ -1359,8 +1385,16 @@ class AdminController extends Controller
                     }
                 }
                 
-                // Provider success - set order to completed
-                if ($oldOrderStatus !== 'completed') {
+                // Provider success - set order to completed only after every required top-up succeeded.
+                $order->loadMissing('orderItems.diamondPack', 'diamondPack');
+                $hasVipPack = $order->orderItems->contains(fn ($item) => $item->diamondPack?->usesVipReseller())
+                    || ($order->diamondPack && $order->diamondPack->usesVipReseller());
+                if ($hasVipPack && ! $order->allPackTopupsDelivered()) {
+                    if ($oldOrderStatus !== 'sending' && $oldOrderStatus !== 'completed') {
+                        $order->status = 'sending';
+                        $order->save();
+                    }
+                } elseif ($oldOrderStatus !== 'completed') {
                     $order->status = 'completed';
                     $order->save();
                     Log::info('Order status updated to completed (provider success)', [

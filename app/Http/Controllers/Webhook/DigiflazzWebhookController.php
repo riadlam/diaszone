@@ -558,7 +558,7 @@ class DigiflazzWebhookController extends Controller
             
             // SIMPLE APPROACH: Query digiflazz_statuses table directly to check all records for this order
             // Load order items to get required quantities
-            $orderLocked->load('orderItems');
+            $orderLocked->load('orderItems.diamondPack');
             
             $hasOrderItems = $orderLocked->orderItems->count() > 0;
             
@@ -570,15 +570,7 @@ class DigiflazzWebhookController extends Controller
                 
                 foreach ($orderLocked->orderItems as $item) {
                     $required = $item->quantity;
-                    
-                    // Query ALL successful digiflazz_statuses records for this order_item
-                    $completed = DB::table('digiflazz_statuses')
-                        ->where('order_item_id', $item->id)
-                        ->where(function ($q) {
-                            $q->whereRaw("LOWER(status) = 'sukses'")
-                              ->orWhere('rc', '00');
-                        })
-                        ->count();
+                    $completed = $item->deliveredTopupsCount();
                     
                     Log::info('Digiflazz webhook: order_item status check', [
                         'order_item_id' => $item->id,

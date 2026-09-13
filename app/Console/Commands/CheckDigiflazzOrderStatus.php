@@ -51,6 +51,7 @@ class CheckDigiflazzOrderStatus extends Command
                     $checked++;
                     
                     // Load order items to check if it's a multi-item order
+                    $order->load('orderItems.diamondPack');
                     $hasOrderItems = $order->orderItems->count() > 0;
 
                     if ($hasOrderItems) {
@@ -61,15 +62,7 @@ class CheckDigiflazzOrderStatus extends Command
 
                         foreach ($order->orderItems as $item) {
                             $required = $item->quantity;
-
-                            // Query ALL successful digiflazz_statuses records for this order_item
-                            $completedCount = DB::table('digiflazz_statuses')
-                                ->where('order_item_id', $item->id)
-                                ->where(function ($q) {
-                                    $q->whereRaw("LOWER(status) = 'sukses'")
-                                      ->orWhere('rc', '00');
-                                })
-                                ->count();
+                            $completedCount = $item->deliveredTopupsCount();
 
                             $totalRequired += $required;
                             $totalCompleted += $completedCount;

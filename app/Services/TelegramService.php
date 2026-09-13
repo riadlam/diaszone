@@ -388,18 +388,30 @@ class TelegramService
             $message .= "💎 <b>Packs:</b>\n";
             foreach ($order->orderItems as $item) {
                 $itemPack = $item->diamondPack;
-                $itemName = $itemPack->name ?? ($itemPack->diamonds . ' ' . $currencyText);
-                if ($itemPack->bonus_diamonds > 0) {
+                $itemName = $itemPack->name ?? ($itemPack?->diamonds . ' ' . $currencyText);
+                if ($itemPack && $itemPack->bonus_diamonds > 0) {
                     $itemName .= ' + ' . $itemPack->bonus_diamonds . ' Bonus';
                 }
-                $message .= "   • {$item->quantity}× {$escape($itemName)} (Pack #{$itemPack->id})\n";
+                $providerLabel = '';
+                if ($itemPack?->usesVipReseller()) {
+                    $providerLabel = ' (VIP Reseller)';
+                } elseif ($itemPack?->usesDigiflazz()) {
+                    $providerLabel = ' (Digiflazz)';
+                }
+                $message .= "   • {$item->quantity}× {$escape($itemName)} (Pack #{$itemPack?->id}){$providerLabel}\n";
             }
         } else {
             $packName = $order->diamondPack->name ?? ($order->diamondPack->diamonds . ' ' . $currencyText);
             if ($order->diamondPack->bonus_diamonds > 0) {
                 $packName .= ' + ' . $order->diamondPack->bonus_diamonds . ' Bonus';
             }
-        $message .= "💎 <b>Pack:</b> {$escape($packName)}\n";
+            $providerLabel = '';
+            if ($order->diamondPack?->usesVipReseller()) {
+                $providerLabel = ' (VIP Reseller)';
+            } elseif ($order->diamondPack?->usesDigiflazz()) {
+                $providerLabel = ' (Digiflazz)';
+            }
+        $message .= "💎 <b>Pack:</b> {$escape($packName)}{$providerLabel}\n";
         }
         
         $message .= "💰 <b>Amount:</b> " . number_format($amount, 0) . " DZD\n";
@@ -413,9 +425,7 @@ class TelegramService
             $hasItem4Gamer = false;
             
             foreach ($order->orderItems as $item) {
-                // Check for Digiflazz (for ML, FF, PUBG)
-                $digiflazzCompleted = $item->successfulTopupsCount();
-                $totalCompleted += $digiflazzCompleted;
+                $totalCompleted += $item->deliveredTopupsCount();
                 
                 // Check for Item4Gamer (for other games)
                 if (method_exists($item, 'item4gamerOrders')) {
@@ -447,7 +457,10 @@ class TelegramService
                 $completed = 0;
                 $providerInfo = '';
                 
-                if ($usesDigiflazz) {
+                if ($itemPack && $itemPack->usesVipReseller()) {
+                    $completed = $item->deliveredTopupsCount();
+                    $providerInfo = ' (VIP Reseller)';
+                } elseif ($usesDigiflazz) {
                     $completed = $item->successfulTopupsCount();
                     $providerInfo = ' (Digiflazz)';
                 } else {
@@ -468,7 +481,11 @@ class TelegramService
                 $message .= "   • {$escape($itemName)}: {$completed}/{$required} {$progressIcons}{$providerInfo}\n";
             }
         } elseif (!empty($order->quantity) && $order->quantity > 1) {
-            $succeeded = method_exists($order, 'successfulDigiflazzTopupsCount') ? $order->successfulDigiflazzTopupsCount() : 0;
+            if ($order->diamondPack?->usesVipReseller()) {
+                $succeeded = $order->vipResellerStatuses()->whereRaw("LOWER(status) = 'success'")->count();
+            } else {
+                $succeeded = method_exists($order, 'successfulDigiflazzTopupsCount') ? $order->successfulDigiflazzTopupsCount() : 0;
+            }
             $message .= "🔁 <b>Top-ups:</b> {$succeeded}/{$order->quantity} completed\n";
             $message .= "🏷️ <b>Offer:</b> {$order->quantity}× Weekly Pass\n";
         }

@@ -255,6 +255,83 @@ class VipResellerService
     }
 
     /**
+     * Place a Mobile Legends game order using the documented payload.
+     * `service` is the diamond pack VIP code. Do not also send `code`.
+     *
+     * @return array{result: bool, data: mixed, message: string}
+     */
+    public function placeGameOrder(string $service, string $dataNo, string $dataZone): array
+    {
+        try {
+            if (empty($this->apiKey) || empty($this->sign)) {
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'API credentials not configured. Please contact support.',
+                ];
+            }
+
+            if ($service === '' || $dataNo === '' || $dataZone === '') {
+                return [
+                    'result' => false,
+                    'data' => null,
+                    'message' => 'Missing required parameters: service, data_no, or data_zone',
+                ];
+            }
+
+            $formData = [
+                'key' => $this->apiKey,
+                'sign' => $this->sign,
+                'type' => 'order',
+                'service' => $service,
+                'data_no' => $dataNo,
+                'data_zone' => $dataZone,
+            ];
+
+            Log::info('VIP game order request', [
+                'url' => $this->baseUrl.'/game-feature',
+                'service' => $service,
+                'data_no' => $dataNo,
+                'data_zone' => $dataZone,
+            ]);
+
+            $response = Http::asForm()->post($this->baseUrl.'/game-feature', $formData);
+            $data = $response->json();
+
+            Log::info('VIP game order response', [
+                'status' => $response->status(),
+                'data' => $data,
+            ]);
+
+            if ($response->successful() && ($data['result'] ?? false) === true) {
+                return [
+                    'result' => true,
+                    'data' => $data['data'] ?? null,
+                    'message' => $data['message'] ?? 'Order placed successfully',
+                ];
+            }
+
+            return [
+                'result' => false,
+                'data' => $data['data'] ?? null,
+                'message' => $data['message'] ?? 'Failed to place order. Please try again.',
+            ];
+        } catch (\Exception $e) {
+            Log::error('VIP game order error: '.$e->getMessage(), [
+                'service' => $service,
+                'data_no' => $dataNo,
+                'data_zone' => $dataZone,
+            ]);
+
+            return [
+                'result' => false,
+                'data' => null,
+                'message' => 'Error placing order: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Place an order/recharge for Free Fire (no zone_id required)
      * 
      * @param string $code Package code from diamond_packs table (e.g., FF100-S13)

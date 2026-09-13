@@ -273,7 +273,7 @@ class VipResellerFulfillmentService
 
                 if ($order->tlg_message_id) {
                     try {
-                        $order->load(['orderItems.vipResellerPack', 'user']);
+                        $order->load(['orderItems.diamondPack', 'orderItems.vipResellerPack', 'diamondPack', 'user']);
                         $updatedMessage = TelegramService::formatOrderMessage($order);
                         $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
@@ -298,30 +298,39 @@ class VipResellerFulfillmentService
 
     public function allVipItemsDelivered(Order $order): bool
     {
-        $order->loadMissing('orderItems');
-        $items = $order->orderItems->filter(fn (OrderItem $i) => $i->vipreseller_pack_id);
-        if ($items->isEmpty()) {
-            // Single-pack VIP order
-            $success = VipResellerStatus::query()
-                ->where('order_id', $order->id)
-                ->where('status', 'success')
-                ->count();
+        $order->loadMissing('orderItems.diamondPack', 'orderItems.vipResellerPack', 'diamondPack');
 
-            return $success >= 1;
-        }
+        $digitalItems = $order->orderItems->filter(fn (OrderItem $item) => $item->vipreseller_pack_id);
+        $diamondItems = $order->orderItems->filter(fn (OrderItem $item) => $item->diamond_pack_id);
 
-        foreach ($items as $item) {
-            $need = max(1, (int) ($item->quantity ?? 1));
-            $got = VipResellerStatus::query()
-                ->where('order_item_id', $item->id)
-                ->where('status', 'success')
-                ->count();
-            if ($got < $need) {
-                return false;
+        if ($digitalItems->isNotEmpty()) {
+            foreach ($digitalItems as $item) {
+                $need = max(1, (int) ($item->quantity ?? 1));
+                $got = VipResellerStatus::query()
+                    ->where('order_item_id', $item->id)
+                    ->where('status', 'success')
+                    ->count();
+                if ($got < $need) {
+                    return false;
+                }
+            }
+
+            if ($diamondItems->isEmpty() && ! $order->diamond_pack_id) {
+                return true;
             }
         }
 
-        return true;
+        // Mobile Legends diamond packs (VIP, Digiflazz, or mixed) wait for every quantity.
+        if ($diamondItems->isNotEmpty() || $order->diamondPack) {
+            return $order->allPackTopupsDelivered();
+        }
+
+        $success = VipResellerStatus::query()
+            ->where('order_id', $order->id)
+            ->where('status', 'success')
+            ->count();
+
+        return $success >= 1;
     }
 
     /**

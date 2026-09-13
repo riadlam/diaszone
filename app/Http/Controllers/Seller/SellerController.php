@@ -560,12 +560,17 @@ class SellerController extends Controller
             $result = $this->placeVipResellerOrder($pack, $order);
 
             if ($result['success']) {
-                $usingDigiflazz = (bool)(config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME'));
+                $usingVipPack = ($result['provider'] ?? null) === 'vipreseller' || $pack->usesVipReseller();
+                $usingDigiflazz = ! $usingVipPack && (bool) (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME'));
                 // Deduct from wallet now that provider accepted order
                 $tx = $seller->deductWallet($baseCost, "Direct top-up order #{$order->order_number}", $order->id);
 
                 // Persist vipreseller_status and update order
                 $apiData = $result['data']['data'] ?? [];
+
+                if ($usingVipPack) {
+                    $order->update(['status' => 'sending', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);
+                } else
 
                 if ($usingDigiflazz) {
                     // Digiflazz already persists a DigiflazzStatus inside the service; duplicate a lightweight record for admin view
@@ -667,9 +672,11 @@ class SellerController extends Controller
                         $order->refresh();
                         $order->load('diamondPack', 'vipResellerStatuses', 'seller');
                         $updatedMessage = \App\Services\TelegramService::formatOrderMessage($order);
-                        // Replace header to show completion
+                        $replacement = $usingVipPack
+                            ? '⏳ <b>Order Confirmed - Waiting for provider</b>'
+                            : '✅ <b>Top-up Completed</b>';
                         if (strpos($updatedMessage, '🆕 <b>New Order Created</b>') !== false) {
-                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Top-up Completed</b>', $updatedMessage);
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', $replacement, $updatedMessage);
                         }
                         Log::info('DirectTopup: editing telegram message', ['order_id' => $order->id, 'tlg_message_id' => $order->tlg_message_id]);
                         \App\Services\TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
@@ -690,8 +697,8 @@ class SellerController extends Controller
                 $lock->release();
 
                 return $request->wantsJson()
-                    ? response()->json(['success' => true, 'order_number' => $order->order_number, 'status' => 'completed'])
-                    : back()->with('success', 'Top-up completed successfully! Order #' . $order->order_number);
+                    ? response()->json(['success' => true, 'order_number' => $order->order_number, 'status' => $usingVipPack ? 'sending' : 'completed'])
+                    : back()->with('success', ($usingVipPack ? 'Top-up submitted and waiting for the provider. Order #' : 'Top-up completed successfully! Order #') . $order->order_number);
             } else {
                 // Provider call failed — mark order failed and do NOT deduct wallet
                 $order->update(['status' => 'failed', 'notes' => $result['error']]);
@@ -741,6 +748,16 @@ class SellerController extends Controller
     protected function placeVipResellerOrder(DiamondPack $pack, $context): array
     {
         try {
+            if ($pack->usesVipReseller() && $context instanceof \App\Models\Order) {
+                $response = app(\App\Services\MlPackFulfillment::class)->place($pack, $context);
+
+                if (isset($response['result']) && $response['result'] === true) {
+                    return ['success' => true, 'data' => $response, 'provider' => 'vipreseller'];
+                }
+
+                return ['success' => false, 'error' => $response['message'] ?? 'Unknown error from VIP Reseller'];
+            }
+
             // If Digiflazz is configured, forward the top-up to Digiflazz service
             if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
                 $digiflazz = app(\App\Services\DigiflazzService::class);

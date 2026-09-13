@@ -358,7 +358,9 @@ class CouponController extends Controller
                 'zone_id_ml' => $order->zone_id_ml,
             ]);
             
-            if (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
+            if ($diamondPack->usesVipReseller()) {
+                $topUpResult = app(\App\Services\MlPackFulfillment::class)->place($diamondPack, $order);
+            } elseif (config('services.digiflazz.username') || env('DIGIFLAZZ_USERNAME')) {
                 $topUpResult = app(\App\Services\DigiflazzService::class)->placeOrder($diamondPack, $order);
             } else {
                 // Do not use VIP Reseller for actual top-ups anymore. Require Digiflazz configuration.
@@ -378,7 +380,7 @@ class CouponController extends Controller
             
             // Map API status to our enum
             $vipStatus = match(strtolower($apiStatus)) {
-                'waiting' => 'waiting',
+                'waiting', 'processing' => 'waiting',
                 'success', 'completed', 'paid' => 'success',
                 default => 'error',
             };

@@ -80,6 +80,42 @@ class Order extends Model
     }
 
     /**
+     * Every diamond-pack quantity on this order has been confirmed by its provider.
+     * VIP packs count `success` rows; Digiflazz packs count `sukses` rows.
+     */
+    public function allPackTopupsDelivered(): bool
+    {
+        $this->loadMissing('orderItems.diamondPack', 'diamondPack');
+
+        $diamondItems = $this->orderItems->filter(fn ($item) => $item->diamond_pack_id);
+        if ($diamondItems->isNotEmpty()) {
+            foreach ($diamondItems as $item) {
+                $need = max(1, (int) $item->quantity);
+                if ($item->deliveredTopupsCount() < $need) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (! $this->diamondPack) {
+            return false;
+        }
+
+        $required = max(1, (int) ($this->quantity ?? 1));
+        if ($this->diamondPack->usesVipReseller()) {
+            $done = $this->vipResellerStatuses()
+                ->whereRaw("LOWER(status) = 'success'")
+                ->count();
+        } else {
+            $done = $this->successfulDigiflazzTopupsCount();
+        }
+
+        return $done >= $required;
+    }
+
+    /**
      * Number of top-ups actually delivered to this customer before this order.
      * Counts provider deliveries, not order rows, so multi-quantity orders and
      * orders still marked as sending are represented correctly.

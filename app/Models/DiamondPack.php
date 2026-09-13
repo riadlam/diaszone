@@ -13,6 +13,7 @@ class DiamondPack extends Model
         'membership_name',
         'region',
         'code',
+        'vip_reseller_code',
         'diamonds',
         'special_quantity',
         'bonus_diamonds',
@@ -114,5 +115,15 @@ class DiamondPack extends Model
     public function usesDigiflazz(): bool
     {
         return \App\Support\GameProvider::usesDigiflazz($this->game_type);
+    }
+
+    /**
+     * Mobile Legends packs with a VIP service code are topped up through VIP Reseller.
+     * Empty/null keeps the existing Digiflazz buyer SKU path.
+     */
+    public function usesVipReseller(): bool
+    {
+        return $this->game_type === 'mobilelegends'
+            && trim((string) $this->vip_reseller_code) !== '';
     }
 }
