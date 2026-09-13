@@ -693,19 +693,17 @@ class AdminController extends Controller
     private function processRecharge(Order $order)
     {
         try {
-            // Check if provider status already has success (prevent duplicate requests)
-            $hasSuccessStatus = $order->vipResellerStatuses()
-                ->where('status', 'success')
-                ->exists();
-            
-            if ($hasSuccessStatus) {
-                Log::info('Recharge skipped: provider status already success', [
+            // A single success must not block the rest of a multi-quantity order.
+            // Only skip when every required unit is already submitted.
+            if (! $this->orderTopupsStillNeeded($order)) {
+                Log::info('Recharge skipped: all required top-ups already submitted', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                 ]);
                 return [
                     'success' => true,
-                    'message' => 'Recharge already processed (provider success)',
+                    'status' => $order->allPackTopupsDelivered() ? 'success' : 'waiting',
+                    'message' => 'Recharge already submitted',
                 ];
             }
             
@@ -1503,6 +1501,66 @@ class AdminController extends Controller
     }
 
     /**
+     * True when at least one required pack quantity has not been submitted yet.
+     * Success on one unit must not hide the remaining quantity.
+     */
+    private function orderTopupsStillNeeded(Order $order): bool
+    {
+        $order->loadMissing('orderItems', 'diamondPack');
+
+        $submitted = function ($query) {
+            return $query->where(function ($inner) {
+                $inner->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending', 'processing'])
+                    ->orWhere('event', 'create');
+            })->count();
+        };
+
+        if ($order->orderItems->isNotEmpty()) {
+            foreach ($order->orderItems as $item) {
+                if (! $item->diamond_pack_id && ! $item->vipreseller_pack_id) {
+                    continue;
+                }
+                $need = max(1, (int) $item->quantity);
+                if ($submitted($item->digiflazzStatuses()) < $need) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        $need = max(1, (int) ($order->quantity ?? 1));
+
+        return $submitted($order->digiflazzStatuses()) < $need;
+    }
+
+    private function refreshFlexyTelegramMessage(Order $order, int $messageId, bool $removeKeyboard): void
+    {
+        try {
+            $order->load([
+                'diamondPack',
+                'user',
+                'vipResellerStatuses',
+                'orderItems.diamondPack',
+                'orderItems.vipResellerPack.category',
+                'vipResellerPack.category',
+            ]);
+            $updatedMessage = TelegramService::formatOrderMessage($order);
+            if ($order->status === 'completed') {
+                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
+            } elseif ($order->status === 'sending') {
+                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
+            }
+            TelegramService::editMessageText($messageId, $updatedMessage, $removeKeyboard);
+        } catch (\Throwable $e) {
+            Log::warning('Telegram: failed to refresh flexy confirm message', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Handle provider webhook for order status updates
      * 
      * Webhook receives status updates: waiting → processing → success/error
@@ -2022,38 +2080,19 @@ class AdminController extends Controller
                         return response()->json(['ok' => true]);
                     }
                     
-                    // Check if order is already completed
-                    if ($order->status === 'completed') {
-                        TelegramService::answerCallbackQuery(
-                            $callbackQueryId,
-                            '✅ Order is already completed',
-                            false
-                        );
-                        return response()->json(['ok' => true]);
-                    }
+                    $order->load(['orderItems.diamondPack', 'orderItems.vipResellerPack', 'diamondPack']);
+                    $stillNeeded = $this->orderTopupsStillNeeded($order);
 
-                    if ($order->status === 'sending') {
+                    // Check if order is already completed
+                    if ($order->status === 'completed' || ($order->status === 'sending' && ! $stillNeeded)) {
                         TelegramService::answerCallbackQuery(
                             $callbackQueryId,
-                            '⏳ Order already confirmed and processing',
-                            false
-                        );
-                        return response()->json(['ok' => true]);
-                    }
-                    
-                    // Check if VIP Reseller status is already success (prevent duplicate)
-                    // Reload order with vipResellerStatuses relationship
-                    $order->load('vipResellerStatuses');
-                    $hasSuccessStatus = $order->vipResellerStatuses()
-                        ->where('status', 'success')
-                        ->exists();
-                    
-                    if ($hasSuccessStatus) {
-                        TelegramService::answerCallbackQuery(
-                            $callbackQueryId,
-                            '⚠️ Order recharge already processed (VIP Reseller success)',
+                            $order->status === 'completed'
+                                ? '✅ Order is already completed'
+                                : '⏳ Order already confirmed and processing',
                             true
                         );
+                        $this->refreshFlexyTelegramMessage($order, (int) $messageId, true);
                         return response()->json(['ok' => true]);
                     }
                     
@@ -2061,7 +2100,7 @@ class AdminController extends Controller
                     $oldStatus = $order->status;
                     $hasFlexyId = !is_null($order->flexy_id);
                     
-                    if ($oldStatus !== 'pending_confirmation') {
+                    if (! in_array($oldStatus, ['pending_confirmation', 'sending'], true) || ($oldStatus === 'sending' && ! $stillNeeded)) {
                         TelegramService::answerCallbackQuery(
                             $callbackQueryId,
                             '❌ Order status must be pending_confirmation',
@@ -2111,7 +2150,7 @@ class AdminController extends Controller
                             $newStatus = 'sending';
                         }
                     } elseif (($rechargeResult['success'] ?? false) === false) {
-                        $newStatus = 'pending_confirmation';
+                        $newStatus = ($oldStatus === 'sending') ? 'sending' : 'pending_confirmation';
                     }
 
                     if ($order->status !== $newStatus) {
@@ -2140,31 +2179,43 @@ class AdminController extends Controller
                         'diamondPack',
                         'user',
                         'vipResellerStatuses',
+                        'orderItems.diamondPack',
                         'orderItems.vipResellerPack.category',
                         'vipResellerPack.category',
                     ]);
                     
-                    // Update Telegram message with proper header
-                    $updatedMessage = TelegramService::formatOrderMessage($order);
-                    
-                    // Change header based on status
-                    if ($order->status === 'completed') {
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
-                    } elseif ($order->status === 'sending') {
-                        $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
-                        if ($latestVipStatus && in_array(strtolower((string) $latestVipStatus->status), ['waiting', 'processing', 'pending'], true)) {
-                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
-                        } else {
-                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
+                    try {
+                        $updatedMessage = TelegramService::formatOrderMessage($order);
+
+                        if ($order->status === 'completed') {
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
+                        } elseif ($order->status === 'sending') {
+                            $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
+                            if ($latestVipStatus && in_array(strtolower((string) $latestVipStatus->status), ['waiting', 'processing', 'pending'], true)) {
+                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                            } else {
+                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
+                            }
+                        } elseif ($order->status === 'pending_confirmation') {
+                            $failMsg = e((string) ($rechargeResult['message'] ?? 'Recharge failed'));
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⚠️ <b>Confirm failed — retry</b>', $updatedMessage);
+                            $updatedMessage .= "\n\n⚠️ ".$failMsg;
                         }
-                    } elseif ($order->status === 'pending_confirmation') {
-                        $failMsg = e((string) ($rechargeResult['message'] ?? 'Recharge failed'));
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⚠️ <b>Confirm failed — retry</b>', $updatedMessage);
-                        $updatedMessage .= "\n\n⚠️ ".$failMsg;
+
+                        $removeKeyboard = ! $this->orderTopupsStillNeeded($order);
+                        TelegramService::editMessageText((int) $messageId, $updatedMessage, $removeKeyboard);
+                    } catch (\Throwable $e) {
+                        Log::error('Telegram: confirm message update failed', [
+                            'order_id' => $order->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            'Top-up started, but the message could not be updated. Check the order.',
+                            true
+                        );
                     }
-                    
-                    TelegramService::editMessageText($messageId, $updatedMessage);
-                    
+
                     return response()->json(['ok' => true]);
                 } elseif ($callbackData === 'cancel_order' && $messageId) {
                     // Find order by tlg_message_id

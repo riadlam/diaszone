@@ -193,7 +193,7 @@ class TelegramService
      * @param string $newText
      * @return bool
      */
-    public static function editMessageText(int $messageId, string $newText): bool
+    public static function editMessageText(int $messageId, string $newText, bool $removeKeyboard = false): bool
     {
         try {
             $botToken = config('telegram.bot_token');
@@ -205,14 +205,26 @@ class TelegramService
             }
             
             $url = $apiUrl . $botToken . '/editMessageText';
-            
-            $response = Http::timeout(10)->post($url, [
+
+            $payload = [
                 'chat_id' => (string) $chatId,
                 'message_id' => $messageId,
                 'text' => $newText,
                 'parse_mode' => 'HTML',
-            ]);
+            ];
+            if ($removeKeyboard) {
+                $payload['reply_markup'] = json_encode(['inline_keyboard' => []]);
+            }
             
+            $response = Http::timeout(10)->post($url, $payload);
+            if (! $response->successful()) {
+                Log::warning('Telegram: editMessageText rejected', [
+                    'message_id' => $messageId,
+                    'status' => $response->status(),
+                    'body' => $response->json() ?? $response->body(),
+                ]);
+            }
+
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('Telegram: Exception while editing message', [
@@ -446,6 +458,9 @@ class TelegramService
             // Show progress per pack
             foreach ($order->orderItems as $item) {
                 $itemPack = $item->diamondPack;
+                if (! $itemPack) {
+                    continue;
+                }
                 $itemGameType = $itemPack->game_type ?? 'mobilelegends';
                 $itemName = $itemPack->name ?? ($itemPack->diamonds . ' ' . $currencyText);
                 $required = $item->quantity;
