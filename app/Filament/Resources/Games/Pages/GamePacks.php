@@ -224,6 +224,10 @@ class GamePacks extends Page implements HasTable
                             ->maxLength(64),
                     ])
                     ->action(function (DiamondPack $record, array $data): void {
+                        if ($record->game_type !== 'mobilelegends') {
+                            return;
+                        }
+
                         $code = trim((string) ($data['vip_reseller_code'] ?? ''));
                         $record->update([
                             'vip_reseller_code' => $code === '' ? null : $code,

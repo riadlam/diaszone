@@ -1051,14 +1051,15 @@ class AdminController extends Controller
                             $remaining = max(0, $orderItem->quantity - $submitted);
                             
                 $fulfillment = app(\App\Services\MlPackFulfillment::class);
+                            $digService = app(\App\Services\DigiflazzService::class);
                             for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-' . $orderLocked->id . '-item-' . $orderItem->id . '-' . \Illuminate\Support\Str::random(8);
-                                $result = $fulfillment->place(
-                                    $orderItem->diamondPack,
-                                    $orderLocked,
-                                    $orderItem->id,
-                                    $refId
-                                );
+                                $pack = $orderItem->diamondPack;
+                                // Free Fire / PUBG / other Digiflazz games always use DigiflazzService.
+                                // MlPackFulfillment VIP path is Mobile Legends + vip_reseller_code only.
+                                $result = ($pack && $pack->usesVipReseller())
+                                    ? $fulfillment->place($pack, $orderLocked, $orderItem->id, $refId)
+                                    : $digService->placeOrderWithRefId($pack, $orderLocked, $refId, $orderItem->id);
                                 
                                 Log::info('Admin: Digiflazz placeOrder attempt', [
                                     'order_id' => $orderLocked->id,
@@ -1163,8 +1164,12 @@ class AdminController extends Controller
                         $remaining = max(0, $required - $submitted);
                         
                         $fulfillment = app(\App\Services\MlPackFulfillment::class);
+                        $digService = app(\App\Services\DigiflazzService::class);
                         for ($i = 0; $i < $remaining; $i++) {
-                            $result = $fulfillment->place($orderLocked->diamondPack, $orderLocked);
+                            $pack = $orderLocked->diamondPack;
+                            $result = ($pack && $pack->usesVipReseller())
+                                ? $fulfillment->place($pack, $orderLocked)
+                                : $digService->placeOrder($pack, $orderLocked);
                             Log::info('Admin: Digiflazz placeOrder attempt (legacy)', [
                                 'order_id' => $orderLocked->id,
                                 'attempt' => $i + 1,
@@ -1186,6 +1191,8 @@ class AdminController extends Controller
                 $apiData = $result['data'] ?? [];
                 $apiStatus = $apiData['status'] ?? ($apiData['rc'] ?? ($result['message'] ?? null));
             } else {
+                // Digiflazz is not configured. Only Mobile Legends packs with an
+                // explicit VIP code may use VIP Reseller. Free Fire / PUBG / etc. never fall back to VIP.
                 $vipPack = ($hasOrderItems && $firstItem && $firstItem->diamondPack)
                     ? $firstItem->diamondPack
                     : $order->diamondPack;
@@ -1196,11 +1203,16 @@ class AdminController extends Controller
                         $hasOrderItems ? $firstItem->id : null
                     );
                 } else {
-                    $result = $vipReseller->placeOrder(
-                        $packageCode,
-                        $order->user_id_ml,
-                        $order->zone_id_ml
-                    );
+                    Log::error('Recharge aborted: Digiflazz required for this game', [
+                        'order_id' => $order->id,
+                        'game_type' => $gameType,
+                        'pack_id' => $vipPack?->id,
+                    ]);
+
+                    return [
+                        'success' => false,
+                        'message' => 'Digiflazz is not configured. Free Fire and other Digiflazz games cannot use VIP Reseller.',
+                    ];
                 }
                 $apiData = $result['data'] ?? [];
                 $apiStatus = $apiData['status'] ?? 'error';
@@ -2245,11 +2257,15 @@ class AdminController extends Controller
                             $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '✅ <b>Order Confirmed & Completed</b>', $updatedMessage);
                         } elseif ($order->status === 'sending') {
                             $latestVipStatus = $order->vipResellerStatuses()->latest()->first();
-                            if ($latestVipStatus && in_array(strtolower((string) $latestVipStatus->status), ['waiting', 'processing', 'pending'], true)) {
-                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
-                            } else {
-                                $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
-                            }
+                        $waitingForVip = $order->orderItems->contains(fn ($item) => $item->diamondPack?->usesVipReseller())
+                            || ($order->diamondPack?->usesVipReseller() ?? false)
+                            || (bool) $order->vipreseller_pack_id
+                            || $order->orderItems->contains(fn ($item) => $item->vipreseller_pack_id);
+                        if ($waitingForVip && $latestVipStatus && in_array(strtolower((string) $latestVipStatus->status), ['waiting', 'processing', 'pending'], true)) {
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for VIP Reseller</b>', $updatedMessage);
+                        } else {
+                            $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Processing Recharge</b>', $updatedMessage);
+                        }
                         } elseif ($order->status === 'pending_confirmation') {
                             $failMsg = e((string) ($rechargeResult['message'] ?? 'Recharge failed'));
                             $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⚠️ <b>Confirm failed — retry</b>', $updatedMessage);

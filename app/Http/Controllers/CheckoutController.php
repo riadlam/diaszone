@@ -2928,12 +2928,10 @@ class CheckoutController extends Controller
                     for ($i = 0; $i < $remaining; $i++) {
                                 $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
                                 
-                                $lastResult = app(\App\Services\MlPackFulfillment::class)->place(
-                                    $orderItem->diamondPack,
-                                    $orderLocked,
-                                    $orderItem->id,
-                                    $refId
-                                );
+                                $pack = $orderItem->diamondPack;
+                                $lastResult = ($pack && $pack->usesVipReseller())
+                                    ? app(\App\Services\MlPackFulfillment::class)->place($pack, $orderLocked, $orderItem->id, $refId)
+                                    : app(\App\Services\DigiflazzService::class)->placeOrderWithRefId($pack, $orderLocked, $refId, $orderItem->id);
                                 
                                 Log::info('Chargily: pack top-up placed', [
                                     'order_id' => $orderLocked->id,
@@ -2954,23 +2952,38 @@ class CheckoutController extends Controller
                         $order = $orderLocked; // Update order reference
                     });
                 } else {
-                    // Legacy vipReseller flow also might need multiple calls when quantity>1
-                    $existing = $order->vipResellerStatuses()->count();
-                    $remaining = max(0, $required - $existing);
-                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
-
-                    for ($i = 0; $i < $remaining; $i++) {
-                        $attempt = $i + 1;
-                        $lastResult = $vipReseller->placeOrder(
-                            $packageCode,
-                            $order->user_id_ml,
-                            $order->zone_id_ml
-                        );
-
-                        Log::info('Chargily: vipReseller placeOrder attempt', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
+                    // Digiflazz missing: only Mobile Legends packs with vip_reseller_code may use VIP.
+                    $order->loadMissing('orderItems.diamondPack', 'diamondPack');
+                    $vipItems = $order->orderItems->filter(fn ($item) => $item->diamondPack?->usesVipReseller());
+                    if ($vipItems->isEmpty() && $order->diamondPack?->usesVipReseller()) {
+                        $vipItems = collect([(object) [
+                            'id' => null,
+                            'diamondPack' => $order->diamondPack,
+                            'quantity' => max(1, (int) ($order->quantity ?? 1)),
+                        ]]);
                     }
 
-                    $result = $lastResult;
+                    if ($vipItems->isEmpty()) {
+                        Log::error('Chargily recharge: Digiflazz not configured for Mobile Legends Digiflazz packs', ['order_id' => $order->id]);
+                        $result = [
+                            'result' => false,
+                            'message' => 'Digiflazz is not configured. Only Mobile Legends packs with a VIP Reseller code can be topped up without Digiflazz.',
+                        ];
+                    } else {
+                        $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+                        $fulfillment = app(\App\Services\MlPackFulfillment::class);
+                        foreach ($vipItems as $orderItem) {
+                            $qty = max(1, (int) ($orderItem->quantity ?? 1));
+                            for ($i = 0; $i < $qty; $i++) {
+                                $lastResult = $fulfillment->place(
+                                    $orderItem->diamondPack,
+                                    $order,
+                                    $orderItem->id ?? null
+                                );
+                            }
+                        }
+                        $result = $lastResult;
+                    }
                 }
 
                 // VIP pack rows are already stored and must not be rewritten as Digiflazz.
@@ -3298,21 +3311,12 @@ class CheckoutController extends Controller
                         $order = $orderLocked; // Update order reference
                     });
                 } else {
-                    $existing = $order->vipResellerStatuses()->count();
-                    $remaining = max(0, $required - $existing);
-                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
-
-                    for ($i = 0; $i < $remaining; $i++) {
-                        $attempt = $i + 1;
-                        $lastResult = $vipReseller->placeFreefireOrder(
-                            $packageCode,
-                            $order->player_id_ff
-                        );
-
-                        Log::info('Chargily: vipReseller placeFreefireOrder attempt', ['order_id' => $order->id, 'order_number' => $order->order_number, 'attempt' => $attempt, 'remaining_after' => $remaining - $attempt, 'result' => $lastResult]);
-                    }
-
-                    $result = $lastResult;
+                    // Free Fire is Digiflazz-only. Never fall back to VIP Reseller.
+                    Log::error('Chargily recharge: Digiflazz not configured for Free Fire', ['order_id' => $order->id]);
+                    $result = [
+                        'result' => false,
+                        'message' => 'Digiflazz is not configured. Free Fire cannot use VIP Reseller.',
+                    ];
                 }
 
                 Log::info('Chargily: provider API response (Free Fire)', [
@@ -5190,12 +5194,10 @@ class CheckoutController extends Controller
                         for ($i = 0; $i < $remaining; $i++) {
                             $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
                             
-                            $lastResult = app(\App\Services\MlPackFulfillment::class)->place(
-                                $orderItem->diamondPack,
-                                $orderLocked,
-                                $orderItem->id,
-                                $refId
-                            );
+                            $pack = $orderItem->diamondPack;
+                            $lastResult = ($pack && $pack->usesVipReseller())
+                                ? app(\App\Services\MlPackFulfillment::class)->place($pack, $orderLocked, $orderItem->id, $refId)
+                                : app(\App\Services\DigiflazzService::class)->placeOrderWithRefId($pack, $orderLocked, $refId, $orderItem->id);
                             
                             Log::info('NOWPayments recharge: pack top-up placed', [
                                 'order_id' => $orderLocked->id,

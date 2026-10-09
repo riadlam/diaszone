@@ -123,7 +123,12 @@ class DiamondPack extends Model
      */
     public function usesVipReseller(): bool
     {
-        return $this->game_type === 'mobilelegends'
-            && trim((string) $this->vip_reseller_code) !== '';
+        // Hard rule: Digiflazz games other than Mobile Legends never use VIP Reseller,
+        // even if vip_reseller_code was filled by mistake.
+        if ($this->game_type !== 'mobilelegends') {
+            return false;
+        }
+
+        return trim((string) $this->vip_reseller_code) !== '';
     }
 }

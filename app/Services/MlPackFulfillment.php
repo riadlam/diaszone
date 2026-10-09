@@ -18,6 +18,8 @@ class MlPackFulfillment
      */
     public function place(DiamondPack $pack, Order $order, ?int $orderItemId = null, ?string $refId = null): array
     {
+        // Free Fire, PUBG, and every other Digiflazz game must never hit VIP Reseller.
+        // Only Mobile Legends packs with an explicit vip_reseller_code use VIP.
         if (! $pack->usesVipReseller()) {
             $digiflazz = app(DigiflazzService::class);
 
