@@ -14,6 +14,8 @@ class PublicMedia
         'wheel-reward-icons',
         'event-backgrounds',
         'images_homepage',
+        'images_giveaway',
+        'giveaway-heroes',
         'flash-sale-images',
         'hero-slides',
         'game-content-images',

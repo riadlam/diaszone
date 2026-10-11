@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\GiveawayReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -93,6 +94,9 @@ class AuthController extends Controller
             session(['url.intended' => url($redirect)]);
         }
 
+        // Keep giveaway referral capture across the Google OAuth round-trip.
+        app(GiveawayReferralService::class)->rememberForOAuth($request);
+
         return Socialite::driver('google')->redirect();
     }
 
@@ -159,8 +163,17 @@ class AuthController extends Controller
                 ->with('error', __('auth.account_inactive'));
         }
 
+        $referralService = app(GiveawayReferralService::class);
+        $giveawayCapture = $referralService->readCapture($request);
+
         Auth::login($user, true);
         $request->session()->regenerate();
+
+        // Session regenerate drops flash data — restore referral capture from pre-login snapshot / cookie.
+        if ($giveawayCapture) {
+            $referralService->persistCapture($request, $giveawayCapture);
+        }
+        $referralService->attribute($user, $request);
 
         if ($user->isAdmin()) {
             return redirect()->intended(route('admin.dashboard'));

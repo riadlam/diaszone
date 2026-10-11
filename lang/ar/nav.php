@@ -3,6 +3,7 @@
 return [
     'home' => 'الرئيسية',
     'lucky_wheel' => 'عجلة الحظ',
+    'giveaway' => 'مسابقة',
     'about' => 'من نحن',
     'contact' => 'اتصل بنا',
     'cart' => 'السلة',

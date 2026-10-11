@@ -3,6 +3,7 @@
 return [
     'home' => 'Accueil',
     'lucky_wheel' => 'Roue de la chance',
+    'giveaway' => 'Concours',
     'about' => 'À propos',
     'contact' => 'Contact',
     'cart' => 'Panier',

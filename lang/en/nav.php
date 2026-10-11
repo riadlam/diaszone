@@ -3,6 +3,7 @@
 return [
     'home' => 'Home',
     'lucky_wheel' => 'Lucky Wheel',
+    'giveaway' => 'Giveaway',
     'about' => 'About Us',
     'contact' => 'Contact Us',
     'cart' => 'Cart',

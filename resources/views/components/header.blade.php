@@ -17,6 +17,7 @@
                 <div class="flex items-center space-x-6">
                     <a href="{{ route('home') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">{{ __('nav.home') }}</a>
                     <a href="{{ route('event.show', 'mobilelegends') }}" class="text-gray-700 hover:text-amber-600 transition-colors font-medium">{{ __('nav.lucky_wheel') }}</a>
+                    <a href="{{ route('giveaway.index') }}" class="text-gray-700 hover:text-violet-700 transition-colors font-medium">{{ __('nav.giveaway') }}</a>
                     <a href="{{ route('about') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">{{ __('nav.about') }}</a>
                     <a href="{{ route('contact') }}" class="text-gray-700 hover:text-purple-600 transition-colors font-medium">{{ __('nav.contact') }}</a>
                 </div>
@@ -331,6 +332,10 @@
                    class="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-amber-50 to-purple-50 text-purple-700 border border-amber-200 rounded-lg transition-colors font-semibold">
                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 text-gray-950" aria-hidden="true">★</span>
                     <span>{{ __('nav.lucky_wheel') }}</span>
+                </a>
+                <a href="{{ route('giveaway.index') }}"
+                   class="flex items-center gap-3 px-4 py-3 bg-violet-50 text-violet-800 border border-violet-200 rounded-lg transition-colors font-semibold">
+                    <span>{{ __('nav.giveaway') }}</span>
                 </a>
                 <a href="{{ route('home') }}" class="block px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors font-medium">
                     {{ __('nav.home') }}

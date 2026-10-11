@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\FlashSaleController;
+use App\Http\Controllers\GiveawayController;
 use App\Http\Controllers\Seller\SellerAuthController;
 use App\Http\Controllers\Seller\SellerController;
 use App\Http\Controllers\Seller\SellerStorefrontController;
@@ -67,6 +68,16 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function () {
         ->where('gameSlug', '[a-z0-9_-]+')
         ->name('event.rewards');
 });
+
+// Facebook giveaway competition
+Route::get('/giveaway', [GiveawayController::class, 'show'])->name('giveaway.index');
+Route::get('/giveaway/{slug}', [GiveawayController::class, 'show'])
+    ->where('slug', '[a-z0-9-]+')
+    ->name('giveaway.show');
+Route::post('/giveaway/{slug}/enter', [GiveawayController::class, 'store'])
+    ->middleware(['auth', 'throttle:10,1'])
+    ->where('slug', '[a-z0-9-]+')
+    ->name('giveaway.enter');
 
 Route::get('/mobilelegends', [HomeController::class, 'mobileLegends'])->name('mobilelegends');
 Route::get('/free-fire-diamonds-top-up', function () {
