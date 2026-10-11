@@ -8,30 +8,34 @@ class DashboardController extends Controller
 {
     private function getDashboardData()
     {
-        // Get authenticated user data (may be null for public routes)
         $authUser = Auth::user();
 
-        // Use real user data if authenticated, otherwise empty
+        $name = $authUser ? (string) ($authUser->name ?? '') : '';
+        $parts = preg_split('/\s+/', trim($name)) ?: [];
+        $initials = '';
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+        }
+        if ($initials === '' && $authUser?->email) {
+            $initials = mb_strtoupper(mb_substr((string) $authUser->email, 0, 1));
+        }
+
         $user = [
-            'email' => $authUser ? ($authUser->email ?? '') : '',
-            'phone' => $authUser && isset($authUser->phone) ? $authUser->phone : '', // Phone may not exist in users table
-            'name' => $authUser ? ($authUser->name ?? '') : '',
+            'email' => $authUser ? (string) ($authUser->email ?? '') : '',
+            'phone' => $authUser && isset($authUser->phone) ? (string) $authUser->phone : '',
+            'name' => $name,
+            'avatar' => $authUser?->google_avatar,
+            'google_linked' => $authUser ? filled($authUser->google_id) : false,
+            'member_since' => $authUser?->created_at?->timezone(config('app.timezone'))->format('M Y'),
+            'orders_count' => $authUser ? (int) $authUser->orders()->count() : 0,
+            'initials' => $initials !== '' ? $initials : 'DZ',
         ];
-
-        // Orders are loaded on the My Orders section via API (see dashboard view: /api/orders/mine or localStorage).
-        $orders = [];
-
-        // Empty invoices data - no invoices found
-        $invoices = [];
-
-        // Empty notifications data - no notifications found
-        $notifications = [];
 
         return [
             'user' => $user,
-            'orders' => $orders,
-            'invoices' => $invoices,
-            'notifications' => $notifications,
+            'orders' => [],
+            'invoices' => [],
+            'notifications' => [],
         ];
     }
 

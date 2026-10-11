@@ -119,6 +119,90 @@
     0% { background-position: 100% 0; }
     100% { background-position: -100% 0; }
 }
+.dz-account-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.25rem;
+    padding: 1.25rem;
+    background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(76, 29, 149, 0.92) 55%, rgba(30, 41, 59, 0.96) 100%);
+    color: #fff;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+@media (min-width: 640px) {
+    .dz-account-hero { padding: 1.75rem 2rem; }
+}
+.dz-account-hero::after {
+    content: "";
+    position: absolute;
+    right: -10%;
+    top: -30%;
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.35), transparent 68%);
+    pointer-events: none;
+}
+.dz-account-hero > * { position: relative; z-index: 1; }
+.dz-account-avatar {
+    width: 4.25rem;
+    height: 4.25rem;
+    border-radius: 1.15rem;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.35);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    background: rgba(255,255,255,0.12);
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.dz-account-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
+.dz-google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: 0.95rem;
+    border: 1px solid #dadce0;
+    background: #fff;
+    color: #3c4043;
+    font-weight: 700;
+    font-size: 0.98rem;
+    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12), 0 1px 3px 1px rgba(60, 64, 67, 0.08);
+    transition: background .15s ease, box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+}
+.dz-google-btn:hover {
+    background: #f8faff;
+    border-color: #c6dafc;
+    box-shadow: 0 4px 14px rgba(66, 133, 244, 0.18);
+    transform: translateY(-1px);
+}
+.dz-google-btn__icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; }
+.dz-account-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.95rem 1rem;
+    border-radius: 0.95rem;
+    border: 1px solid var(--dz-line);
+    background: #fff;
+    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.dz-account-action:hover {
+    border-color: #ddd6fe;
+    background: var(--dz-accent-soft);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
 </style>
 @endpush
 
@@ -139,6 +223,8 @@
             <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{{ $sectionTitle }}</h1>
             @if($activeSection === 'orders')
                 <p class="mt-1.5 text-sm sm:text-base text-slate-500 max-w-2xl">{{ __('dashboard.orders_subtitle') }}</p>
+            @elseif($activeSection === 'account')
+                <p class="mt-1.5 text-sm sm:text-base text-slate-500 max-w-2xl">{{ __('dashboard.account_subtitle') }}</p>
             @endif
         </header>
 
@@ -249,31 +335,132 @@
                 </div>
             @elseif($activeSection === 'account')
                 @auth
-                <div id="account-section" class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-8">
-                    <div class="space-y-5 max-w-xl">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">{{ __('dashboard.name') }}</label>
-                            <input type="text" value="{{ $user['name'] }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900" readonly>
+                <div id="account-section" class="space-y-4 sm:space-y-5">
+                    <section class="dz-account-hero">
+                        <div class="flex items-start gap-4">
+                            <div class="dz-account-avatar overflow-hidden">
+                                @if(!empty($user['avatar']))
+                                    <img src="{{ $user['avatar'] }}" alt="{{ $user['name'] }}" referrerpolicy="no-referrer">
+                                @else
+                                    {{ $user['initials'] }}
+                                @endif
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2 mb-1">
+                                    <h2 class="text-xl sm:text-2xl font-black tracking-tight truncate">{{ $user['name'] ?: __('dashboard.player') }}</h2>
+                                    @if(!empty($user['google_linked']))
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-white/12 border border-white/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                            </svg>
+                                            {{ __('dashboard.google_linked') }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <p class="text-sm text-violet-100/90 truncate">{{ $user['email'] }}</p>
+                                <div class="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                                    @if(!empty($user['member_since']))
+                                        <span class="rounded-full bg-white/10 border border-white/15 px-2.5 py-1">{{ __('dashboard.member_since') }}: {{ $user['member_since'] }}</span>
+                                    @endif
+                                    <span class="rounded-full bg-white/10 border border-white/15 px-2.5 py-1">{{ __('dashboard.orders_count', ['count' => $user['orders_count'] ?? 0]) }}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">{{ __('dashboard.email') }}</label>
-                            <input type="email" value="{{ $user['email'] }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900" readonly>
+                    </section>
+
+                    <section class="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6">
+                        <h3 class="text-sm font-black uppercase tracking-[0.12em] text-slate-500 mb-3">{{ __('dashboard.profile_details') }}</h3>
+                        <div class="dz-meta-grid">
+                            <div class="dz-meta-item">
+                                <span class="dz-meta-label">{{ __('dashboard.name') }}</span>
+                                <span class="dz-meta-value">{{ $user['name'] ?: '—' }}</span>
+                            </div>
+                            <div class="dz-meta-item">
+                                <span class="dz-meta-label">{{ __('dashboard.email') }}</span>
+                                <span class="dz-meta-value">{{ $user['email'] ?: '—' }}</span>
+                            </div>
+                            @if(!empty($user['phone']))
+                            <div class="dz-meta-item">
+                                <span class="dz-meta-label">{{ __('dashboard.phone') }}</span>
+                                <span class="dz-meta-value">{{ $user['phone'] }}</span>
+                            </div>
+                            @endif
+                            <div class="dz-meta-item">
+                                <span class="dz-meta-label">{{ __('dashboard.sign_in_method') }}</span>
+                                <span class="dz-meta-value">{{ !empty($user['google_linked']) ? __('dashboard.sign_in_google') : __('dashboard.sign_in_email') }}</span>
+                            </div>
                         </div>
-                        @if(!empty($user['phone']))
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">{{ __('dashboard.phone') }}</label>
-                            <input type="text" value="{{ $user['phone'] }}" class="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900" readonly>
-                        </div>
-                        @endif
-                    </div>
+                        <p class="mt-4 text-xs sm:text-sm text-slate-500 leading-relaxed">{{ __('dashboard.account_managed_hint') }}</p>
+                    </section>
+
+                    <section class="grid gap-3 sm:grid-cols-2">
+                        <a href="{{ route('dashboard.orders') }}" class="dz-account-action">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="w-10 h-10 rounded-xl bg-violet-50 text-violet-700 grid place-items-center shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-slate-900">{{ __('seller.my_orders') }}</p>
+                                    <p class="text-xs text-slate-500">{{ __('dashboard.action_orders_hint') }}</p>
+                                </div>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                        <a href="{{ route('home') }}" class="dz-account-action">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="w-10 h-10 rounded-xl bg-sky-50 text-sky-700 grid place-items-center shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-slate-900">{{ __('dashboard.start_shopping') }}</p>
+                                    <p class="text-xs text-slate-500">{{ __('dashboard.action_shop_hint') }}</p>
+                                </div>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                    </section>
+
+                    <form method="POST" action="{{ route('logout') }}" class="pt-1">
+                        @csrf
+                        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-slate-700 hover:text-rose-700 text-sm font-bold transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                            {{ __('profile.logout') }}
+                        </button>
+                    </form>
                 </div>
                 @else
-                <div id="account-section" class="text-center py-14 px-4 bg-white border border-slate-200 rounded-2xl">
-                    <h2 class="text-xl font-black text-slate-900 mb-2">{{ __('seller.my_account') }}</h2>
-                    <p class="text-slate-500 mb-6">{{ __('auth.login_required_message') ?? 'Please log in to view your account information.' }}</p>
-                    <a href="{{ route('login') }}" class="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-violet-700 hover:bg-violet-800 text-white font-bold">
-                        {{ __('profile.login') }}
-                    </a>
+                <div id="account-section" class="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <div class="px-5 sm:px-8 pt-7 sm:pt-9 pb-5 text-center border-b border-slate-100 bg-gradient-to-b from-violet-50/80 to-white">
+                        <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-700 text-white shadow-lg shadow-violet-700/25">
+                            <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-black text-slate-900">{{ __('auth.sign_in_title') }}</h2>
+                        <p class="mt-2 text-sm sm:text-base text-slate-500 max-w-md mx-auto">{{ __('dashboard.account_guest_subtitle') }}</p>
+                    </div>
+                    <div class="px-5 sm:px-8 py-6 sm:py-8 space-y-4 max-w-md mx-auto">
+                        @include('components.google-sign-in-button', [
+                            'href' => route('auth.google', ['redirect' => '/dashboard/myaccount']),
+                        ])
+                        <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-bold text-slate-500">
+                            <span class="inline-flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                {{ __('auth.trust_oauth') }}
+                            </span>
+                            <span class="inline-flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                {{ __('auth.trust_no_password') }}
+                            </span>
+                        </div>
+                        <p class="text-center text-xs text-slate-500 leading-relaxed">
+                            {{ __('checkout.terms_agreement') }}
+                            <a href="{{ route('terms-of-use') }}" target="_blank" class="text-violet-700 hover:underline font-semibold">{{ __('checkout.terms_of_use') }}</a>
+                            ·
+                            <a href="{{ route('privacy-policy') }}" target="_blank" class="text-violet-700 hover:underline font-semibold">{{ __('footer.privacy_policy') }}</a>
+                        </p>
+                    </div>
                 </div>
                 @endauth
             @endif

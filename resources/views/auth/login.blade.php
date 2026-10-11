@@ -2,30 +2,258 @@
 
 @section('title', __('auth.sign_in_title') . ' - DiasZone')
 
-@section('content')
-<div class="bg-gradient-to-br from-gray-50 via-purple-50/40 to-pink-50/30 min-h-screen py-12 px-4">
-    <div class="max-w-md mx-auto">
-        <div class="bg-white rounded-2xl shadow-xl border border-purple-100 overflow-hidden">
-            <div class="bg-gradient-to-r from-purple-600 to-pink-600 px-8 py-10 text-center">
-                <h1 class="text-2xl font-bold text-white tracking-tight">{{ __('auth.sign_in_title') }}</h1>
-                <p class="text-purple-100 text-sm mt-2">{{ __('auth.sign_in_subtitle') }}</p>
-            </div>
+@push('styles')
+<style>
+.dz-auth {
+    --ink: #0b1220;
+    --muted: #64748b;
+    --line: rgba(15, 23, 42, 0.08);
+    --accent: #5b21b6;
+    --panel: rgba(255, 255, 255, 0.92);
+}
+.dz-auth-shell {
+    min-height: calc(100vh - 4rem);
+    display: flex;
+    align-items: stretch;
+    background:
+        radial-gradient(900px 520px at 12% 18%, rgba(91, 33, 182, 0.16), transparent 58%),
+        radial-gradient(720px 420px at 88% 8%, rgba(14, 165, 233, 0.12), transparent 55%),
+        linear-gradient(165deg, #f8fafc 0%, #eef2ff 45%, #f1f5f9 100%);
+}
+.dz-auth-grid {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 2.5rem;
+    display: grid;
+    gap: 1.25rem;
+    align-items: center;
+}
+@media (min-width: 900px) {
+    .dz-auth-grid {
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 2rem;
+        padding: 2.5rem 1.25rem 3.5rem;
+        min-height: calc(100vh - 4rem);
+    }
+}
+.dz-auth-brand {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    padding: 1.75rem 1.5rem;
+    color: #fff;
+    background:
+        linear-gradient(145deg, rgba(15, 23, 42, 0.96) 0%, rgba(49, 20, 92, 0.94) 55%, rgba(30, 41, 59, 0.96) 100%);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+    min-height: 280px;
+}
+@media (min-width: 900px) {
+    .dz-auth-brand { min-height: 520px; padding: 2.5rem; }
+}
+.dz-auth-brand::before {
+    content: "";
+    position: absolute;
+    inset: auto -20% -40% 20%;
+    height: 280px;
+    background: radial-gradient(circle, rgba(167, 139, 250, 0.35), transparent 65%);
+    pointer-events: none;
+}
+.dz-auth-brand > * { position: relative; z-index: 1; }
+.dz-auth-logo {
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 0.9rem;
+    object-fit: cover;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.dz-auth-brand h1 {
+    margin: 1.25rem 0 0.65rem;
+    font-size: clamp(1.75rem, 3.5vw, 2.55rem);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+.dz-auth-brand p.lead {
+    color: rgba(226, 232, 240, 0.88);
+    font-size: 0.98rem;
+    line-height: 1.55;
+    max-width: 28rem;
+}
+.dz-auth-benefits {
+    margin-top: 1.5rem;
+    display: grid;
+    gap: 0.75rem;
+}
+.dz-auth-benefit {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.85rem 0.95rem;
+    border-radius: 0.9rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dz-auth-benefit strong {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+.dz-auth-benefit span {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: rgba(226, 232, 240, 0.72);
+    line-height: 1.4;
+}
+.dz-auth-benefit-icon {
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.6rem;
+    display: grid;
+    place-items: center;
+    background: rgba(167, 139, 250, 0.22);
+    color: #ddd6fe;
+}
+.dz-auth-card {
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--line);
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+@media (min-width: 640px) {
+    .dz-auth-card { padding: 2rem 2.25rem; }
+}
+.dz-auth-card h2 {
+    font-size: 1.45rem;
+    font-weight: 900;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+}
+.dz-auth-card .sub {
+    margin-top: 0.4rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.dz-google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.85rem 1.1rem;
+    border-radius: 0.95rem;
+    border: 1px solid #dadce0;
+    background: #fff;
+    color: #3c4043;
+    font-weight: 700;
+    font-size: 0.98rem;
+    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12), 0 1px 3px 1px rgba(60, 64, 67, 0.08);
+    transition: background .15s ease, box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+}
+.dz-google-btn:hover {
+    background: #f8faff;
+    border-color: #c6dafc;
+    box-shadow: 0 4px 14px rgba(66, 133, 244, 0.18);
+    transform: translateY(-1px);
+}
+.dz-google-btn:active { transform: translateY(0); }
+.dz-google-btn__icon {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+}
+.dz-auth-alert {
+    border-radius: 0.9rem;
+    padding: 0.85rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+.dz-auth-alert--ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+.dz-auth-alert--err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.dz-auth-alert--hint { background: #f5f3ff; border: 1px solid #ddd6fe; color: #4c1d95; }
+.dz-auth-trust {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.85rem;
+    margin-top: 1.1rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.dz-auth-trust span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+</style>
+@endpush
 
-            <div class="p-8 md:p-10 space-y-6">
-                @if(session('success'))
-                    <div class="p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl text-sm">
-                        {{ session('success') }}
+@section('content')
+@php
+    $googleHref = route('auth.google', array_filter(['redirect' => $redirect ?? request('redirect')]));
+@endphp
+<div class="dz-auth dz-auth-shell">
+    <div class="dz-auth-grid">
+        <section class="dz-auth-brand" aria-label="DiasZone">
+            <img src="{{ storage_public_url('images_homepage/diaszonelogo.jpeg') }}" alt="DiasZone" class="dz-auth-logo">
+            <h1>{{ __('auth.brand_headline') }}</h1>
+            <p class="lead">{{ __('auth.brand_subheadline') }}</p>
+
+            <div class="dz-auth-benefits">
+                <div class="dz-auth-benefit">
+                    <div class="dz-auth-benefit-icon">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     </div>
+                    <div>
+                        <strong>{{ __('auth.benefit_fast_title') }}</strong>
+                        <span>{{ __('auth.benefit_fast_desc') }}</span>
+                    </div>
+                </div>
+                <div class="dz-auth-benefit">
+                    <div class="dz-auth-benefit-icon">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div>
+                        <strong>{{ __('auth.benefit_secure_title') }}</strong>
+                        <span>{{ __('auth.benefit_secure_desc') }}</span>
+                    </div>
+                </div>
+                <div class="dz-auth-benefit">
+                    <div class="dz-auth-benefit-icon">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    </div>
+                    <div>
+                        <strong>{{ __('auth.benefit_orders_title') }}</strong>
+                        <span>{{ __('auth.benefit_orders_desc') }}</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="dz-auth-card">
+            <p class="text-xs font-bold uppercase tracking-[0.14em] text-violet-700 mb-2">DiasZone</p>
+            <h2>{{ !empty($signupHint) ? __('auth.create_account_title') : __('auth.sign_in_title') }}</h2>
+            <p class="sub">{{ !empty($signupHint) ? __('auth.create_account_hint') : __('auth.sign_in_subtitle') }}</p>
+
+            <div class="mt-6 space-y-4">
+                @if(session('success'))
+                    <div class="dz-auth-alert dz-auth-alert--ok">{{ session('success') }}</div>
                 @endif
 
                 @if(session('error'))
-                    <div class="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-sm">
-                        {{ session('error') }}
-                    </div>
+                    <div class="dz-auth-alert dz-auth-alert--err">{{ session('error') }}</div>
                 @endif
 
                 @if($errors->any())
-                    <div class="p-4 bg-red-50 border border-red-200 text-red-800 rounded-xl text-sm">
+                    <div class="dz-auth-alert dz-auth-alert--err">
                         <ul class="list-disc list-inside space-y-1">
                             @foreach($errors->all() as $error)
                                 <li>{{ $error }}</li>
@@ -34,35 +262,34 @@
                     </div>
                 @endif
 
-                @if(!empty($signupHint))
-                    <p class="text-center text-sm text-gray-600 bg-purple-50/80 border border-purple-100 rounded-xl py-3 px-4">
-                        {{ __('auth.create_account_hint') }}
-                    </p>
-                @endif
+                @include('components.google-sign-in-button', ['href' => $googleHref])
 
-                <a href="{{ route('auth.google', array_filter(['redirect' => $redirect ?? request('redirect')])) }}"
-                   class="flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-xl border-2 border-gray-200 bg-white text-gray-800 font-semibold shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 group">
-                    <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    <span class="group-hover:text-purple-700 transition-colors">{{ __('auth.sign_in_with_google') }}</span>
-                </a>
+                <div class="dz-auth-trust">
+                    <span>
+                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        {{ __('auth.trust_oauth') }}
+                    </span>
+                    <span>
+                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        {{ __('auth.trust_no_password') }}
+                    </span>
+                </div>
 
-                <p class="text-center text-xs text-gray-500 leading-relaxed">
+                <p class="text-center text-xs text-slate-500 leading-relaxed pt-2">
                     {{ __('checkout.terms_agreement') }}
-                    <a href="{{ route('terms-of-use') }}" target="_blank" class="text-purple-600 hover:underline font-medium">{{ __('checkout.terms_of_use') }}</a>
+                    <a href="{{ route('terms-of-use') }}" target="_blank" class="text-violet-700 hover:underline font-semibold">{{ __('checkout.terms_of_use') }}</a>
                     ·
-                    <a href="{{ route('privacy-policy') }}" target="_blank" class="text-purple-600 hover:underline font-medium">{{ __('footer.privacy_policy') }}</a>
+                    <a href="{{ route('privacy-policy') }}" target="_blank" class="text-violet-700 hover:underline font-semibold">{{ __('footer.privacy_policy') }}</a>
                 </p>
             </div>
-        </div>
 
-        <p class="text-center text-sm text-gray-600 mt-6">
-            <a href="{{ route('home') }}" class="text-purple-600 hover:text-purple-800 font-medium">{{ __('common.go_to_home') }}</a>
-        </p>
+            <p class="text-center text-sm text-slate-500 mt-7">
+                <a href="{{ route('home') }}" class="inline-flex items-center gap-1.5 font-bold text-violet-700 hover:text-violet-900">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    {{ __('common.go_to_home') }}
+                </a>
+            </p>
+        </section>
     </div>
 </div>
 @endsection
