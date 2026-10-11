@@ -70,10 +70,6 @@
         @endif
 
         @if($showGiveawayCta)
-            @php
-                $gwPresent = asset('storage_public/images_giveaway/cta-present.svg');
-                $gwDiamonds = asset('storage_public/images_giveaway/cta-diamonds.svg');
-            @endphp
             <a href="{{ $giveawayUrl }}"
                class="home-gw-cta"
                data-home-gw-cta
@@ -81,7 +77,7 @@
                 <span class="home-gw-cta__shine" aria-hidden="true"></span>
                 <span class="home-gw-cta__center">
                     <img class="home-gw-cta__art home-gw-cta__art--present"
-                         src="{{ $gwPresent }}"
+                         src="{{ \App\Models\Giveaway::assetUrl('cta-present.svg') }}"
                          alt=""
                          width="28"
                          height="28"
@@ -89,7 +85,7 @@
                          aria-hidden="true">
                     <span class="home-gw-cta__text">{{ __('home.giveaway_cta_title') }}</span>
                     <img class="home-gw-cta__art home-gw-cta__art--diamonds"
-                         src="{{ $gwDiamonds }}"
+                         src="{{ \App\Models\Giveaway::assetUrl('cta-diamonds.svg') }}"
                          alt=""
                          width="26"
                          height="26"
