@@ -614,22 +614,30 @@ class SellerController extends Controller
                         $balance = null;
                     }
 
-                    $vipData = [
-                        'order_id' => $order->id,
-                        'trxid' => $payload['trxid'] ?? null,
-                        'data' => $payload['customer_no'] ?? $order->user_id_ml,
-                        'zone' => $payload['zone'] ?? $order->zone_id_ml,
-                        'status' => 'waiting',
-                        'note' => $payload['message'] ?? null,
-                        'price' => $payload['price'] ?? null,
-                        'balance' => $balance,
-                        'additional_data' => array_merge($dig, ['balance' => $balance, 'service' => 'digiflazz']),
-                    ];
-
-                    if (!empty($vipData['trxid'])) {
-                        \App\Models\VipResellerStatus::updateOrCreate(['trxid' => $vipData['trxid']], $vipData);
-                    } else {
-                        \App\Models\VipResellerStatus::create($vipData);
+                    // DigiflazzStatus was already saved above; do not insert a second empty "waiting" row
+                    // (same digiflazz_statuses table) that blocks retries after Gagal.
+                    $providerStatus = strtolower((string) ($payload['status'] ?? ''));
+                    $providerRc = (string) ($payload['rc'] ?? '');
+                    $mirrorStatus = ($providerStatus === 'sukses' || $providerRc === '00')
+                        ? 'success'
+                        : (in_array($providerStatus, ['pending'], true) || in_array($providerRc, ['03', '99'], true)
+                            ? 'waiting'
+                            : 'error');
+                    if (! empty($payload['trxid'])) {
+                        \App\Models\VipResellerStatus::updateOrCreate(
+                            ['trxid' => $payload['trxid']],
+                            [
+                                'order_id' => $order->id,
+                                'trxid' => $payload['trxid'],
+                                'data' => $payload['customer_no'] ?? $order->player_id_ff ?? $order->user_id_ml,
+                                'zone' => $payload['zone'] ?? $order->zone_id_ml,
+                                'status' => $mirrorStatus,
+                                'note' => $payload['message'] ?? null,
+                                'price' => $payload['price'] ?? null,
+                                'balance' => $balance,
+                                'additional_data' => array_merge($dig, ['balance' => $balance, 'service' => 'digiflazz']),
+                            ]
+                        );
                     }
 
                     $order->update(['status' => 'sending', 'wallet_deducted' => true, 'seller_cost' => $baseCost, 'seller_profit' => $profit]);

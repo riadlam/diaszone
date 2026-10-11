@@ -2915,12 +2915,7 @@ class CheckoutController extends Controller
                         // Submit top-ups for each order_item
                         foreach ($orderLocked->orderItems as $orderItem) {
                             // Check how many DigiflazzStatus records already exist for this item
-                            $submitted = $orderItem->digiflazzStatuses()
-                                ->where(function ($q) {
-                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                          ->orWhere('event', 'create');
-                    })->count();
-
+                            $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
                             $remaining = max(0, $orderItem->quantity - $submitted);
 
                             // Submit remaining top-ups for this item
@@ -3272,12 +3267,7 @@ class CheckoutController extends Controller
                         // Submit top-ups for each order_item
                         foreach ($orderLocked->orderItems as $orderItem) {
                             // Check how many DigiflazzStatus records already exist for this item
-                            $submitted = $orderItem->digiflazzStatuses()
-                                ->where(function ($q) {
-                        $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                          ->orWhere('event', 'create');
-                    })->count();
-
+                            $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
                             $remaining = max(0, $orderItem->quantity - $submitted);
 
                             // Submit remaining top-ups for this item
@@ -3379,12 +3369,7 @@ class CheckoutController extends Controller
                     // Submit top-ups for each order_item
                     foreach ($orderLocked->orderItems as $orderItem) {
                         // Check how many DigiflazzStatus records already exist for this item
-                        $submitted = $orderItem->digiflazzStatuses()
-                            ->where(function ($q) {
-                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                  ->orWhere('event', 'create');
-                            })->count();
-
+                        $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
                         $remaining = max(0, $orderItem->quantity - $submitted);
 
                         // Submit remaining top-ups for this item
@@ -3507,12 +3492,7 @@ class CheckoutController extends Controller
                     // Submit top-ups for each order_item
                     foreach ($orderLocked->orderItems as $orderItem) {
                         // Check how many DigiflazzStatus records already exist for this item
-                        $submitted = $orderItem->digiflazzStatuses()
-                            ->where(function ($q) {
-                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                  ->orWhere('event', 'create');
-                            })->count();
-
+                        $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
                         $remaining = max(0, $orderItem->quantity - $submitted);
 
                         // Submit remaining top-ups for this item
@@ -3635,12 +3615,7 @@ class CheckoutController extends Controller
                     // Submit top-ups for each order_item
                     foreach ($orderLocked->orderItems as $orderItem) {
                         // Check how many DigiflazzStatus records already exist for this item
-                        $submitted = $orderItem->digiflazzStatuses()
-                            ->where(function ($q) {
-                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                  ->orWhere('event', 'create');
-                            })->count();
-
+                        $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
                         $remaining = max(0, $orderItem->quantity - $submitted);
 
                         // Submit remaining top-ups for this item
@@ -3752,24 +3727,27 @@ class CheckoutController extends Controller
             ];
 
             if ($usingDigiflazz) {
-                // When using Digiflazz we rely on Digiflazz webhook to drive final order status.
-                // Ensure order is set to 'sending' and let Digiflazz webhook update to 'completed' when confirmed.
+                // Digiflazz may return final Gagal immediately (rc 02/54). Only await webhook for pending/success.
+                $digiFinalFail = ($result['result'] ?? false) !== true && $status === 'error';
                 if ($order->status !== 'sending') {
                     $order->status = 'sending';
                     $order->save();
-                    Log::info('Chargily: Digiflazz used - order set to sending and awaiting Digiflazz webhook', [
+                    Log::info('Chargily: Digiflazz used - order set to sending', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'provider_status' => $status,
+                        'awaiting_webhook' => ! $digiFinalFail,
                     ]);
                 }
 
-                // Update Telegram to indicate we are waiting for provider confirmation
                 if ($order->tlg_message_id) {
                     try {
                         $order->load('diamondPack', 'user', 'seller');
                         $updatedMessage = TelegramService::formatOrderMessage($order);
-                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', '⏳ <b>Order Confirmed - Waiting for provider</b>', $updatedMessage);
+                        $headline = $digiFinalFail
+                            ? '❌ <b>Order Error - Digiflazz Failed</b>'
+                            : '⏳ <b>Order Confirmed - Waiting for provider</b>';
+                        $updatedMessage = str_replace('🆕 <b>New Order Created</b>', $headline, $updatedMessage);
                         TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
                     } catch (\Exception $e) {
                         Log::warning('Failed to update Telegram message when setting sending (Digiflazz flow)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
@@ -5182,12 +5160,7 @@ class CheckoutController extends Controller
                     $lastResult = ['result' => false, 'message' => 'No provider calls made'];
                     
                     foreach ($orderLocked->orderItems as $orderItem) {
-                        $submitted = $orderItem->digiflazzStatuses()
-                            ->where(function ($q) {
-                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                  ->orWhere('event', 'create');
-                            })->count();
-                        
+                        $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
                         $remaining = max(0, $orderItem->quantity - $submitted);
                         
                         for ($i = 0; $i < $remaining; $i++) {

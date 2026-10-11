@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Coupon;
+use App\Models\DigiflazzStatus;
 use App\Models\VipResellerStatus;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
@@ -1042,12 +1043,7 @@ class AdminController extends Controller
                         
                         // Submit top-ups for each order_item
                         foreach ($orderLocked->orderItems as $orderItem) {
-                            $submitted = $orderItem->digiflazzStatuses()
-                                ->where(function ($q) {
-                                    $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                      ->orWhere('event', 'create');
-                                })->count();
-                            
+                            $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
                             $remaining = max(0, $orderItem->quantity - $submitted);
                             
                 $fulfillment = app(\App\Services\MlPackFulfillment::class);
@@ -1155,12 +1151,7 @@ class AdminController extends Controller
                         }
                         
                         // Submit top-ups (legacy logic)
-                        $submitted = $orderLocked->digiflazzStatuses()
-                            ->where(function ($q) {
-                                $q->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending'])
-                                  ->orWhere('event', 'create');
-                            })->count();
-                        
+                        $submitted = $orderLocked->digiflazzStatuses()->submittedOrPending()->count();
                         $remaining = max(0, $required - $submitted);
                         
                         $fulfillment = app(\App\Services\MlPackFulfillment::class);
@@ -1262,19 +1253,51 @@ class AdminController extends Controller
             ];
 
             // Save to vipreseller_status table (record either VIP or Digiflazz for admin view)
+            $customerNo = $apiData['customer_no']
+                ?? $apiData['data']
+                ?? $order->player_id_ff
+                ?? $order->save_id
+                ?? $order->user_id_ml;
             $vipData = [
                 'order_id' => $order->id,
                 'trxid' => $apiData['trxid'] ?? null,
-                'data' => $apiData['data'] ?? $order->user_id_ml,
+                'data' => $customerNo,
                 'zone' => $apiData['zone'] ?? $order->zone_id_ml,
                 // legacy `service` saved inside additional_data for compatibility
                 'status' => $status,
-                'note' => $apiData['note'] ?? ($result['message'] ?? null),
+                'note' => $apiData['note'] ?? ($apiData['message'] ?? ($result['message'] ?? null)),
                 'price' => $apiData['price'] ?? null,
                 'additional_data' => array_merge($additionalData, ['service' => $apiData['service'] ?? $packageCode ?? $serviceUsed]),
             ];
 
-            $vipResellerStatus = VipResellerStatus::upsertByTrxid($vipData);
+            // DigiflazzService already persists DigiflazzStatus; only upsert when we have a trxid/ref,
+            // never insert an empty waiting/error placeholder that blocks retries.
+            if (! empty($vipData['trxid'])) {
+                $vipResellerStatus = VipResellerStatus::upsertByTrxid($vipData);
+            } elseif (! empty($result['ref_id'])) {
+                $vipResellerStatus = DigiflazzStatus::query()
+                    ->where('ref_id', $result['ref_id'])
+                    ->first();
+                if ($vipResellerStatus) {
+                    $vipResellerStatus->fill([
+                        'order_id' => $order->id,
+                        'status' => $status,
+                        'message' => $vipData['note'],
+                        'customer_no' => $customerNo,
+                        'additional_data' => array_merge($vipResellerStatus->additional_data ?? [], $vipData['additional_data'] ?? []),
+                    ])->save();
+                } else {
+                    $vipResellerStatus = VipResellerStatus::create(array_merge($vipData, [
+                        'ref_id' => $result['ref_id'],
+                        'customer_no' => $customerNo,
+                    ]));
+                }
+            } else {
+                $vipResellerStatus = DigiflazzStatus::query()
+                    ->where('order_id', $order->id)
+                    ->latest('id')
+                    ->first() ?? VipResellerStatus::create($vipData);
+            }
 
             Log::info('provider status saved', [
                 'vipreseller_status_id' => $vipResellerStatus->id,
@@ -1471,8 +1494,9 @@ class AdminController extends Controller
                 
                 return [
                     'success' => false,
+                    'status' => 'error',
                     'message' => $result['message'] ?? 'Recharge failed',
-                    'trxid' => $vipResellerStatus->trxid,
+                    'trxid' => $vipResellerStatus->trxid ?? null,
                 ];
             }
         } catch (\Exception $e) {
@@ -1575,10 +1599,7 @@ class AdminController extends Controller
         $order->loadMissing('orderItems', 'diamondPack');
 
         $submitted = function ($query) {
-            return $query->where(function ($inner) {
-                $inner->whereIn('status', ['Sukses', 'sukses', 'SUCCESS', 'success', 'waiting', 'pending', 'processing'])
-                    ->orWhere('event', 'create');
-            })->count();
+            return $query->submittedOrPending()->count();
         };
 
         if ($order->orderItems->isNotEmpty()) {

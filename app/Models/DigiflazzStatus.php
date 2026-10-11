@@ -30,6 +30,18 @@ class DigiflazzStatus extends Model
         });
     }
 
+    /**
+     * In-flight or successful Digiflazz attempts that should block a duplicate place.
+     * Failed/Gagal rows and empty "waiting" placeholders must not count.
+     */
+    public function scopeSubmittedOrPending($query)
+    {
+        return $query->where(function ($inner) {
+            $inner->whereRaw("LOWER(COALESCE(digiflazz_statuses.status, '')) IN ('sukses', 'success', 'pending')")
+                ->orWhereIn('digiflazz_statuses.rc', ['00', '03', '99']);
+        });
+    }
+
     public function order()
     {
         return $this->belongsTo(Order::class);
