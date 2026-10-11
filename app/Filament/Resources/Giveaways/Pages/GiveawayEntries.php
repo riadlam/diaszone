@@ -71,6 +71,7 @@ class GiveawayEntries extends Page implements HasTable
                     ->color(fn (string $state): string => match ($state) {
                         'approved' => 'success',
                         'declined' => 'danger',
+                        'draft' => 'gray',
                         default => 'warning',
                     }),
 
@@ -97,6 +98,7 @@ class GiveawayEntries extends Page implements HasTable
             ->filters([
                 SelectFilter::make('status')
                     ->options([
+                        'draft' => 'Draft',
                         'pending' => 'Pending',
                         'approved' => 'Approved',
                         'declined' => 'Declined',
@@ -106,7 +108,7 @@ class GiveawayEntries extends Page implements HasTable
                 Action::make('approve')
                     ->label('Approve')
                     ->color('success')
-                    ->visible(fn (GiveawayEntry $record) => $record->status !== GiveawayEntry::STATUS_APPROVED)
+                    ->visible(fn (GiveawayEntry $record) => $record->status === GiveawayEntry::STATUS_PENDING && $record->hasScreenshot())
                     ->requiresConfirmation()
                     ->action(function (GiveawayEntry $record) {
                         $record->update([
@@ -122,7 +124,7 @@ class GiveawayEntries extends Page implements HasTable
                 Action::make('decline')
                     ->label('Decline')
                     ->color('danger')
-                    ->visible(fn (GiveawayEntry $record) => $record->status !== GiveawayEntry::STATUS_DECLINED)
+                    ->visible(fn (GiveawayEntry $record) => $record->status === GiveawayEntry::STATUS_PENDING)
                     ->form([
                         Textarea::make('decline_reason')
                             ->label('Reason shown to the player')
@@ -142,6 +144,7 @@ class GiveawayEntries extends Page implements HasTable
 
                 Action::make('open_screenshot')
                     ->label('Open image')
+                    ->visible(fn (GiveawayEntry $record) => $record->hasScreenshot())
                     ->url(fn (GiveawayEntry $record) => Storage::disk('public')->url($record->screenshot_path), true)
                     ->openUrlInNewTab(),
             ]);

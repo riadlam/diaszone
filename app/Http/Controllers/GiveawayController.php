@@ -7,6 +7,8 @@ use App\Models\GiveawayEntry;
 use App\Services\GiveawayReferralService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GiveawayController extends Controller
 {
@@ -39,15 +41,18 @@ class GiveawayController extends Controller
             }
         }
 
-        $entry = Auth::check()
-            ? GiveawayEntry::query()
-                ->where('giveaway_id', $giveaway->id)
-                ->where('user_id', Auth::id())
-                ->first()
-            : null;
+        $entry = null;
+        if (Auth::check()) {
+            $entry = $this->ensureDraftEntry($giveaway, (int) Auth::id());
+        }
 
         $enrollees = GiveawayEntry::query()
             ->where('giveaway_id', $giveaway->id)
+            ->whereIn('status', [
+                GiveawayEntry::STATUS_PENDING,
+                GiveawayEntry::STATUS_APPROVED,
+                GiveawayEntry::STATUS_DECLINED,
+            ])
             ->with('user:id,name')
             ->orderByDesc('created_at')
             ->limit(40)
@@ -57,8 +62,84 @@ class GiveawayController extends Controller
             'giveaway' => $giveaway,
             'entry' => $entry,
             'enrollees' => $enrollees,
-            'enrolleeCount' => GiveawayEntry::query()->where('giveaway_id', $giveaway->id)->count(),
+            'enrolleeCount' => GiveawayEntry::query()
+                ->where('giveaway_id', $giveaway->id)
+                ->whereIn('status', [
+                    GiveawayEntry::STATUS_PENDING,
+                    GiveawayEntry::STATUS_APPROVED,
+                    GiveawayEntry::STATUS_DECLINED,
+                ])
+                ->count(),
         ]);
+    }
+
+    public function uploadScreenshot(Request $request, string $slug)
+    {
+        $giveaway = Giveaway::query()->where('slug', $slug)->firstOrFail();
+        $this->assertActiveAuth($giveaway);
+
+        $entry = $this->ensureDraftEntry($giveaway, (int) Auth::id());
+        if (! $entry->isEditable()) {
+            return response()->json(['ok' => false, 'message' => __('giveaway.already_entered')], 422);
+        }
+
+        $request->validate([
+            'screenshot' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        $entry->deleteScreenshotFile();
+        $path = $request->file('screenshot')->store('giveaway-screenshots', 'public');
+
+        $entry->update([
+            'screenshot_path' => $path,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'message' => __('giveaway.screenshot_saved'),
+            'url' => route('giveaway.screenshot', $giveaway->slug).'?t='.time(),
+            'can_submit' => $entry->fresh()->canSubmitForApproval(),
+        ]);
+    }
+
+    public function deleteScreenshot(Request $request, string $slug)
+    {
+        $giveaway = Giveaway::query()->where('slug', $slug)->firstOrFail();
+        $this->assertActiveAuth($giveaway);
+
+        $entry = $this->ensureDraftEntry($giveaway, (int) Auth::id());
+        if (! $entry->isEditable()) {
+            return response()->json(['ok' => false, 'message' => __('giveaway.already_entered')], 422);
+        }
+
+        $entry->deleteScreenshotFile();
+        $entry->update(['screenshot_path' => null]);
+
+        return response()->json([
+            'ok' => true,
+            'message' => __('giveaway.screenshot_removed'),
+            'can_submit' => false,
+        ]);
+    }
+
+    public function screenshot(string $slug): StreamedResponse
+    {
+        $giveaway = Giveaway::query()->where('slug', $slug)->firstOrFail();
+
+        if (! Auth::check()) {
+            abort(403);
+        }
+
+        $entry = GiveawayEntry::query()
+            ->where('giveaway_id', $giveaway->id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        if (! $entry->hasScreenshot() || ! Storage::disk('public')->exists($entry->screenshot_path)) {
+            abort(404);
+        }
+
+        return Storage::disk('public')->response($entry->screenshot_path);
     }
 
     public function store(Request $request, string $slug)
@@ -75,34 +156,65 @@ class GiveawayController extends Controller
             ]);
         }
 
-        if (GiveawayEntry::query()
-            ->where('giveaway_id', $giveaway->id)
-            ->where('user_id', Auth::id())
-            ->exists()) {
+        $entry = $this->ensureDraftEntry($giveaway, (int) Auth::id());
+
+        if (! $entry->isEditable()) {
             return redirect()
                 ->route('giveaway.show', $giveaway->slug)
                 ->with('success', __('giveaway.already_entered'));
         }
 
-        $validated = $request->validate([
-            'screenshot' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        $request->validate([
             'liked_followed_ack' => ['accepted'],
         ]);
 
-        $path = $request->file('screenshot')->store('giveaway-screenshots', 'public');
+        if (! $entry->hasScreenshot()) {
+            return back()->with('error', __('giveaway.screenshot_required'));
+        }
 
-        $entry = GiveawayEntry::create([
-            'giveaway_id' => $giveaway->id,
-            'user_id' => Auth::id(),
-            'referral_code' => GiveawayEntry::generateUniqueReferralCode(),
-            'screenshot_path' => $path,
+        $entry->update([
             'liked_followed_ack' => true,
             'status' => GiveawayEntry::STATUS_PENDING,
+            'decline_reason' => null,
+            'reviewed_at' => null,
+            'reviewed_by' => null,
         ]);
 
         return redirect()
             ->route('giveaway.show', $giveaway->slug)
             ->with('success', __('giveaway.submitted_success'))
             ->with('highlight_referral', true);
+    }
+
+    private function ensureDraftEntry(Giveaway $giveaway, int $userId): GiveawayEntry
+    {
+        $existing = GiveawayEntry::query()
+            ->where('giveaway_id', $giveaway->id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return GiveawayEntry::create([
+            'giveaway_id' => $giveaway->id,
+            'user_id' => $userId,
+            'referral_code' => GiveawayEntry::generateUniqueReferralCode(),
+            'screenshot_path' => null,
+            'liked_followed_ack' => false,
+            'status' => GiveawayEntry::STATUS_DRAFT,
+        ]);
+    }
+
+    private function assertActiveAuth(Giveaway $giveaway): void
+    {
+        if (! Auth::check()) {
+            abort(401);
+        }
+
+        if (! $giveaway->isCurrentlyActive()) {
+            abort(422, __('giveaway.closed'));
+        }
     }
 }

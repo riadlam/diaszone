@@ -302,95 +302,143 @@
     font-size: 0.75rem;
     font-weight: 800;
 }
-/* Enrolled marquee — iOS/Android safe (translate3d + webkit) */
-.dz-gw-marquee {
-    overflow: hidden;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+/* Enrolled — soft breathe grid (more room, no marquee) */
+.dz-gw-enrolled {
+    padding: 0.85rem 0.35rem 0.35rem;
 }
-.dz-gw-marquee__track {
-    display: -webkit-box;
-    display: -webkit-flex;
+.dz-gw-enrolled__grid {
     display: flex;
-    width: -webkit-max-content;
-    width: max-content;
-    gap: 0.55rem;
-    will-change: transform;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    -webkit-animation: dz-gw-marquee 18s linear infinite;
-    animation: dz-gw-marquee 18s linear infinite;
-}
-@media (hover: hover) and (pointer: fine) {
-    .dz-gw-marquee:hover .dz-gw-marquee__track { -webkit-animation-play-state: paused; animation-play-state: paused; }
-}
-@-webkit-keyframes dz-gw-marquee {
-    from { -webkit-transform: translate3d(0, 0, 0); }
-    to { -webkit-transform: translate3d(-50%, 0, 0); }
-}
-@keyframes dz-gw-marquee {
-    from { transform: translate3d(0, 0, 0); }
-    to { transform: translate3d(-50%, 0, 0); }
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.65rem 0.7rem;
+    padding: 0.85rem 0.5rem 1rem;
+    min-height: 3.5rem;
 }
 .dz-gw-name {
     display: inline-flex;
-    -webkit-box-align: center;
     align-items: center;
     gap: 0.4rem;
-    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    background: #f5f3ff;
     color: #5b21b6;
-    border: 1px solid #c4b5fd;
+    border: 1px solid #ddd6fe;
     border-radius: 9999px;
-    padding: 0.42rem 0.9rem;
-    font-size: 0.8rem;
+    padding: 0.5rem 0.95rem;
+    font-size: 0.82rem;
     font-weight: 700;
     white-space: nowrap;
-    will-change: transform;
-    -webkit-animation: dz-gw-namepulse 2.2s ease-in-out infinite;
-    animation: dz-gw-namepulse 2.2s ease-in-out infinite;
+    will-change: transform, box-shadow;
+    -webkit-animation: dz-gw-breathe 3.4s ease-in-out infinite;
+    animation: dz-gw-breathe 3.4s ease-in-out infinite;
 }
-.dz-gw-name.is-ghost {
+.dz-gw-name.is-empty {
     color: #7c3aed;
     border-style: dashed;
     background: #faf5ff;
-    opacity: .85;
 }
 .dz-gw-name::before {
     content: "";
-    width: 0.5rem;
-    height: 0.5rem;
+    width: 0.45rem;
+    height: 0.45rem;
     border-radius: 9999px;
     background: #22c55e;
-    -webkit-animation: dz-gw-dot 1.4s ease-out infinite;
-    animation: dz-gw-dot 1.4s ease-out infinite;
+    flex-shrink: 0;
 }
-.dz-gw-name.is-ghost::before { background: #a78bfa; }
-@-webkit-keyframes dz-gw-namepulse {
+.dz-gw-name.is-empty::before { background: #a78bfa; }
+@-webkit-keyframes dz-gw-breathe {
     0%, 100% { -webkit-transform: translate3d(0, 0, 0) scale(1); box-shadow: 0 0 0 rgba(109,40,217,0); }
-    50% { -webkit-transform: translate3d(0, -4px, 0) scale(1.04); box-shadow: 0 8px 16px rgba(109,40,217,.12); }
+    50% { -webkit-transform: translate3d(0, -3px, 0) scale(1.03); box-shadow: 0 6px 14px rgba(109,40,217,.1); }
 }
-@keyframes dz-gw-namepulse {
+@keyframes dz-gw-breathe {
     0%, 100% { transform: translate3d(0, 0, 0) scale(1); box-shadow: 0 0 0 rgba(109,40,217,0); }
-    50% { transform: translate3d(0, -4px, 0) scale(1.04); box-shadow: 0 8px 16px rgba(109,40,217,.12); }
+    50% { transform: translate3d(0, -3px, 0) scale(1.03); box-shadow: 0 6px 14px rgba(109,40,217,.1); }
 }
-@-webkit-keyframes dz-gw-dot {
-    0% { -webkit-box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); -webkit-transform: scale(1); transform: scale(1); }
-    70% { -webkit-box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); -webkit-transform: scale(1.15); transform: scale(1.15); }
-    100% { -webkit-box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); -webkit-transform: scale(1); transform: scale(1); }
+.dz-gw-name:nth-child(3n) { -webkit-animation-delay: .35s; animation-delay: .35s; }
+.dz-gw-name:nth-child(3n+1) { -webkit-animation-delay: .7s; animation-delay: .7s; }
+.dz-gw-name:nth-child(3n+2) { -webkit-animation-delay: 1.05s; animation-delay: 1.05s; }
+.dz-gw-step-art {
+    width: 3.25rem;
+    height: 3.25rem;
+    object-fit: contain;
+    flex-shrink: 0;
+    border-radius: 0.85rem;
 }
-@keyframes dz-gw-dot {
-    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); transform: scale(1); }
-    70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); transform: scale(1.15); }
-    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); transform: scale(1); }
+.dz-gw-ref-box {
+    margin-top: 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
 }
-.dz-gw-name:nth-child(3n) { -webkit-animation-delay: .25s; animation-delay: .25s; }
-.dz-gw-name:nth-child(3n+1) { -webkit-animation-delay: .55s; animation-delay: .55s; }
-.dz-gw-name:nth-child(3n+2) { -webkit-animation-delay: .85s; animation-delay: .85s; }
-.dz-gw-name:nth-child(3n)::before { -webkit-animation-delay: .2s; animation-delay: .2s; }
-.dz-gw-name:nth-child(3n+1)::before { -webkit-animation-delay: .5s; animation-delay: .5s; }
-.dz-gw-name:nth-child(3n+2)::before { -webkit-animation-delay: .8s; animation-delay: .8s; }
+.dz-gw-ref-box input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #334155;
+    text-align: center;
+}
+.dz-gw-ref-box .dz-gw-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.7rem;
+    background: #6d28d9;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 0.45rem 0.85rem;
+    align-self: flex-start;
+}
+.dz-gw-upload-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+    margin-top: 0.65rem;
+}
+.dz-gw-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.7rem;
+    border: 1px solid #ddd6fe;
+    background: #fff;
+    color: #6d28d9;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 0.4rem 0.8rem;
+}
+.dz-gw-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.7rem;
+    border: 1px solid #fecdd3;
+    background: #fff1f2;
+    color: #be123c;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 0.4rem 0.8rem;
+}
+.dz-gw-btn-primary:disabled,
+.dz-gw-btn-primary.is-disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    -webkit-animation: none !important;
+    animation: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+.dz-gw-upload-status {
+    margin-top: 0.45rem;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #6d28d9;
+    min-height: 1rem;
+}
 .dz-google-btn {
     display: flex;
     align-items: center;
@@ -511,11 +559,9 @@
     .dz-gw-step-row__num,
     .dz-gw-step-row__icon,
     .dz-gw-name,
-    .dz-gw-name::before,
     .dz-gw-step-row,
     .dz-google-btn,
-    .dz-gw-btn-primary { -webkit-animation-duration: 4s !important; animation-duration: 4s !important; }
-    .dz-gw-marquee__track { -webkit-animation-duration: 36s !important; animation-duration: 36s !important; }
+    .dz-gw-btn-primary { -webkit-animation-duration: 5s !important; animation-duration: 5s !important; }
     .dz-gw-panel,
     .dz-gw-hero { -webkit-animation: none !important; animation: none !important; }
 }
@@ -525,20 +571,26 @@
 @section('content')
 @php
     $fbIcon = \App\Models\Giveaway::assetUrl('facebook.svg');
-    $usersIcon = \App\Models\Giveaway::assetUrl('users.svg');
+    $tagsIcon = \App\Models\Giveaway::assetUrl('tags.svg');
     $shareIcon = \App\Models\Giveaway::assetUrl('share.svg');
     $endsAtMs = $giveaway?->ends_at ? ((int) $giveaway->ends_at->getTimestamp() * 1000) : null;
     $startsAtMs = $giveaway?->starts_at ? ((int) $giveaway->starts_at->getTimestamp() * 1000) : null;
+    $entryEditable = $entry?->isEditable() ?? false;
+    $entrySubmitted = $entry?->isSubmitted() ?? false;
+    $hasScreenshot = $entry?->hasScreenshot() ?? false;
+    $screenshotUrl = $hasScreenshot ? ($entry->screenshotPublicUrl().'?t='.$entry->updated_at?->getTimestamp()) : null;
     $statusKey = match ($entry?->status) {
         'approved' => 'status_approved',
         'declined' => 'status_declined',
         'pending' => 'status_pending',
+        'draft' => 'status_draft',
         default => null,
     };
     $statusClass = match ($entry?->status) {
         'approved' => 'bg-emerald-100 text-emerald-800',
         'declined' => 'bg-rose-100 text-rose-800',
         'pending' => 'bg-amber-100 text-amber-800',
+        'draft' => 'bg-slate-100 text-slate-700',
         default => 'bg-slate-100 text-slate-700',
     };
     $enrolleeNames = $enrollees->map(fn ($row) => $row->displayFirstName())->values();
@@ -618,12 +670,12 @@
                         </article>
                         <article class="dz-gw-step-row">
                             <span class="dz-gw-step-row__num">2</span>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2">
-                                    <img src="{{ $usersIcon }}" alt="" class="dz-gw-step-row__icon">
+                            <div class="min-w-0 flex items-start gap-3">
+                                <img src="{{ $tagsIcon }}" alt="" class="dz-gw-step-art" width="52" height="52">
+                                <div class="min-w-0">
                                     <h3>{{ __('giveaway.step2_title') }}</h3>
+                                    <p>{{ __('giveaway.step2_desc') }}</p>
                                 </div>
-                                <p>{{ __('giveaway.step2_desc') }}</p>
                             </div>
                         </article>
                         <article class="dz-gw-step-row">
@@ -634,6 +686,19 @@
                                     <h3>{{ __('giveaway.step3_title') }}</h3>
                                 </div>
                                 <p>{{ __('giveaway.step3_desc') }}</p>
+                                @auth
+                                    @if($entry)
+                                        <div class="dz-gw-ref-box">
+                                            <input id="gw-ref-link-step" type="text" readonly value="{{ $entry->referralUrl() }}">
+                                            <button type="button" class="dz-gw-copy" data-gw-copy="gw-ref-link-step">{{ __('giveaway.copy_link') }}</button>
+                                            <p class="text-xs font-bold {{ $entry->referralSatisfied() ? 'text-emerald-700' : 'text-amber-700' }}">
+                                                {{ __('giveaway.referral_progress', ['count' => $entry->referralSatisfied() ? 1 : 0]) }}
+                                            </p>
+                                        </div>
+                                    @endif
+                                @else
+                                    <p class="mt-2 text-xs font-semibold text-violet-700">{{ __('giveaway.step3_login_hint') }}</p>
+                                @endauth
                             </div>
                         </article>
                     </div>
@@ -642,32 +707,17 @@
                     @endif
                 </section>
 
-                <section class="dz-gw-panel !py-3">
-                    <div class="flex items-center justify-center gap-2 mb-2">
+                <section class="dz-gw-panel dz-gw-enrolled">
+                    <div class="flex items-center justify-center gap-2 mb-1">
                         <h2 class="text-sm font-black text-slate-900">{{ __('giveaway.enrolled_label') }}</h2>
                         <span class="dz-gw-chip bg-violet-100 text-violet-800">{{ number_format($enrolleeCount) }}</span>
                     </div>
-                    @php
-                        $marqueeNames = $enrolleeNames->isEmpty()
-                            ? collect([
-                                __('giveaway.enrolled_empty'),
-                                '…',
-                                __('giveaway.enrolled_empty'),
-                                '…',
-                                __('giveaway.enrolled_empty'),
-                                '…',
-                            ])
-                            : $enrolleeNames;
-                        $marqueeGhost = $enrolleeNames->isEmpty();
-                    @endphp
-                    <div class="dz-gw-marquee" aria-label="{{ __('giveaway.enrolled_label') }}">
-                        <div class="dz-gw-marquee__track" data-gw-marquee>
-                            @foreach([1, 2] as $loopPass)
-                                @foreach($marqueeNames as $name)
-                                    <span class="dz-gw-name {{ $marqueeGhost ? 'is-ghost' : '' }}">{{ $name }}</span>
-                                @endforeach
-                            @endforeach
-                        </div>
+                    <div class="dz-gw-enrolled__grid" aria-label="{{ __('giveaway.enrolled_label') }}">
+                        @forelse($enrolleeNames as $name)
+                            <span class="dz-gw-name">{{ $name }}</span>
+                        @empty
+                            <span class="dz-gw-name is-empty">{{ __('giveaway.enrolled_empty') }}</span>
+                        @endforelse
                     </div>
                 </section>
 
@@ -682,7 +732,7 @@
                         </div>
                     </section>
                 @else
-                    @if($entry)
+                    @if($entrySubmitted && ! $entryEditable)
                         <section class="dz-gw-panel space-y-3.5">
                             <div class="flex flex-col items-center gap-2">
                                 <h2 class="text-base font-black text-slate-900">{{ __('giveaway.status_title') }}</h2>
@@ -700,7 +750,7 @@
                                 <div class="flex flex-col gap-2 max-w-md mx-auto">
                                     <input id="gw-ref-link" type="text" readonly value="{{ $entry->referralUrl() }}"
                                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 text-center">
-                                    <button type="button" id="gw-copy-btn" class="dz-gw-btn-primary !shadow-none !max-w-none">
+                                    <button type="button" class="dz-gw-btn-primary !shadow-none !max-w-none" data-gw-copy="gw-ref-link">
                                         {{ __('giveaway.copy_link') }}
                                     </button>
                                 </div>
@@ -709,16 +759,30 @@
                                 </p>
                             </div>
                         </section>
-                    @elseif($giveaway->isCurrentlyActive())
+                    @elseif($giveaway->isCurrentlyActive() && $entryEditable)
                         <section class="dz-gw-panel">
-                            <h2 class="text-base font-black text-slate-900 mb-3">{{ __('giveaway.form_title') }}</h2>
-                            <form method="POST" action="{{ route('giveaway.enter', $giveaway->slug) }}" enctype="multipart/form-data" class="space-y-3.5 text-left max-w-md mx-auto">
+                            <div class="flex flex-col items-center gap-2 mb-3">
+                                <h2 class="text-base font-black text-slate-900">{{ __('giveaway.form_title') }}</h2>
+                                @if($entry->status === 'declined')
+                                    <span class="dz-gw-chip {{ $statusClass }}">{{ __('giveaway.status_declined') }}</span>
+                                    @if($entry->decline_reason)
+                                        <div class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-900 text-left">
+                                            <p class="font-bold mb-0.5">{{ __('giveaway.decline_reason') }}</p>
+                                            <p>{{ $entry->decline_reason }}</p>
+                                        </div>
+                                    @endif
+                                @endif
+                            </div>
+                            <form method="POST" action="{{ route('giveaway.enter', $giveaway->slug) }}" id="gw-entry-form" class="space-y-3.5 text-left max-w-md mx-auto"
+                                  data-upload-url="{{ route('giveaway.screenshot.upload', $giveaway->slug) }}"
+                                  data-delete-url="{{ route('giveaway.screenshot.delete', $giveaway->slug) }}"
+                                  data-has-screenshot="{{ $hasScreenshot ? '1' : '0' }}">
                                 @csrf
                                 <div>
                                     <label class="block text-sm font-bold text-slate-700 mb-1.5 text-center">{{ __('giveaway.screenshot_label') }}</label>
-                                    <label class="dz-gw-upload block" id="gw-upload">
-                                        <input type="file" name="screenshot" id="gw-screenshot" accept="image/jpeg,image/png,image/webp,image/*" required>
-                                        <img src="" alt="" class="dz-gw-upload__preview" id="gw-preview">
+                                    <label class="dz-gw-upload block {{ $hasScreenshot ? 'has-preview' : '' }}" id="gw-upload">
+                                        <input type="file" id="gw-screenshot" accept="image/jpeg,image/png,image/webp,image/*">
+                                        <img src="{{ $screenshotUrl }}" alt="" class="dz-gw-upload__preview" id="gw-preview">
                                         <div class="dz-gw-upload__placeholder">
                                             <div class="dz-gw-upload__icon" aria-hidden="true">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -726,21 +790,26 @@
                                             <p class="text-sm font-bold text-violet-800">{{ __('giveaway.upload_cta') }}</p>
                                             <p class="mt-1 text-xs text-slate-500">{{ __('giveaway.screenshot_hint') }}</p>
                                         </div>
-                                        <p class="mt-2 text-xs font-semibold text-violet-700 hidden" id="gw-preview-name"></p>
                                     </label>
+                                    <div class="dz-gw-upload-actions {{ $hasScreenshot ? '' : 'hidden' }}" id="gw-upload-actions">
+                                        <label for="gw-screenshot" class="dz-gw-btn-secondary cursor-pointer">{{ __('giveaway.replace_screenshot') }}</label>
+                                        <button type="button" class="dz-gw-btn-danger" id="gw-delete-shot">{{ __('giveaway.delete_screenshot') }}</button>
+                                    </div>
+                                    <p class="dz-gw-upload-status" id="gw-upload-status"></p>
                                     @error('screenshot')
                                         <p class="mt-1.5 text-xs font-semibold text-rose-600 text-center">{{ $message }}</p>
                                     @enderror
                                 </div>
                                 <label class="flex items-start gap-3 text-sm text-slate-700">
-                                    <input type="checkbox" name="liked_followed_ack" value="1" required class="mt-1 rounded border-slate-300 text-violet-700 focus:ring-violet-600">
+                                    <input type="checkbox" name="liked_followed_ack" id="gw-ack" value="1" class="mt-1 rounded border-slate-300 text-violet-700 focus:ring-violet-600" {{ old('liked_followed_ack', $entry->liked_followed_ack) ? 'checked' : '' }}>
                                     <span>{{ __('giveaway.ack_label') }}</span>
                                 </label>
                                 @error('liked_followed_ack')
                                     <p class="text-xs font-semibold text-rose-600 text-center">{{ $message }}</p>
                                 @enderror
                                 <div class="pt-0.5 text-center">
-                                    <button type="submit" class="dz-gw-btn-primary">{{ __('giveaway.submit') }}</button>
+                                    <button type="submit" id="gw-submit" class="dz-gw-btn-primary" disabled>{{ __('giveaway.submit') }}</button>
+                                    <p class="mt-2 text-xs text-slate-500" id="gw-submit-hint">{{ __('giveaway.submit_locked_hint') }}</p>
                                 </div>
                             </form>
                         </section>
@@ -802,92 +871,139 @@
         setInterval(tick, 1000);
     }
 
-    const copyBtn = document.getElementById('gw-copy-btn');
-    const linkInput = document.getElementById('gw-ref-link');
-    if (copyBtn && linkInput) {
-        copyBtn.addEventListener('click', async () => {
+    const copiedLabel = @json(__('giveaway.copied'));
+    const copyLabel = @json(__('giveaway.copy_link'));
+    document.querySelectorAll('[data-gw-copy]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const input = document.getElementById(btn.getAttribute('data-gw-copy'));
+            if (!input) return;
             try {
-                await navigator.clipboard.writeText(linkInput.value);
-                copyBtn.textContent = @json(__('giveaway.copied'));
-                setTimeout(() => { copyBtn.textContent = @json(__('giveaway.copy_link')); }, 1600);
+                await navigator.clipboard.writeText(input.value);
+                btn.textContent = copiedLabel;
+                setTimeout(function () { btn.textContent = copyLabel; }, 1600);
             } catch (e) {
-                linkInput.select();
+                input.select();
                 document.execCommand('copy');
+                btn.textContent = copiedLabel;
+                setTimeout(function () { btn.textContent = copyLabel; }, 1600);
             }
         });
-    }
+    });
 
+    const form = document.getElementById('gw-entry-form');
     const upload = document.getElementById('gw-upload');
     const input = document.getElementById('gw-screenshot');
     const preview = document.getElementById('gw-preview');
-    const nameEl = document.getElementById('gw-preview-name');
-    if (upload && input && preview) {
-        const showPreview = (file) => {
-            if (!file || !file.type.startsWith('image/')) return;
-            preview.src = URL.createObjectURL(file);
-            upload.classList.add('has-preview');
-            if (nameEl) {
-                nameEl.textContent = file.name;
-                nameEl.classList.remove('hidden');
-            }
-        };
-        input.addEventListener('change', () => {
-            if (input.files && input.files[0]) showPreview(input.files[0]);
-        });
-        ['dragenter', 'dragover'].forEach((evt) => {
-            upload.addEventListener(evt, (e) => { e.preventDefault(); upload.classList.add('is-drag'); });
-        });
-        ['dragleave', 'drop'].forEach((evt) => {
-            upload.addEventListener(evt, (e) => { e.preventDefault(); upload.classList.remove('is-drag'); });
-        });
-        upload.addEventListener('drop', (e) => {
-            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-            if (!file) return;
-            try {
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                input.files = dt.files;
-            } catch (err) {}
-            showPreview(file);
-        });
+    const actions = document.getElementById('gw-upload-actions');
+    const statusEl = document.getElementById('gw-upload-status');
+    const ack = document.getElementById('gw-ack');
+    const submitBtn = document.getElementById('gw-submit');
+    const submitHint = document.getElementById('gw-submit-hint');
+    const deleteBtn = document.getElementById('gw-delete-shot');
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+        || form?.querySelector('input[name="_token"]')?.value
+        || '';
+
+    let hasScreenshot = form?.dataset.hasScreenshot === '1';
+
+    function syncSubmit() {
+        if (!submitBtn) return;
+        const ready = hasScreenshot && !!(ack && ack.checked);
+        submitBtn.disabled = !ready;
+        submitBtn.classList.toggle('is-disabled', !ready);
+        if (submitHint) submitHint.classList.toggle('hidden', ready);
     }
 
-    /* Always drive marquee with rAF on mobile Safari/Android for reliable continuous scroll */
-    (function marqueeDrive() {
-        const tracks = document.querySelectorAll('[data-gw-marquee]');
-        if (!tracks.length) return;
-        const ua = navigator.userAgent || '';
-        const isMobile = /iPad|iPhone|iPod|Android|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1);
-        if (!isMobile) return;
+    function setPreview(url) {
+        if (!upload || !preview) return;
+        if (url) {
+            preview.src = url;
+            upload.classList.add('has-preview');
+            if (actions) actions.classList.remove('hidden');
+            hasScreenshot = true;
+        } else {
+            preview.removeAttribute('src');
+            upload.classList.remove('has-preview');
+            if (actions) actions.classList.add('hidden');
+            hasScreenshot = false;
+        }
+        if (form) form.dataset.hasScreenshot = hasScreenshot ? '1' : '0';
+        syncSubmit();
+    }
 
-        tracks.forEach(function (track) {
-            track.style.webkitAnimation = 'none';
-            track.style.animation = 'none';
-            var x = 0;
-            var half = 0;
-            var last = 0;
-            function measure() {
-                half = track.scrollWidth / 2;
-            }
-            measure();
-            setTimeout(measure, 120);
-            window.addEventListener('resize', measure, { passive: true });
-            function frame(ts) {
-                if (!last) last = ts;
-                var dt = Math.min(32, ts - last);
-                last = ts;
-                if (half > 0) {
-                    x -= (half / 16000) * dt;
-                    if (x <= -half) x += half;
-                    var t = 'translate3d(' + x + 'px,0,0)';
-                    track.style.webkitTransform = t;
-                    track.style.transform = t;
-                }
-                window.requestAnimationFrame(frame);
-            }
-            window.requestAnimationFrame(frame);
+    async function uploadFile(file) {
+        if (!form || !file) return;
+        statusEl && (statusEl.textContent = @json(__('giveaway.uploading')));
+        const body = new FormData();
+        body.append('screenshot', file);
+        body.append('_token', csrf);
+        try {
+            const res = await fetch(form.dataset.uploadUrl, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+                body: body,
+                credentials: 'same-origin',
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) throw new Error(data.message || 'upload failed');
+            setPreview(data.url);
+            statusEl && (statusEl.textContent = data.message || @json(__('giveaway.screenshot_saved')));
+        } catch (err) {
+            statusEl && (statusEl.textContent = err.message || 'Upload failed');
+            setPreview(hasScreenshot ? preview.src : null);
+        }
+        if (input) input.value = '';
+    }
+
+    if (input) {
+        input.addEventListener('change', function () {
+            if (input.files && input.files[0]) uploadFile(input.files[0]);
         });
-    })();
+    }
+    if (upload) {
+        ['dragenter', 'dragover'].forEach(function (evt) {
+            upload.addEventListener(evt, function (e) { e.preventDefault(); upload.classList.add('is-drag'); });
+        });
+        ['dragleave', 'drop'].forEach(function (evt) {
+            upload.addEventListener(evt, function (e) { e.preventDefault(); upload.classList.remove('is-drag'); });
+        });
+        upload.addEventListener('drop', function (e) {
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) uploadFile(file);
+        });
+    }
+    if (deleteBtn && form) {
+        deleteBtn.addEventListener('click', async function () {
+            statusEl && (statusEl.textContent = @json(__('giveaway.uploading')));
+            try {
+                const res = await fetch(form.dataset.deleteUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.message || 'delete failed');
+                setPreview(null);
+                statusEl && (statusEl.textContent = data.message || @json(__('giveaway.screenshot_removed')));
+            } catch (err) {
+                statusEl && (statusEl.textContent = err.message || 'Delete failed');
+            }
+        });
+    }
+    if (ack) ack.addEventListener('change', syncSubmit);
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            if (!hasScreenshot || !(ack && ack.checked)) {
+                e.preventDefault();
+                syncSubmit();
+            }
+        });
+    }
+    syncSubmit();
 })();
 </script>
 @endpush

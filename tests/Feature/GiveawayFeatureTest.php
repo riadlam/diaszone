@@ -69,24 +69,89 @@ class GiveawayFeatureTest extends TestCase
         ])->assertRedirect();
     }
 
-    public function test_authenticated_user_can_submit_entry_and_get_referral_code(): void
+    public function test_authenticated_user_gets_draft_referral_and_can_submit_for_approval(): void
     {
         Storage::fake('public');
         $giveaway = $this->makeGiveaway();
         $user = $this->makeUser('Bob Tester');
 
+        $this->actingAs($user)
+            ->get(route('giveaway.show', $giveaway->slug))
+            ->assertOk()
+            ->assertSee(__('giveaway.copy_link'), false);
+
+        $entry = GiveawayEntry::query()->where('user_id', $user->id)->first();
+        $this->assertNotNull($entry);
+        $this->assertSame(GiveawayEntry::STATUS_DRAFT, $entry->status);
+        $this->assertNotEmpty($entry->referral_code);
+
+        $this->actingAs($user)
+            ->post(route('giveaway.screenshot.upload', $giveaway->slug), [
+                'screenshot' => UploadedFile::fake()->image('tags.jpg', 800, 600),
+            ])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+
+        $entry->refresh();
+        $this->assertTrue($entry->hasScreenshot());
+        Storage::disk('public')->assertExists($entry->screenshot_path);
+
         $response = $this->actingAs($user)->post(route('giveaway.enter', $giveaway->slug), [
-            'screenshot' => UploadedFile::fake()->image('tags.jpg', 800, 600),
             'liked_followed_ack' => '1',
         ]);
 
         $response->assertRedirect(route('giveaway.show', $giveaway->slug));
 
-        $entry = GiveawayEntry::query()->where('user_id', $user->id)->first();
-        $this->assertNotNull($entry);
+        $entry->refresh();
         $this->assertSame(GiveawayEntry::STATUS_PENDING, $entry->status);
-        $this->assertNotEmpty($entry->referral_code);
-        Storage::disk('public')->assertExists($entry->screenshot_path);
+        $this->assertTrue($entry->liked_followed_ack);
+    }
+
+    public function test_submit_blocked_without_screenshot(): void
+    {
+        Storage::fake('public');
+        $giveaway = $this->makeGiveaway();
+        $user = $this->makeUser('No Shot');
+
+        $this->actingAs($user)->get(route('giveaway.show', $giveaway->slug));
+
+        $this->actingAs($user)->post(route('giveaway.enter', $giveaway->slug), [
+            'liked_followed_ack' => '1',
+        ])->assertRedirect()->assertSessionHas('error');
+
+        $this->assertSame(GiveawayEntry::STATUS_DRAFT, GiveawayEntry::query()->where('user_id', $user->id)->value('status'));
+    }
+
+    public function test_screenshot_can_be_deleted_and_replaced(): void
+    {
+        Storage::fake('public');
+        $giveaway = $this->makeGiveaway();
+        $user = $this->makeUser('Replace Me');
+
+        $this->actingAs($user)->get(route('giveaway.show', $giveaway->slug));
+
+        $this->actingAs($user)->post(route('giveaway.screenshot.upload', $giveaway->slug), [
+            'screenshot' => UploadedFile::fake()->image('one.jpg'),
+        ])->assertOk();
+
+        $entry = GiveawayEntry::query()->where('user_id', $user->id)->first();
+        $firstPath = $entry->screenshot_path;
+
+        $this->actingAs($user)
+            ->delete(route('giveaway.screenshot.delete', $giveaway->slug))
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+
+        $entry->refresh();
+        $this->assertNull($entry->screenshot_path);
+        Storage::disk('public')->assertMissing($firstPath);
+
+        $this->actingAs($user)->post(route('giveaway.screenshot.upload', $giveaway->slug), [
+            'screenshot' => UploadedFile::fake()->image('two.jpg'),
+        ])->assertOk();
+
+        $entry->refresh();
+        $this->assertTrue($entry->hasScreenshot());
     }
 
     public function test_closed_giveaway_rejects_new_entries(): void
@@ -98,11 +163,10 @@ class GiveawayFeatureTest extends TestCase
         $user = $this->makeUser();
 
         $this->actingAs($user)->post(route('giveaway.enter', $giveaway->slug), [
-            'screenshot' => UploadedFile::fake()->image('tags.jpg'),
             'liked_followed_ack' => '1',
         ])->assertRedirect()->assertSessionHas('error');
 
-        $this->assertSame(0, GiveawayEntry::count());
+        $this->assertSame(0, GiveawayEntry::query()->where('status', GiveawayEntry::STATUS_PENDING)->count());
     }
 
     public function test_referral_capture_and_google_style_attribution(): void

@@ -74,10 +74,20 @@ Route::get('/giveaway', [GiveawayController::class, 'show'])->name('giveaway.ind
 Route::get('/giveaway/{slug}', [GiveawayController::class, 'show'])
     ->where('slug', '[a-z0-9-]+')
     ->name('giveaway.show');
-Route::post('/giveaway/{slug}/enter', [GiveawayController::class, 'store'])
-    ->middleware(['auth', 'throttle:10,1'])
-    ->where('slug', '[a-z0-9-]+')
-    ->name('giveaway.enter');
+Route::middleware(['auth', 'throttle:20,1'])->group(function () {
+    Route::post('/giveaway/{slug}/enter', [GiveawayController::class, 'store'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('giveaway.enter');
+    Route::post('/giveaway/{slug}/screenshot', [GiveawayController::class, 'uploadScreenshot'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('giveaway.screenshot.upload');
+    Route::delete('/giveaway/{slug}/screenshot', [GiveawayController::class, 'deleteScreenshot'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('giveaway.screenshot.delete');
+    Route::get('/giveaway/{slug}/my-screenshot', [GiveawayController::class, 'screenshot'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('giveaway.screenshot');
+});
 
 Route::get('/mobilelegends', [HomeController::class, 'mobileLegends'])->name('mobilelegends');
 Route::get('/free-fire-diamonds-top-up', function () {

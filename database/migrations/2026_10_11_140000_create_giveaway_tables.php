@@ -30,10 +30,10 @@ return new class extends Migration
             $table->foreignId('giveaway_id')->constrained('giveaways')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('referral_code', 32)->unique();
-            $table->string('screenshot_path');
+            $table->string('screenshot_path')->nullable();
             $table->boolean('liked_followed_ack')->default(false);
             $table->timestamp('referral_satisfied_at')->nullable();
-            $table->string('status', 32)->default('pending');
+            $table->string('status', 32)->default('draft');
             $table->text('decline_reason')->nullable();
             $table->timestamp('reviewed_at')->nullable();
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();

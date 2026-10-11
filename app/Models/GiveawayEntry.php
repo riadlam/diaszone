@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class GiveawayEntry extends Model
 {
+    public const STATUS_DRAFT = 'draft';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_APPROVED = 'approved';
@@ -62,6 +65,46 @@ class GiveawayEntry extends Model
     public function referralUrl(): string
     {
         return url('/giveaway/'.$this->giveaway->slug.'?ref='.$this->referral_code);
+    }
+
+    public function hasScreenshot(): bool
+    {
+        return filled($this->screenshot_path);
+    }
+
+    public function isEditable(): bool
+    {
+        return in_array($this->status, [self::STATUS_DRAFT, self::STATUS_DECLINED], true);
+    }
+
+    public function isSubmitted(): bool
+    {
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_APPROVED, self::STATUS_DECLINED], true);
+    }
+
+    public function canSubmitForApproval(): bool
+    {
+        return $this->isEditable()
+            && $this->hasScreenshot()
+            && $this->liked_followed_ack;
+    }
+
+    public function screenshotPublicUrl(): ?string
+    {
+        if (! $this->hasScreenshot()) {
+            return null;
+        }
+
+        return route('giveaway.screenshot', [
+            'slug' => $this->giveaway->slug,
+        ]);
+    }
+
+    public function deleteScreenshotFile(): void
+    {
+        if ($this->screenshot_path && Storage::disk('public')->exists($this->screenshot_path)) {
+            Storage::disk('public')->delete($this->screenshot_path);
+        }
     }
 
     public static function generateUniqueReferralCode(): string
