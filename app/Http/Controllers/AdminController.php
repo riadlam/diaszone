@@ -749,8 +749,7 @@ class AdminController extends Controller
             }
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
-            $useDigiflazz = in_array($gameType, $digiflazzGames);
+            $useDigiflazz = \App\Support\GameProvider::usesDigiflazz($gameType);
             
             // For non-Digiflazz games, use Item4Gamer
             if (!$useDigiflazz) {
@@ -815,19 +814,41 @@ class AdminController extends Controller
                     'nickname' => $nickname,
                 ]);
             } elseif ($gameType === 'pubg_mobile' || $gameType === 'pubgmobile') {
-                // PUBG Mobile: Check if save_id is set
-                if (empty($order->save_id)) {
-                    Log::warning('Recharge skipped: Missing save_id for PUBG Mobile', [
+                // PUBG Mobile: Digiflazz customer_no is UID (save_id or player_id_pubg).
+                if (empty($order->save_id) && empty($order->player_id_pubg)) {
+                    Log::warning('Recharge skipped: Missing PUBG Mobile player ID', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'save_id' => $order->save_id,
+                        'player_id_pubg' => $order->player_id_pubg,
                     ]);
                     return [
                         'success' => false,
-                        'message' => 'Missing Player ID (save_id) for PUBG Mobile',
+                        'message' => 'Missing Player ID for PUBG Mobile',
                     ];
                 }
-                // PUBG Mobile doesn't need nickname validation
+                if (empty($order->save_id) && ! empty($order->player_id_pubg)) {
+                    $order->save_id = $order->player_id_pubg;
+                    $order->save();
+                }
+            } elseif (\App\Support\GameProvider::isGenshinImpact($gameType)) {
+                if (empty($order->save_id) || empty($order->server)) {
+                    Log::warning('Recharge skipped: Missing Genshin Impact UID or server', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'save_id' => $order->save_id,
+                        'server' => $order->server,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing UID or Server for Genshin Impact',
+                    ];
+                }
+                $normalized = \App\Support\GameProvider::normalizeGenshinServer($order->server);
+                if ($normalized && $normalized !== $order->server) {
+                    $order->server = $normalized;
+                    $order->save();
+                }
             } elseif ($gameType === 'freefire') {
                 // Free Fire: Check if player_id_ff is set
                 if (empty($order->player_id_ff)) {

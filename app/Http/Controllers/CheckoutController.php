@@ -317,7 +317,7 @@ class CheckoutController extends Controller
             }
             
             // Only check Digiflazz availability for Mobile Legends, Free Fire, PUBG Mobile, Genshin Impact, Blood Strike, Honor of Kings, Punishing Gray Raven, and Wuthering Waves
-            $gamesUsingDigiflazz = ['mobilelegends', 'freefire', 'pubg_mobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
+            $gamesUsingDigiflazz = \App\Support\GameProvider::digiflazzGames();
             
             if (in_array($gameType, $gamesUsingDigiflazz)) {
                 // For these games, check Digiflazz availability
@@ -960,7 +960,7 @@ class CheckoutController extends Controller
                         ], 422);
                     }
             } elseif (\App\Support\GameProvider::isPubgMobile($gameType)) {
-                // PUBG Mobile: Digiflazz customer_no comes from save_id (also keep player_id_pubg).
+                // PUBG Mobile: Digiflazz customer_no is Global UID only (save_id / player_id_pubg).
                 $save_id = $firstItem['player_id_pubg'] ?? $firstItem['player_id'] ?? $firstItem['save_id'] ?? null;
                 if (empty($save_id)) {
                     return response()->json([
@@ -969,6 +969,18 @@ class CheckoutController extends Controller
                     ], 422);
                 }
                 $player_id_pubg = $save_id;
+            } elseif (\App\Support\GameProvider::isGenshinImpact($gameType)) {
+                // Digiflazz Genshin: customer_no = UID|Server
+                $save_id = $firstItem['save_id'] ?? $firstItem['user_id'] ?? $firstItem['game_user_id'] ?? null;
+                $server = \App\Support\GameProvider::normalizeGenshinServer(
+                    $firstItem['server'] ?? null
+                );
+                if (empty($save_id) || empty($server)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'UID and Server are required for Genshin Impact',
+                    ], 422);
+                }
             } elseif ($gameType === 'honorofkings') {
                 $player_id_hok = $firstItem['player_id_hok'] ?? $firstItem['player_id'] ?? null;
                 if (empty($player_id_hok)) {
@@ -2504,8 +2516,7 @@ class CheckoutController extends Controller
             $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
-            $useDigiflazz = in_array($gameType, $digiflazzGames);
+            $useDigiflazz = \App\Support\GameProvider::usesDigiflazz($gameType);
             
             // For non-Digiflazz games, use Item4Gamer
             if (! $useDigiflazz) {
@@ -3322,19 +3333,23 @@ class CheckoutController extends Controller
                     $result = ['result' => false, 'message' => 'No result from transaction'];
                 }
             } elseif ($gameType === 'pubg_mobile' || $gameType === 'pubgmobile') {
-                // PUBG Mobile: Use save_id as player ID (same flow as Mobile Legends)
-                // Check if save_id is set
-                if (empty($order->save_id)) {
-                    Log::warning('Chargily recharge skipped: Missing save_id for PUBG Mobile', [
+                // PUBG Mobile: Digiflazz Global UID only.
+                if (empty($order->save_id) && empty($order->player_id_pubg)) {
+                    Log::warning('Chargily recharge skipped: Missing PUBG Mobile player ID', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'save_id' => $order->save_id,
+                        'player_id_pubg' => $order->player_id_pubg,
                     ]);
 
                     return [
                         'success' => false,
-                        'message' => 'Missing Player ID (save_id) for PUBG Mobile',
+                        'message' => 'Missing Player ID for PUBG Mobile',
                     ];
+                }
+                if (empty($order->save_id) && ! empty($order->player_id_pubg)) {
+                    $order->save_id = $order->player_id_pubg;
+                    $order->save();
                 }
 
                 Log::info('Chargily: Processing PUBG Mobile recharge via Digiflazz', [
@@ -3565,44 +3580,54 @@ class CheckoutController extends Controller
                 if (! isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
                 }
-            } elseif ($gameType === 'wutheringwaves') {
-                // Wuthering Waves: Use save_id|server format (pipe separator as required by Digiflazz)
-                // Check if save_id and server are set
+            } elseif ($gameType === 'wutheringwaves' || \App\Support\GameProvider::isGenshinImpact($gameType)) {
+                // Digiflazz WW / Genshin: customer_no = UID|Server (pipe). DigiflazzService builds the string.
+                $gameLabel = \App\Support\GameProvider::isGenshinImpact($gameType) ? 'Genshin Impact' : 'Wuthering Waves';
                 if (empty($order->save_id) || empty($order->server)) {
-                    Log::warning('Chargily recharge skipped: Missing save_id or server for Wuthering Waves', [
+                    Log::warning("Chargily recharge skipped: Missing save_id or server for {$gameLabel}", [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'save_id' => $order->save_id,
                         'server' => $order->server,
+                        'game_type' => $gameType,
                     ]);
 
                     return [
                         'success' => false,
-                        'message' => 'Missing User ID (save_id) or Server for Wuthering Waves',
+                        'message' => "Missing User ID (save_id) or Server for {$gameLabel}",
                     ];
                 }
 
-                Log::info('Chargily: Processing Wuthering Waves recharge via Digiflazz', [
+                if (\App\Support\GameProvider::isGenshinImpact($gameType)) {
+                    $normalized = \App\Support\GameProvider::normalizeGenshinServer($order->server);
+                    if ($normalized && $normalized !== $order->server) {
+                        $order->server = $normalized;
+                        $order->save();
+                    }
+                }
+
+                Log::info("Chargily: Processing {$gameLabel} recharge via Digiflazz", [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'save_id' => $order->save_id,
                     'server' => $order->server,
                     'package_code' => $packageCode,
+                    'game_type' => $gameType,
                 ]);
 
                 // Multi-item order support: Submit top-ups for each order_item
                 if (! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
-                    Log::error('Chargily recharge: Digiflazz not configured for Wuthering Waves', ['order_id' => $order->id]);
+                    Log::error("Chargily recharge: Digiflazz not configured for {$gameLabel}", ['order_id' => $order->id]);
 
                     return ['success' => false, 'message' => 'Digiflazz not configured'];
                 }
 
                 // Atomic multi-quantity submission with proper locking
-                DB::transaction(function () use (&$result, &$order) {
+                DB::transaction(function () use (&$result, &$order, $gameLabel) {
                     // Lock the order to prevent concurrent modifications
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                     if (! $orderLocked) {
-                        Log::error('Chargily: Failed to lock order for Digiflazz submission (Wuthering Waves)', ['order_id' => $order->id]);
+                        Log::error("Chargily: Failed to lock order for Digiflazz submission ({$gameLabel})", ['order_id' => $order->id]);
                         $result = ['result' => false, 'message' => 'Failed to lock order'];
 
                         return;
@@ -3629,7 +3654,7 @@ class CheckoutController extends Controller
                                 $orderItem->id
                             );
                             
-                            Log::info('Chargily: Digiflazz placeOrder attempt (Wuthering Waves)', [
+                            Log::info("Chargily: Digiflazz placeOrder attempt ({$gameLabel})", [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'pack_id' => $orderItem->diamond_pack_id,
@@ -3656,7 +3681,7 @@ class CheckoutController extends Controller
                         $vipData = [
                             'order_id' => $order->id,
                             'trxid' => $apiData['trxid'] ?? null,
-                            'data' => $apiData['customer_no'] ?? ($order->save_id.','.$order->server),
+                            'data' => $apiData['customer_no'] ?? ($order->save_id.'|'.$order->server),
                             'zone' => $order->server, // Store server in zone field for display
                             'status' => strtolower(($apiData['status'] ?? $apiData['rc'] ?? 'waiting')) === 'sukses' || ($apiData['rc'] ?? null) === '00' ? 'success' : 'waiting',
                             'note' => $apiData['message'] ?? null,
@@ -3671,11 +3696,11 @@ class CheckoutController extends Controller
                             \App\Models\VipResellerStatus::create($vipData);
                         }
                     } catch (\Exception $e) {
-                        Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder (Wuthering Waves)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                        Log::warning("Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder ({$gameLabel})", ['order_id' => $order->id, 'error' => $e->getMessage()]);
                     }
                 }
 
-                Log::info('Chargily: provider API response (Wuthering Waves)', [
+                Log::info("Chargily: provider API response ({$gameLabel})", [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -5098,11 +5123,10 @@ class CheckoutController extends Controller
             }
             
             // Determine which provider to use
-            $digiflazzGames = ['mobilelegends', 'freefire', 'pubg_mobile', 'pubgmobile', 'genshin_impact', 'bloodstrike', 'honorofkings', 'punishinggrayraven', 'wutheringwaves'];
-            $useDigiflazz = in_array($gameType, $digiflazzGames);
+            $useDigiflazz = \App\Support\GameProvider::usesDigiflazz($gameType);
             
             if ($useDigiflazz) {
-                // Use Digiflazz for ML, FF, PUBG. A VIP-only Mobile Legends cart does not need Digiflazz credentials.
+                // Use Digiflazz for ML, FF, PUBG, Genshin, etc. A VIP-only Mobile Legends cart does not need Digiflazz credentials.
                 $needsDigiflazz = app(\App\Services\MlPackFulfillment::class)->orderNeedsDigiflazz($order);
                 if ($needsDigiflazz && ! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
                     Log::error('NOWPayments recharge: Digiflazz not configured', ['order_id' => $order->id]);

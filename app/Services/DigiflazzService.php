@@ -169,11 +169,24 @@ class DigiflazzService
         }
 
         if (\App\Support\GameProvider::isPubgMobile($gameType)) {
+            // Digiflazz PUBG Global: "masukkan UID, region Global" — player ID only.
             $id = trim((string) ($order->save_id ?: $order->player_id_pubg ?: ''));
 
             return $id !== ''
                 ? ['customer_no' => $id]
                 : ['error' => 'Missing PUBG Mobile player ID for Digiflazz customer_no'];
+        }
+
+        if (\App\Support\GameProvider::isGenshinImpact($gameType)) {
+            // Digiflazz Genshin: Format no tujuan [UID]|[Server]
+            $uid = trim((string) ($order->save_id ?? ''));
+            $server = \App\Support\GameProvider::normalizeGenshinServer($order->server ?? null);
+
+            if ($uid === '' || $server === null || $server === '') {
+                return ['error' => 'Missing Genshin Impact UID/server for Digiflazz customer_no'];
+            }
+
+            return ['customer_no' => $uid.'|'.$server];
         }
 
         if ($gameType === 'honorofkings') {

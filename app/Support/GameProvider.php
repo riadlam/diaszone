@@ -45,6 +45,35 @@ class GameProvider
         return strtolower(trim((string) $gameType)) === 'freefire';
     }
 
+    public static function isGenshinImpact(?string $gameType): bool
+    {
+        $gameType = strtolower(trim((string) $gameType));
+
+        return $gameType === 'genshin_impact' || str_starts_with($gameType, 'genshin_impact');
+    }
+
+    /**
+     * Digiflazz Genshin desc: Format no tujuan [UID]|[Server].
+     * Map form / os_* aliases to the seller labels our catalog uses.
+     */
+    public static function normalizeGenshinServer(?string $server): ?string
+    {
+        $server = trim((string) $server);
+        if ($server === '') {
+            return null;
+        }
+
+        $key = strtolower(str_replace([' ', '-', ',', '_'], ['', '', '', ''], $server));
+
+        return match ($key) {
+            'asia', 'osasia' => 'Asia',
+            'america', 'amerika', 'na', 'osusa', 'usa' => 'America',
+            'europe', 'europa', 'eu', 'oseuro', 'euro' => 'Europe',
+            'twhkmo', 'tw', 'hk', 'mo', 'oscht', 'cht', 'taiwanhongkongmacao', 'taiwanhongkongmacau' => 'TW, HK, MO',
+            default => $server,
+        };
+    }
+
     /**
      * Canonical game_type values used across routes / packs for one product.
      *
@@ -54,6 +83,10 @@ class GameProvider
     {
         if (self::isPubgMobile($gameType)) {
             return ['pubgmobile', 'pubg_mobile'];
+        }
+
+        if (self::isGenshinImpact($gameType)) {
+            return ['genshin_impact', 'genshin_impact_genesis_crystals'];
         }
 
         $gameType = strtolower(trim((string) $gameType));
