@@ -208,16 +208,12 @@ Route::get('/signup', [AuthController::class, 'showSignupForm'])->name('signup')
 Route::post('/signup', [AuthController::class, 'signup'])->middleware('throttle:10,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Dashboard routes - orders, invoices, notifications accessible without auth
+// Dashboard routes — public; account section shows Google sign-in for guests
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/dashboard/orders', [DashboardController::class, 'orders'])->name('dashboard.orders');
 Route::get('/dashboard/invoices', [DashboardController::class, 'invoices'])->name('dashboard.invoices');
 Route::get('/dashboard/notifications', [DashboardController::class, 'notifications'])->name('dashboard.notifications');
-
-// Dashboard routes (protected by auth middleware) - only myaccount requires auth
-Route::middleware('auth')->group(function () {
-    Route::get('/dashboard/myaccount', [DashboardController::class, 'myAccount'])->name('dashboard.myaccount');
-});
+Route::get('/dashboard/myaccount', [DashboardController::class, 'myAccount'])->name('dashboard.myaccount');
 
 // Test routes for NOWPayments
 Route::get('/test/nowpayments', [CheckoutController::class, 'testNowPaymentsCredentials'])->name('test.nowpayments');
