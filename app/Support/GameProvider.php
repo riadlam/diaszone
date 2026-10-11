@@ -117,16 +117,21 @@ class GameProvider
     {
         $gameType = strtolower(trim((string) $gameType));
 
+        if (self::isGenshinImpact($gameType)) {
+            return 'Genshin Impact';
+        }
+        if (self::isPubgMobile($gameType)) {
+            return 'PUBG Mobile';
+        }
+
         $names = [
             'mobilelegends' => 'Mobile Legends',
             'freefire' => 'Free Fire',
-            'pubg_mobile' => 'PUBG Mobile',
-            'pubgmobile' => 'PUBG Mobile',
-            'genshin_impact' => 'Genshin Impact',
             'bloodstrike' => 'Blood Strike',
             'honorofkings' => 'Honor of Kings',
             'punishinggrayraven' => 'Punishing: Gray Raven',
             'wutheringwaves' => 'Wuthering Waves',
+            'vipreseller' => 'Digital',
         ];
 
         return $names[$gameType] ?? ucwords(str_replace('_', ' ', $gameType));

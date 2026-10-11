@@ -1478,12 +1478,12 @@ class CheckoutController extends Controller
                 if (strpos($gameNameFromModel, ' - ') !== false) {
                     $gameName = explode(' - ', $gameNameFromModel)[0];
                 } elseif (preg_match('/^\d+/', $gameNameFromModel) || preg_match('/\d+\s*\+?\s*\d+/', $gameNameFromModel)) {
-                    $gameName = ucfirst(str_replace('_', ' ', $gameType));
+                    $gameName = \App\Support\GameProvider::label($gameType);
                 } else {
                     $gameName = $gameNameFromModel;
                 }
             } else {
-                $gameName = ucfirst(str_replace('_', ' ', $gameType));
+                $gameName = \App\Support\GameProvider::label($gameType);
             }
 
             $vipStatuses = $order->relationLoaded('vipResellerStatuses')
@@ -1561,13 +1561,13 @@ class CheckoutController extends Controller
                 'is_flash_sale' => $order->isFlashSale(),
                 'user_id_ml' => $order->user_id_ml,
                 'zone_id_ml' => $order->zone_id_ml,
-                'player_id_ff' => $order->player_id_ff,
-                'player_id_pubg' => $order->player_id_pubg,
-                'player_id_hok' => $order->player_id_hok,
-                'user_id_bs' => $order->user_id_bs,
-                'server_bs' => $order->server_bs,
-            'save_id' => $order->save_id,
-            'server' => $order->server,
+                'player_id_ff' => $order->player_id_ff ?: ((! $isVipOrder && \App\Support\GameProvider::isFreeFire($gameType)) ? $order->save_id : null),
+                'player_id_pubg' => $order->player_id_pubg ?: ((! $isVipOrder && \App\Support\GameProvider::isPubgMobile($gameType)) ? $order->save_id : null),
+                'player_id_hok' => $order->player_id_hok ?: ((! $isVipOrder && strtolower((string) $gameType) === 'honorofkings') ? $order->save_id : null),
+                'user_id_bs' => $order->user_id_bs ?: ((! $isVipOrder && strtolower((string) $gameType) === 'bloodstrike') ? $order->save_id : null),
+                'server_bs' => $order->server_bs ?: ((! $isVipOrder && strtolower((string) $gameType) === 'bloodstrike') ? $order->server : null),
+                'save_id' => $order->save_id,
+                'server' => $order->server,
                 'customer_email' => $order->customer_email,
                 'notes' => $order->notes,
                 'created_at' => $order->created_at->format('Y-m-d H:i:s'),
