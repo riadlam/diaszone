@@ -807,11 +807,32 @@
                         </div>
                     </section>
                 @else
-                    @if($entrySubmitted && ! $entryEditable)
+                    @if($entry?->status === 'approved')
                         <section class="dz-gw-panel space-y-3">
-                            <div class="flex flex-col items-center gap-2">
-                                <h2 class="text-base font-black text-slate-900">{{ __('giveaway.status_title') }}</h2>
-                                <span class="dz-gw-chip {{ $statusClass }}">{{ __('giveaway.'.$statusKey) }}</span>
+                            <div class="rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white px-4 py-5 text-center">
+                                <span class="dz-gw-chip bg-emerald-100 text-emerald-800 mb-2">{{ __('giveaway.status_approved') }}</span>
+                                <h2 class="text-lg font-black text-emerald-900">{{ __('giveaway.approved_title') }}</h2>
+                                <p class="mt-2 text-sm text-emerald-800/90 max-w-md mx-auto leading-relaxed">{{ __('giveaway.approved_body') }}</p>
+                            </div>
+                        </section>
+                    @elseif($entry?->status === 'pending')
+                        <section class="dz-gw-panel space-y-3 text-center">
+                            <h2 class="text-base font-black text-slate-900">{{ __('giveaway.status_title') }}</h2>
+                            <span class="dz-gw-chip bg-amber-100 text-amber-800">{{ __('giveaway.status_pending') }}</span>
+                            <p class="text-sm text-slate-500 max-w-sm mx-auto">{{ __('giveaway.pending_body') }}</p>
+                        </section>
+                    @elseif($entry?->status === 'declined')
+                        <section class="dz-gw-panel space-y-3">
+                            <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-center" role="alert">
+                                <span class="dz-gw-chip bg-rose-100 text-rose-800 mb-2">{{ __('giveaway.status_declined') }}</span>
+                                <h2 class="text-base font-black text-rose-900">{{ __('giveaway.declined_title') }}</h2>
+                                <p class="mt-2 text-sm text-rose-800 leading-relaxed">{{ __('giveaway.declined_body') }}</p>
+                                @if($entry->decline_reason)
+                                    <p class="mt-3 rounded-xl bg-white/80 border border-rose-100 px-3 py-2 text-sm text-rose-900 font-semibold">
+                                        {{ $entry->decline_reason }}
+                                    </p>
+                                @endif
+                                <p class="mt-3 text-xs font-bold text-rose-700">{{ __('giveaway.declined_fix_hint') }}</p>
                             </div>
                         </section>
                     @elseif(! $giveaway->isCurrentlyActive() && ! $entrySubmitted)

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Giveaway;
 use App\Models\GiveawayEntry;
 use App\Services\GiveawayReferralService;
+use App\Services\GiveawayTelegramNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -13,7 +14,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class GiveawayController extends Controller
 {
     public function __construct(
-        private readonly GiveawayReferralService $referralService
+        private readonly GiveawayReferralService $referralService,
+        private readonly GiveawayTelegramNotifier $telegramNotifier
     ) {}
 
     public function show(Request $request, ?string $slug = null)
@@ -179,6 +181,8 @@ class GiveawayController extends Controller
             'reviewed_at' => null,
             'reviewed_by' => null,
         ]);
+
+        $this->telegramNotifier->sync($entry->fresh(['user', 'giveaway', 'referrals.referredUser']), forceNew: ! $entry->tlg_message_id);
 
         return redirect()
             ->route('giveaway.show', $giveaway->slug)

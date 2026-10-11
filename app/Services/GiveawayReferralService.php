@@ -167,6 +167,15 @@ class GiveawayReferralService
 
         if (($result['ok'] ?? false) === true) {
             $this->clearCapture($request);
+
+            $referrerEntry = GiveawayEntry::query()
+                ->where('referral_code', $code)
+                ->with(['user', 'giveaway', 'referrals.referredUser'])
+                ->first();
+
+            if ($referrerEntry) {
+                app(GiveawayTelegramNotifier::class)->sync($referrerEntry);
+            }
         }
 
         return $result;

@@ -29,12 +29,14 @@ class GiveawayEntry extends Model
         'decline_reason',
         'reviewed_at',
         'reviewed_by',
+        'tlg_message_id',
     ];
 
     protected $casts = [
         'liked_followed_ack' => 'boolean',
         'referral_satisfied_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'tlg_message_id' => 'integer',
     ];
 
     public function giveaway(): BelongsTo

@@ -873,5 +873,63 @@ class TelegramService
         
         return $totalRevenue;
     }
+
+    /**
+     * Format giveaway entry notification (same bot/chat as orders).
+     */
+    public static function formatGiveawayEntryMessage($entry): string
+    {
+        $escape = function ($s) {
+            if (is_null($s)) {
+                return '';
+            }
+
+            return htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        };
+
+        $entry->loadMissing(['user', 'giveaway', 'referrals.referredUser']);
+
+        $status = match ($entry->status) {
+            'approved' => '✅ Approved',
+            'declined' => '❌ Declined',
+            'draft' => '📝 Draft',
+            default => '⏳ Pending review',
+        };
+
+        $referralCount = $entry->referrals->count();
+        $referralLine = $entry->referral_satisfied_at
+            ? '✅ Referral: 1/1 satisfied'
+            : '⏳ Referral: '.$referralCount.'/1';
+
+        $friendNames = $entry->referrals
+            ->map(fn ($r) => $r->referredUser?->name)
+            ->filter()
+            ->map(fn ($n) => $escape($n))
+            ->values();
+
+        if ($friendNames->isNotEmpty()) {
+            $referralLine .= ' — '.$friendNames->implode(', ');
+        }
+
+        $message = "🎁 <b>Giveaway Entry</b>\n\n";
+        $message .= '🆔 <b>Entry:</b> #'.$entry->id."\n";
+        $message .= '🎯 <b>Giveaway:</b> '.$escape($entry->giveaway?->title ?? '—')."\n";
+        $message .= '👤 <b>Player:</b> '.$escape($entry->user?->name ?? '—')."\n";
+        if ($entry->user?->email) {
+            $message .= '✉️ <b>Email:</b> '.$escape($entry->user->email)."\n";
+        }
+        $message .= '🔗 <b>Code:</b> <code>'.$escape($entry->referral_code)."</code>\n";
+        $message .= '🖼 <b>Screenshot:</b> '.($entry->hasScreenshot() ? 'Uploaded' : 'Missing')."\n";
+        $message .= $referralLine."\n";
+        $message .= '📊 <b>Status:</b> '.$status."\n";
+
+        if ($entry->status === 'declined' && $entry->decline_reason) {
+            $message .= '💬 <b>Reason:</b> '.$escape($entry->decline_reason)."\n";
+        }
+
+        $message .= "\n🕒 ".$escape(optional($entry->updated_at)->format('Y-m-d H:i') ?? now()->format('Y-m-d H:i'));
+
+        return $message;
+    }
 }
 

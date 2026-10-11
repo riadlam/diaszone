@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Giveaways\Pages;
 
 use App\Filament\Resources\Giveaways\GiveawayResource;
 use App\Models\GiveawayEntry;
+use App\Services\GiveawayTelegramNotifier;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
@@ -17,7 +18,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 
 class GiveawayEntries extends Page implements HasTable
 {
@@ -91,6 +92,10 @@ class GiveawayEntries extends Page implements HasTable
                     ->badge()
                     ->color(fn ($state) => $state ? 'success' : 'gray'),
 
+                TextColumn::make('tlg_message_id')
+                    ->label('Telegram ID')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('created_at')
                     ->dateTime('Y-m-d H:i')
                     ->sortable(),
@@ -105,11 +110,30 @@ class GiveawayEntries extends Page implements HasTable
                     ]),
             ])
             ->recordActions([
+                Action::make('view_image')
+                    ->label('View image')
+                    ->icon('heroicon-o-photo')
+                    ->color('gray')
+                    ->visible(fn (GiveawayEntry $record) => $record->hasScreenshot())
+                    ->modalHeading('Screenshot capture')
+                    ->modalWidth('4xl')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close')
+                    ->modalContent(fn (GiveawayEntry $record) => new HtmlString(
+                        view('filament.giveaways.screenshot-preview', ['entry' => $record])->render()
+                    )),
+
                 Action::make('approve')
                     ->label('Approve')
                     ->color('success')
+                    ->icon('heroicon-o-check-circle')
                     ->visible(fn (GiveawayEntry $record) => $record->status === GiveawayEntry::STATUS_PENDING && $record->hasScreenshot())
-                    ->requiresConfirmation()
+                    ->modalHeading('Approve entry')
+                    ->modalDescription('Review the screenshot below, then approve.')
+                    ->modalWidth('4xl')
+                    ->modalContent(fn (GiveawayEntry $record) => new HtmlString(
+                        view('filament.giveaways.screenshot-preview', ['entry' => $record])->render()
+                    ))
                     ->action(function (GiveawayEntry $record) {
                         $record->update([
                             'status' => GiveawayEntry::STATUS_APPROVED,
@@ -118,18 +142,28 @@ class GiveawayEntries extends Page implements HasTable
                             'reviewed_by' => Auth::id(),
                         ]);
 
+                        app(GiveawayTelegramNotifier::class)->sync($record->fresh(['user', 'giveaway', 'referrals.referredUser']));
+
                         Notification::make()->title('Entry approved')->success()->send();
                     }),
 
                 Action::make('decline')
                     ->label('Decline')
                     ->color('danger')
+                    ->icon('heroicon-o-x-circle')
                     ->visible(fn (GiveawayEntry $record) => $record->status === GiveawayEntry::STATUS_PENDING)
+                    ->modalHeading('Decline entry')
+                    ->modalDescription('Review the screenshot, then explain what the player must fix.')
+                    ->modalWidth('4xl')
+                    ->modalContent(fn (GiveawayEntry $record) => new HtmlString(
+                        view('filament.giveaways.screenshot-preview', ['entry' => $record])->render()
+                    ))
                     ->form([
                         Textarea::make('decline_reason')
                             ->label('Reason shown to the player')
                             ->required()
-                            ->rows(3),
+                            ->rows(3)
+                            ->default('Please check the giveaway conditions (like, follow, 5 tags screenshot) and try again.'),
                     ])
                     ->action(function (GiveawayEntry $record, array $data) {
                         $record->update([
@@ -139,14 +173,10 @@ class GiveawayEntries extends Page implements HasTable
                             'reviewed_by' => Auth::id(),
                         ]);
 
+                        app(GiveawayTelegramNotifier::class)->sync($record->fresh(['user', 'giveaway', 'referrals.referredUser']));
+
                         Notification::make()->title('Entry declined')->danger()->send();
                     }),
-
-                Action::make('open_screenshot')
-                    ->label('Open image')
-                    ->visible(fn (GiveawayEntry $record) => $record->hasScreenshot())
-                    ->url(fn (GiveawayEntry $record) => Storage::disk('public')->url($record->screenshot_path), true)
-                    ->openUrlInNewTab(),
             ]);
     }
 }

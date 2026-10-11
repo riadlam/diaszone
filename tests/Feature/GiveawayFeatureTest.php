@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\GiveawayReferralService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -294,5 +295,63 @@ class GiveawayFeatureTest extends TestCase
         $this->get(route('home'))
             ->assertOk()
             ->assertSee(route('giveaway.index'), false);
+    }
+
+    public function test_submit_sends_telegram_and_referral_updates_message(): void
+    {
+        Storage::fake('public');
+        config([
+            'telegram.bot_token' => 'test-token',
+            'telegram.chat_id' => '12345',
+            'telegram.api_url' => 'https://api.telegram.org/bot',
+        ]);
+
+        Http::fake([
+            'https://api.telegram.org/*/sendMessage' => Http::response(['ok' => true, 'result' => ['message_id' => 9001]], 200),
+            'https://api.telegram.org/*/editMessageText' => Http::response(['ok' => true], 200),
+        ]);
+
+        $giveaway = $this->makeGiveaway();
+        $referrer = $this->makeUser('Referrer TG');
+        $friend = $this->makeUser('Friend TG');
+
+        $this->actingAs($referrer)->get(route('giveaway.show', $giveaway->slug));
+        $this->actingAs($referrer)->post(route('giveaway.screenshot.upload', $giveaway->slug), [
+            'screenshot' => UploadedFile::fake()->image('tags.jpg'),
+        ]);
+        $this->actingAs($referrer)->post(route('giveaway.enter', $giveaway->slug), [
+            'liked_followed_ack' => '1',
+        ])->assertRedirect();
+
+        $entry = GiveawayEntry::query()->where('user_id', $referrer->id)->first();
+        $this->assertSame(9001, $entry->tlg_message_id);
+
+        $this->actingAs($friend)
+            ->get(route('giveaway.show', ['slug' => $giveaway->slug, 'ref' => $entry->referral_code]))
+            ->assertOk();
+
+        $this->assertSame(1, GiveawayReferral::count());
+        $entry->refresh();
+        $this->assertNotNull($entry->referral_satisfied_at);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/editMessageText')
+                && (int) $request['message_id'] === 9001;
+        });
+    }
+
+    public function test_approved_page_shows_stay_tuned_message(): void
+    {
+        $giveaway = $this->makeGiveaway();
+        $user = $this->makeUser('Winner Hopeful');
+        $this->makeEntry($giveaway, $user, [
+            'status' => GiveawayEntry::STATUS_APPROVED,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('giveaway.show', $giveaway->slug))
+            ->assertOk()
+            ->assertSee(__('giveaway.approved_title'), false)
+            ->assertSee(__('giveaway.approved_body'), false);
     }
 }
