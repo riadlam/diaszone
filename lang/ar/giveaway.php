@@ -10,6 +10,7 @@ return [
     'enrolled_label' => 'المشاركون',
     'enrolled_empty' => 'كن أول من ينضم',
     'how_title' => 'كيف تشارك',
+    'steps_short' => 'خطوات',
     'step1_title' => 'إعجاب ومتابعة',
     'step1_desc' => 'أعجب بمنشور المسابقة وتابع صفحتنا على فيسبوك.',
     'step2_title' => 'أشر إلى 5 أصدقاء',

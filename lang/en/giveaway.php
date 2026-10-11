@@ -10,6 +10,7 @@ return [
     'enrolled_label' => 'Players enrolled',
     'enrolled_empty' => 'Be the first to join',
     'how_title' => 'How to join',
+    'steps_short' => 'steps',
     'step1_title' => 'Like & follow',
     'step1_desc' => 'Like the giveaway post and follow our Facebook page.',
     'step2_title' => 'Tag 5 friends',

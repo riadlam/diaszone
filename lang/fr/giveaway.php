@@ -10,6 +10,7 @@ return [
     'enrolled_label' => 'Joueurs inscrits',
     'enrolled_empty' => 'Soyez le premier à rejoindre',
     'how_title' => 'Comment participer',
+    'steps_short' => 'étapes',
     'step1_title' => 'Like & follow',
     'step1_desc' => 'Aimez la publication et suivez notre page Facebook.',
     'step2_title' => 'Taguez 5 amis',
