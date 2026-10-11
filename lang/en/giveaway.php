@@ -15,6 +15,7 @@ return [
     'step1_desc' => 'Like the giveaway post and follow our Facebook page.',
     'step2_title' => 'Tag 5 friends',
     'step2_desc' => 'On the Facebook post, tag 5 friends. Take a clear screenshot of the tags.',
+    'step2_login_hint' => 'Sign in to upload your screenshot here.',
     'step3_title' => 'Invite a friend',
     'step3_desc' => 'Copy your referral link and share it. At least one friend must log in with Google using your link.',
     'step3_login_hint' => 'Sign in with Google to unlock your personal referral link.',

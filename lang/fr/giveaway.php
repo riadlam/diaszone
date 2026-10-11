@@ -15,6 +15,7 @@ return [
     'step1_desc' => 'Aimez la publication et suivez notre page Facebook.',
     'step2_title' => 'Taguez 5 amis',
     'step2_desc' => 'Sur la publication Facebook, taguez 5 amis. Prenez une capture claire des tags.',
+    'step2_login_hint' => 'Connectez-vous pour envoyer votre capture ici.',
     'step3_title' => 'Invitez un ami',
     'step3_desc' => 'Copiez votre lien de parrainage et partagez-le. Au moins un ami doit se connecter avec Google via votre lien.',
     'step3_login_hint' => 'Connectez-vous avec Google pour obtenir votre lien de parrainage.',

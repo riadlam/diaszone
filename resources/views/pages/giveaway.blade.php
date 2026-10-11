@@ -467,47 +467,69 @@
     50% { transform: translate3d(0,-2px,0); box-shadow: 0 8px 20px rgba(66,133,244,.22); }
 }
 .dz-google-btn__icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; }
-.dz-gw-upload {
+/* Compact inline upload inside step 2 */
+.dz-gw-mini-up {
+    margin-top: 0.55rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+}
+.dz-gw-mini-up__thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 0.7rem;
+    object-fit: cover;
+    border: 1.5px solid #ddd6fe;
+    background: #faf5ff;
+    flex-shrink: 0;
+    display: none;
+}
+.dz-gw-mini-up.has-preview .dz-gw-mini-up__thumb { display: block; }
+.dz-gw-mini-up__pick {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     border: 1.5px dashed #c4b5fd;
-    background: linear-gradient(180deg, #faf5ff 0%, #fff 100%);
-    border-radius: 1.05rem;
-    padding: 0.95rem;
+    background: #faf5ff;
+    border-radius: 0.7rem;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #6d28d9;
     cursor: pointer;
-    text-align: center;
 }
-.dz-gw-upload.is-drag {
-    border-color: #7c3aed;
-    background: #f5f3ff;
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
-}
-.dz-gw-upload input[type="file"] {
+.dz-gw-mini-up__pick input[type="file"] {
     position: absolute;
     inset: 0;
     opacity: 0;
     cursor: pointer;
 }
-.dz-gw-upload__preview {
-    display: none;
-    margin: 0 auto 0.65rem;
-    width: 104px;
-    height: 104px;
-    border-radius: 0.85rem;
-    object-fit: cover;
-    border: 2px solid #ddd6fe;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+.dz-gw-mini-up.is-drag .dz-gw-mini-up__pick {
+    border-color: #7c3aed;
+    background: #f5f3ff;
 }
-.dz-gw-upload.has-preview .dz-gw-upload__preview { display: block; }
-.dz-gw-upload.has-preview .dz-gw-upload__placeholder { display: none; }
-.dz-gw-upload__icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    margin: 0 auto 0.45rem;
-    border-radius: 0.8rem;
-    background: #ede9fe;
+.dz-gw-mini-up__actions {
+    display: none;
+    align-items: center;
+    gap: 0.35rem;
+}
+.dz-gw-mini-up.has-preview .dz-gw-mini-up__actions { display: inline-flex; }
+.dz-gw-mini-up.has-preview .dz-gw-mini-up__pick-label { display: none; }
+.dz-gw-mini-up__status {
+    width: 100%;
+    font-size: 0.68rem;
+    font-weight: 700;
     color: #6d28d9;
+    min-height: 0.9rem;
+}
+.dz-gw-submit-bar {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--line);
     display: grid;
-    place-items: center;
+    gap: 0.65rem;
 }
 .dz-gw-btn-primary {
     display: inline-flex;
@@ -649,6 +671,21 @@
                         <h2 class="text-base font-black text-slate-900">{{ __('giveaway.how_title') }}</h2>
                         <span class="dz-gw-chip bg-violet-50 text-violet-700">3 {{ __('giveaway.steps_short') }}</span>
                     </div>
+
+                    @if($entryEditable && $giveaway->isCurrentlyActive())
+                        @if($entry->status === 'declined' && $entry->decline_reason)
+                            <div class="mb-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-900">
+                                <p class="font-bold mb-0.5">{{ __('giveaway.decline_reason') }}</p>
+                                <p>{{ $entry->decline_reason }}</p>
+                            </div>
+                        @endif
+                        <form method="POST" action="{{ route('giveaway.enter', $giveaway->slug) }}" id="gw-entry-form"
+                              data-upload-url="{{ route('giveaway.screenshot.upload', $giveaway->slug) }}"
+                              data-delete-url="{{ route('giveaway.screenshot.delete', $giveaway->slug) }}"
+                              data-has-screenshot="{{ $hasScreenshot ? '1' : '0' }}">
+                            @csrf
+                    @endif
+
                     <div class="dz-gw-steps">
                         <article class="dz-gw-step-row">
                             <span class="dz-gw-step-row__num">1</span>
@@ -672,9 +709,31 @@
                             <span class="dz-gw-step-row__num">2</span>
                             <div class="min-w-0 flex items-start gap-3">
                                 <img src="{{ $tagsIcon }}" alt="" class="dz-gw-step-art" width="52" height="52">
-                                <div class="min-w-0">
+                                <div class="min-w-0 flex-1">
                                     <h3>{{ __('giveaway.step2_title') }}</h3>
                                     <p>{{ __('giveaway.step2_desc') }}</p>
+                                    @if($entryEditable && $giveaway->isCurrentlyActive())
+                                        <div class="dz-gw-mini-up {{ $hasScreenshot ? 'has-preview' : '' }}" id="gw-upload">
+                                            <img src="{{ $screenshotUrl }}" alt="" class="dz-gw-mini-up__thumb" id="gw-preview">
+                                            <label class="dz-gw-mini-up__pick">
+                                                <input type="file" id="gw-screenshot" accept="image/jpeg,image/png,image/webp,image/*">
+                                                <span class="dz-gw-mini-up__pick-label">{{ __('giveaway.upload_cta') }}</span>
+                                                <span class="hidden has-preview-label">{{ __('giveaway.replace_screenshot') }}</span>
+                                            </label>
+                                            <div class="dz-gw-mini-up__actions" id="gw-upload-actions">
+                                                <label for="gw-screenshot" class="dz-gw-btn-secondary cursor-pointer">{{ __('giveaway.replace_screenshot') }}</label>
+                                                <button type="button" class="dz-gw-btn-danger" id="gw-delete-shot">{{ __('giveaway.delete_screenshot') }}</button>
+                                            </div>
+                                            <p class="dz-gw-mini-up__status" id="gw-upload-status"></p>
+                                        </div>
+                                    @elseif(auth()->guest())
+                                        <p class="mt-2 text-xs font-semibold text-violet-700">{{ __('giveaway.step2_login_hint') }}</p>
+                                    @elseif($hasScreenshot)
+                                        <div class="dz-gw-mini-up has-preview mt-2">
+                                            <img src="{{ $screenshotUrl }}" alt="" class="dz-gw-mini-up__thumb" style="display:block">
+                                            <span class="text-xs font-bold text-emerald-700">{{ __('giveaway.screenshot_saved') }}</span>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </article>
@@ -702,6 +761,22 @@
                             </div>
                         </article>
                     </div>
+
+                    @if($entryEditable && $giveaway->isCurrentlyActive())
+                            <div class="dz-gw-submit-bar">
+                                <label class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700">
+                                    <input type="checkbox" name="liked_followed_ack" id="gw-ack" value="1" class="mt-0.5 rounded border-slate-300 text-violet-700 focus:ring-violet-600" {{ old('liked_followed_ack', $entry->liked_followed_ack) ? 'checked' : '' }}>
+                                    <span>{{ __('giveaway.ack_label') }}</span>
+                                </label>
+                                @error('liked_followed_ack')
+                                    <p class="text-xs font-semibold text-rose-600">{{ $message }}</p>
+                                @enderror
+                                <button type="submit" id="gw-submit" class="dz-gw-btn-primary !max-w-none" disabled>{{ __('giveaway.submit') }}</button>
+                                <p class="text-xs text-slate-500 text-center" id="gw-submit-hint">{{ __('giveaway.submit_locked_hint') }}</p>
+                            </div>
+                        </form>
+                    @endif
+
                     @if($giveaway->instructions)
                         <p class="mt-3 text-xs text-slate-500 whitespace-pre-line leading-relaxed">{{ $giveaway->instructions }}</p>
                     @endif
@@ -733,87 +808,13 @@
                     </section>
                 @else
                     @if($entrySubmitted && ! $entryEditable)
-                        <section class="dz-gw-panel space-y-3.5">
+                        <section class="dz-gw-panel space-y-3">
                             <div class="flex flex-col items-center gap-2">
                                 <h2 class="text-base font-black text-slate-900">{{ __('giveaway.status_title') }}</h2>
                                 <span class="dz-gw-chip {{ $statusClass }}">{{ __('giveaway.'.$statusKey) }}</span>
                             </div>
-                            @if($entry->status === 'declined' && $entry->decline_reason)
-                                <div class="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-900 text-left">
-                                    <p class="font-bold mb-0.5">{{ __('giveaway.decline_reason') }}</p>
-                                    <p>{{ $entry->decline_reason }}</p>
-                                </div>
-                            @endif
-                            <div>
-                                <h3 class="text-xs font-black uppercase tracking-wide text-slate-500 mb-1.5">{{ __('giveaway.referral_title') }}</h3>
-                                <p class="text-sm text-slate-500 mb-2.5 max-w-md mx-auto">{{ __('giveaway.referral_hint') }}</p>
-                                <div class="flex flex-col gap-2 max-w-md mx-auto">
-                                    <input id="gw-ref-link" type="text" readonly value="{{ $entry->referralUrl() }}"
-                                           class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs sm:text-sm font-semibold text-slate-800 text-center">
-                                    <button type="button" class="dz-gw-btn-primary !shadow-none !max-w-none" data-gw-copy="gw-ref-link">
-                                        {{ __('giveaway.copy_link') }}
-                                    </button>
-                                </div>
-                                <p class="mt-2.5 text-sm font-bold {{ $entry->referralSatisfied() ? 'text-emerald-700' : 'text-amber-700' }}">
-                                    {{ __('giveaway.referral_progress', ['count' => $entry->referralSatisfied() ? 1 : 0]) }}
-                                </p>
-                            </div>
                         </section>
-                    @elseif($giveaway->isCurrentlyActive() && $entryEditable)
-                        <section class="dz-gw-panel">
-                            <div class="flex flex-col items-center gap-2 mb-3">
-                                <h2 class="text-base font-black text-slate-900">{{ __('giveaway.form_title') }}</h2>
-                                @if($entry->status === 'declined')
-                                    <span class="dz-gw-chip {{ $statusClass }}">{{ __('giveaway.status_declined') }}</span>
-                                    @if($entry->decline_reason)
-                                        <div class="w-full rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-900 text-left">
-                                            <p class="font-bold mb-0.5">{{ __('giveaway.decline_reason') }}</p>
-                                            <p>{{ $entry->decline_reason }}</p>
-                                        </div>
-                                    @endif
-                                @endif
-                            </div>
-                            <form method="POST" action="{{ route('giveaway.enter', $giveaway->slug) }}" id="gw-entry-form" class="space-y-3.5 text-left max-w-md mx-auto"
-                                  data-upload-url="{{ route('giveaway.screenshot.upload', $giveaway->slug) }}"
-                                  data-delete-url="{{ route('giveaway.screenshot.delete', $giveaway->slug) }}"
-                                  data-has-screenshot="{{ $hasScreenshot ? '1' : '0' }}">
-                                @csrf
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-700 mb-1.5 text-center">{{ __('giveaway.screenshot_label') }}</label>
-                                    <label class="dz-gw-upload block {{ $hasScreenshot ? 'has-preview' : '' }}" id="gw-upload">
-                                        <input type="file" id="gw-screenshot" accept="image/jpeg,image/png,image/webp,image/*">
-                                        <img src="{{ $screenshotUrl }}" alt="" class="dz-gw-upload__preview" id="gw-preview">
-                                        <div class="dz-gw-upload__placeholder">
-                                            <div class="dz-gw-upload__icon" aria-hidden="true">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                            </div>
-                                            <p class="text-sm font-bold text-violet-800">{{ __('giveaway.upload_cta') }}</p>
-                                            <p class="mt-1 text-xs text-slate-500">{{ __('giveaway.screenshot_hint') }}</p>
-                                        </div>
-                                    </label>
-                                    <div class="dz-gw-upload-actions {{ $hasScreenshot ? '' : 'hidden' }}" id="gw-upload-actions">
-                                        <label for="gw-screenshot" class="dz-gw-btn-secondary cursor-pointer">{{ __('giveaway.replace_screenshot') }}</label>
-                                        <button type="button" class="dz-gw-btn-danger" id="gw-delete-shot">{{ __('giveaway.delete_screenshot') }}</button>
-                                    </div>
-                                    <p class="dz-gw-upload-status" id="gw-upload-status"></p>
-                                    @error('screenshot')
-                                        <p class="mt-1.5 text-xs font-semibold text-rose-600 text-center">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <label class="flex items-start gap-3 text-sm text-slate-700">
-                                    <input type="checkbox" name="liked_followed_ack" id="gw-ack" value="1" class="mt-1 rounded border-slate-300 text-violet-700 focus:ring-violet-600" {{ old('liked_followed_ack', $entry->liked_followed_ack) ? 'checked' : '' }}>
-                                    <span>{{ __('giveaway.ack_label') }}</span>
-                                </label>
-                                @error('liked_followed_ack')
-                                    <p class="text-xs font-semibold text-rose-600 text-center">{{ $message }}</p>
-                                @enderror
-                                <div class="pt-0.5 text-center">
-                                    <button type="submit" id="gw-submit" class="dz-gw-btn-primary" disabled>{{ __('giveaway.submit') }}</button>
-                                    <p class="mt-2 text-xs text-slate-500" id="gw-submit-hint">{{ __('giveaway.submit_locked_hint') }}</p>
-                                </div>
-                            </form>
-                        </section>
-                    @else
+                    @elseif(! $giveaway->isCurrentlyActive() && ! $entrySubmitted)
                         <section class="dz-gw-panel">
                             <p class="font-bold text-slate-700">{{ __('giveaway.closed') }}</p>
                         </section>
@@ -894,7 +895,6 @@
     const upload = document.getElementById('gw-upload');
     const input = document.getElementById('gw-screenshot');
     const preview = document.getElementById('gw-preview');
-    const actions = document.getElementById('gw-upload-actions');
     const statusEl = document.getElementById('gw-upload-status');
     const ack = document.getElementById('gw-ack');
     const submitBtn = document.getElementById('gw-submit');
@@ -919,12 +919,10 @@
         if (url) {
             preview.src = url;
             upload.classList.add('has-preview');
-            if (actions) actions.classList.remove('hidden');
             hasScreenshot = true;
         } else {
             preview.removeAttribute('src');
             upload.classList.remove('has-preview');
-            if (actions) actions.classList.add('hidden');
             hasScreenshot = false;
         }
         if (form) form.dataset.hasScreenshot = hasScreenshot ? '1' : '0';
