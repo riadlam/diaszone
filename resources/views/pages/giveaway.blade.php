@@ -13,7 +13,8 @@
 }
 .dz-gw-shell {
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
     background:
         radial-gradient(900px 400px at 50% -10%, rgba(109, 40, 217, 0.16), transparent 55%),
         radial-gradient(700px 320px at 50% 100%, rgba(37, 99, 235, 0.08), transparent 50%),
@@ -302,17 +303,20 @@
     font-size: 0.75rem;
     font-weight: 800;
 }
-/* Enrolled — soft breathe grid (more room, no marquee) */
+/* Enrolled — soft breathe grid (extra bottom room so pills aren’t cropped) */
 .dz-gw-enrolled {
-    padding: 0.85rem 0.35rem 0.35rem;
+    overflow: visible;
+    padding: 0.95rem 0.65rem 1.35rem;
 }
 .dz-gw-enrolled__grid {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 0.65rem 0.7rem;
-    padding: 0.85rem 0.5rem 1rem;
-    min-height: 3.5rem;
+    align-content: flex-start;
+    gap: 0.75rem 0.7rem;
+    padding: 1rem 0.35rem 1.5rem;
+    min-height: 4rem;
+    overflow: visible;
 }
 .dz-gw-name {
     display: inline-flex;
@@ -345,12 +349,12 @@
 }
 .dz-gw-name.is-empty::before { background: #a78bfa; }
 @-webkit-keyframes dz-gw-breathe {
-    0%, 100% { -webkit-transform: translate3d(0, 0, 0) scale(1); box-shadow: 0 0 0 rgba(109,40,217,0); }
-    50% { -webkit-transform: translate3d(0, -3px, 0) scale(1.03); box-shadow: 0 6px 14px rgba(109,40,217,.1); }
+    0%, 100% { -webkit-transform: translate3d(0, 0, 0) scale(1); box-shadow: 0 2px 0 rgba(109,40,217,0); }
+    50% { -webkit-transform: translate3d(0, -2px, 0) scale(1.02); box-shadow: 0 8px 16px rgba(109,40,217,.1); }
 }
 @keyframes dz-gw-breathe {
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); box-shadow: 0 0 0 rgba(109,40,217,0); }
-    50% { transform: translate3d(0, -3px, 0) scale(1.03); box-shadow: 0 6px 14px rgba(109,40,217,.1); }
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); box-shadow: 0 2px 0 rgba(109,40,217,0); }
+    50% { transform: translate3d(0, -2px, 0) scale(1.02); box-shadow: 0 8px 16px rgba(109,40,217,.1); }
 }
 .dz-gw-name:nth-child(3n) { -webkit-animation-delay: .35s; animation-delay: .35s; }
 .dz-gw-name:nth-child(3n+1) { -webkit-animation-delay: .7s; animation-delay: .7s; }
