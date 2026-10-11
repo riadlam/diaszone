@@ -49,4 +49,13 @@ return [
     'new_products' => 'منتجات جديدة',
     'gift_cards' => 'بطاقات الهدايا',
     'no_games_available' => 'لا توجد ألعاب متاحة في الوقت الحالي.',
+
+    // Live community stats (non-sensitive)
+    'stats_aria' => 'إحصائيات مجتمع دياز زون',
+    'stats_eyebrow' => 'موثوق به من اللاعبين كل يوم',
+    'stats_members' => 'أعضاء المجتمع',
+    'stats_players' => 'لاعبون تمت تعبئتهم',
+    'stats_topups' => 'تعبئات تم تسليمها',
+    'stats_products' => 'منتجات تمت تعبئتها',
+    'stats_games' => 'ألعاب نشطة',
 ];

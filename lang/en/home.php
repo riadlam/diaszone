@@ -49,4 +49,13 @@ return [
     'new_products' => 'New Products',
     'gift_cards' => 'Gift Cards',
     'no_games_available' => 'No games available at the moment.',
+
+    // Live community stats (non-sensitive)
+    'stats_aria' => 'DiasZone community stats',
+    'stats_eyebrow' => 'Trusted by gamers every day',
+    'stats_members' => 'Community members',
+    'stats_players' => 'Players topped up',
+    'stats_topups' => 'Top-ups delivered',
+    'stats_products' => 'Products topped up',
+    'stats_games' => 'Games live',
 ];

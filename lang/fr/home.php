@@ -49,4 +49,13 @@ return [
     'new_products' => 'Nouveaux produits',
     'gift_cards' => 'Cartes cadeaux',
     'no_games_available' => 'Aucun jeu disponible pour le moment.',
+
+    // Live community stats (non-sensitive)
+    'stats_aria' => 'Statistiques de la communauté DiasZone',
+    'stats_eyebrow' => 'Adopté par les joueurs chaque jour',
+    'stats_members' => 'Membres de la communauté',
+    'stats_players' => 'Joueurs rechargés',
+    'stats_topups' => 'Recharges livrées',
+    'stats_products' => 'Produits rechargés',
+    'stats_games' => 'Jeux en ligne',
 ];

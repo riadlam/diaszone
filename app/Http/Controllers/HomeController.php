@@ -9,6 +9,7 @@ use App\Models\Game;
 use App\Models\Review;
 use App\Models\ReviewLike;
 use App\Models\ReviewReply;
+use App\Services\SitePublicStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -231,6 +232,8 @@ class HomeController extends Controller
             ->orderBy('id')
             ->get();
 
+        $publicStats = app(SitePublicStatsService::class)->homepageStats();
+
         return compact(
             'games',
             'topSellingGames',
@@ -238,7 +241,8 @@ class HomeController extends Controller
             'giftCards',
             'flashSales',
             'flashSaleEndsAt',
-            'heroSlides'
+            'heroSlides',
+            'publicStats'
         );
     }
     

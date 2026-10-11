@@ -17,6 +17,10 @@
     'flashSaleEndsAt' => $flashSaleEndsAt ?? null,
 ])
 
+@include('components.home-stats', [
+    'publicStats' => $publicStats ?? [],
+])
+
 <!-- Home Services Section -->
 @include('components.home-services', ['games' => $games])
 
