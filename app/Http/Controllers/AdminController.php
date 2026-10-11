@@ -849,6 +849,36 @@ class AdminController extends Controller
                     $order->server = $normalized;
                     $order->save();
                 }
+            } elseif ($gameType === 'honorofkings') {
+                if (empty($order->player_id_hok) && empty($order->save_id)) {
+                    Log::warning('Recharge skipped: Missing Honor of Kings player ID', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing Player ID for Honor of Kings',
+                    ];
+                }
+                if (empty($order->player_id_hok) && ! empty($order->save_id)) {
+                    $order->player_id_hok = $order->save_id;
+                    $order->save();
+                }
+            } elseif ($gameType === 'bloodstrike') {
+                if (empty($order->user_id_bs) && empty($order->save_id)) {
+                    Log::warning('Recharge skipped: Missing Blood Strike user ID', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Missing User ID for Blood Strike',
+                    ];
+                }
+                if (empty($order->user_id_bs) && ! empty($order->save_id)) {
+                    $order->user_id_bs = $order->save_id;
+                    $order->save();
+                }
             } elseif ($gameType === 'freefire') {
                 // Free Fire: Check if player_id_ff is set
                 if (empty($order->player_id_ff)) {

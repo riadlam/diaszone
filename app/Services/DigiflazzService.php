@@ -190,7 +190,8 @@ class DigiflazzService
         }
 
         if ($gameType === 'honorofkings') {
-            $id = trim((string) ($order->player_id_hok ?? ''));
+            // Digiflazz HOK: player / user ID only (no server in customer_no).
+            $id = trim((string) ($order->player_id_hok ?: $order->save_id ?: ''));
 
             return $id !== ''
                 ? ['customer_no' => $id]
@@ -198,7 +199,8 @@ class DigiflazzService
         }
 
         if ($gameType === 'bloodstrike') {
-            $id = trim((string) ($order->user_id_bs ?? ''));
+            // Digiflazz Blood Strike: "Masukkan User ID" — user ID only (server_bs is display-only).
+            $id = trim((string) ($order->user_id_bs ?: $order->save_id ?: ''));
 
             return $id !== ''
                 ? ['customer_no' => $id]

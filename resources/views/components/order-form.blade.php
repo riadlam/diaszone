@@ -12,31 +12,29 @@
             </div>
         @endif
         @php
-            // Check if game has required_fields defined (from JSON import)
-            $requiredFields = isset($game) && $game && $game->required_fields ? $game->required_fields : null;
-            
-            // Fallback to hardcoded logic for existing games if no required_fields
-            if (!$requiredFields) {
-                if (isset($gameType) && $gameType === 'mobilelegends') {
-                    $requiredFields = [
-                        ['data_name' => 'user_id', 'type' => 'text', 'required' => true, 'name' => __('game.user_id')],
-                        ['data_name' => 'zone_id', 'type' => 'text', 'required' => true, 'name' => __('game.zone_id')],
-                    ];
-                } elseif (isset($gameType) && $gameType === 'bloodstrike') {
-                    $requiredFields = [
-                        ['data_name' => 'user_id_bs', 'type' => 'text', 'required' => true, 'name' => 'User ID'],
-                        ['data_name' => 'server_bs', 'type' => 'select', 'required' => true, 'name' => 'Server', 'options' => [['value' => 'global', 'label' => 'Global']]],
-                    ];
-                } elseif (isset($gameType) && in_array($gameType, ['freefire', 'pubgmobile', 'honorofkings'])) {
-                    $requiredFields = [
-                        ['data_name' => 'player_id', 'type' => 'text', 'required' => true, 'name' => __('game.player_id')],
-                    ];
-                } else {
-                    // Default: User ID only
-                    $requiredFields = [
-                        ['data_name' => 'save_id', 'type' => 'text', 'required' => true, 'name' => 'User ID'],
-                    ];
-                }
+            // Digiflazz-native layouts win over stale games.required_fields (e.g. save_id-only).
+            $requiredFields = null;
+            if (isset($gameType) && $gameType === 'mobilelegends') {
+                $requiredFields = [
+                    ['data_name' => 'user_id', 'type' => 'text', 'required' => true, 'name' => __('game.user_id')],
+                    ['data_name' => 'zone_id', 'type' => 'text', 'required' => true, 'name' => __('game.zone_id')],
+                ];
+            } elseif (isset($gameType) && $gameType === 'bloodstrike') {
+                // Digiflazz: "Masukkan User ID" — server is optional display only.
+                $requiredFields = [
+                    ['data_name' => 'user_id_bs', 'type' => 'text', 'required' => true, 'name' => 'User ID'],
+                    ['data_name' => 'server_bs', 'type' => 'select', 'required' => false, 'name' => 'Server', 'options' => [['value' => 'global', 'label' => 'Global']]],
+                ];
+            } elseif (isset($gameType) && in_array($gameType, ['freefire', 'pubgmobile', 'pubg_mobile', 'honorofkings'], true)) {
+                $requiredFields = [
+                    ['data_name' => 'player_id', 'type' => 'text', 'required' => true, 'name' => __('game.player_id')],
+                ];
+            } elseif (isset($game) && $game && $game->required_fields) {
+                $requiredFields = $game->required_fields;
+            } else {
+                $requiredFields = [
+                    ['data_name' => 'save_id', 'type' => 'text', 'required' => true, 'name' => 'User ID'],
+                ];
             }
         @endphp
 

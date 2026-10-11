@@ -1073,20 +1073,25 @@ document.addEventListener('DOMContentLoaded', () => {
             let isValidating = false;
             
             if (gameType === 'bloodstrike') {
-                // Blood Strike - User ID and Server
-                const userIdBsField = document.getElementById('user_id_bs');
-                const serverBsField = document.getElementById('server_bs');
+                // Digiflazz Blood Strike: User ID required; server optional (Global).
+                const userIdBsField = document.getElementById('user_id_bs')
+                    || document.getElementById('save_id')
+                    || document.querySelector('#order-form input[name="user_id_bs"], #order-form input[name="save_id"]');
+                const serverBsField = document.getElementById('server_bs')
+                    || document.querySelector('#order-form select[name="server_bs"]');
                 
-                if (!userIdBsField || !serverBsField) {
+                if (!userIdBsField) {
                     alert('Form fields not found. Please refresh the page.');
                     return;
                 }
                 
-                const userIdBs = (userIdBsField && userIdBsField.value) ? userIdBsField.value.trim() : '';
-                const serverBs = (serverBsField && serverBsField.value) ? serverBsField.value.trim() : '';
+                const userIdBs = userIdBsField.value ? String(userIdBsField.value).trim() : '';
+                const serverBs = serverBsField && serverBsField.value
+                    ? String(serverBsField.value).trim()
+                    : 'global';
                 
-                if (!userIdBs || !serverBs) {
-                    alert('Please enter your User ID and select a Server');
+                if (!userIdBs) {
+                    alert('Please enter your User ID');
                     return;
                 }
                 
@@ -1095,17 +1100,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                // Store user info for all selected packs
                 selectedPacks.forEach(pack => {
                     pack.user_id_bs = userIdBs;
-                    pack.server_bs = serverBs;
+                    pack.server_bs = serverBs || 'global';
                     pack.user_id = userIdBs;
-                    pack.server = serverBs;
+                    pack.save_id = userIdBs;
+                    pack.server = serverBs || 'global';
                 });
                 
-                // Clear form
                 userIdBsField.value = '';
-                serverBsField.value = 'global';
+                if (serverBsField) {
+                    serverBsField.value = 'global';
+                }
                 
             } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'pubg_mobile' || gameType === 'honorofkings') {
                 // Free Fire / PUBG Mobile / Honor of Kings - Player ID only
@@ -1149,6 +1155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         pack.save_id = playerId;
                     } else if (gameType === 'honorofkings') {
                         pack.player_id_hok = playerId;
+                        pack.save_id = playerId;
                     }
                 });
 

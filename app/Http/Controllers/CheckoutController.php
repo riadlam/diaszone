@@ -982,22 +982,24 @@ class CheckoutController extends Controller
                     ], 422);
                 }
             } elseif ($gameType === 'honorofkings') {
-                $player_id_hok = $firstItem['player_id_hok'] ?? $firstItem['player_id'] ?? null;
+                // Digiflazz HOK: player ID only.
+                $player_id_hok = $firstItem['player_id_hok'] ?? $firstItem['player_id'] ?? $firstItem['save_id'] ?? null;
                 if (empty($player_id_hok)) {
-                        return response()->json([
-                            'success' => false,
+                    return response()->json([
+                        'success' => false,
                         'message' => 'Player ID is required for Honor of Kings',
-                        ], 422);
-                    }
+                    ], 422);
+                }
             } elseif ($gameType === 'bloodstrike') {
-                $user_id_bs = $firstItem['user_id_bs'] ?? $firstItem['user_id'] ?? null;
-                $server_bs = $firstItem['server_bs'] ?? $firstItem['server'] ?? null;
-                if (empty($user_id_bs) || empty($server_bs)) {
-                        return response()->json([
-                            'success' => false,
-                        'message' => 'User ID and Server are required for Blood Strike',
-                        ], 422);
-                    }
+                // Digiflazz Blood Strike: User ID only (server_bs optional).
+                $user_id_bs = $firstItem['user_id_bs'] ?? $firstItem['user_id'] ?? $firstItem['save_id'] ?? null;
+                $server_bs = $firstItem['server_bs'] ?? $firstItem['server'] ?? 'global';
+                if (empty($user_id_bs)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User ID is required for Blood Strike',
+                    ], 422);
+                }
             } elseif ($requiredFields && is_array($requiredFields)) {
                 // Dynamic validation based on required_fields from JSON
                 foreach ($requiredFields as $field) {
@@ -2173,14 +2175,14 @@ class CheckoutController extends Controller
     }
     
     /**
-     * Legacy Chargily webhook — disabled after migrating Baridimob to SofizPay CIB (payment is verified on return URL).
+     * Legacy SofizPay webhook — disabled after migrating Baridimob to SofizPay CIB (payment is verified on return URL).
      */
     public function baridimobWebhook(Request $request)
     {
         Log::info('baridimob.webhook ignored (SofizPay CIB)', ['ip' => $request->ip()]);
 
         return response()->json([
-            'message' => 'Chargily webhook is disabled. Baridimob uses SofizPay CIB return verification.',
+            'message' => 'SofizPay webhook is disabled. Baridimob uses SofizPay CIB return verification.',
         ], 410);
     }
 
@@ -2499,6 +2501,10 @@ class CheckoutController extends Controller
     /**
      * Process recharge after SofizPay CIB (Baridimob) payment is verified.
      */
+    /**
+     * Digiflazz / VIP fulfillment after SofizPay (Baridimob CIB) payment is verified.
+     * Legacy log strings may still say "Chargily" in older code paths; this is SofizPay.
+     */
     private function processBaridimobPaidRecharge(Order $order)
     {
         try {
@@ -2522,7 +2528,7 @@ class CheckoutController extends Controller
             if (! $useDigiflazz) {
                 // Use Item4Gamer for other games
                 if (! config('services.item4gamer.api_key') && ! env('ITEM4GAMER_API_KEY')) {
-                    Log::error('Chargily recharge: Item4Gamer not configured', ['order_id' => $order->id]);
+                    Log::error('SofizPay recharge: Item4Gamer not configured', ['order_id' => $order->id]);
 
                     return ['success' => false, 'message' => 'Item4Gamer not configured'];
                 }
@@ -2532,7 +2538,7 @@ class CheckoutController extends Controller
                 return DB::transaction(function () use ($order) {
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                     if (! $orderLocked) {
-                        Log::error('Chargily recharge: Failed to lock order for Item4Gamer', ['order_id' => $order->id]);
+                        Log::error('SofizPay recharge: Failed to lock order for Item4Gamer', ['order_id' => $order->id]);
 
                         return ['success' => false, 'message' => 'Failed to lock order'];
                     }
@@ -2548,7 +2554,7 @@ class CheckoutController extends Controller
                         // Check if Item4Gamer order already exists for this order_item
                         $existingOrder = \App\Models\Item4GamerOrder::where('order_item_id', $orderItem->id)->first();
                         if ($existingOrder) {
-                            Log::info('Chargily recharge: Item4Gamer order already exists for order_item', [
+                            Log::info('SofizPay recharge: Item4Gamer order already exists for order_item', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'item4gamer_order_id' => $existingOrder->item4gamer_order_id,
@@ -2563,7 +2569,7 @@ class CheckoutController extends Controller
                         // Extract player/user ID based on game type
                         $playerId = $this->extractPlayerIdForGame($orderLocked, $pack->game_type);
                         if (empty($playerId)) {
-                            Log::error('Chargily recharge: Player ID not found for Item4Gamer', [
+                            Log::error('SofizPay recharge: Player ID not found for Item4Gamer', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'game_type' => $pack->game_type,
@@ -2592,14 +2598,14 @@ class CheckoutController extends Controller
                                 'additional_data' => $result['full_response'] ?? $result,
                             ]);
 
-                            Log::info('Chargily recharge: Item4Gamer order placed successfully', [
+                            Log::info('SofizPay recharge: Item4Gamer order placed successfully', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'item4gamer_order_id' => $result['order_id'],
                                 'quantity' => $quantity,
                             ]);
                         } else {
-                            Log::error('Chargily recharge: Item4Gamer order placement failed', [
+                            Log::error('SofizPay recharge: Item4Gamer order placement failed', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'error' => $result['message'] ?? 'Unknown error',
@@ -2628,7 +2634,7 @@ class CheckoutController extends Controller
             $packageCode = $order->diamondPack->code ?? null;
             
             if (empty($packageCode)) {
-                Log::warning('Chargily recharge skipped: Missing package code', [
+                Log::warning('SofizPay recharge skipped: Missing package code', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'diamond_pack_id' => $order->diamond_pack_id,
@@ -2644,7 +2650,7 @@ class CheckoutController extends Controller
             if ($gameType === 'mobilelegends') {
                 // Check if user_id_ml and zone_id_ml are set
                 if (empty($order->user_id_ml) || empty($order->zone_id_ml)) {
-                    Log::warning('Chargily recharge skipped: Missing user_id_ml or zone_id_ml', [
+                    Log::warning('SofizPay recharge skipped: Missing user_id_ml or zone_id_ml', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'user_id_ml' => $order->user_id_ml,
@@ -2658,7 +2664,7 @@ class CheckoutController extends Controller
                 }
 
                 // STEP 1: Validate nickname BEFORE processing recharge (Mobile Legends only)
-                Log::info('Chargily: Validating nickname before recharge', [
+                Log::info('SofizPay: Validating nickname before recharge', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'user_id_ml' => $order->user_id_ml,
@@ -2668,7 +2674,7 @@ class CheckoutController extends Controller
                 $nicknameValidation = $vipReseller->checkNickname($order->user_id_ml, $order->zone_id_ml);
 
                 if ($nicknameValidation['result'] !== true) {
-                    Log::error('Chargily recharge aborted: Nickname validation failed', [
+                    Log::error('SofizPay recharge aborted: Nickname validation failed', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'user_id_ml' => $order->user_id_ml,
@@ -2684,7 +2690,7 @@ class CheckoutController extends Controller
 
                 // Nickname validation successful
                 $nickname = $nicknameValidation['data'] ?? 'Unknown';
-                Log::info('Chargily: Nickname validation successful - Proceeding with recharge', [
+                Log::info('SofizPay: Nickname validation successful - Proceeding with recharge', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'user_id_ml' => $order->user_id_ml,
@@ -2697,7 +2703,7 @@ class CheckoutController extends Controller
                     // Attempt to deduct from seller wallet. If this fails, stop and record error status.
                     $sellerChargeResult = \App\Http\Controllers\Seller\SellerStorefrontController::processSellerOrder($order);
                     if ($sellerChargeResult !== true) {
-                        Log::error('Chargily recharge aborted: seller insufficient balance', [
+                        Log::error('SofizPay recharge aborted: seller insufficient balance', [
                             'order_id' => $order->id,
                             'seller_id' => $order->seller_id,
                             'seller_balance' => $order->seller ? $order->seller->wallet_balance : null,
@@ -2729,7 +2735,7 @@ class CheckoutController extends Controller
                 }
 
                 // STEP 2: Call provider API to recharge (Mobile Legends)
-                Log::info('Chargily: Calling provider API for Mobile Legends', [
+                Log::info('SofizPay: Calling provider API for Mobile Legends', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'package_code' => $packageCode,
@@ -2750,7 +2756,7 @@ class CheckoutController extends Controller
                         // Lock the order to prevent concurrent modifications
                         $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                         if (! $orderLocked) {
-                            Log::error('Chargily: Failed to lock order for Digiflazz submission', ['order_id' => $order->id]);
+                            Log::error('SofizPay: Failed to lock order for Digiflazz submission', ['order_id' => $order->id]);
                             $result = ['result' => false, 'message' => 'Failed to lock order'];
 
                             return;
@@ -2811,7 +2817,7 @@ class CheckoutController extends Controller
                         
                         // If individual item price validation fails, abort and log
                         if (! empty($priceValidationErrors)) {
-                            Log::error('Chargily: Price validation failed - potential manipulation detected', [
+                            Log::error('SofizPay: Price validation failed - potential manipulation detected', [
                                 'order_id' => $orderLocked->id,
                                 'order_number' => $orderLocked->order_number,
                                 'errors' => $priceValidationErrors,
@@ -2839,7 +2845,7 @@ class CheckoutController extends Controller
                                 $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
                                 $calculatedFinalPrice = max(0, (float) $couponDiscountInfo['final_amount']);
                                 
-                                Log::info('Chargily: Coupon discount recalculated', [
+                                Log::info('SofizPay: Coupon discount recalculated', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
                                     'original_total' => $totalOriginalPrice,
@@ -2848,7 +2854,7 @@ class CheckoutController extends Controller
                                     'calculated_final_price' => $calculatedFinalPrice,
                                 ]);
                             } else {
-                                Log::warning('Chargily: Order has coupon_id but coupon not found', [
+                                Log::warning('SofizPay: Order has coupon_id but coupon not found', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
                                 ]);
@@ -2861,7 +2867,7 @@ class CheckoutController extends Controller
                             try {
                                 $flashCharge = app(FlashSaleService::class)->resolveChargeAmountDzd($orderLocked);
                             } catch (\Illuminate\Validation\ValidationException $e) {
-                                Log::error('Chargily: Flash sale amount validation failed', [
+                                Log::error('SofizPay: Flash sale amount validation failed', [
                                     'order_id' => $orderLocked->id,
                                     'errors' => $e->errors(),
                                 ]);
@@ -2884,7 +2890,7 @@ class CheckoutController extends Controller
                             $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
                             
                             if ($finalPriceDiff > 1.0) {
-                                Log::error('Chargily: Final price validation failed - potential manipulation detected', [
+                                Log::error('SofizPay: Final price validation failed - potential manipulation detected', [
                                     'order_id' => $orderLocked->id,
                                     'order_number' => $orderLocked->order_number,
                                     'stored_final_price' => $storedFinalPrice,
@@ -2914,7 +2920,7 @@ class CheckoutController extends Controller
                             $orderLocked->save();
                         }
                         
-                        Log::info('Chargily: Price validation passed, proceeding with top-up', [
+                        Log::info('SofizPay: Price validation passed, proceeding with top-up', [
                             'order_id' => $orderLocked->id,
                             'final_price' => $orderLocked->final_price,
                             'is_flash_sale' => $orderLocked->isFlashSale(),
@@ -2938,7 +2944,7 @@ class CheckoutController extends Controller
                                     ? app(\App\Services\MlPackFulfillment::class)->place($pack, $orderLocked, $orderItem->id, $refId)
                                     : app(\App\Services\DigiflazzService::class)->placeOrderWithRefId($pack, $orderLocked, $refId, $orderItem->id);
                                 
-                                Log::info('Chargily: pack top-up placed', [
+                                Log::info('SofizPay: pack top-up placed', [
                                     'order_id' => $orderLocked->id,
                                     'order_item_id' => $orderItem->id,
                                     'pack_id' => $orderItem->diamond_pack_id,
@@ -2969,7 +2975,7 @@ class CheckoutController extends Controller
                     }
 
                     if ($vipItems->isEmpty()) {
-                        Log::error('Chargily recharge: Digiflazz not configured for Mobile Legends Digiflazz packs', ['order_id' => $order->id]);
+                        Log::error('SofizPay recharge: Digiflazz not configured for Mobile Legends Digiflazz packs', ['order_id' => $order->id]);
                         $result = [
                             'result' => false,
                             'message' => 'Digiflazz is not configured. Only Mobile Legends packs with a VIP Reseller code can be topped up without Digiflazz.',
@@ -3015,11 +3021,11 @@ class CheckoutController extends Controller
                             \App\Models\VipResellerStatus::create($vipData);
                         }
                     } catch (\Exception $e) {
-                        Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                        Log::warning('SofizPay: Failed to create VipResellerStatus mirror after Digiflazz placeOrder', ['order_id' => $order->id, 'error' => $e->getMessage()]);
                     }
                 }
 
-                Log::info('Chargily: provider API response', [
+                Log::info('SofizPay: provider API response', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -3036,7 +3042,7 @@ class CheckoutController extends Controller
             } elseif ($gameType === 'freefire') {
                 // Check if player_id_ff is set
                 if (empty($order->player_id_ff)) {
-                    Log::warning('Chargily recharge skipped: Missing player_id_ff', [
+                    Log::warning('SofizPay recharge skipped: Missing player_id_ff', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'player_id_ff' => $order->player_id_ff,
@@ -3049,7 +3055,7 @@ class CheckoutController extends Controller
                 }
 
                 // Free Fire doesn't support nickname check, proceed directly
-                Log::info('Chargily: Processing Free Fire recharge (no nickname check)', [
+                Log::info('SofizPay: Processing Free Fire recharge (no nickname check)', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'player_id_ff' => $order->player_id_ff,
@@ -3060,7 +3066,7 @@ class CheckoutController extends Controller
                 if ($order->seller_id && ! $order->wallet_deducted) {
                     $sellerChargeResult = \App\Http\Controllers\Seller\SellerStorefrontController::processSellerOrder($order);
                     if ($sellerChargeResult !== true) {
-                        Log::error('Chargily recharge aborted: seller insufficient balance (Free Fire)', [
+                        Log::error('SofizPay recharge aborted: seller insufficient balance (Free Fire)', [
                             'order_id' => $order->id,
                             'seller_id' => $order->seller_id,
                             'seller_balance' => $order->seller ? $order->seller->wallet_balance : null,
@@ -3091,7 +3097,7 @@ class CheckoutController extends Controller
                 }
 
                 // STEP 2: Call provider API to recharge (Free Fire)
-                Log::info('Chargily: Calling provider API for Free Fire', [
+                Log::info('SofizPay: Calling provider API for Free Fire', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'package_code' => $packageCode,
@@ -3111,7 +3117,7 @@ class CheckoutController extends Controller
                         // Lock the order to prevent concurrent modifications
                         $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                         if (! $orderLocked) {
-                            Log::error('Chargily: Failed to lock order for Digiflazz submission (Free Fire)', ['order_id' => $order->id]);
+                            Log::error('SofizPay: Failed to lock order for Digiflazz submission (Free Fire)', ['order_id' => $order->id]);
                             $result = ['result' => false, 'message' => 'Failed to lock order'];
 
                             return;
@@ -3171,7 +3177,7 @@ class CheckoutController extends Controller
                         
                         // If individual item price validation fails, abort and log
                         if (! empty($priceValidationErrors)) {
-                            Log::error('Chargily: Price validation failed - potential manipulation detected (Free Fire)', [
+                            Log::error('SofizPay: Price validation failed - potential manipulation detected (Free Fire)', [
                                 'order_id' => $orderLocked->id,
                                 'order_number' => $orderLocked->order_number,
                                 'errors' => $priceValidationErrors,
@@ -3199,7 +3205,7 @@ class CheckoutController extends Controller
                                 $orderDiscountAmount = $couponDiscountInfo['discount_amount'];
                                 $calculatedFinalPrice = max(0, (float) $couponDiscountInfo['final_amount']);
                                 
-                                Log::info('Chargily: Coupon discount recalculated (Free Fire)', [
+                                Log::info('SofizPay: Coupon discount recalculated (Free Fire)', [
                                     'order_id' => $orderLocked->id,
                                     'coupon_id' => $orderLocked->coupon_id,
                                     'original_total' => $totalOriginalPrice,
@@ -3215,7 +3221,7 @@ class CheckoutController extends Controller
                             try {
                                 $flashCharge = app(FlashSaleService::class)->resolveChargeAmountDzd($orderLocked);
                             } catch (\Illuminate\Validation\ValidationException $e) {
-                                Log::error('Chargily: Flash sale amount validation failed (Free Fire)', [
+                                Log::error('SofizPay: Flash sale amount validation failed (Free Fire)', [
                                     'order_id' => $orderLocked->id,
                                     'errors' => $e->errors(),
                                 ]);
@@ -3238,7 +3244,7 @@ class CheckoutController extends Controller
                             $finalPriceDiff = abs($storedFinalPrice - $calculatedFinalPrice);
                             
                             if ($finalPriceDiff > 1.0) {
-                                Log::error('Chargily: Final price validation failed - potential manipulation detected (Free Fire)', [
+                                Log::error('SofizPay: Final price validation failed - potential manipulation detected (Free Fire)', [
                                     'order_id' => $orderLocked->id,
                                     'order_number' => $orderLocked->order_number,
                                     'stored_final_price' => $storedFinalPrice,
@@ -3266,7 +3272,7 @@ class CheckoutController extends Controller
                             $orderLocked->save();
                         }
                         
-                        Log::info('Chargily: Price validation passed, proceeding with top-up (Free Fire)', [
+                        Log::info('SofizPay: Price validation passed, proceeding with top-up (Free Fire)', [
                             'order_id' => $orderLocked->id,
                             'final_price' => $orderLocked->final_price,
                             'is_flash_sale' => $orderLocked->isFlashSale(),
@@ -3292,7 +3298,7 @@ class CheckoutController extends Controller
                                     $orderItem->id
                                 );
                                 
-                                Log::info('Chargily: Digiflazz placeOrder attempt (Free Fire)', [
+                                Log::info('SofizPay: Digiflazz placeOrder attempt (Free Fire)', [
                                     'order_id' => $orderLocked->id,
                                     'order_item_id' => $orderItem->id,
                                     'pack_id' => $orderItem->diamond_pack_id,
@@ -3312,14 +3318,14 @@ class CheckoutController extends Controller
                     });
                 } else {
                     // Free Fire is Digiflazz-only. Never fall back to VIP Reseller.
-                    Log::error('Chargily recharge: Digiflazz not configured for Free Fire', ['order_id' => $order->id]);
+                    Log::error('SofizPay recharge: Digiflazz not configured for Free Fire', ['order_id' => $order->id]);
                     $result = [
                         'result' => false,
                         'message' => 'Digiflazz is not configured. Free Fire cannot use VIP Reseller.',
                     ];
                 }
 
-                Log::info('Chargily: provider API response (Free Fire)', [
+                Log::info('SofizPay: provider API response (Free Fire)', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -3335,7 +3341,7 @@ class CheckoutController extends Controller
             } elseif ($gameType === 'pubg_mobile' || $gameType === 'pubgmobile') {
                 // PUBG Mobile: Digiflazz Global UID only.
                 if (empty($order->save_id) && empty($order->player_id_pubg)) {
-                    Log::warning('Chargily recharge skipped: Missing PUBG Mobile player ID', [
+                    Log::warning('SofizPay recharge skipped: Missing PUBG Mobile player ID', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'save_id' => $order->save_id,
@@ -3352,7 +3358,7 @@ class CheckoutController extends Controller
                     $order->save();
                 }
 
-                Log::info('Chargily: Processing PUBG Mobile recharge via Digiflazz', [
+                Log::info('SofizPay: Processing PUBG Mobile recharge via Digiflazz', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'save_id' => $order->save_id,
@@ -3361,7 +3367,7 @@ class CheckoutController extends Controller
 
                 // Multi-item order support: Submit top-ups for each order_item
                 if (! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
-                    Log::error('Chargily recharge: Digiflazz not configured for PUBG Mobile', ['order_id' => $order->id]);
+                    Log::error('SofizPay recharge: Digiflazz not configured for PUBG Mobile', ['order_id' => $order->id]);
 
                     return ['success' => false, 'message' => 'Digiflazz not configured'];
                 }
@@ -3371,7 +3377,7 @@ class CheckoutController extends Controller
                     // Lock the order to prevent concurrent modifications
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                     if (! $orderLocked) {
-                        Log::error('Chargily: Failed to lock order for Digiflazz submission (PUBG Mobile)', ['order_id' => $order->id]);
+                        Log::error('SofizPay: Failed to lock order for Digiflazz submission (PUBG Mobile)', ['order_id' => $order->id]);
                         $result = ['result' => false, 'message' => 'Failed to lock order'];
 
                         return;
@@ -3398,7 +3404,7 @@ class CheckoutController extends Controller
                                 $orderItem->id
                             );
                             
-                            Log::info('Chargily: Digiflazz placeOrder attempt (PUBG Mobile)', [
+                            Log::info('SofizPay: Digiflazz placeOrder attempt (PUBG Mobile)', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'pack_id' => $orderItem->diamond_pack_id,
@@ -3440,11 +3446,11 @@ class CheckoutController extends Controller
                             \App\Models\VipResellerStatus::create($vipData);
                         }
                     } catch (\Exception $e) {
-                        Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder (PUBG Mobile)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                        Log::warning('SofizPay: Failed to create VipResellerStatus mirror after Digiflazz placeOrder (PUBG Mobile)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
                     }
                 }
 
-                Log::info('Chargily: provider API response (PUBG Mobile)', [
+                Log::info('SofizPay: provider API response (PUBG Mobile)', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -3461,7 +3467,7 @@ class CheckoutController extends Controller
                 // Punishing Gray Raven: Use save_id,server format (same flow as Mobile Legends)
                 // Check if save_id and server are set
                 if (empty($order->save_id) || empty($order->server)) {
-                    Log::warning('Chargily recharge skipped: Missing save_id or server for Punishing Gray Raven', [
+                    Log::warning('SofizPay recharge skipped: Missing save_id or server for Punishing Gray Raven', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'save_id' => $order->save_id,
@@ -3474,7 +3480,7 @@ class CheckoutController extends Controller
                     ];
                 }
 
-                Log::info('Chargily: Processing Punishing Gray Raven recharge via Digiflazz', [
+                Log::info('SofizPay: Processing Punishing Gray Raven recharge via Digiflazz', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'save_id' => $order->save_id,
@@ -3484,7 +3490,7 @@ class CheckoutController extends Controller
 
                 // Multi-item order support: Submit top-ups for each order_item
                 if (! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
-                    Log::error('Chargily recharge: Digiflazz not configured for Punishing Gray Raven', ['order_id' => $order->id]);
+                    Log::error('SofizPay recharge: Digiflazz not configured for Punishing Gray Raven', ['order_id' => $order->id]);
 
                     return ['success' => false, 'message' => 'Digiflazz not configured'];
                 }
@@ -3494,7 +3500,7 @@ class CheckoutController extends Controller
                     // Lock the order to prevent concurrent modifications
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                     if (! $orderLocked) {
-                        Log::error('Chargily: Failed to lock order for Digiflazz submission (Punishing Gray Raven)', ['order_id' => $order->id]);
+                        Log::error('SofizPay: Failed to lock order for Digiflazz submission (Punishing Gray Raven)', ['order_id' => $order->id]);
                         $result = ['result' => false, 'message' => 'Failed to lock order'];
 
                         return;
@@ -3521,7 +3527,7 @@ class CheckoutController extends Controller
                                 $orderItem->id
                             );
                             
-                            Log::info('Chargily: Digiflazz placeOrder attempt (Punishing Gray Raven)', [
+                            Log::info('SofizPay: Digiflazz placeOrder attempt (Punishing Gray Raven)', [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'pack_id' => $orderItem->diamond_pack_id,
@@ -3563,11 +3569,11 @@ class CheckoutController extends Controller
                             \App\Models\VipResellerStatus::create($vipData);
                         }
                     } catch (\Exception $e) {
-                        Log::warning('Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder (Punishing Gray Raven)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                        Log::warning('SofizPay: Failed to create VipResellerStatus mirror after Digiflazz placeOrder (Punishing Gray Raven)', ['order_id' => $order->id, 'error' => $e->getMessage()]);
                     }
                 }
 
-                Log::info('Chargily: provider API response (Punishing Gray Raven)', [
+                Log::info('SofizPay: provider API response (Punishing Gray Raven)', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -3584,7 +3590,7 @@ class CheckoutController extends Controller
                 // Digiflazz WW / Genshin: customer_no = UID|Server (pipe). DigiflazzService builds the string.
                 $gameLabel = \App\Support\GameProvider::isGenshinImpact($gameType) ? 'Genshin Impact' : 'Wuthering Waves';
                 if (empty($order->save_id) || empty($order->server)) {
-                    Log::warning("Chargily recharge skipped: Missing save_id or server for {$gameLabel}", [
+                    Log::warning("SofizPay recharge skipped: Missing save_id or server for {$gameLabel}", [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'save_id' => $order->save_id,
@@ -3606,7 +3612,7 @@ class CheckoutController extends Controller
                     }
                 }
 
-                Log::info("Chargily: Processing {$gameLabel} recharge via Digiflazz", [
+                Log::info("SofizPay: Processing {$gameLabel} recharge via Digiflazz", [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'save_id' => $order->save_id,
@@ -3617,7 +3623,7 @@ class CheckoutController extends Controller
 
                 // Multi-item order support: Submit top-ups for each order_item
                 if (! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
-                    Log::error("Chargily recharge: Digiflazz not configured for {$gameLabel}", ['order_id' => $order->id]);
+                    Log::error("SofizPay recharge: Digiflazz not configured for {$gameLabel}", ['order_id' => $order->id]);
 
                     return ['success' => false, 'message' => 'Digiflazz not configured'];
                 }
@@ -3627,7 +3633,7 @@ class CheckoutController extends Controller
                     // Lock the order to prevent concurrent modifications
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                     if (! $orderLocked) {
-                        Log::error("Chargily: Failed to lock order for Digiflazz submission ({$gameLabel})", ['order_id' => $order->id]);
+                        Log::error("SofizPay: Failed to lock order for Digiflazz submission ({$gameLabel})", ['order_id' => $order->id]);
                         $result = ['result' => false, 'message' => 'Failed to lock order'];
 
                         return;
@@ -3654,7 +3660,7 @@ class CheckoutController extends Controller
                                 $orderItem->id
                             );
                             
-                            Log::info("Chargily: Digiflazz placeOrder attempt ({$gameLabel})", [
+                            Log::info("SofizPay: Digiflazz placeOrder attempt ({$gameLabel})", [
                                 'order_id' => $orderLocked->id,
                                 'order_item_id' => $orderItem->id,
                                 'pack_id' => $orderItem->diamond_pack_id,
@@ -3696,11 +3702,11 @@ class CheckoutController extends Controller
                             \App\Models\VipResellerStatus::create($vipData);
                         }
                     } catch (\Exception $e) {
-                        Log::warning("Chargily: Failed to create VipResellerStatus mirror after Digiflazz placeOrder ({$gameLabel})", ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                        Log::warning("SofizPay: Failed to create VipResellerStatus mirror after Digiflazz placeOrder ({$gameLabel})", ['order_id' => $order->id, 'error' => $e->getMessage()]);
                     }
                 }
 
-                Log::info("Chargily: provider API response ({$gameLabel})", [
+                Log::info("SofizPay: provider API response ({$gameLabel})", [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'api_result' => $result,
@@ -3713,9 +3719,107 @@ class CheckoutController extends Controller
                 if (! isset($result)) {
                     $result = ['result' => false, 'message' => 'No result from transaction'];
                 }
+            } elseif ($gameType === 'honorofkings' || $gameType === 'bloodstrike') {
+                // SofizPay / Baridimob Digiflazz path: HOK + Blood Strike use a single user/player ID.
+                $gameLabel = $gameType === 'honorofkings' ? 'Honor of Kings' : 'Blood Strike';
+                if ($gameType === 'honorofkings') {
+                    $destId = trim((string) ($order->player_id_hok ?: $order->save_id ?: ''));
+                    if ($destId === '') {
+                        Log::warning('SofizPay recharge skipped: Missing Honor of Kings player ID', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+
+                        return ['success' => false, 'message' => 'Missing Player ID for Honor of Kings'];
+                    }
+                    if (empty($order->player_id_hok)) {
+                        $order->player_id_hok = $destId;
+                        $order->save();
+                    }
+                } else {
+                    $destId = trim((string) ($order->user_id_bs ?: $order->save_id ?: ''));
+                    if ($destId === '') {
+                        Log::warning('SofizPay recharge skipped: Missing Blood Strike user ID', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+
+                        return ['success' => false, 'message' => 'Missing User ID for Blood Strike'];
+                    }
+                    if (empty($order->user_id_bs)) {
+                        $order->user_id_bs = $destId;
+                        $order->save();
+                    }
+                }
+
+                Log::info("SofizPay: Processing {$gameLabel} recharge via Digiflazz", [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'destination' => $destId,
+                    'package_code' => $packageCode,
+                    'game_type' => $gameType,
+                ]);
+
+                if (! config('services.digiflazz.username') && ! env('DIGIFLAZZ_USERNAME')) {
+                    Log::error("SofizPay recharge: Digiflazz not configured for {$gameLabel}", ['order_id' => $order->id]);
+
+                    return ['success' => false, 'message' => 'Digiflazz not configured'];
+                }
+
+                DB::transaction(function () use (&$result, &$order, $gameLabel) {
+                    $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
+                    if (! $orderLocked) {
+                        Log::error("SofizPay: Failed to lock order for Digiflazz submission ({$gameLabel})", ['order_id' => $order->id]);
+                        $result = ['result' => false, 'message' => 'Failed to lock order'];
+
+                        return;
+                    }
+
+                    $orderLocked->load('orderItems.diamondPack');
+                    $lastResult = ['result' => false, 'message' => 'No provider calls made'];
+
+                    foreach ($orderLocked->orderItems as $orderItem) {
+                        $submitted = $orderItem->digiflazzStatuses()->submittedOrPending()->count();
+                        $remaining = max(0, $orderItem->quantity - $submitted);
+
+                        for ($i = 0; $i < $remaining; $i++) {
+                            $refId = 'order-'.$orderLocked->id.'-item-'.$orderItem->id.'-'.Str::random(8);
+                            $lastResult = app(\App\Services\DigiflazzService::class)->placeOrderWithRefId(
+                                $orderItem->diamondPack,
+                                $orderLocked,
+                                $refId,
+                                $orderItem->id
+                            );
+
+                            Log::info("SofizPay: Digiflazz placeOrder attempt ({$gameLabel})", [
+                                'order_id' => $orderLocked->id,
+                                'order_item_id' => $orderItem->id,
+                                'ref_id' => $refId,
+                                'result' => $lastResult,
+                            ]);
+                            usleep(100000);
+                        }
+                    }
+
+                    $result = $lastResult;
+                    $order = $orderLocked;
+                });
+
+                Log::info("SofizPay: provider API response ({$gameLabel})", [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'api_result' => $result,
+                ]);
+
+                $playerId = $destId;
+                $zoneId = $gameType === 'bloodstrike' ? ($order->server_bs ?? null) : null;
+
+                if (! isset($result)) {
+                    $result = ['result' => false, 'message' => 'No result from transaction'];
+                }
             } else {
                 // Unhandled game type - initialize result with error
-                Log::error('Chargily recharge: Unhandled game type', [
+                Log::error('SofizPay recharge: Unhandled game type', [
                     'order_id' => $order->id,
                     'game_type' => $gameType,
                 ]);
@@ -3748,7 +3852,7 @@ class CheckoutController extends Controller
                 'message' => $result['message'] ?? null,
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
-                'payment_method' => 'chargily',
+                'payment_method' => 'sofizpay',
             ];
 
             if ($usingDigiflazz) {
@@ -3757,7 +3861,7 @@ class CheckoutController extends Controller
                 if ($order->status !== 'sending') {
                     $order->status = 'sending';
                     $order->save();
-                    Log::info('Chargily: Digiflazz used - order set to sending', [
+                    Log::info('SofizPay: Digiflazz used - order set to sending', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'provider_status' => $status,
@@ -3782,7 +3886,7 @@ class CheckoutController extends Controller
                 // DigiflazzService->placeOrder should have already created a DigiflazzStatus record; log if missing
                 $digStatus = $order->digiflazzStatuses()->latest()->first();
                 if (! $digStatus) {
-                    Log::warning('Chargily: Digiflazz used but no DigiflazzStatus found for order', ['order_id' => $order->id, 'order_number' => $order->order_number, 'api_result' => $result]);
+                    Log::warning('SofizPay: Digiflazz used but no DigiflazzStatus found for order', ['order_id' => $order->id, 'order_number' => $order->order_number, 'api_result' => $result]);
                 }
 
             } else {
@@ -3805,7 +3909,7 @@ class CheckoutController extends Controller
                     $vipResellerStatus = VipResellerStatus::create($vipData);
                 }
 
-                Log::info('Chargily: provider status saved', [
+                Log::info('SofizPay: provider status saved', [
                     'vipreseller_status_id' => $vipResellerStatus->id,
                     'trxid' => $vipResellerStatus->trxid,
                     'status' => $status,
@@ -3822,7 +3926,7 @@ class CheckoutController extends Controller
                 if ($oldOrderStatus !== 'sending') {
                     $order->status = 'sending';
                     $order->save();
-                    Log::info('Chargily: Order status updated to sending (provider waiting)', [
+                    Log::info('SofizPay: Order status updated to sending (provider waiting)', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'old_status' => $oldOrderStatus,
@@ -3848,7 +3952,7 @@ class CheckoutController extends Controller
             } elseif ($status === 'success') {
                 if ($usingDigiflazz) {
                     // When using Digiflazz, do NOT mark completed here; wait for Digiflazz webhook
-                    Log::info('Chargily: Digiflazz reported success but final confirmation must come via webhook; leaving order in sending', [
+                    Log::info('SofizPay: Digiflazz reported success but final confirmation must come via webhook; leaving order in sending', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'provider_status' => $status,
@@ -3876,20 +3980,20 @@ class CheckoutController extends Controller
                             $vipResellerStatus->balance = $balance;
                             $vipResellerStatus->save();
 
-                            Log::info('Chargily: Balance fetched and saved for successful order', [
+                            Log::info('SofizPay: Balance fetched and saved for successful order', [
                                 'provider_status_id' => $vipResellerStatus->id,
                                 'order_id' => $order->id,
                                 'balance' => $balance,
                             ]);
                         } else {
-                            Log::warning('Chargily: Failed to fetch balance from provider API', [
+                            Log::warning('SofizPay: Failed to fetch balance from provider API', [
                                 'provider_status_id' => $vipResellerStatus->id,
                                 'order_id' => $order->id,
                                 'message' => $profileResult['message'] ?? 'Unknown error',
                             ]);
                         }
                     } catch (\Exception $e) {
-                        Log::error('Chargily: Error fetching balance from provider API', [
+                        Log::error('SofizPay: Error fetching balance from provider API', [
                             'vipreseller_status_id' => $vipResellerStatus->id ?? null,
                             'order_id' => $order->id,
                             'error' => $e->getMessage(),
@@ -3908,7 +4012,7 @@ class CheckoutController extends Controller
                     } elseif ($oldOrderStatus !== 'completed') {
                         $order->status = 'completed';
                         $order->save();
-                        Log::info('Chargily: Order status updated to completed (provider success)', [
+                        Log::info('SofizPay: Order status updated to completed (provider success)', [
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'old_status' => $oldOrderStatus,
@@ -3921,7 +4025,7 @@ class CheckoutController extends Controller
                                 $order->creditSellerProfit();
                             }
                         } catch (\Exception $e) {
-                            Log::warning('Chargily: Failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+                            Log::warning('SofizPay: Failed to credit seller profit', ['order_id' => $order->id, 'error' => $e->getMessage()]);
                         }
                     }
 
@@ -3945,7 +4049,7 @@ class CheckoutController extends Controller
                 if ($oldOrderStatus === 'completed') {
                     $order->status = 'sending';
                     $order->save();
-                    Log::warning('Chargily: Order status updated to sending (provider error - needs attention)', [
+                    Log::warning('SofizPay: Order status updated to sending (provider error - needs attention)', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'old_status' => $oldOrderStatus,
@@ -3974,7 +4078,7 @@ class CheckoutController extends Controller
             $trxid = $apiData['trxid'] ?? $result['ref_id'] ?? null;
 
             if ($result['result'] === true) {
-                Log::info('Chargily: Recharge successful', [
+                Log::info('SofizPay: Recharge successful', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'game_type' => $gameType,
@@ -3990,7 +4094,7 @@ class CheckoutController extends Controller
                     'trxid' => $trxid,
                 ];
             } else {
-                Log::error('Chargily: Recharge failed', [
+                Log::error('SofizPay: Recharge failed', [
                     'order_id' => $order->id,
                     'order_number' => $order->order_number,
                     'game_type' => $gameType,
@@ -4008,7 +4112,7 @@ class CheckoutController extends Controller
                 ];
             }
         } catch (\Exception $e) {
-            Log::error('Chargily recharge exception: '.$e->getMessage(), [
+            Log::error('SofizPay recharge exception: '.$e->getMessage(), [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'trace' => $e->getTraceAsString(),
@@ -4034,11 +4138,11 @@ class CheckoutController extends Controller
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
                         'game_type' => $gameType,
-                        'payment_method' => 'chargily',
+                        'payment_method' => 'sofizpay',
                     ],
                 ]);
             } catch (\Exception $saveException) {
-                Log::error('Failed to save Chargily error status: '.$saveException->getMessage());
+                Log::error('Failed to save SofizPay error status: '.$saveException->getMessage());
             }
             
             return [
@@ -5134,7 +5238,7 @@ class CheckoutController extends Controller
                     return ['success' => false, 'message' => 'Digiflazz not configured'];
                 }
                 
-                // Process similar to Chargily recharge
+                // Process similar to SofizPay recharge
                 return DB::transaction(function () use ($order) {
                     $orderLocked = Order::where('id', $order->id)->lockForUpdate()->first();
                     if (! $orderLocked) {
@@ -5435,7 +5539,7 @@ class CheckoutController extends Controller
     }
     
     /**
-     * Test Chargily Pay credentials
+     * Test SofizPay Pay credentials
      */
     public function testChargilyCredentials()
     {
@@ -5452,7 +5556,7 @@ class CheckoutController extends Controller
             'webhook_url' => $webhookUrl,
             'key_preview' => $key ? (substr($key, 0, 10).'...'.substr($key, -5)) : 'NOT SET',
             'secret_preview' => $secret ? (substr($secret, 0, 10).'...'.substr($secret, -5)) : 'NOT SET',
-            'note' => 'If credentials are set but you get 401, the API key/secret might be incorrect. Verify them in your Chargily Pay dashboard.',
+            'note' => 'If credentials are set but you get 401, the API key/secret might be incorrect. Verify them in your SofizPay Pay dashboard.',
         ]);
     }
 }
