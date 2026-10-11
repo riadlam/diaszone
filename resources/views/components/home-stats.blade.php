@@ -70,26 +70,31 @@
         @endif
 
         @if($showGiveawayCta)
+            @php
+                $gwPresent = asset('storage_public/images_giveaway/cta-present.svg');
+                $gwDiamonds = asset('storage_public/images_giveaway/cta-diamonds.svg');
+            @endphp
             <a href="{{ $giveawayUrl }}"
                class="home-gw-cta"
                data-home-gw-cta
                aria-label="{{ __('home.giveaway_cta_title') }}">
                 <span class="home-gw-cta__shine" aria-hidden="true"></span>
-                <span class="home-gw-cta__dot" aria-hidden="true"></span>
-                <span class="home-gw-cta__ico home-gw-cta__ico--gift" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 8v13M4.5 11.5h15v8.2a1.8 1.8 0 0 1-1.8 1.8H6.3a1.8 1.8 0 0 1-1.8-1.8v-8.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3.8 8.2h16.4v3.3H3.8V8.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8.2c-2.2 0-3.7-1.7-3.4-3.2.3-1.3 1.7-1.8 3.4-.6 1.7-1.2 3.1-.7 3.4.6.3 1.5-1.2 3.2-3.4 3.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                </span>
-                <span class="home-gw-cta__text">{{ __('home.giveaway_cta_title') }}</span>
-                <span class="home-gw-cta__sparks" aria-hidden="true">
-                    <span class="home-gw-cta__ico home-gw-cta__ico--spark">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.4l1.1 6.2L19.4 12l-6.3 1.4L12 21.6l-1.1-8.2L4.6 12l6.3-3.4L12 2.4z"/></svg>
-                    </span>
-                    <span class="home-gw-cta__ico home-gw-cta__ico--diamond">
-                        <svg viewBox="0 0 24 24" fill="none"><path d="M3.8 9.2 7.6 4.8h8.8l3.8 4.4-8.2 10.6L3.8 9.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3.8 9.2h16.4M9.2 4.8 12 9.2l2.8-4.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-                    </span>
-                </span>
-                <span class="home-gw-cta__arrow" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h12M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="home-gw-cta__center">
+                    <img class="home-gw-cta__art home-gw-cta__art--present"
+                         src="{{ $gwPresent }}"
+                         alt=""
+                         width="28"
+                         height="28"
+                         decoding="async"
+                         aria-hidden="true">
+                    <span class="home-gw-cta__text">{{ __('home.giveaway_cta_title') }}</span>
+                    <img class="home-gw-cta__art home-gw-cta__art--diamonds"
+                         src="{{ $gwDiamonds }}"
+                         alt=""
+                         width="26"
+                         height="26"
+                         decoding="async"
+                         aria-hidden="true">
                 </span>
             </a>
         @endif
@@ -221,11 +226,11 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    justify-content: center;
     width: 100%;
     height: 2.45rem;
     margin-top: 0.7rem;
-    padding: 0 0.85rem;
+    padding: 0 0.9rem;
     border-radius: 999px;
     text-decoration: none;
     color: #fff;
@@ -265,94 +270,46 @@
     z-index: 1;
 }
 
-.home-gw-cta__dot,
-.home-gw-cta__ico,
-.home-gw-cta__text,
-.home-gw-cta__sparks,
-.home-gw-cta__arrow {
+.home-gw-cta__center {
     position: relative;
     z-index: 2;
-}
-
-.home-gw-cta__dot {
-    flex-shrink: 0;
-    width: 0.42rem;
-    height: 0.42rem;
-    border-radius: 50%;
-    background: #4ade80;
-    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.65);
-    animation: homeGwDot 1.7s ease-out infinite;
-}
-
-.home-gw-cta__ico {
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    color: #fff;
-}
-
-.home-gw-cta__ico svg {
-    width: 0.95rem;
-    height: 0.95rem;
-}
-
-.home-gw-cta__ico--gift {
-    animation: homeGwGift 2.4s ease-in-out infinite;
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    max-width: 100%;
 }
 
 .home-gw-cta__text {
-    flex: 1;
-    min-width: 0;
-    font-size: 0.84rem;
+    font-size: 0.86rem;
     font-weight: 700;
     line-height: 1;
     letter-spacing: -0.01em;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-align: center;
 }
 
-.home-gw-cta__sparks {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
+.home-gw-cta__art {
+    display: block;
+    width: 1.55rem;
+    height: 1.55rem;
+    object-fit: contain;
+    background: transparent;
+    border: 0;
     flex-shrink: 0;
-    opacity: 0.92;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    filter: drop-shadow(0 2px 4px rgba(31, 22, 52, 0.18));
 }
 
-.home-gw-cta__ico--spark {
-    animation: homeGwSpark 2s ease-in-out infinite;
+.home-gw-cta__art--present {
+    width: 1.7rem;
+    height: 1.7rem;
+    animation: homeGwGift 2.5s ease-in-out infinite;
 }
 
-.home-gw-cta__ico--diamond {
-    animation: homeGwSpark 2s ease-in-out infinite 0.35s;
-}
-
-.home-gw-cta__ico--spark svg,
-.home-gw-cta__ico--diamond svg {
-    width: 0.78rem;
-    height: 0.78rem;
-}
-
-.home-gw-cta__arrow {
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    width: 1.15rem;
-    height: 1.15rem;
-    color: rgba(255,255,255,0.95);
-    animation: homeGwArrow 1.5s ease-in-out infinite;
-}
-
-.home-gw-cta__arrow svg {
-    width: 0.95rem;
-    height: 0.95rem;
-}
-
-html[dir="rtl"] .home-gw-cta__arrow {
-    animation-name: homeGwArrowRtl;
+.home-gw-cta__art--diamonds {
+    animation: homeGwSpark 2.1s ease-in-out infinite;
 }
 
 @keyframes homeStatsMarquee {
@@ -386,37 +343,28 @@ html[dir="rtl"] .home-stats__track {
 }
 
 @keyframes homeGwSpark {
-    0%, 100% { -webkit-transform: translate3d(0, 0, 0) scale(1); transform: translate3d(0, 0, 0) scale(1); opacity: 0.75; }
-    50% { -webkit-transform: translate3d(0, -1px, 0) scale(1.12); transform: translate3d(0, -1px, 0) scale(1.12); opacity: 1; }
-}
-
-@keyframes homeGwArrow {
-    0%, 100% { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
-    50% { -webkit-transform: translate3d(3px, 0, 0); transform: translate3d(3px, 0, 0); }
-}
-
-@keyframes homeGwArrowRtl {
-    0%, 100% { -webkit-transform: scaleX(-1) translate3d(0, 0, 0); transform: scaleX(-1) translate3d(0, 0, 0); }
-    50% { -webkit-transform: scaleX(-1) translate3d(3px, 0, 0); transform: scaleX(-1) translate3d(3px, 0, 0); }
-}
-
-@keyframes homeGwDot {
-    0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.65); }
-    70% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+    0%, 100% { -webkit-transform: translate3d(0, 0, 0) scale(1); transform: translate3d(0, 0, 0) scale(1); }
+    50% { -webkit-transform: translate3d(0, -1.5px, 0) scale(1.08); transform: translate3d(0, -1.5px, 0) scale(1.08); }
 }
 
 @media (max-width: 480px) {
     .home-gw-cta {
         height: 2.3rem;
         padding: 0 0.7rem;
-        gap: 0.45rem;
+    }
+    .home-gw-cta__center {
+        gap: 0.4rem;
     }
     .home-gw-cta__text {
         font-size: 0.78rem;
     }
-    .home-gw-cta__sparks {
-        display: none;
+    .home-gw-cta__art {
+        width: 1.35rem;
+        height: 1.35rem;
+    }
+    .home-gw-cta__art--present {
+        width: 1.45rem;
+        height: 1.45rem;
     }
 }
 
@@ -424,11 +372,8 @@ html[dir="rtl"] .home-stats__track {
     .home-stats__track,
     .home-stats__icon,
     .home-gw-cta__shine,
-    .home-gw-cta__ico--gift,
-    .home-gw-cta__ico--spark,
-    .home-gw-cta__ico--diamond,
-    .home-gw-cta__arrow,
-    .home-gw-cta__dot {
+    .home-gw-cta__art--present,
+    .home-gw-cta__art--diamonds {
         animation: none !important;
     }
     .home-stats__viewport {
