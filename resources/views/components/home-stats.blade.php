@@ -33,6 +33,26 @@
     $items = array_values(array_filter($items, fn ($row) => $row['value'] > 0));
     $showStats = count($items) > 0;
     $showGiveawayCta = $liveGiveaway !== null;
+
+    $renderChip = function (array $item, bool $ariaHidden = false): string {
+        $display = number_format($item['value']);
+        $icon = $item['icon'];
+        $label = e($item['label']);
+        $svg = match ($icon) {
+            'users' => '<svg viewBox="0 0 24 24" fill="none"><path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 19.2a6.8 6.8 0 0 1 15 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+            'player' => '<svg viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c1.4-3.2 3.8-4.8 7-4.8s5.6 1.6 7 4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M17.5 8.5 19 7l1.5 1.5M17.5 11.5 19 13l1.5-1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            'bolt' => '<svg viewBox="0 0 24 24" fill="none"><path d="M13 2 6 13h5l-1 9 8-12h-5l0-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>',
+            default => '<svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6.5" width="17" height="11" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10.5h2.5M13.5 10.5H16M8 14h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+        };
+        $hidden = $ariaHidden ? ' aria-hidden="true"' : '';
+
+        return '<div class="home-stats__chip"'.$hidden.'>'
+            .'<span class="home-stats__icon" data-icon="'.e($icon).'" aria-hidden="true">'.$svg.'</span>'
+            .'<span class="home-stats__meta">'
+            .'<span class="home-stats__value">'.e($display).'</span>'
+            .'<span class="home-stats__label">'.$label.'</span>'
+            .'</span></div>';
+    };
 @endphp
 
 @if($showStats || $showGiveawayCta)
@@ -40,29 +60,25 @@
     <div class="home-stats__inner">
         @if($showStats)
             <p class="home-stats__eyebrow">{{ __('home.stats_eyebrow') }}</p>
+
+            {{-- Desktop / tablet: filled static grid --}}
             <div class="home-stats__grid" data-stats-grid>
                 @foreach ($items as $item)
-                    @php
-                        $display = number_format($item['value']);
-                    @endphp
-                    <div class="home-stats__chip">
-                        <span class="home-stats__icon" data-icon="{{ $item['icon'] }}" aria-hidden="true">
-                            @if($item['icon'] === 'users')
-                                <svg viewBox="0 0 24 24" fill="none"><path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0Z" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 19.2a6.8 6.8 0 0 1 15 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-                            @elseif($item['icon'] === 'player')
-                                <svg viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c1.4-3.2 3.8-4.8 7-4.8s5.6 1.6 7 4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M17.5 8.5 19 7l1.5 1.5M17.5 11.5 19 13l1.5-1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            @elseif($item['icon'] === 'bolt')
-                                <svg viewBox="0 0 24 24" fill="none"><path d="M13 2 6 13h5l-1 9 8-12h-5l0-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-                            @else
-                                <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="6.5" width="17" height="11" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10.5h2.5M13.5 10.5H16M8 14h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-                            @endif
-                        </span>
-                        <span class="home-stats__meta">
-                            <span class="home-stats__value">{{ $display }}</span>
-                            <span class="home-stats__label">{{ $item['label'] }}</span>
-                        </span>
-                    </div>
+                    {!! $renderChip($item) !!}
                 @endforeach
+            </div>
+
+            {{-- Phone: light auto-moving single row --}}
+            <div class="home-stats__marquee" data-stats-marquee>
+                <div class="home-stats__track" data-stats-track>
+                    @foreach ([0, 1] as $copy)
+                        <div class="home-stats__group" @if($copy === 1) aria-hidden="true" @endif>
+                            @foreach ($items as $item)
+                                {!! $renderChip($item, $copy === 1) !!}
+                            @endforeach
+                        </div>
+                    @endforeach
+                </div>
             </div>
         @endif
 
@@ -131,6 +147,10 @@
     width: 100%;
 }
 
+.home-stats__marquee {
+    display: none;
+}
+
 .home-stats__chip {
     display: flex;
     align-items: center;
@@ -154,9 +174,12 @@
     background: linear-gradient(145deg, rgba(124, 58, 237, 0.12), rgba(219, 39, 119, 0.08));
 }
 
-.home-stats__chip:nth-child(2) .home-stats__icon { color: #a21caf; }
-.home-stats__chip:nth-child(3) .home-stats__icon { color: var(--hs-accent-2); }
-.home-stats__chip:nth-child(4) .home-stats__icon { color: #6d28d9; }
+.home-stats__grid .home-stats__chip:nth-child(2) .home-stats__icon,
+.home-stats__group .home-stats__chip:nth-child(2) .home-stats__icon { color: #a21caf; }
+.home-stats__grid .home-stats__chip:nth-child(3) .home-stats__icon,
+.home-stats__group .home-stats__chip:nth-child(3) .home-stats__icon { color: var(--hs-accent-2); }
+.home-stats__grid .home-stats__chip:nth-child(4) .home-stats__icon,
+.home-stats__group .home-stats__chip:nth-child(4) .home-stats__icon { color: #6d28d9; }
 
 .home-stats__icon svg {
     width: 1.1rem;
@@ -187,6 +210,74 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Phone marquee */
+@media (max-width: 767px) {
+    .home-stats__grid {
+        display: none;
+    }
+
+    .home-stats__marquee {
+        display: block;
+        overflow: hidden;
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    }
+
+    .home-stats__track {
+        display: flex;
+        width: max-content;
+        gap: 0.55rem;
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        animation: homeStatsMarquee 22s linear infinite;
+        animation-play-state: paused;
+    }
+
+    .home-stats__track.is-running {
+        animation-play-state: running;
+    }
+
+    .home-stats__group {
+        display: flex;
+        gap: 0.55rem;
+        padding-right: 0.55rem;
+    }
+
+    .home-stats__marquee .home-stats__chip {
+        flex: 0 0 auto;
+        min-width: 9.6rem;
+        padding: 0.62rem 0.78rem;
+        gap: 0.55rem;
+    }
+
+    .home-stats__marquee .home-stats__icon {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .home-stats__marquee .home-stats__value {
+        font-size: 1rem;
+    }
+
+    .home-stats__marquee .home-stats__label {
+        font-size: 0.68rem;
+    }
+}
+
+@keyframes homeStatsMarquee {
+    from { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+    to { -webkit-transform: translate3d(-50%, 0, 0); transform: translate3d(-50%, 0, 0); }
+}
+
+html[dir="rtl"] .home-stats__track {
+    animation-name: homeStatsMarqueeRtl;
+}
+
+@keyframes homeStatsMarqueeRtl {
+    from { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
+    to { -webkit-transform: translate3d(50%, 0, 0); transform: translate3d(50%, 0, 0); }
 }
 
 /* ---- Slim premium giveaway row ---- */
@@ -267,7 +358,7 @@
     88%, 100% { -webkit-transform: translate3d(130%, 0, 0); transform: translate3d(130%, 0, 0); }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px) and (min-width: 768px) {
     .home-stats__grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.6rem;
@@ -275,16 +366,6 @@
 }
 
 @media (max-width: 480px) {
-    .home-stats__chip {
-        padding: 0.65rem 0.75rem;
-        gap: 0.55rem;
-    }
-    .home-stats__value {
-        font-size: 1rem;
-    }
-    .home-stats__label {
-        font-size: 0.68rem;
-    }
     .home-gw-cta {
         height: 2.3rem;
         padding: 0 0.7rem;
@@ -306,9 +387,63 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .home-gw-cta__shine {
+    .home-gw-cta__shine,
+    .home-stats__track {
         animation: none !important;
+    }
+    .home-stats__marquee {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+    .home-stats__track {
+        animation: none !important;
+    }
+    .home-stats__group:last-child {
+        display: none;
     }
 }
 </style>
+
+<script>
+(function () {
+    const root = document.querySelector('[data-home-stats]');
+    if (!root || root.dataset.marqueeBound === '1') return;
+    root.dataset.marqueeBound = '1';
+
+    const track = root.querySelector('[data-stats-track]');
+    const marquee = root.querySelector('[data-stats-marquee]');
+    if (!track || !marquee) return;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const phoneMq = window.matchMedia('(max-width: 767px)');
+    if (reduceMotion) return;
+
+    const sync = () => {
+        const onPhone = phoneMq.matches;
+        const visible = root.getBoundingClientRect().top < window.innerHeight && root.getBoundingClientRect().bottom > 0;
+        track.classList.toggle('is-running', onPhone && visible);
+    };
+
+    if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                const onPhone = phoneMq.matches;
+                track.classList.toggle('is-running', onPhone && entry.isIntersecting);
+            });
+        }, { threshold: 0.15 });
+        io.observe(root);
+        if (typeof phoneMq.addEventListener === 'function') {
+            phoneMq.addEventListener('change', sync);
+        } else if (typeof phoneMq.addListener === 'function') {
+            phoneMq.addListener(sync);
+        }
+    } else {
+        sync();
+        window.addEventListener('scroll', sync, { passive: true });
+        window.addEventListener('resize', sync, { passive: true });
+    }
+})();
+</script>
 @endif
