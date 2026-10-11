@@ -10,6 +10,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class LanguageMiddleware
 {
+    /** @var list<string> */
+    private const AVAILABLE = ['en', 'fr', 'ar'];
+
     /**
      * Handle an incoming request.
      *
@@ -17,20 +20,50 @@ class LanguageMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Get available locales
-        $availableLocales = ['en', 'fr', 'ar'];
-        
-        // Check if locale is in session, otherwise use default
-        $locale = Session::get('locale', config('app.locale', 'en'));
-        
-        // Validate locale
-        if (!in_array($locale, $availableLocales)) {
-            $locale = 'en';
+        // Manual switch (or previous visit) always wins.
+        if (Session::has('locale')) {
+            $locale = (string) Session::get('locale');
+        } else {
+            // First visit: follow phone/browser language settings.
+            $locale = $this->detectFromRequest($request);
+            Session::put('locale', $locale);
         }
-        
-        // Set the application locale
+
+        if (! in_array($locale, self::AVAILABLE, true)) {
+            $locale = config('app.locale', 'en');
+            Session::put('locale', $locale);
+        }
+
         App::setLocale($locale);
-        
+
         return $next($request);
+    }
+
+    private function detectFromRequest(Request $request): string
+    {
+        // Prefer Laravel's negotiated Accept-Language match.
+        $preferred = $request->getPreferredLanguage(self::AVAILABLE);
+        if (is_string($preferred) && in_array($preferred, self::AVAILABLE, true)) {
+            return $preferred;
+        }
+
+        $header = strtolower((string) $request->header('Accept-Language', ''));
+        if ($header === '') {
+            return config('app.locale', 'en');
+        }
+
+        // e.g. "fr-DZ,fr;q=0.9,ar;q=0.8,en;q=0.7"
+        foreach (explode(',', $header) as $part) {
+            $tag = trim(explode(';', $part)[0] ?? '');
+            if ($tag === '') {
+                continue;
+            }
+            $primary = strtolower(substr($tag, 0, 2));
+            if (in_array($primary, self::AVAILABLE, true)) {
+                return $primary;
+            }
+        }
+
+        return config('app.locale', 'en');
     }
 }
