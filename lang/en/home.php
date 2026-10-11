@@ -56,6 +56,16 @@ return [
     'stats_members' => 'Community members',
     'stats_players' => 'Players topped up',
     'stats_topups' => 'Top-ups delivered',
-    'stats_products' => 'Products topped up',
     'stats_games' => 'Games live',
+
+    // Giveaway CTA under stats
+    'giveaway_cta_live' => 'Live now',
+    'giveaway_cta_title' => 'Join the giveaway right now',
+    'giveaway_cta_button' => 'Enter free',
+    'giveaway_cta_hint' => 'Free entry · Takes under a minute',
+    'giveaway_cta_nudge_1' => 'Win free diamonds & prizes',
+    'giveaway_cta_nudge_2' => 'Your chance is open — don’t miss it',
+    'giveaway_cta_nudge_3' => 'Players are joining right now',
+    'giveaway_cta_nudge_4' => 'Tap in and claim your spot',
+    'giveaway_cta_nudge_5' => 'New giveaway is live — join free',
 ];

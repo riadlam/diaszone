@@ -23,7 +23,7 @@ class SitePublicStatsTest extends TestCase
         $this->assertSame(3, $stats['members']);
         $this->assertArrayHasKey('players_topped_up', $stats);
         $this->assertArrayHasKey('topups_delivered', $stats);
-        $this->assertArrayHasKey('products_topped_up', $stats);
+        $this->assertArrayNotHasKey('products_topped_up', $stats);
         $this->assertArrayHasKey('games_live', $stats);
 
         foreach (['revenue', 'profit', 'cost', 'balance', 'wallet'] as $sensitive) {

@@ -19,6 +19,7 @@
 
 @include('components.home-stats', [
     'publicStats' => $publicStats ?? [],
+    'liveGiveaway' => $liveGiveaway ?? null,
 ])
 
 <!-- Home Services Section -->

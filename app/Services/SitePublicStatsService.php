@@ -2,16 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\DigiflazzStatus;
 use App\Models\Game;
 use App\Models\Order;
-use App\Models\OrderItem;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
 class SitePublicStatsService
 {
-    public const CACHE_KEY = 'homepage.public_stats.v2';
+    public const CACHE_KEY = 'homepage.public_stats.v3';
 
     public const CACHE_TTL_SECONDS = 600;
 
@@ -23,7 +21,6 @@ class SitePublicStatsService
      *     members: int,
      *     players_topped_up: int,
      *     topups_delivered: int,
-     *     products_topped_up: int,
      *     games_live: int
      * }
      */
@@ -50,30 +47,10 @@ class SitePublicStatsService
 
             $gamesLive = (int) Game::query()->where('is_active', true)->count();
 
-            $productsFromDigi = DigiflazzStatus::query()
-                ->successful()
-                ->whereNotNull('diamond_pack_id')
-                ->distinct()
-                ->pluck('diamond_pack_id');
-
-            $productsFromOrders = OrderItem::query()
-                ->whereNotNull('diamond_pack_id')
-                ->whereHas('order', function ($q) use ($paidStatuses) {
-                    $q->whereIn('status', $paidStatuses);
-                })
-                ->distinct()
-                ->pluck('diamond_pack_id');
-
-            $productsToppedUp = $productsFromDigi
-                ->merge($productsFromOrders)
-                ->unique()
-                ->count();
-
             return [
                 'members' => max(0, $members),
                 'players_topped_up' => max(0, $registeredPlayers + $guestCompletions),
                 'topups_delivered' => max(0, $topupsDelivered),
-                'products_topped_up' => max(0, (int) $productsToppedUp),
                 'games_live' => max(0, $gamesLive),
             ];
         });

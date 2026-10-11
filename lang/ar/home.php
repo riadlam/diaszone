@@ -56,6 +56,16 @@ return [
     'stats_members' => 'أعضاء المجتمع',
     'stats_players' => 'لاعبون تمت تعبئتهم',
     'stats_topups' => 'تعبئات تم تسليمها',
-    'stats_products' => 'منتجات تمت تعبئتها',
     'stats_games' => 'ألعاب نشطة',
+
+    // Giveaway CTA under stats
+    'giveaway_cta_live' => 'مباشر الآن',
+    'giveaway_cta_title' => 'انضم للمسابقة الآن',
+    'giveaway_cta_button' => 'دخول مجاني',
+    'giveaway_cta_hint' => 'مجاني · أقل من دقيقة',
+    'giveaway_cta_nudge_1' => 'اربح ماسات وجوائز مجانية',
+    'giveaway_cta_nudge_2' => 'فرصتك مفتوحة — لا تفوّتها',
+    'giveaway_cta_nudge_3' => 'اللاعبون ينضمون الآن',
+    'giveaway_cta_nudge_4' => 'اضغط واحجز مكانك',
+    'giveaway_cta_nudge_5' => 'مسابقة جديدة مباشرة — انضم مجاناً',
 ];

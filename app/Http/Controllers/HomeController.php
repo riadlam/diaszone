@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DiamondPack;
 use App\Models\FlashSaleOffer;
+use App\Models\Giveaway;
 use App\Models\HeroSlide;
 use App\Models\Game;
 use App\Models\Review;
@@ -233,6 +234,7 @@ class HomeController extends Controller
             ->get();
 
         $publicStats = app(SitePublicStatsService::class)->homepageStats();
+        $liveGiveaway = Giveaway::currentActive();
 
         return compact(
             'games',
@@ -242,7 +244,8 @@ class HomeController extends Controller
             'flashSales',
             'flashSaleEndsAt',
             'heroSlides',
-            'publicStats'
+            'publicStats',
+            'liveGiveaway'
         );
     }
     
