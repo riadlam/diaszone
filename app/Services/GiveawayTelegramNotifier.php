@@ -17,15 +17,22 @@ class GiveawayTelegramNotifier
             $entry->loadMissing(['user', 'giveaway', 'referrals.referredUser']);
 
             $text = TelegramService::formatGiveawayEntryMessage($entry);
+            $pending = $entry->status === GiveawayEntry::STATUS_PENDING;
+            $keyboard = $pending ? TelegramService::giveawayReviewKeyboard() : null;
 
             if (! $forceNew && $entry->tlg_message_id) {
-                $ok = TelegramService::editMessageText((int) $entry->tlg_message_id, $text);
+                $ok = TelegramService::editMessageText(
+                    (int) $entry->tlg_message_id,
+                    $text,
+                    removeKeyboard: ! $pending,
+                    inlineKeyboard: $keyboard
+                );
                 if ($ok) {
                     return;
                 }
             }
 
-            $messageId = TelegramService::sendMessage($text);
+            $messageId = TelegramService::sendMessage($text, false, $keyboard);
             if ($messageId) {
                 $entry->forceFill(['tlg_message_id' => $messageId])->save();
             }

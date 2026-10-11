@@ -277,17 +277,20 @@ class GiveawayFeatureTest extends TestCase
             ->assertSee(__('giveaway.status_declined'), false);
     }
 
-    public function test_enrollee_count_matches_entries(): void
+    public function test_enrollee_count_matches_approved_only(): void
     {
         $giveaway = $this->makeGiveaway();
-        $this->makeEntry($giveaway, $this->makeUser('One'));
-        $this->makeEntry($giveaway, $this->makeUser('Two'));
+        $this->makeEntry($giveaway, $this->makeUser('One'), [
+            'status' => GiveawayEntry::STATUS_APPROVED,
+        ]);
+        $this->makeEntry($giveaway, $this->makeUser('Two'), [
+            'status' => GiveawayEntry::STATUS_PENDING,
+        ]);
 
         $this->get(route('giveaway.show', $giveaway->slug))
             ->assertOk()
-            ->assertSee('2', false)
             ->assertSee('One', false)
-            ->assertSee('Two', false);
+            ->assertDontSee('Two', false);
     }
 
     public function test_nav_contains_giveaway_link(): void
@@ -338,6 +341,17 @@ class GiveawayFeatureTest extends TestCase
             return str_contains($request->url(), '/editMessageText')
                 && (int) $request['message_id'] === 9001;
         });
+
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), '/sendMessage')) {
+                return false;
+            }
+            $markup = json_decode($request['reply_markup'] ?? '{}', true);
+
+            return collect($markup['inline_keyboard'] ?? [])
+                ->flatten(1)
+                ->contains(fn ($btn) => ($btn['callback_data'] ?? '') === 'gw_approve');
+        });
     }
 
     public function test_approved_page_shows_stay_tuned_message(): void
@@ -353,5 +367,53 @@ class GiveawayFeatureTest extends TestCase
             ->assertOk()
             ->assertSee(__('giveaway.approved_title'), false)
             ->assertSee(__('giveaway.approved_body'), false);
+    }
+
+    public function test_pending_page_hides_full_steps_and_shows_pending_banner(): void
+    {
+        $giveaway = $this->makeGiveaway();
+        $user = $this->makeUser('Pending Player');
+        $this->makeEntry($giveaway, $user, [
+            'status' => GiveawayEntry::STATUS_PENDING,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('giveaway.show', $giveaway->slug))
+            ->assertOk()
+            ->assertSee(__('giveaway.pending_title'), false)
+            ->assertSee(__('giveaway.step3_title'), false)
+            ->assertDontSee(__('giveaway.step1_title'), false)
+            ->assertDontSee(__('giveaway.step2_title'), false);
+    }
+
+    public function test_telegram_approve_callback_approves_entry(): void
+    {
+        config([
+            'telegram.bot_token' => 'test-token',
+            'telegram.chat_id' => '12345',
+            'telegram.api_url' => 'https://api.telegram.org/bot',
+        ]);
+        Http::fake([
+            'https://api.telegram.org/*/answerCallbackQuery' => Http::response(['ok' => true], 200),
+            'https://api.telegram.org/*/editMessageText' => Http::response(['ok' => true], 200),
+            'https://api.telegram.org/*/sendMessage' => Http::response(['ok' => true, 'result' => ['message_id' => 1]], 200),
+        ]);
+
+        $giveaway = $this->makeGiveaway();
+        $entry = $this->makeEntry($giveaway, $this->makeUser('TG Approve'), [
+            'status' => GiveawayEntry::STATUS_PENDING,
+            'tlg_message_id' => 777,
+        ]);
+
+        $this->post('/webhook/telegram', [
+            'callback_query' => [
+                'id' => 'cb1',
+                'data' => 'gw_approve',
+                'message' => ['message_id' => 777],
+            ],
+        ])->assertOk();
+
+        $entry->refresh();
+        $this->assertSame(GiveawayEntry::STATUS_APPROVED, $entry->status);
     }
 }

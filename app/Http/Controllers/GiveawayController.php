@@ -50,11 +50,7 @@ class GiveawayController extends Controller
 
         $enrollees = GiveawayEntry::query()
             ->where('giveaway_id', $giveaway->id)
-            ->whereIn('status', [
-                GiveawayEntry::STATUS_PENDING,
-                GiveawayEntry::STATUS_APPROVED,
-                GiveawayEntry::STATUS_DECLINED,
-            ])
+            ->where('status', GiveawayEntry::STATUS_APPROVED)
             ->with('user:id,name')
             ->orderByDesc('created_at')
             ->limit(40)
@@ -66,11 +62,7 @@ class GiveawayController extends Controller
             'enrollees' => $enrollees,
             'enrolleeCount' => GiveawayEntry::query()
                 ->where('giveaway_id', $giveaway->id)
-                ->whereIn('status', [
-                    GiveawayEntry::STATUS_PENDING,
-                    GiveawayEntry::STATUS_APPROVED,
-                    GiveawayEntry::STATUS_DECLINED,
-                ])
+                ->where('status', GiveawayEntry::STATUS_APPROVED)
                 ->count(),
         ]);
     }

@@ -531,6 +531,45 @@
     display: grid;
     gap: 0.65rem;
 }
+.dz-gw-pending {
+    text-align: center;
+    padding: 1.15rem 1rem 1.25rem;
+    border-radius: 1.2rem;
+    border: 1px solid #fde68a;
+    background: linear-gradient(180deg, #fffbeb 0%, #fff 70%);
+    box-shadow: 0 10px 28px rgba(245, 158, 11, 0.1);
+}
+.dz-gw-pending__icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    margin: 0 auto 0.75rem;
+    border-radius: 9999px;
+    background: #fef3c7;
+    color: #d97706;
+    display: grid;
+    place-items: center;
+    -webkit-animation: dz-gw-pendingpulse 1.8s ease-in-out infinite;
+    animation: dz-gw-pendingpulse 1.8s ease-in-out infinite;
+}
+@-webkit-keyframes dz-gw-pendingpulse {
+    0%, 100% { -webkit-transform: scale(1); box-shadow: 0 0 0 0 rgba(245,158,11,.35); }
+    50% { -webkit-transform: scale(1.06); box-shadow: 0 0 0 10px rgba(245,158,11,0); }
+}
+@keyframes dz-gw-pendingpulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245,158,11,.35); }
+    50% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(245,158,11,0); }
+}
+.dz-gw-pending h2 {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: #92400e;
+}
+.dz-gw-pending p {
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    color: #a16207;
+    line-height: 1.45;
+}
 .dz-gw-btn-primary {
     display: inline-flex;
     align-items: center;
@@ -599,6 +638,8 @@
     $startsAtMs = $giveaway?->starts_at ? ((int) $giveaway->starts_at->getTimestamp() * 1000) : null;
     $entryEditable = $entry?->isEditable() ?? false;
     $entrySubmitted = $entry?->isSubmitted() ?? false;
+    $isPending = ($entry?->status === 'pending');
+    $isApproved = ($entry?->status === 'approved');
     $hasScreenshot = $entry?->hasScreenshot() ?? false;
     $screenshotUrl = $hasScreenshot ? ($entry->screenshotPublicUrl().'?t='.$entry->updated_at?->getTimestamp()) : null;
     $statusKey = match ($entry?->status) {
@@ -666,6 +707,64 @@
                     </div>
                 </section>
 
+                @if($isPending)
+                    <section class="dz-gw-pending" aria-live="polite">
+                        <div class="dz-gw-pending__icon" aria-hidden="true">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <span class="dz-gw-chip bg-amber-100 text-amber-800">{{ __('giveaway.status_pending') }}</span>
+                        <h2 class="mt-2">{{ __('giveaway.pending_title') }}</h2>
+                        <p>{{ __('giveaway.pending_body') }}</p>
+                    </section>
+
+                    <section class="dz-gw-panel !text-left">
+                        <article class="dz-gw-step-row">
+                            <span class="dz-gw-step-row__num">3</span>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <img src="{{ $shareIcon }}" alt="" class="dz-gw-step-row__icon">
+                                    <h3>{{ __('giveaway.step3_title') }}</h3>
+                                </div>
+                                <p>{{ __('giveaway.step3_desc') }}</p>
+                                @if($entry)
+                                    <div class="dz-gw-ref-box">
+                                        <input id="gw-ref-link-step" type="text" readonly value="{{ $entry->referralUrl() }}">
+                                        <button type="button" class="dz-gw-copy" data-gw-copy="gw-ref-link-step">{{ __('giveaway.copy_link') }}</button>
+                                        <p class="text-xs font-bold {{ $entry->referralSatisfied() ? 'text-emerald-700' : 'text-amber-700' }}">
+                                            {{ __('giveaway.referral_progress', ['count' => $entry->referralSatisfied() ? 1 : 0]) }}
+                                        </p>
+                                    </div>
+                                @endif
+                            </div>
+                        </article>
+                    </section>
+                @elseif($isApproved)
+                    <section class="dz-gw-panel space-y-3">
+                        <div class="rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white px-4 py-5 text-center">
+                            <span class="dz-gw-chip bg-emerald-100 text-emerald-800 mb-2">{{ __('giveaway.status_approved') }}</span>
+                            <h2 class="text-lg font-black text-emerald-900">{{ __('giveaway.approved_title') }}</h2>
+                            <p class="mt-2 text-sm text-emerald-800/90 max-w-md mx-auto leading-relaxed">{{ __('giveaway.approved_body') }}</p>
+                        </div>
+                        @if($entry)
+                            <article class="dz-gw-step-row !mt-1">
+                                <span class="dz-gw-step-row__num">3</span>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <img src="{{ $shareIcon }}" alt="" class="dz-gw-step-row__icon">
+                                        <h3>{{ __('giveaway.step3_title') }}</h3>
+                                    </div>
+                                    <div class="dz-gw-ref-box">
+                                        <input id="gw-ref-link-step" type="text" readonly value="{{ $entry->referralUrl() }}">
+                                        <button type="button" class="dz-gw-copy" data-gw-copy="gw-ref-link-step">{{ __('giveaway.copy_link') }}</button>
+                                        <p class="text-xs font-bold {{ $entry->referralSatisfied() ? 'text-emerald-700' : 'text-amber-700' }}">
+                                            {{ __('giveaway.referral_progress', ['count' => $entry->referralSatisfied() ? 1 : 0]) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </article>
+                        @endif
+                    </section>
+                @else
                 <section class="dz-gw-panel !text-left">
                     <div class="flex items-center justify-between gap-2 mb-2.5">
                         <h2 class="text-base font-black text-slate-900">{{ __('giveaway.how_title') }}</h2>
@@ -728,11 +827,6 @@
                                         </div>
                                     @elseif(auth()->guest())
                                         <p class="mt-2 text-xs font-semibold text-violet-700">{{ __('giveaway.step2_login_hint') }}</p>
-                                    @elseif($hasScreenshot)
-                                        <div class="dz-gw-mini-up has-preview mt-2">
-                                            <img src="{{ $screenshotUrl }}" alt="" class="dz-gw-mini-up__thumb" style="display:block">
-                                            <span class="text-xs font-bold text-emerald-700">{{ __('giveaway.screenshot_saved') }}</span>
-                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -781,6 +875,7 @@
                         <p class="mt-3 text-xs text-slate-500 whitespace-pre-line leading-relaxed">{{ $giveaway->instructions }}</p>
                     @endif
                 </section>
+                @endif
 
                 <section class="dz-gw-panel dz-gw-enrolled">
                     <div class="flex items-center justify-center gap-2 mb-1">
@@ -806,40 +901,24 @@
                             ])
                         </div>
                     </section>
-                @else
-                    @if($entry?->status === 'approved')
-                        <section class="dz-gw-panel space-y-3">
-                            <div class="rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-white px-4 py-5 text-center">
-                                <span class="dz-gw-chip bg-emerald-100 text-emerald-800 mb-2">{{ __('giveaway.status_approved') }}</span>
-                                <h2 class="text-lg font-black text-emerald-900">{{ __('giveaway.approved_title') }}</h2>
-                                <p class="mt-2 text-sm text-emerald-800/90 max-w-md mx-auto leading-relaxed">{{ __('giveaway.approved_body') }}</p>
-                            </div>
-                        </section>
-                    @elseif($entry?->status === 'pending')
-                        <section class="dz-gw-panel space-y-3 text-center">
-                            <h2 class="text-base font-black text-slate-900">{{ __('giveaway.status_title') }}</h2>
-                            <span class="dz-gw-chip bg-amber-100 text-amber-800">{{ __('giveaway.status_pending') }}</span>
-                            <p class="text-sm text-slate-500 max-w-sm mx-auto">{{ __('giveaway.pending_body') }}</p>
-                        </section>
-                    @elseif($entry?->status === 'declined')
-                        <section class="dz-gw-panel space-y-3">
-                            <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-center" role="alert">
-                                <span class="dz-gw-chip bg-rose-100 text-rose-800 mb-2">{{ __('giveaway.status_declined') }}</span>
-                                <h2 class="text-base font-black text-rose-900">{{ __('giveaway.declined_title') }}</h2>
-                                <p class="mt-2 text-sm text-rose-800 leading-relaxed">{{ __('giveaway.declined_body') }}</p>
-                                @if($entry->decline_reason)
-                                    <p class="mt-3 rounded-xl bg-white/80 border border-rose-100 px-3 py-2 text-sm text-rose-900 font-semibold">
-                                        {{ $entry->decline_reason }}
-                                    </p>
-                                @endif
-                                <p class="mt-3 text-xs font-bold text-rose-700">{{ __('giveaway.declined_fix_hint') }}</p>
-                            </div>
-                        </section>
-                    @elseif(! $giveaway->isCurrentlyActive() && ! $entrySubmitted)
-                        <section class="dz-gw-panel">
-                            <p class="font-bold text-slate-700">{{ __('giveaway.closed') }}</p>
-                        </section>
-                    @endif
+                @elseif($entry?->status === 'declined')
+                    <section class="dz-gw-panel space-y-3">
+                        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-center" role="alert">
+                            <span class="dz-gw-chip bg-rose-100 text-rose-800 mb-2">{{ __('giveaway.status_declined') }}</span>
+                            <h2 class="text-base font-black text-rose-900">{{ __('giveaway.declined_title') }}</h2>
+                            <p class="mt-2 text-sm text-rose-800 leading-relaxed">{{ __('giveaway.declined_body') }}</p>
+                            @if($entry->decline_reason)
+                                <p class="mt-3 rounded-xl bg-white/80 border border-rose-100 px-3 py-2 text-sm text-rose-900 font-semibold">
+                                    {{ $entry->decline_reason }}
+                                </p>
+                            @endif
+                            <p class="mt-3 text-xs font-bold text-rose-700">{{ __('giveaway.declined_fix_hint') }}</p>
+                        </div>
+                    </section>
+                @elseif(! $giveaway->isCurrentlyActive() && ! $entrySubmitted)
+                    <section class="dz-gw-panel">
+                        <p class="font-bold text-slate-700">{{ __('giveaway.closed') }}</p>
+                    </section>
                 @endguest
             @endunless
         </div>

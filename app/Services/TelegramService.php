@@ -16,7 +16,7 @@ class TelegramService
      * @param bool $addConfirmButton Whether to add "Confirm Order" button (for pending_confirmation orders)
      * @return int|null Returns message_id on success, null on failure
      */
-    public static function sendMessage(string $message, bool $addConfirmButton = false): ?int
+    public static function sendMessage(string $message, bool $addConfirmButton = false, ?array $inlineKeyboard = null): ?int
     {
         try {
             $botToken = config('telegram.bot_token');
@@ -41,9 +41,13 @@ class TelegramService
                 'text' => $message,
                 'parse_mode' => 'HTML',
             ];
-            
-            // Add inline keyboard buttons for pending_confirmation orders
-            if ($addConfirmButton) {
+
+            if ($inlineKeyboard !== null) {
+                $payload['reply_markup'] = json_encode([
+                    'inline_keyboard' => $inlineKeyboard,
+                ]);
+            } elseif ($addConfirmButton) {
+                // Add inline keyboard buttons for pending_confirmation orders
                 $payload['reply_markup'] = json_encode([
                     'inline_keyboard' => [
                         [
@@ -193,7 +197,7 @@ class TelegramService
      * @param string $newText
      * @return bool
      */
-    public static function editMessageText(int $messageId, string $newText, bool $removeKeyboard = false): bool
+    public static function editMessageText(int $messageId, string $newText, bool $removeKeyboard = false, ?array $inlineKeyboard = null): bool
     {
         try {
             $botToken = config('telegram.bot_token');
@@ -212,7 +216,9 @@ class TelegramService
                 'text' => $newText,
                 'parse_mode' => 'HTML',
             ];
-            if ($removeKeyboard) {
+            if ($inlineKeyboard !== null) {
+                $payload['reply_markup'] = json_encode(['inline_keyboard' => $inlineKeyboard]);
+            } elseif ($removeKeyboard) {
                 $payload['reply_markup'] = json_encode(['inline_keyboard' => []]);
             }
             
@@ -273,6 +279,64 @@ class TelegramService
             ]);
             return false;
         }
+    }
+
+    /**
+     * Send a local public-disk image as a Telegram photo (multipart).
+     */
+    public static function sendPhotoFromDisk(string $diskPath, ?string $caption = null): bool
+    {
+        try {
+            $botToken = config('telegram.bot_token');
+            $chatId = config('telegram.chat_id');
+            $apiUrl = config('telegram.api_url');
+
+            if (! $botToken || ! $chatId) {
+                return false;
+            }
+
+            if (! \Illuminate\Support\Facades\Storage::disk('public')->exists($diskPath)) {
+                return false;
+            }
+
+            $contents = \Illuminate\Support\Facades\Storage::disk('public')->get($diskPath);
+            $filename = basename($diskPath) ?: 'screenshot.jpg';
+            $url = $apiUrl.$botToken.'/sendPhoto';
+
+            $request = Http::timeout(20)
+                ->attach('photo', $contents, $filename);
+
+            $fields = [
+                'chat_id' => (string) $chatId,
+            ];
+            if ($caption) {
+                $fields['caption'] = $caption;
+                $fields['parse_mode'] = 'HTML';
+            }
+
+            $response = $request->post($url, $fields);
+
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error('Telegram: Exception while sending disk photo', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    public static function giveawayReviewKeyboard(): array
+    {
+        return [
+            [
+                ['text' => '✅ Accept', 'callback_data' => 'gw_approve'],
+                ['text' => '❌ Decline', 'callback_data' => 'gw_decline'],
+            ],
+            [
+                ['text' => '🖼 View screenshot', 'callback_data' => 'gw_view_shot'],
+            ],
+        ];
     }
     
     /**

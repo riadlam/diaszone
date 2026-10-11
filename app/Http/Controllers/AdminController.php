@@ -6,9 +6,11 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\Coupon;
 use App\Models\DigiflazzStatus;
+use App\Models\GiveawayEntry;
 use App\Models\VipResellerStatus;
 use App\Services\VipResellerService;
 use App\Services\TelegramService;
+use App\Services\GiveawayTelegramNotifier;
 use App\Services\FlashSaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -2481,6 +2483,71 @@ class AdminController extends Controller
                         'receipt_url' => $receiptUrl,
                     ]);
                     
+                    return response()->json(['ok' => true]);
+                } elseif (in_array($callbackData, ['gw_approve', 'gw_decline', 'gw_view_shot'], true) && $messageId) {
+                    $entry = GiveawayEntry::query()
+                        ->with(['user', 'giveaway', 'referrals.referredUser'])
+                        ->where('tlg_message_id', $messageId)
+                        ->first();
+
+                    if (! $entry) {
+                        TelegramService::answerCallbackQuery($callbackQueryId, '❌ Giveaway entry not found', true);
+
+                        return response()->json(['ok' => true]);
+                    }
+
+                    if ($callbackData === 'gw_view_shot') {
+                        if (! $entry->hasScreenshot()) {
+                            TelegramService::answerCallbackQuery($callbackQueryId, '❌ Screenshot missing', true);
+
+                            return response()->json(['ok' => true]);
+                        }
+
+                        TelegramService::answerCallbackQuery($callbackQueryId, '🖼 Sending screenshot...', false);
+                        $caption = '🖼 Screenshot — entry #'.$entry->id.' — '.e((string) ($entry->user?->name ?? 'Player'));
+                        $ok = TelegramService::sendPhotoFromDisk($entry->screenshot_path, $caption);
+                        if (! $ok) {
+                            TelegramService::answerCallbackQuery($callbackQueryId, '❌ Could not send screenshot', true);
+                        }
+
+                        return response()->json(['ok' => true]);
+                    }
+
+                    if ($entry->status !== GiveawayEntry::STATUS_PENDING) {
+                        TelegramService::answerCallbackQuery(
+                            $callbackQueryId,
+                            $entry->status === GiveawayEntry::STATUS_APPROVED
+                                ? '✅ Already approved'
+                                : 'ℹ️ Entry is no longer pending',
+                            true
+                        );
+                        app(GiveawayTelegramNotifier::class)->sync($entry);
+
+                        return response()->json(['ok' => true]);
+                    }
+
+                    if ($callbackData === 'gw_approve') {
+                        TelegramService::answerCallbackQuery($callbackQueryId, '✅ Approving entry...', false);
+                        $entry->update([
+                            'status' => GiveawayEntry::STATUS_APPROVED,
+                            'decline_reason' => null,
+                            'reviewed_at' => now(),
+                            'reviewed_by' => null,
+                        ]);
+                        app(GiveawayTelegramNotifier::class)->sync($entry->fresh(['user', 'giveaway', 'referrals.referredUser']));
+
+                        return response()->json(['ok' => true]);
+                    }
+
+                    TelegramService::answerCallbackQuery($callbackQueryId, '❌ Declining entry...', false);
+                    $entry->update([
+                        'status' => GiveawayEntry::STATUS_DECLINED,
+                        'decline_reason' => 'Please check the giveaway conditions (like, follow, 5 tags screenshot) and try again.',
+                        'reviewed_at' => now(),
+                        'reviewed_by' => null,
+                    ]);
+                    app(GiveawayTelegramNotifier::class)->sync($entry->fresh(['user', 'giveaway', 'referrals.referredUser']));
+
                     return response()->json(['ok' => true]);
                 }
             }
