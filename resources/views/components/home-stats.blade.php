@@ -4,13 +4,6 @@
     /** @var \App\Models\Giveaway|null $liveGiveaway */
     $liveGiveaway = $liveGiveaway ?? null;
     $giveawayUrl = route('giveaway.index');
-    $nudges = [
-        __('home.giveaway_cta_nudge_1'),
-        __('home.giveaway_cta_nudge_2'),
-        __('home.giveaway_cta_nudge_3'),
-        __('home.giveaway_cta_nudge_4'),
-        __('home.giveaway_cta_nudge_5'),
-    ];
     $items = [
         [
             'key' => 'members',
@@ -82,37 +75,23 @@
                data-home-gw-cta
                aria-label="{{ __('home.giveaway_cta_title') }}">
                 <span class="home-gw-cta__shine" aria-hidden="true"></span>
-                <span class="home-gw-cta__pulse" aria-hidden="true"></span>
-
-                <span class="home-gw-cta__gift" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none">
-                        <path d="M12 8v13M4.5 11.5h15v8.2a1.8 1.8 0 0 1-1.8 1.8H6.3a1.8 1.8 0 0 1-1.8-1.8v-8.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-                        <path d="M3.8 8.2h16.4v3.3H3.8V8.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-                        <path d="M12 8.2c-2.2 0-3.7-1.7-3.4-3.2.3-1.3 1.7-1.8 3.4-.6 1.7-1.2 3.1-.7 3.4.6.3 1.5-1.2 3.2-3.4 3.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-                    </svg>
+                <span class="home-gw-cta__dot" aria-hidden="true"></span>
+                <span class="home-gw-cta__ico home-gw-cta__ico--gift" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 8v13M4.5 11.5h15v8.2a1.8 1.8 0 0 1-1.8 1.8H6.3a1.8 1.8 0 0 1-1.8-1.8v-8.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3.8 8.2h16.4v3.3H3.8V8.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 8.2c-2.2 0-3.7-1.7-3.4-3.2.3-1.3 1.7-1.8 3.4-.6 1.7-1.2 3.1-.7 3.4.6.3 1.5-1.2 3.2-3.4 3.2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
                 </span>
-
-                <span class="home-gw-cta__copy">
-                    <span class="home-gw-cta__badge">
-                        <span class="home-gw-cta__dot" aria-hidden="true"></span>
-                        {{ __('home.giveaway_cta_live') }}
+                <span class="home-gw-cta__text">{{ __('home.giveaway_cta_title') }}</span>
+                <span class="home-gw-cta__sparks" aria-hidden="true">
+                    <span class="home-gw-cta__ico home-gw-cta__ico--spark">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.4l1.1 6.2L19.4 12l-6.3 1.4L12 21.6l-1.1-8.2L4.6 12l6.3-3.4L12 2.4z"/></svg>
                     </span>
-                    <span class="home-gw-cta__title">{{ __('home.giveaway_cta_title') }}</span>
-                    <span class="home-gw-cta__nudge" data-gw-nudge>
-                        <span data-gw-nudge-text>{{ $nudges[0] }}</span>
+                    <span class="home-gw-cta__ico home-gw-cta__ico--diamond">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M3.8 9.2 7.6 4.8h8.8l3.8 4.4-8.2 10.6L3.8 9.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3.8 9.2h16.4M9.2 4.8 12 9.2l2.8-4.4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
                     </span>
                 </span>
-
-                <span class="home-gw-cta__action">
-                    <span class="home-gw-cta__btn">{{ __('home.giveaway_cta_button') }}</span>
-                    <span class="home-gw-cta__hint">{{ __('home.giveaway_cta_hint') }}</span>
-                </span>
-
                 <span class="home-gw-cta__arrow" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h12M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </span>
             </a>
-            <script type="application/json" data-gw-nudges>@json($nudges)</script>
         @endif
     </div>
 </section>
@@ -237,207 +216,143 @@
     white-space: nowrap;
 }
 
-/* ---- Giveaway CTA strip ---- */
+/* ---- Slim premium giveaway row ---- */
 .home-gw-cta {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.85rem;
+    gap: 0.55rem;
     width: 100%;
-    margin-top: 0.85rem;
-    padding: 0.85rem 1rem;
-    border-radius: 1.15rem;
+    height: 2.45rem;
+    margin-top: 0.7rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
     text-decoration: none;
     color: #fff;
     overflow: hidden;
     isolation: isolate;
-    background: linear-gradient(105deg, #6d28d9 0%, #7c3aed 38%, #db2777 100%);
-    box-shadow: 0 10px 28px rgba(109, 40, 217, 0.28);
+    background: linear-gradient(100deg, #6d28d9 0%, #7c3aed 45%, #c026d3 100%);
+    border: 1px solid rgba(255,255,255,0.18);
+    box-shadow: 0 6px 18px rgba(109, 40, 217, 0.22);
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 
 .home-gw-cta:hover,
 .home-gw-cta:focus-visible {
-    -webkit-transform: translate3d(0, -2px, 0);
-    transform: translate3d(0, -2px, 0);
-    box-shadow: 0 14px 34px rgba(109, 40, 217, 0.36);
+    -webkit-transform: translate3d(0, -1px, 0);
+    transform: translate3d(0, -1px, 0);
+    box-shadow: 0 8px 22px rgba(109, 40, 217, 0.3);
     outline: none;
 }
 
 .home-gw-cta:active {
-    -webkit-transform: translate3d(0, 0, 0) scale(0.99);
-    transform: translate3d(0, 0, 0) scale(0.99);
+    -webkit-transform: translate3d(0, 0, 0) scale(0.995);
+    transform: translate3d(0, 0, 0) scale(0.995);
 }
 
 .home-gw-cta__shine {
     position: absolute;
     inset: 0;
-    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.28) 48%, transparent 66%);
-    -webkit-transform: translate3d(-120%, 0, 0);
-    transform: translate3d(-120%, 0, 0);
-    animation: homeGwShine 3.8s ease-in-out infinite;
+    background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.32) 50%, transparent 65%);
+    -webkit-transform: translate3d(-130%, 0, 0);
+    transform: translate3d(-130%, 0, 0);
+    animation: homeGwShine 4.2s ease-in-out infinite;
     pointer-events: none;
     z-index: 1;
 }
 
-.home-gw-cta__pulse {
-    position: absolute;
-    inset: -2px;
-    border-radius: inherit;
-    border: 2px solid rgba(255,255,255,0.35);
-    opacity: 0;
-    animation: homeGwPulse 2.4s ease-out infinite;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.home-gw-cta__gift,
-.home-gw-cta__copy,
-.home-gw-cta__action,
+.home-gw-cta__dot,
+.home-gw-cta__ico,
+.home-gw-cta__text,
+.home-gw-cta__sparks,
 .home-gw-cta__arrow {
     position: relative;
     z-index: 2;
 }
 
-.home-gw-cta__gift {
+.home-gw-cta__dot {
     flex-shrink: 0;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.65);
+    animation: homeGwDot 1.7s ease-out infinite;
+}
+
+.home-gw-cta__ico {
     display: grid;
     place-items: center;
-    width: 2.6rem;
-    height: 2.6rem;
-    border-radius: 0.9rem;
-    background: rgba(255,255,255,0.18);
+    flex-shrink: 0;
     color: #fff;
-    animation: homeGwGift 2.2s ease-in-out infinite;
+}
+
+.home-gw-cta__ico svg {
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.home-gw-cta__ico--gift {
+    animation: homeGwGift 2.4s ease-in-out infinite;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
 }
 
-.home-gw-cta__gift svg {
-    width: 1.35rem;
-    height: 1.35rem;
-}
-
-.home-gw-cta__copy {
-    display: flex;
-    flex-direction: column;
-    gap: 0.12rem;
-    min-width: 0;
+.home-gw-cta__text {
     flex: 1;
+    min-width: 0;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.home-gw-cta__badge {
+.home-gw-cta__sparks {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    width: fit-content;
-    padding: 0.12rem 0.5rem;
-    border-radius: 999px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    background: rgba(255,255,255,0.18);
-    color: #fff;
-}
-
-.home-gw-cta__dot {
-    width: 0.45rem;
-    height: 0.45rem;
-    border-radius: 50%;
-    background: #4ade80;
-    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
-    animation: homeGwDot 1.6s ease-out infinite;
-}
-
-.home-gw-cta__title {
-    font-size: 1rem;
-    font-weight: 800;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-}
-
-.home-gw-cta__nudge {
-    display: block;
-    min-height: 1.1em;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: rgba(255,255,255,0.88);
-    overflow: hidden;
-}
-
-.home-gw-cta__nudge [data-gw-nudge-text] {
-    display: inline-block;
-    -webkit-transform: translate3d(0, 0, 0);
-    transform: translate3d(0, 0, 0);
-    opacity: 1;
-    transition: opacity 0.28s ease, transform 0.28s ease;
-}
-
-.home-gw-cta__nudge.is-swap [data-gw-nudge-text] {
-    opacity: 0;
-    -webkit-transform: translate3d(0, 8px, 0);
-    transform: translate3d(0, 8px, 0);
-}
-
-.home-gw-cta__action {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.15rem;
     flex-shrink: 0;
+    opacity: 0.92;
 }
 
-.home-gw-cta__btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.55rem 1rem;
-    border-radius: 999px;
-    background: #fff;
-    color: #6d28d9;
-    font-size: 0.82rem;
-    font-weight: 800;
-    white-space: nowrap;
-    box-shadow: 0 6px 16px rgba(31, 22, 52, 0.12);
-    animation: homeGwBtn 2.8s ease-in-out infinite;
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+.home-gw-cta__ico--spark {
+    animation: homeGwSpark 2s ease-in-out infinite;
 }
 
-.home-gw-cta__hint {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: rgba(255,255,255,0.82);
-    white-space: nowrap;
+.home-gw-cta__ico--diamond {
+    animation: homeGwSpark 2s ease-in-out infinite 0.35s;
+}
+
+.home-gw-cta__ico--spark svg,
+.home-gw-cta__ico--diamond svg {
+    width: 0.78rem;
+    height: 0.78rem;
 }
 
 .home-gw-cta__arrow {
     flex-shrink: 0;
     display: grid;
     place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.15rem;
+    height: 1.15rem;
     color: rgba(255,255,255,0.95);
-    animation: homeGwArrow 1.4s ease-in-out infinite;
+    animation: homeGwArrow 1.5s ease-in-out infinite;
 }
 
 .home-gw-cta__arrow svg {
-    width: 1.15rem;
-    height: 1.15rem;
+    width: 0.95rem;
+    height: 0.95rem;
 }
 
 html[dir="rtl"] .home-gw-cta__arrow {
-    -webkit-transform: scaleX(-1);
-    transform: scaleX(-1);
-}
-
-html[dir="rtl"] .home-gw-cta__action {
-    align-items: flex-start;
+    animation-name: homeGwArrowRtl;
 }
 
 @keyframes homeStatsMarquee {
@@ -460,67 +375,48 @@ html[dir="rtl"] .home-stats__track {
 }
 
 @keyframes homeGwShine {
-    0%, 55% { -webkit-transform: translate3d(-120%, 0, 0); transform: translate3d(-120%, 0, 0); }
-    80%, 100% { -webkit-transform: translate3d(120%, 0, 0); transform: translate3d(120%, 0, 0); }
-}
-
-@keyframes homeGwPulse {
-    0% { opacity: 0.55; -webkit-transform: scale(1); transform: scale(1); }
-    100% { opacity: 0; -webkit-transform: scale(1.035); transform: scale(1.035); }
+    0%, 58% { -webkit-transform: translate3d(-130%, 0, 0); transform: translate3d(-130%, 0, 0); }
+    82%, 100% { -webkit-transform: translate3d(130%, 0, 0); transform: translate3d(130%, 0, 0); }
 }
 
 @keyframes homeGwGift {
     0%, 100% { -webkit-transform: translate3d(0, 0, 0) rotate(0deg); transform: translate3d(0, 0, 0) rotate(0deg); }
-    35% { -webkit-transform: translate3d(0, -3px, 0) rotate(-6deg); transform: translate3d(0, -3px, 0) rotate(-6deg); }
-    65% { -webkit-transform: translate3d(0, -1px, 0) rotate(5deg); transform: translate3d(0, -1px, 0) rotate(5deg); }
+    40% { -webkit-transform: translate3d(0, -1.5px, 0) rotate(-5deg); transform: translate3d(0, -1.5px, 0) rotate(-5deg); }
+    70% { -webkit-transform: translate3d(0, 0, 0) rotate(4deg); transform: translate3d(0, 0, 0) rotate(4deg); }
 }
 
-@keyframes homeGwBtn {
-    0%, 100% { -webkit-transform: translate3d(0, 0, 0) scale(1); transform: translate3d(0, 0, 0) scale(1); }
-    50% { -webkit-transform: translate3d(0, 0, 0) scale(1.04); transform: translate3d(0, 0, 0) scale(1.04); }
+@keyframes homeGwSpark {
+    0%, 100% { -webkit-transform: translate3d(0, 0, 0) scale(1); transform: translate3d(0, 0, 0) scale(1); opacity: 0.75; }
+    50% { -webkit-transform: translate3d(0, -1px, 0) scale(1.12); transform: translate3d(0, -1px, 0) scale(1.12); opacity: 1; }
 }
 
 @keyframes homeGwArrow {
     0%, 100% { -webkit-transform: translate3d(0, 0, 0); transform: translate3d(0, 0, 0); }
-    50% { -webkit-transform: translate3d(4px, 0, 0); transform: translate3d(4px, 0, 0); }
-}
-
-html[dir="rtl"] .home-gw-cta__arrow {
-    animation-name: homeGwArrowRtl;
+    50% { -webkit-transform: translate3d(3px, 0, 0); transform: translate3d(3px, 0, 0); }
 }
 
 @keyframes homeGwArrowRtl {
     0%, 100% { -webkit-transform: scaleX(-1) translate3d(0, 0, 0); transform: scaleX(-1) translate3d(0, 0, 0); }
-    50% { -webkit-transform: scaleX(-1) translate3d(4px, 0, 0); transform: scaleX(-1) translate3d(4px, 0, 0); }
+    50% { -webkit-transform: scaleX(-1) translate3d(3px, 0, 0); transform: scaleX(-1) translate3d(3px, 0, 0); }
 }
 
 @keyframes homeGwDot {
-    0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
-    70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.65); }
+    70% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
     100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 480px) {
     .home-gw-cta {
-        flex-wrap: wrap;
-        gap: 0.7rem;
-        padding: 0.9rem 0.9rem 0.95rem;
+        height: 2.3rem;
+        padding: 0 0.7rem;
+        gap: 0.45rem;
     }
-    .home-gw-cta__copy {
-        flex: 1 1 calc(100% - 3.5rem);
+    .home-gw-cta__text {
+        font-size: 0.78rem;
     }
-    .home-gw-cta__action {
-        width: 100%;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-    }
-    .home-gw-cta__arrow {
+    .home-gw-cta__sparks {
         display: none;
-    }
-    .home-gw-cta__title {
-        font-size: 0.95rem;
     }
 }
 
@@ -528,9 +424,9 @@ html[dir="rtl"] .home-gw-cta__arrow {
     .home-stats__track,
     .home-stats__icon,
     .home-gw-cta__shine,
-    .home-gw-cta__pulse,
-    .home-gw-cta__gift,
-    .home-gw-cta__btn,
+    .home-gw-cta__ico--gift,
+    .home-gw-cta__ico--spark,
+    .home-gw-cta__ico--diamond,
     .home-gw-cta__arrow,
     .home-gw-cta__dot {
         animation: none !important;
@@ -642,28 +538,6 @@ html[dir="rtl"] .home-gw-cta__arrow {
         root.addEventListener('touchend', () => { track.style.animationPlayState = 'running'; }, { passive: true });
     }
 
-    // Rotating encouragement nudges (rAF-friendly, iOS/Android safe).
-    const nudgeHost = root.querySelector('[data-gw-nudge]');
-    const nudgeText = root.querySelector('[data-gw-nudge-text]');
-    const nudgeJson = root.querySelector('[data-gw-nudges]');
-    if (nudgeHost && nudgeText && nudgeJson) {
-        let nudges = [];
-        try { nudges = JSON.parse(nudgeJson.textContent || '[]'); } catch (e) { nudges = []; }
-        if (nudges.length > 1 && !reduceMotion) {
-            let idx = 0;
-            const swap = () => {
-                nudgeHost.classList.add('is-swap');
-                window.setTimeout(() => {
-                    idx = (idx + 1) % nudges.length;
-                    nudgeText.textContent = nudges[idx];
-                    // Force reflow then fade back in via rAF.
-                    void nudgeHost.offsetWidth;
-                    requestAnimationFrame(() => nudgeHost.classList.remove('is-swap'));
-                }, 280);
-            };
-            window.setInterval(swap, 2800);
-        }
-    }
 })();
 </script>
 @endif

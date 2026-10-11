@@ -59,13 +59,5 @@ return [
     'stats_games' => 'Jeux en ligne',
 
     // Giveaway CTA under stats
-    'giveaway_cta_live' => 'En direct',
     'giveaway_cta_title' => 'Rejoins le giveaway maintenant',
-    'giveaway_cta_button' => 'Participer gratuitement',
-    'giveaway_cta_hint' => 'Gratuit · Moins d’une minute',
-    'giveaway_cta_nudge_1' => 'Gagne des diamants et des prix',
-    'giveaway_cta_nudge_2' => 'Ta chance est ouverte — n’attends pas',
-    'giveaway_cta_nudge_3' => 'Des joueurs rejoignent en ce moment',
-    'giveaway_cta_nudge_4' => 'Entre et réserve ta place',
-    'giveaway_cta_nudge_5' => 'Nouveau giveaway en ligne — rejoins',
 ];
