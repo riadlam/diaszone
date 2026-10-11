@@ -16,6 +16,11 @@ class GiveawayTelegramNotifier
         try {
             $entry->loadMissing(['user', 'giveaway', 'referrals.referredUser']);
 
+            // Drafts are unfinished — never post review messages without Accept/Decline.
+            if ($entry->status === GiveawayEntry::STATUS_DRAFT) {
+                return;
+            }
+
             $text = TelegramService::formatGiveawayEntryMessage($entry);
             $pending = $entry->status === GiveawayEntry::STATUS_PENDING;
             $keyboard = $pending ? TelegramService::giveawayReviewKeyboard() : null;

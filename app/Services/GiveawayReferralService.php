@@ -173,7 +173,9 @@ class GiveawayReferralService
                 ->with(['user', 'giveaway', 'referrals.referredUser'])
                 ->first();
 
-            if ($referrerEntry) {
+            // Only refresh Telegram after the entry was actually submitted for review.
+            // Draft referral credits must not create a message without Accept/Decline.
+            if ($referrerEntry && $referrerEntry->isSubmitted()) {
                 app(GiveawayTelegramNotifier::class)->sync($referrerEntry);
             }
         }
