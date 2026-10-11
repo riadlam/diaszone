@@ -339,6 +339,18 @@ class TelegramService
         ];
     }
     
+    public static function orderTelegramHeader($order): string
+    {
+        return match ((string) ($order->status ?? '')) {
+            'completed' => '✅ <b>Order Completed</b>',
+            'failed' => '❌ <b>Order Failed</b>',
+            'cancelled' => '❌ <b>Order Cancelled</b>',
+            'sending' => '⏳ <b>Order Processing</b>',
+            'pending_confirmation' => '🆕 <b>New Order Created</b>',
+            default => '🆕 <b>New Order Created</b>',
+        };
+    }
+
     /**
      * Format order notification message
      *
@@ -374,7 +386,7 @@ class TelegramService
                 ? $order->final_price
                 : ($order->orderItems->sum('total_dzd') ?: ($order->vipResellerPack?->price_dzd ?? 0));
 
-            $message = "🆕 <b>New Order Created</b>\n\n";
+            $message = self::orderTelegramHeader($order)."\n\n";
             $message .= "📦 <b>Order:</b> {$escape($order->order_number)}\n";
             $message .= "🎮 <b>Product:</b> {$escape($categoryName)}\n";
             if ($order->orderItems && $order->orderItems->count() > 0) {
@@ -444,7 +456,7 @@ class TelegramService
         $userName = $order->user ? $escape($order->user->name) : 'Guest';
         $userEmail = $order->user ? $escape($order->user->email) : 'N/A';
         
-        $message = "🆕 <b>New Order Created</b>\n\n";
+        $message = self::orderTelegramHeader($order)."\n\n";
         if (method_exists($order, 'isFlashSale') && $order->isFlashSale()) {
             if (! $order->relationLoaded('flashSaleOffer')) {
                 $order->load('flashSaleOffer');

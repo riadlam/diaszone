@@ -563,7 +563,7 @@ class AdminController extends Controller
     public function updateOrderStatus(Request $request, $orderNumber)
     {
         $request->validate([
-            'status' => 'required|in:pending,pending_flexy,pending_bmccp,pending_cryptopay,pending_confirmation,sending,completed,cancelled,refunded',
+            'status' => 'required|in:pending,pending_flexy,pending_bmccp,pending_cryptopay,pending_confirmation,sending,completed,cancelled,refunded,failed',
             'from_admin' => 'sometimes|boolean', // Flag to ensure this is from admin dashboard
         ]);
 
@@ -1503,16 +1503,61 @@ class AdminController extends Controller
                     }
                 }
             } elseif ($status === 'error') {
-                // Provider error - ensure order is "sending" (needs attention)
-                if ($oldOrderStatus === 'completed') {
+                // Digiflazz/VIP terminal failure: mark failed when nothing was delivered and nothing is pending.
+                $order->loadMissing('orderItems.diamondPack', 'diamondPack', 'digiflazzStatuses');
+                $delivered = $order->allPackTopupsDelivered();
+                $hasPendingDigi = $order->digiflazzStatuses()
+                    ->pendingInFlight()
+                    ->exists();
+                $providerMessage = (string) ($apiData['message'] ?? $result['message'] ?? 'Provider error');
+                $providerRc = isset($apiData['rc']) ? (string) $apiData['rc'] : null;
+                $terminal = DigiflazzStatus::isTerminalFailure(
+                    (string) ($apiData['status'] ?? 'error'),
+                    $providerRc
+                ) || ($result['result'] ?? false) !== true;
+
+                if (
+                    $terminal
+                    && ! $delivered
+                    && ! $hasPendingDigi
+                    && ! in_array($oldOrderStatus, ['completed', 'cancelled', 'refunded', 'failed'], true)
+                ) {
+                    $order->status = 'failed';
+                    $order->notes = trim(($order->notes ?? '')."\nDigiflazz failed: {$providerMessage}".($providerRc ? " (RC {$providerRc})" : ''));
+                    $order->save();
+
+                    Log::warning('Order status updated to failed (provider terminal error)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'failed',
+                        'provider_status' => $status,
+                        'rc' => $providerRc,
+                        'message' => $providerMessage,
+                    ]);
+
+                    if ($order->tlg_message_id) {
+                        try {
+                            $order->load('diamondPack', 'user', 'vipResellerStatuses', 'orderItems.diamondPack');
+                            $updatedMessage = TelegramService::formatOrderMessage($order);
+                            TelegramService::editMessageText($order->tlg_message_id, $updatedMessage);
+                        } catch (\Exception $e) {
+                            Log::error('Failed to update Telegram message after Digiflazz failure', [
+                                'order_id' => $order->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+                } elseif ($oldOrderStatus === 'completed') {
+                    // Rare: provider later reports error after we already completed — flag for attention.
                     $order->status = 'sending';
                     $order->save();
-                    Log::warning('Order status updated to sending (provider error - needs attention)', [
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number,
-                            'old_status' => $oldOrderStatus,
-                            'new_status' => 'sending',
-                            'provider status' => $status,
+                    Log::warning('Order status updated to sending (provider error after completed)', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'old_status' => $oldOrderStatus,
+                        'new_status' => 'sending',
+                        'provider status' => $status,
                     ]);
                 }
             }

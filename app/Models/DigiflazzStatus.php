@@ -42,6 +42,48 @@ class DigiflazzStatus extends Model
         });
     }
 
+    /**
+     * Still waiting on Digiflazz (not yet final success/failure).
+     */
+    public function scopePendingInFlight($query)
+    {
+        return $query->where(function ($inner) {
+            $inner->whereRaw("LOWER(COALESCE(digiflazz_statuses.status, '')) = 'pending'")
+                ->orWhereIn('digiflazz_statuses.rc', ['03', '99']);
+        });
+    }
+
+    /**
+     * Digiflazz returned a final failure (Gagal / hard RC). Pending/success are excluded.
+     */
+    public static function isTerminalFailure(?string $status, ?string $rc): bool
+    {
+        $status = strtolower(trim((string) $status));
+        $rc = trim((string) $rc);
+
+        if (in_array($status, ['sukses', 'success', 'pending'], true) || in_array($rc, ['00', '03', '99'], true)) {
+            return false;
+        }
+
+        if (in_array($status, ['gagal', 'error', 'failed'], true)) {
+            return true;
+        }
+
+        // Common Digiflazz hard-fail RCs (wrong number, unstable product, generic gagal, etc.)
+        return in_array($rc, [
+            '02', '06', '07', '13', '14',
+            '20', '21', '22', '23', '24', '25', '26',
+            '50', '51', '52', '53', '54', '55', '56', '57', '58', '59',
+            '60', '61', '62', '63', '64', '65', '66', '67', '68', '69',
+            '70', '71', '72', '73', '74',
+        ], true);
+    }
+
+    public function isTerminalFailureRecord(): bool
+    {
+        return static::isTerminalFailure($this->status, $this->rc !== null ? (string) $this->rc : null);
+    }
+
     public function order()
     {
         return $this->belongsTo(Order::class);

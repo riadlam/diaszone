@@ -601,9 +601,7 @@ class DigiflazzWebhookController extends Controller
                         'required' => $totalRequired
                     ]);
                 } else {
-                    $orderLocked->update(['status' => 'sending']);
-                    $orderLocked->notes = trim(($orderLocked->notes ?? '') . "\nDigiflazz: {$totalCompleted}/{$totalRequired} top-ups completed");
-                    $orderLocked->save();
+                    $this->markSendingOrFailedAfterDigiflazz($orderLocked, $statusRecord, $totalCompleted, $totalRequired);
                 }
             } else {
                 // Legacy single-pack order
@@ -621,9 +619,7 @@ class DigiflazzWebhookController extends Controller
                 if ($completed >= $quantity) {
                     $orderLocked->update(['status' => 'completed']);
                 } else {
-                    $orderLocked->update(['status' => 'sending']);
-                    $orderLocked->notes = trim(($orderLocked->notes ?? '') . "\nDigiflazz: {$completed}/{$quantity} top-ups completed");
-                    $orderLocked->save();
+                    $this->markSendingOrFailedAfterDigiflazz($orderLocked, $statusRecord, $completed, $quantity);
                 }
             }
 
@@ -687,5 +683,44 @@ class DigiflazzWebhookController extends Controller
                 ]);
             }
         }); // End of DB transaction
+    }
+
+    /**
+     * Keep sending while Digiflazz is pending; mark failed when the latest result is a
+     * terminal Gagal and nothing was delivered / nothing is still in flight.
+     */
+    private function markSendingOrFailedAfterDigiflazz(
+        Order $orderLocked,
+        DigiflazzStatus $statusRecord,
+        int $completed,
+        int $required
+    ): void {
+        $hasPending = DigiflazzStatus::query()
+            ->where('order_id', $orderLocked->id)
+            ->pendingInFlight()
+            ->exists();
+
+        $terminalFail = $statusRecord->isTerminalFailureRecord();
+        $note = $statusRecord->message ?: ($statusRecord->rc ? ('RC '.$statusRecord->rc) : 'Digiflazz failed');
+
+        if ($terminalFail && $completed === 0 && ! $hasPending) {
+            $orderLocked->status = 'failed';
+            $orderLocked->notes = trim(($orderLocked->notes ?? '')."\nDigiflazz failed: {$note}");
+            $orderLocked->save();
+
+            Log::warning('Digiflazz webhook: order marked as failed', [
+                'order_id' => $orderLocked->id,
+                'digiflazz_status_id' => $statusRecord->id,
+                'rc' => $statusRecord->rc,
+                'provider_status' => $statusRecord->status,
+                'message' => $statusRecord->message,
+            ]);
+
+            return;
+        }
+
+        $orderLocked->status = 'sending';
+        $orderLocked->notes = trim(($orderLocked->notes ?? '')."\nDigiflazz: {$completed}/{$required} top-ups completed");
+        $orderLocked->save();
     }
 }
