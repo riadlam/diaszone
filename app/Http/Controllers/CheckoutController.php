@@ -959,17 +959,16 @@ class CheckoutController extends Controller
                         'message' => 'Player ID is required for Free Fire',
                         ], 422);
                     }
-            } elseif ($gameType === 'pubgmobile') {
-                // PUBG Mobile: player ID is stored in save_id column
+            } elseif (\App\Support\GameProvider::isPubgMobile($gameType)) {
+                // PUBG Mobile: Digiflazz customer_no comes from save_id (also keep player_id_pubg).
                 $save_id = $firstItem['player_id_pubg'] ?? $firstItem['player_id'] ?? $firstItem['save_id'] ?? null;
                 if (empty($save_id)) {
-                        return response()->json([
-                            'success' => false,
+                    return response()->json([
+                        'success' => false,
                         'message' => 'Player ID is required for PUBG Mobile',
-                        ], 422);
-                    }
-                // Store in save_id for PUBG Mobile (will be used in DigiflazzService)
-                $player_id_pubg = null; // Keep for backward compatibility but won't be used
+                    ], 422);
+                }
+                $player_id_pubg = $save_id;
             } elseif ($gameType === 'honorofkings') {
                 $player_id_hok = $firstItem['player_id_hok'] ?? $firstItem['player_id'] ?? null;
                 if (empty($player_id_hok)) {

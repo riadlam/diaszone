@@ -35,6 +35,32 @@ class GameProvider
         return false;
     }
 
+    public static function isPubgMobile(?string $gameType): bool
+    {
+        return in_array(strtolower(trim((string) $gameType)), ['pubgmobile', 'pubg_mobile'], true);
+    }
+
+    public static function isFreeFire(?string $gameType): bool
+    {
+        return strtolower(trim((string) $gameType)) === 'freefire';
+    }
+
+    /**
+     * Canonical game_type values used across routes / packs for one product.
+     *
+     * @return list<string>
+     */
+    public static function aliases(?string $gameType): array
+    {
+        if (self::isPubgMobile($gameType)) {
+            return ['pubgmobile', 'pubg_mobile'];
+        }
+
+        $gameType = strtolower(trim((string) $gameType));
+
+        return $gameType === '' ? [] : [$gameType];
+    }
+
     public static function usesItem4Gamer(?string $gameType): bool
     {
         return ! self::usesDigiflazz($gameType);

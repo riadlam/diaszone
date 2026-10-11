@@ -70,7 +70,7 @@
                     }
                     
                     $currencyText = 'Diamonds';
-                    if ($gameType === 'pubgmobile') {
+                    if ($gameType === 'pubgmobile' || $gameType === 'pubg_mobile') {
                         $currencyText = 'UC';
                     } elseif ($gameType === 'honorofkings') {
                         $currencyText = 'Tokens';
@@ -151,11 +151,11 @@
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_ff }}</span>
                     </div>
                     @endif
-                @elseif($gameType === 'pubgmobile')
-                    @if($order->player_id_pubg)
+                @elseif($gameType === 'pubgmobile' || $gameType === 'pubg_mobile')
+                    @if($order->save_id || $order->player_id_pubg)
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">{{ __('checkout.player_id') }}</span>
-                        <span class="text-sm font-mono text-gray-900">{{ $order->player_id_pubg }}</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->save_id ?? $order->player_id_pubg }}</span>
                     </div>
                     @endif
                 @elseif($gameType === 'honorofkings')

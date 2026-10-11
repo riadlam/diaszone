@@ -32,7 +32,7 @@
                     if ($gameType === 'freefire') {
                         $currencyText = __('game.diamonds');
                         $gameName = __('home.game_free_fire');
-                    } elseif ($gameType === 'pubgmobile') {
+                    } elseif ($gameType === 'pubgmobile' || $gameType === 'pubg_mobile') {
                         $currencyText = __('game.uc');
                         $gameName = __('home.game_pubg_mobile');
                     } elseif ($gameType === 'honorofkings') {
@@ -83,10 +83,10 @@
                         <span class="text-sm text-gray-600">Player ID</span>
                         <span class="text-sm font-mono text-gray-900">{{ $order->player_id_ff ?? 'N/A' }}</span>
                     </div>
-                @elseif($gameType === 'pubgmobile')
+                @elseif($gameType === 'pubgmobile' || $gameType === 'pubg_mobile')
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-gray-600">Player ID</span>
-                        <span class="text-sm font-mono text-gray-900">{{ $order->player_id_pubg ?? 'N/A' }}</span>
+                        <span class="text-sm font-mono text-gray-900">{{ $order->save_id ?? $order->player_id_pubg ?? 'N/A' }}</span>
                     </div>
                 @elseif($gameType === 'honorofkings')
                     <div class="flex justify-between items-center">

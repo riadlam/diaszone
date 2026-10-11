@@ -853,7 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const serverBs = item.server_bs || item.server;
                             if (userIdBs) gameInfo += `<p><span class="font-medium">User ID:</span> ${userIdBs}</p>`;
                             if (serverBs) gameInfo += `<p><span class="font-medium">Server:</span> ${serverBs}</p>`;
-                        } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+                        } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'pubg_mobile' || gameType === 'honorofkings') {
                             // Free Fire / PUBG Mobile / Honor of Kings: Player ID
                             const playerId = item.player_id_ff || item.player_id_pubg || item.player_id_hok || item.player_id || item.save_id;
                             if (playerId) gameInfo += `<p><span class="font-medium">Player ID:</span> ${playerId}</p>`;
@@ -1107,7 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 userIdBsField.value = '';
                 serverBsField.value = 'global';
                 
-            } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'honorofkings') {
+            } else if (gameType === 'freefire' || gameType === 'pubgmobile' || gameType === 'pubg_mobile' || gameType === 'honorofkings') {
                 // Free Fire / PUBG Mobile / Honor of Kings - Player ID only
                 // Form may render as player_id, save_id, or game_user_id depending on required_fields.
                 const playerIdField = document.getElementById('player_id')
@@ -1144,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pack.player_id = playerId;
                     if (gameType === 'freefire') {
                         pack.player_id_ff = playerId;
-                    } else if (gameType === 'pubgmobile') {
+                    } else if (gameType === 'pubgmobile' || gameType === 'pubg_mobile') {
                         pack.player_id_pubg = playerId;
                         pack.save_id = playerId;
                     } else if (gameType === 'honorofkings') {

@@ -749,6 +749,9 @@ class HomeController extends Controller
                 $query->where('game_type', 'genshin_impact')
                       ->orWhere('game_type', 'like', 'genshin_impact%');
             });
+        } elseif (\App\Support\GameProvider::isPubgMobile($gameType)) {
+            // Packs may be stored as pubg_mobile or pubgmobile; route uses pubgmobile.
+            $packQuery->whereIn('game_type', \App\Support\GameProvider::aliases($gameType));
         } else {
             $packQuery->where('game_type', $gameType);
         }
@@ -787,6 +790,8 @@ class HomeController extends Controller
                 $query->where('game_type', 'genshin_impact')
                       ->orWhere('game_type', 'like', 'genshin_impact%');
             })->orderByRaw("CASE WHEN game_type = 'genshin_impact' THEN 0 ELSE 1 END");
+        } elseif (\App\Support\GameProvider::isPubgMobile($gameType)) {
+            $gameQuery->whereIn('game_type', \App\Support\GameProvider::aliases($gameType));
         } else {
             $gameQuery->where('game_type', $gameType);
         }

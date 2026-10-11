@@ -46,134 +46,80 @@ class DigiflazzService
             return ['result' => false, 'message' => 'Digiflazz not configured'];
         }
 
-        // Note: Duplicate check is now handled atomically in the calling code (CheckoutController)
-        // with proper transaction locking. This method focuses on the API call itself.
-
-        // Determine customer_no: prefer player id / user+zone if available, fall back to order id
-        $customerNo = $order->id;
-        // prefer game-specific ids (including save_id for PUBG Mobile)
-        $playerId = $order->user_id_ml ?? $order->player_id_ff ?? $order->save_id ?? $order->player_id_pubg ?? $order->player_id_hok ?? $order->user_id_bs ?? null;
-        if ($pack->game_type === 'freefire' && $order->player_id_ff) {
-            $customerNo = $order->player_id_ff;
-        } elseif ($pack->game_type === 'bloodstrike' && $order->user_id_bs) {
-            // Blood Strike: use user_id_bs only (no server concatenation)
-            $customerNo = $order->user_id_bs;
-        } elseif (($pack->game_type === 'pubgmobile' || $pack->game_type === 'pubg_mobile')) {
-            // PUBG Mobile: use save_id (player ID is stored in save_id column)
-            if ($order->save_id) {
-                $customerNo = $order->save_id;
-            } elseif ($order->player_id_pubg) {
-                // Fallback to player_id_pubg if save_id is not set
-                $customerNo = $order->player_id_pubg;
-            } else {
-                // Log warning if both save_id and player_id_pubg are missing for PUBG Mobile order
-                \Log::warning('DigiflazzService: PUBG Mobile order missing save_id and player_id_pubg', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number ?? null,
-                    'pack_id' => $pack->id,
-                    'pack_code' => $pack->code,
-                    'game_type' => $pack->game_type,
-                ]);
-                // Will fall back to order ID, which will cause "Nomor Tujuan Salah" error
-            }
-        } elseif (($pack->game_type === 'honorofkings')) {
-            // Honor of Kings: use player_id_hok
-            if ($order->player_id_hok) {
-                $customerNo = $order->player_id_hok;
-            } else {
-                // Log warning if player_id_hok is missing for Honor of Kings order
-                \Log::warning('DigiflazzService: Honor of Kings order missing player_id_hok', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number ?? null,
-                    'pack_id' => $pack->id,
-                    'pack_code' => $pack->code,
-                    'game_type' => $pack->game_type,
-                ]);
-            }
-        } elseif ($pack->game_type === 'punishinggrayraven') {
-            // Punishing Gray Raven: format is "save_id,server" (e.g., "1234567,5000" or "1234567,os_asia")
-            if ($order->save_id && $order->server) {
-                $customerNo = (string)$order->save_id . ',' . (string)$order->server;
-            } else {
-                // Log warning if save_id or server is missing
-                \Log::warning('DigiflazzService: Punishing Gray Raven order missing save_id or server', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number ?? null,
-                    'pack_id' => $pack->id,
-                    'pack_code' => $pack->code,
-                    'game_type' => $pack->game_type,
-                    'save_id' => $order->save_id,
-                    'server' => $order->server,
-                ]);
-                // Will fall back to order ID, which will cause error
-            }
-        } elseif ($pack->game_type === 'wutheringwaves') {
-            // Wuthering Waves: format is "save_id|server" (e.g., "123456|os_asia")
-            if ($order->save_id && $order->server) {
-                $customerNo = (string)$order->save_id . '|' . (string)$order->server;
-            } else {
-                // Log warning if save_id or server is missing
-                \Log::warning('DigiflazzService: Wuthering Waves order missing save_id or server', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number ?? null,
-                    'pack_id' => $pack->id,
-                    'pack_code' => $pack->code,
-                    'game_type' => $pack->game_type,
-                    'save_id' => $order->save_id,
-                    'server' => $order->server,
-                ]);
-                // Will fall back to order ID, which will cause error
-            }
-        } elseif (!empty($order->user_id_ml) && !empty($order->zone_id_ml)) {
-            // Digiflazz expects a single customer_no numeric string for ML: concatenate user id + zone
-            // e.g., user_id=205762973 and zone=4048 => customer_no=2057629734048
-            $customerNo = (string)$order->user_id_ml . (string)$order->zone_id_ml;
-        } elseif ($playerId) {
-            $customerNo = $playerId;
+        if (empty($pack->code)) {
+            return ['result' => false, 'message' => 'Missing Digiflazz buyer SKU code on pack'];
         }
 
-        // Use the provided refId (already formatted for multi-item orders)
-        // Format: "order-{order_id}-item-{order_item_id}-{random}" for multi-item
-        // Format: "order-{order_id}-{random}" for single-item (from placeOrder method)
+        $resolved = $this->resolveCustomerNo($pack, $order);
+        if (! empty($resolved['error'])) {
+            \Log::warning('DigiflazzService: cannot build customer_no', [
+                'order_id' => $order->id ?? null,
+                'pack_id' => $pack->id ?? null,
+                'game_type' => $pack->game_type ?? null,
+                'error' => $resolved['error'],
+            ]);
+
+            return ['result' => false, 'message' => $resolved['error']];
+        }
+
+        $customerNo = (string) $resolved['customer_no'];
 
         $payload = [
             'username' => $this->username,
-            'buyer_sku_code' => $pack->code,
-            'customer_no' => (string) $customerNo,
+            'buyer_sku_code' => (string) $pack->code,
+            'customer_no' => $customerNo,
             'ref_id' => $refId,
             // sign is md5(username + apiKey + ref_id)
             'sign' => $this->computeSign($refId),
         ];
 
         try {
+            \Log::info('Digiflazz placeOrder payload', [
+                'order_id' => $order->id ?? null,
+                'order_item_id' => $orderItemId,
+                'game_type' => $pack->game_type ?? null,
+                'buyer_sku_code' => $payload['buyer_sku_code'],
+                'customer_no' => $payload['customer_no'],
+                'ref_id' => $refId,
+            ]);
+
             $resp = Http::withHeaders(['Content-Type' => 'application/json'])
                 ->post($this->baseUrl . '/transaction', $payload);
 
-            $json = $resp->json();
+            $json = $resp->json() ?? [];
+            $data = is_array($json['data'] ?? null) ? $json['data'] : [];
+            $providerStatus = strtolower((string) ($data['status'] ?? ($json['status'] ?? '')));
+            $rc = (string) ($data['rc'] ?? '');
+            $providerMessage = (string) ($data['message'] ?? ($json['message'] ?? ''));
 
-            // Diagnostic logging: if Digiflazz returns a signature error, log masked sign and payload for debugging
-            if (isset($json['data']['message']) && stripos($json['data']['message'], 'Signature') !== false) {
+            // Digiflazz accepts the top-up when status is Pending/Sukses (or rc 00/03/99).
+            // Gagal / missing data must not be treated as a successful place.
+            $accepted = $resp->successful()
+                && $data !== []
+                && (
+                    in_array($providerStatus, ['sukses', 'pending'], true)
+                    || in_array($rc, ['00', '03', '99'], true)
+                );
+
+            if (stripos($providerMessage, 'Signature') !== false) {
                 \Log::warning('Digiflazz reported signature error', [
                     'order_id' => $order->id ?? null,
                     'ref_id' => $refId,
-                    'customer_no' => (string) $customerNo,
-                    'computed_sign_mask' => substr($this->computeSign($refId), 0, 6) . '...'
+                    'customer_no' => $customerNo,
+                    'computed_sign_mask' => substr($this->computeSign($refId), 0, 6).'...',
                 ]);
             }
 
-            // Normalize response to expected shape
             $result = [
-                'result' => ($resp->successful() && (isset($json['data']) || isset($json['status']) && $json['status'] === 'SUCCESS')),
-                'data' => $json['data'] ?? $json,
-                'message' => $json['message'] ?? ($json['status'] ?? null),
+                'result' => $accepted,
+                'data' => $data !== [] ? $data : $json,
+                'message' => $providerMessage !== '' ? $providerMessage : ($accepted ? 'OK' : 'Digiflazz rejected the top-up'),
                 'ref_id' => $refId,
                 'full_response' => $json,
             ];
 
-            // If the caller provided an Order in the response flow, persist an initial DigiflazzStatus here
             try {
                 if (isset($order) && method_exists($order, 'id')) {
-                    // Use updateOrCreate to avoid duplicate ref_id records and make call idempotent
                     \App\Models\DigiflazzStatus::updateOrCreate(
                         ['ref_id' => $refId],
                         [
@@ -181,21 +127,21 @@ class DigiflazzService
                             'order_item_id' => $orderItemId,
                             'diamond_pack_id' => $pack->id,
                             'ref_id' => $refId,
-                            'trxid' => $json['data']['trxid'] ?? null,
-                            'buyer_sku_code' => $json['data']['buyer_sku_code'] ?? ($pack->code ?? null),
-                            'customer_no' => $json['data']['customer_no'] ?? null,
-                            'rc' => $json['data']['rc'] ?? null,
-                            'status' => $json['data']['status'] ?? ($json['status'] ?? null),
-                            'message' => $json['data']['message'] ?? null,
-                            'price' => $json['data']['price'] ?? null,
-                            'sn' => $json['data']['sn'] ?? null,
+                            'trxid' => $data['trxid'] ?? null,
+                            'buyer_sku_code' => $data['buyer_sku_code'] ?? ($pack->code ?? null),
+                            'customer_no' => $data['customer_no'] ?? $customerNo,
+                            'rc' => $data['rc'] ?? null,
+                            'status' => $data['status'] ?? ($json['status'] ?? null),
+                            'message' => $providerMessage !== '' ? $providerMessage : null,
+                            'price' => $data['price'] ?? null,
+                            'sn' => $data['sn'] ?? null,
                             'additional_data' => $json,
-                            'event' => 'create'
+                            'event' => 'create',
                         ]
                     );
                 }
             } catch (\Throwable $e) {
-                \Log::warning('Failed to persist initial DigiflazzStatus (idempotent): ' . $e->getMessage(), ['ref_id' => $refId]);
+                \Log::warning('Failed to persist initial DigiflazzStatus (idempotent): '.$e->getMessage(), ['ref_id' => $refId]);
             }
 
             return $result;
@@ -203,6 +149,79 @@ class DigiflazzService
         } catch (\Throwable $e) {
             return ['result' => false, 'message' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Digiflazz customer_no per game. Never fall back to the local order id.
+     *
+     * @return array{customer_no?: string, error?: string}
+     */
+    protected function resolveCustomerNo($pack, $order): array
+    {
+        $gameType = strtolower(trim((string) ($pack->game_type ?? '')));
+
+        if ($gameType === 'freefire') {
+            $id = trim((string) ($order->player_id_ff ?? ''));
+
+            return $id !== ''
+                ? ['customer_no' => $id]
+                : ['error' => 'Missing Free Fire player ID for Digiflazz customer_no'];
+        }
+
+        if (\App\Support\GameProvider::isPubgMobile($gameType)) {
+            $id = trim((string) ($order->save_id ?: $order->player_id_pubg ?: ''));
+
+            return $id !== ''
+                ? ['customer_no' => $id]
+                : ['error' => 'Missing PUBG Mobile player ID for Digiflazz customer_no'];
+        }
+
+        if ($gameType === 'honorofkings') {
+            $id = trim((string) ($order->player_id_hok ?? ''));
+
+            return $id !== ''
+                ? ['customer_no' => $id]
+                : ['error' => 'Missing Honor of Kings player ID for Digiflazz customer_no'];
+        }
+
+        if ($gameType === 'bloodstrike') {
+            $id = trim((string) ($order->user_id_bs ?? ''));
+
+            return $id !== ''
+                ? ['customer_no' => $id]
+                : ['error' => 'Missing Blood Strike user ID for Digiflazz customer_no'];
+        }
+
+        if ($gameType === 'punishinggrayraven') {
+            if (! empty($order->save_id) && ! empty($order->server)) {
+                return ['customer_no' => (string) $order->save_id.','.(string) $order->server];
+            }
+
+            return ['error' => 'Missing Punishing Gray Raven save_id/server for Digiflazz customer_no'];
+        }
+
+        if ($gameType === 'wutheringwaves') {
+            if (! empty($order->save_id) && ! empty($order->server)) {
+                return ['customer_no' => (string) $order->save_id.'|'.(string) $order->server];
+            }
+
+            return ['error' => 'Missing Wuthering Waves save_id/server for Digiflazz customer_no'];
+        }
+
+        if ($gameType === 'mobilelegends' || (! empty($order->user_id_ml) && ! empty($order->zone_id_ml))) {
+            if (! empty($order->user_id_ml) && ! empty($order->zone_id_ml)) {
+                // Digiflazz ML: concatenate user id + zone, e.g. 2057629734048
+                return ['customer_no' => (string) $order->user_id_ml.(string) $order->zone_id_ml];
+            }
+
+            return ['error' => 'Missing Mobile Legends user/zone for Digiflazz customer_no'];
+        }
+
+        if (! empty($order->save_id)) {
+            return ['customer_no' => (string) $order->save_id];
+        }
+
+        return ['error' => 'Missing player destination for Digiflazz customer_no'];
     }
 
 

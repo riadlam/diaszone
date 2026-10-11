@@ -96,7 +96,7 @@ class AdminController extends Controller
                     if ($gameType === 'freefire') {
                         $currencyText = 'Diamonds';
                         $gameName = 'Free Fire';
-                    } elseif ($gameType === 'pubgmobile') {
+                    } elseif ($gameType === 'pubgmobile' || $gameType === 'pubg_mobile') {
                         $currencyText = 'UC';
                         $gameName = 'PUBG Mobile';
                     } elseif ($gameType === 'honorofkings') {
@@ -235,7 +235,7 @@ class AdminController extends Controller
                 $gameType = $order->diamondPack->game_type ?? 'mobilelegends';
                 if ($gameType === 'freefire') {
                     $gameName = 'Free Fire';
-                } elseif ($gameType === 'pubgmobile') {
+                } elseif ($gameType === 'pubgmobile' || $gameType === 'pubg_mobile') {
                     $gameName = 'PUBG Mobile';
                 } elseif ($gameType === 'honorofkings') {
                     $gameName = 'Honor of Kings';
@@ -357,7 +357,7 @@ class AdminController extends Controller
             if ($gameType === 'freefire') {
                 $currencyText = 'Diamonds';
                 $gameName = 'Free Fire';
-            } elseif ($gameType === 'pubgmobile') {
+            } elseif ($gameType === 'pubgmobile' || $gameType === 'pubg_mobile') {
                 $currencyText = 'UC';
                 $gameName = 'PUBG Mobile';
             } elseif ($gameType === 'honorofkings') {
