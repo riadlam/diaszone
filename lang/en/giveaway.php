@@ -23,6 +23,7 @@ return [
     'form_title' => 'Submit your entry',
     'screenshot_label' => 'Screenshot (tags on the post)',
     'screenshot_hint' => 'JPG, PNG or WebP — max 5 MB',
+    'upload_cta' => 'Tap to add screenshot',
     'ack_label' => 'I liked the post and followed the DiasZone Facebook page',
     'submit' => 'Submit entry',
     'submitted_success' => 'Entry submitted! Share your referral link so a friend can join.',

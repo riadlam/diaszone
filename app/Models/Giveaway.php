@@ -88,12 +88,12 @@ class Giveaway extends Model
             return PublicMedia::url($this->hero_image);
         }
 
-        return storage_public_url('images_giveaway/gift-hero.svg');
+        return PublicMedia::url('images_giveaway/gift-hero.svg');
     }
 
     public static function assetUrl(string $filename): string
     {
-        return storage_public_url('images_giveaway/'.$filename);
+        return PublicMedia::url('images_giveaway/'.$filename);
     }
 
     public static function uniqueSlugFromTitle(string $title): string

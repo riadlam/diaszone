@@ -23,6 +23,7 @@ return [
     'form_title' => 'أرسل مشاركتك',
     'screenshot_label' => 'لقطة الشاشة (الإشارات في المنشور)',
     'screenshot_hint' => 'JPG أو PNG أو WebP — حتى 5 ميغابايت',
+    'upload_cta' => 'اضغط لإضافة لقطة الشاشة',
     'ack_label' => 'أعجبت بالمنشور وتابعت صفحة DiasZone على فيسبوك',
     'submit' => 'إرسال المشاركة',
     'submitted_success' => 'تم الإرسال! شارك رابط الإحالة لينضم صديق.',

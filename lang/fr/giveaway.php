@@ -23,6 +23,7 @@ return [
     'form_title' => 'Envoyer votre participation',
     'screenshot_label' => 'Capture d’écran (tags sur la publication)',
     'screenshot_hint' => 'JPG, PNG ou WebP — max 5 Mo',
+    'upload_cta' => 'Appuyez pour ajouter une capture',
     'ack_label' => 'J’ai aimé la publication et suivi la page Facebook DiasZone',
     'submit' => 'Envoyer',
     'submitted_success' => 'Participation envoyée ! Partagez votre lien pour qu’un ami rejoigne.',
