@@ -88,11 +88,14 @@ class GiveawayController extends Controller
             'screenshot_path' => $path,
         ]);
 
+        $entry = $entry->fresh();
+
         return response()->json([
             'ok' => true,
             'message' => __('giveaway.screenshot_saved'),
             'url' => route('giveaway.screenshot', $giveaway->slug).'?t='.time(),
-            'can_submit' => $entry->fresh()->canSubmitForApproval(),
+            'can_submit' => $entry->canSubmitForApproval(),
+            'referral_satisfied' => $entry->referralSatisfied(),
         ]);
     }
 
@@ -108,11 +111,13 @@ class GiveawayController extends Controller
 
         $entry->deleteScreenshotFile();
         $entry->update(['screenshot_path' => null]);
+        $entry = $entry->fresh();
 
         return response()->json([
             'ok' => true,
             'message' => __('giveaway.screenshot_removed'),
             'can_submit' => false,
+            'referral_satisfied' => $entry->referralSatisfied(),
         ]);
     }
 
@@ -164,6 +169,10 @@ class GiveawayController extends Controller
 
         if (! $entry->hasScreenshot()) {
             return back()->with('error', __('giveaway.screenshot_required'));
+        }
+
+        if (! $entry->referralSatisfied()) {
+            return back()->with('error', __('giveaway.referral_required'));
         }
 
         $entry->update([

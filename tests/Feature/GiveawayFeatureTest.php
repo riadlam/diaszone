@@ -75,6 +75,7 @@ class GiveawayFeatureTest extends TestCase
         Storage::fake('public');
         $giveaway = $this->makeGiveaway();
         $user = $this->makeUser('Bob Tester');
+        $friend = $this->makeUser('Friend Of Bob');
 
         $this->actingAs($user)
             ->get(route('giveaway.show', $giveaway->slug))
@@ -91,11 +92,24 @@ class GiveawayFeatureTest extends TestCase
                 'screenshot' => UploadedFile::fake()->image('tags.jpg', 800, 600),
             ])
             ->assertOk()
-            ->assertJson(['ok' => true]);
+            ->assertJson(['ok' => true, 'can_submit' => false]);
 
         $entry->refresh();
         $this->assertTrue($entry->hasScreenshot());
         Storage::disk('public')->assertExists($entry->screenshot_path);
+
+        // Submit still blocked until one friend uses the invite link.
+        $this->actingAs($user)->post(route('giveaway.enter', $giveaway->slug), [
+            'liked_followed_ack' => '1',
+        ])->assertRedirect()->assertSessionHas('error');
+
+        $this->actingAs($friend)
+            ->get(route('giveaway.show', ['slug' => $giveaway->slug, 'ref' => $entry->referral_code]))
+            ->assertOk();
+
+        $entry->refresh();
+        $this->assertTrue($entry->referralSatisfied());
+        $this->assertTrue($entry->canSubmitForApproval());
 
         $response = $this->actingAs($user)->post(route('giveaway.enter', $giveaway->slug), [
             'liked_followed_ack' => '1',
@@ -119,6 +133,24 @@ class GiveawayFeatureTest extends TestCase
         $this->actingAs($user)->post(route('giveaway.enter', $giveaway->slug), [
             'liked_followed_ack' => '1',
         ])->assertRedirect()->assertSessionHas('error');
+
+        $this->assertSame(GiveawayEntry::STATUS_DRAFT, GiveawayEntry::query()->where('user_id', $user->id)->value('status'));
+    }
+
+    public function test_submit_blocked_without_referral_friend(): void
+    {
+        Storage::fake('public');
+        $giveaway = $this->makeGiveaway();
+        $user = $this->makeUser('No Friend Yet');
+
+        $this->actingAs($user)->get(route('giveaway.show', $giveaway->slug));
+        $this->actingAs($user)->post(route('giveaway.screenshot.upload', $giveaway->slug), [
+            'screenshot' => UploadedFile::fake()->image('tags.jpg'),
+        ])->assertOk();
+
+        $this->actingAs($user)->post(route('giveaway.enter', $giveaway->slug), [
+            'liked_followed_ack' => '1',
+        ])->assertRedirect()->assertSessionHas('error', __('giveaway.referral_required'));
 
         $this->assertSame(GiveawayEntry::STATUS_DRAFT, GiveawayEntry::query()->where('user_id', $user->id)->value('status'));
     }
@@ -322,13 +354,10 @@ class GiveawayFeatureTest extends TestCase
         $this->actingAs($referrer)->post(route('giveaway.screenshot.upload', $giveaway->slug), [
             'screenshot' => UploadedFile::fake()->image('tags.jpg'),
         ]);
-        $this->actingAs($referrer)->post(route('giveaway.enter', $giveaway->slug), [
-            'liked_followed_ack' => '1',
-        ])->assertRedirect();
 
         $entry = GiveawayEntry::query()->where('user_id', $referrer->id)->first();
-        $this->assertSame(9001, $entry->tlg_message_id);
 
+        // Friend must join via invite before submit unlocks.
         $this->actingAs($friend)
             ->get(route('giveaway.show', ['slug' => $giveaway->slug, 'ref' => $entry->referral_code]))
             ->assertOk();
@@ -337,13 +366,18 @@ class GiveawayFeatureTest extends TestCase
         $entry->refresh();
         $this->assertNotNull($entry->referral_satisfied_at);
 
-        Http::assertSent(function ($request) {
-            return str_contains($request->url(), '/editMessageText')
-                && (int) $request['message_id'] === 9001;
-        });
+        $this->actingAs($referrer)->post(route('giveaway.enter', $giveaway->slug), [
+            'liked_followed_ack' => '1',
+        ])->assertRedirect();
+
+        $entry->refresh();
+        $this->assertSame(GiveawayEntry::STATUS_PENDING, $entry->status);
+        $this->assertNotNull($entry->tlg_message_id);
 
         Http::assertSent(function ($request) {
-            if (! str_contains($request->url(), '/sendMessage')) {
+            $isSend = str_contains($request->url(), '/sendMessage');
+            $isEdit = str_contains($request->url(), '/editMessageText');
+            if (! $isSend && ! $isEdit) {
                 return false;
             }
             $markup = json_decode($request['reply_markup'] ?? '{}', true);

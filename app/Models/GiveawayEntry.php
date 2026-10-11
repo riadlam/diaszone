@@ -88,7 +88,7 @@ class GiveawayEntry extends Model
     {
         return $this->isEditable()
             && $this->hasScreenshot()
-            && $this->liked_followed_ack;
+            && $this->referralSatisfied();
     }
 
     public function screenshotPublicUrl(): ?string

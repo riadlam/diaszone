@@ -785,7 +785,8 @@
                         <form method="POST" action="{{ route('giveaway.enter', $giveaway->slug) }}" id="gw-entry-form"
                               data-upload-url="{{ route('giveaway.screenshot.upload', $giveaway->slug) }}"
                               data-delete-url="{{ route('giveaway.screenshot.delete', $giveaway->slug) }}"
-                              data-has-screenshot="{{ $hasScreenshot ? '1' : '0' }}">
+                              data-has-screenshot="{{ $hasScreenshot ? '1' : '0' }}"
+                              data-referral-satisfied="{{ ($entry?->referralSatisfied() ?? false) ? '1' : '0' }}">
                             @csrf
                     @endif
 
@@ -1009,10 +1010,11 @@
         || '';
 
     let hasScreenshot = form?.dataset.hasScreenshot === '1';
+    let referralSatisfied = form?.dataset.referralSatisfied === '1';
 
     function syncSubmit() {
         if (!submitBtn) return;
-        const ready = hasScreenshot && !!(ack && ack.checked);
+        const ready = hasScreenshot && referralSatisfied && !!(ack && ack.checked);
         submitBtn.disabled = !ready;
         submitBtn.classList.toggle('is-disabled', !ready);
         if (submitHint) submitHint.classList.toggle('hidden', ready);
@@ -1048,6 +1050,10 @@
             });
             const data = await res.json();
             if (!res.ok || !data.ok) throw new Error(data.message || 'upload failed');
+            if (typeof data.referral_satisfied === 'boolean') {
+                referralSatisfied = data.referral_satisfied;
+                if (form) form.dataset.referralSatisfied = referralSatisfied ? '1' : '0';
+            }
             setPreview(data.url);
             statusEl && (statusEl.textContent = data.message || @json(__('giveaway.screenshot_saved')));
         } catch (err) {
@@ -1099,7 +1105,7 @@
     if (ack) ack.addEventListener('change', syncSubmit);
     if (form) {
         form.addEventListener('submit', function (e) {
-            if (!hasScreenshot || !(ack && ack.checked)) {
+            if (!hasScreenshot || !referralSatisfied || !(ack && ack.checked)) {
                 e.preventDefault();
                 syncSubmit();
             }
