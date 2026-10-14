@@ -96,8 +96,8 @@ class GiveawayDrawService
             'segments' => $segments,
             'winner_index' => (int) $winnerIndex,
             'message' => $live
-                ? __('giveaway.wheel_winner_locked')
-                : __('giveaway.wheel_preview_result'),
+                ? __('giveaway.wheel_winner_congrats')
+                : __('giveaway.wheel_spin_again_hint'),
         ];
     }
 

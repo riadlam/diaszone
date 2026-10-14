@@ -3,6 +3,15 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Featured giveaway slug
+    |--------------------------------------------------------------------------
+    | /giveaway redirects here so the weekly campaign stays on one URL even
+    | after it ends.
+    */
+    'featured_slug' => env('GIVEAWAY_FEATURED_SLUG', 'weekly-pass'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Admin wheel email
     |--------------------------------------------------------------------------
     | Only this logged-in email can see and spin the giveaway draw wheel.
@@ -13,16 +22,16 @@ return [
     |--------------------------------------------------------------------------
     | Live draw
     |--------------------------------------------------------------------------
-    | When false (default), spins are preview-only and do not persist a winner.
+    | When true, spinning persists the winner on the giveaway.
     */
-    'draw_live' => (bool) env('GIVEAWAY_DRAW_LIVE', false),
+    'draw_live' => (bool) env('GIVEAWAY_DRAW_LIVE', true),
 
     /*
     |--------------------------------------------------------------------------
     | Public winner reveal
     |--------------------------------------------------------------------------
-    | When false (default), the logged-in winner sparkle UI stays hidden even
-    | if a winner_entry_id is stored.
+    | When true, participants see the winner card and the winner sees a
+    | personal “you won” celebration.
     */
-    'winner_reveal_enabled' => (bool) env('GIVEAWAY_WINNER_REVEAL_ENABLED', false),
+    'winner_reveal_enabled' => (bool) env('GIVEAWAY_WINNER_REVEAL_ENABLED', true),
 ];

@@ -680,6 +680,45 @@
     0%, 100% { opacity: 0.25; -webkit-transform: translate3d(0, 0, 0) scale(0.8); transform: translate3d(0, 0, 0) scale(0.8); }
     50% { opacity: 1; -webkit-transform: translate3d(0, -6px, 0) scale(1.2); transform: translate3d(0, -6px, 0) scale(1.2); }
 }
+.dz-gw-announced {
+    margin-bottom: 0.85rem;
+    padding: 1.2rem 1.1rem 1.3rem;
+    border-radius: 1.25rem;
+    text-align: center;
+    color: #1e1b4b;
+    background:
+        radial-gradient(120% 90% at 50% 0%, rgba(245, 215, 110, 0.35), transparent 55%),
+        linear-gradient(135deg, #fdf4ff 0%, #ede9fe 55%, #fce7f3 100%);
+    border: 1px solid rgba(109, 40, 217, 0.16);
+    box-shadow: 0 12px 28px rgba(109, 40, 217, 0.12);
+}
+.dz-gw-announced__eyebrow {
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7c3aed;
+}
+.dz-gw-announced__title {
+    margin: 0.35rem 0 0;
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: #312e81;
+}
+.dz-gw-announced__name {
+    margin: 0.55rem 0 0;
+    font-size: 1.55rem;
+    font-weight: 900;
+    color: #a21caf;
+}
+.dz-gw-announced__body {
+    margin: 0.45rem auto 0;
+    max-width: 26rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #4c1d95;
+}
 
 /* Keep light motion even when iOS “Reduce Motion” is on */
 @media (prefers-reduced-motion: reduce) {
@@ -958,6 +997,13 @@
                         <h2 class="dz-gw-winner__title">{{ __('giveaway.winner_title') }}</h2>
                         <p class="dz-gw-winner__name">{{ $winnerReveal['name'] }}</p>
                         <p class="dz-gw-winner__body">{{ __('giveaway.winner_body') }}</p>
+                    </section>
+                @elseif(!empty($winnerAnnouncement))
+                    <section class="dz-gw-announced" data-gw-announced aria-live="polite">
+                        <p class="dz-gw-announced__eyebrow">{{ __('giveaway.announced_eyebrow') }}</p>
+                        <h2 class="dz-gw-announced__title">{{ __('giveaway.announced_title') }}</h2>
+                        <p class="dz-gw-announced__name">{{ $winnerAnnouncement['name'] }}</p>
+                        <p class="dz-gw-announced__body">{{ __('giveaway.announced_body') }}</p>
                     </section>
                 @endif
 

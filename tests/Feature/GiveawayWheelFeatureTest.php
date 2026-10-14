@@ -76,7 +76,7 @@ class GiveawayWheelFeatureTest extends TestCase
             ->assertOk()
             ->assertSee('data-gw-wheel', false)
             ->assertSee(__('giveaway.wheel_title'), false)
-            ->assertSee(__('giveaway.wheel_preview_hint'), false);
+            ->assertSee(__('giveaway.wheel_hint'), false);
     }
 
     public function test_non_admin_cannot_post_spin(): void
@@ -186,16 +186,19 @@ class GiveawayWheelFeatureTest extends TestCase
         $this->assertSame($winnerId, (int) $giveaway->winner_entry_id);
     }
 
-    public function test_winner_reveal_absent_unless_flag_and_winner_match(): void
+    public function test_winner_cards_for_winner_and_participants(): void
     {
         config([
             'giveaway.draw_live' => true,
-            'giveaway.winner_reveal_enabled' => false,
+            'giveaway.winner_reveal_enabled' => true,
         ]);
 
         $giveaway = $this->makeGiveaway();
         $winnerUser = $this->makeUser('Winner User');
+        $participant = $this->makeUser('Other Player');
+        $outsider = $this->makeUser('Outsider User');
         $winnerEntry = $this->makeApprovedEntry($giveaway, $winnerUser);
+        $this->makeApprovedEntry($giveaway, $participant);
         $giveaway->forceFill([
             'winner_entry_id' => $winnerEntry->id,
             'winner_drawn_at' => now(),
@@ -204,22 +207,31 @@ class GiveawayWheelFeatureTest extends TestCase
         $this->actingAs($winnerUser)
             ->get(route('giveaway.show', $giveaway->slug))
             ->assertOk()
-            ->assertDontSee('data-gw-winner', false)
-            ->assertDontSee(__('giveaway.winner_title'), false);
-
-        config(['giveaway.winner_reveal_enabled' => true]);
-
-        $other = $this->makeUser('Other User');
-        $this->actingAs($other)
-            ->get(route('giveaway.show', $giveaway->slug))
-            ->assertOk()
-            ->assertDontSee('data-gw-winner', false);
-
-        $this->actingAs($winnerUser)
-            ->get(route('giveaway.show', $giveaway->slug))
-            ->assertOk()
             ->assertSee('data-gw-winner', false)
             ->assertSee(__('giveaway.winner_title'), false)
-            ->assertSee('Winner', false);
+            ->assertDontSee('data-gw-announced', false)
+            ->assertDontSee('data-gw-wheel', false);
+
+        $this->actingAs($participant)
+            ->get(route('giveaway.show', $giveaway->slug))
+            ->assertOk()
+            ->assertSee('data-gw-announced', false)
+            ->assertSee(__('giveaway.announced_title'), false)
+            ->assertSee('Winner User', false)
+            ->assertDontSee('data-gw-winner', false);
+
+        $this->actingAs($outsider)
+            ->get(route('giveaway.show', $giveaway->slug))
+            ->assertOk()
+            ->assertDontSee('data-gw-winner', false)
+            ->assertDontSee('data-gw-announced', false);
+    }
+
+    public function test_featured_giveaway_index_redirects_to_weekly_slug(): void
+    {
+        $this->makeGiveaway(['slug' => 'weekly-pass', 'title' => 'Weekly Featured']);
+
+        $this->get(route('giveaway.index'))
+            ->assertRedirect(route('giveaway.show', 'weekly-pass'));
     }
 }

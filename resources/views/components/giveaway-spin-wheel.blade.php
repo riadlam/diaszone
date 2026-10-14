@@ -15,10 +15,8 @@
             'loading' => __('giveaway.wheel_loading'),
             'spinning' => __('giveaway.wheel_spinning'),
             'spin' => __('giveaway.wheel_spin'),
-            'previewBadge' => __('giveaway.wheel_preview_badge'),
-            'liveBadge' => __('giveaway.wheel_live_badge'),
-            'previewTitle' => __('giveaway.wheel_preview_title'),
-            'liveTitle' => __('giveaway.wheel_live_title'),
+            'resultBadge' => __('giveaway.wheel_result_badge'),
+            'resultTitle' => __('giveaway.wheel_result_title'),
             'error' => __('giveaway.wheel_error'),
             'noParticipants' => __('giveaway.wheel_no_participants'),
             'metaTopups' => __('giveaway.wheel_meta_topups'),
@@ -32,9 +30,7 @@
     <div class="gw-wheel__head">
         <p class="gw-wheel__eyebrow">{{ __('giveaway.wheel_eyebrow') }}</p>
         <h2 class="gw-wheel__title">{{ __('giveaway.wheel_title') }}</h2>
-        <p class="gw-wheel__sub">
-            {{ $drawLiveEnabled ? __('giveaway.wheel_live_hint') : __('giveaway.wheel_preview_hint') }}
-        </p>
+        <p class="gw-wheel__sub">{{ __('giveaway.wheel_hint') }}</p>
         <p class="gw-wheel__count">{{ __('giveaway.wheel_pool_count', ['count' => count($giveawayParticipants)]) }}</p>
     </div>
 
@@ -605,10 +601,9 @@
     }
 
     function showModal(payload) {
-        const preview = !!payload.preview;
         const winner = payload.winner || {};
-        modalBadge.textContent = preview ? (cfg.text?.previewBadge || 'PREVIEW') : (cfg.text?.liveBadge || 'LIVE');
-        modalTitle.textContent = preview ? (cfg.text?.previewTitle || 'Preview winner') : (cfg.text?.liveTitle || 'Winner locked');
+        modalBadge.textContent = cfg.text?.resultBadge || 'Winner';
+        modalTitle.textContent = cfg.text?.resultTitle || 'We have a winner!';
         modalName.textContent = winner.full_name || winner.name || '—';
         if (modalEmail) modalEmail.textContent = winner.email || '—';
         if (modalTopups) modalTopups.textContent = String(Number.isFinite(Number(winner.topups)) ? Number(winner.topups) : 0);
@@ -670,6 +665,7 @@
             const target = targetRotationFor(idx, segments.length);
             await animateTo(target);
             setStatus(data.winner?.full_name || data.winner?.name || '');
+            shouldReloadAfterClose = !data.preview;
             showModal(data);
         } catch (err) {
             setStatus(err.message || cfg.text?.error || 'Error');
@@ -702,10 +698,15 @@
         setStatus(cfg.text?.ready || 'Ready');
     }
 
+    let shouldReloadAfterClose = false;
+
     spinBtn?.addEventListener('click', onSpin);
     modalClose?.addEventListener('click', () => {
         modal.hidden = true;
         modal.classList.remove('is-celebrate');
+        if (shouldReloadAfterClose || cfg.drawLive) {
+            window.location.reload();
+        }
     });
     window.addEventListener('resize', resize, { passive: true });
 

@@ -55,7 +55,7 @@ class GiveawayFeatureTest extends TestCase
     {
         $this->makeGiveaway();
 
-        $this->get(route('giveaway.index'))
+        $this->get(route('giveaway.show', 'spring-giveaway'))
             ->assertOk()
             ->assertSee('Facebook Spring Giveaway', false)
             ->assertSee(__('giveaway.how_title'), false);

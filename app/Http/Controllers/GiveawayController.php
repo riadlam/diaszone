@@ -23,9 +23,17 @@ class GiveawayController extends Controller
 
     public function show(Request $request, ?string $slug = null)
     {
-        $giveaway = $slug
-            ? Giveaway::query()->where('slug', $slug)->firstOrFail()
-            : Giveaway::currentActive();
+        if (! filled($slug)) {
+            $featuredSlug = Giveaway::featuredSlug();
+            if ($featuredSlug !== '' && Giveaway::query()->where('slug', $featuredSlug)->exists()) {
+                return redirect()->route('giveaway.show', $featuredSlug);
+            }
+        }
+
+        $giveaway = Giveaway::resolveForDisplay($slug);
+        if (filled($slug) && ! $giveaway) {
+            abort(404);
+        }
 
         if (! $giveaway) {
             return view('pages.giveaway', [
@@ -36,13 +44,14 @@ class GiveawayController extends Controller
                 'canSpinGiveaway' => false,
                 'giveawayParticipants' => [],
                 'winnerReveal' => null,
-                'drawLiveEnabled' => false,
+                'winnerAnnouncement' => null,
+                'drawLiveEnabled' => Giveaway::drawLiveEnabled(),
             ]);
         }
 
         $this->referralService->captureFromRequest($request, $giveaway);
 
-        if (Auth::check()) {
+        if (Auth::check() && $giveaway->isCurrentlyActive()) {
             if ($request->filled('ref')) {
                 $this->referralService->attributeWithCode(Auth::user(), (string) $request->query('ref'), $request);
             } else {
@@ -52,7 +61,14 @@ class GiveawayController extends Controller
 
         $entry = null;
         if (Auth::check()) {
-            $entry = $this->ensureDraftEntry($giveaway, (int) Auth::id());
+            if ($giveaway->isCurrentlyActive()) {
+                $entry = $this->ensureDraftEntry($giveaway, (int) Auth::id());
+            } else {
+                $entry = GiveawayEntry::query()
+                    ->where('giveaway_id', $giveaway->id)
+                    ->where('user_id', Auth::id())
+                    ->first();
+            }
         }
 
         $enrollees = GiveawayEntry::query()
@@ -63,24 +79,36 @@ class GiveawayController extends Controller
             ->limit(40)
             ->get();
 
-        $canSpinGiveaway = Giveaway::isWheelAdmin(Auth::user());
+        $canSpinGiveaway = Giveaway::isWheelAdmin(Auth::user()) && ! $giveaway->hasWinner();
         $giveawayParticipants = $canSpinGiveaway
             ? $this->drawService->approvedParticipants($giveaway)->all()
             : [];
 
         $winnerReveal = null;
-        if (
-            Giveaway::winnerRevealEnabled()
-            && $giveaway->hasWinner()
-            && Auth::check()
-        ) {
+        $winnerAnnouncement = null;
+        if (Giveaway::winnerRevealEnabled() && $giveaway->hasWinner()) {
             $giveaway->loadMissing('winnerEntry.user:id,name');
             $winnerEntry = $giveaway->winnerEntry;
-            if ($winnerEntry && (int) $winnerEntry->user_id === (int) Auth::id()) {
-                $winnerReveal = [
-                    'name' => $winnerEntry->displayFirstName(),
-                    'entry_id' => $winnerEntry->id,
-                ];
+            if ($winnerEntry) {
+                $winnerName = trim((string) ($winnerEntry->user?->name ?? '')) ?: $winnerEntry->displayFirstName();
+                $isPersonalWinner = Auth::check() && (int) $winnerEntry->user_id === (int) Auth::id();
+                $isParticipant = $entry && in_array($entry->status, [
+                    GiveawayEntry::STATUS_PENDING,
+                    GiveawayEntry::STATUS_APPROVED,
+                ], true);
+                $isAdmin = Giveaway::isWheelAdmin(Auth::user());
+
+                if ($isPersonalWinner) {
+                    $winnerReveal = [
+                        'name' => $winnerName,
+                        'entry_id' => $winnerEntry->id,
+                    ];
+                } elseif ($isParticipant || $isAdmin) {
+                    $winnerAnnouncement = [
+                        'name' => $winnerName,
+                        'entry_id' => $winnerEntry->id,
+                    ];
+                }
             }
         }
 
@@ -95,6 +123,7 @@ class GiveawayController extends Controller
             'canSpinGiveaway' => $canSpinGiveaway,
             'giveawayParticipants' => $giveawayParticipants,
             'winnerReveal' => $winnerReveal,
+            'winnerAnnouncement' => $winnerAnnouncement,
             'drawLiveEnabled' => Giveaway::drawLiveEnabled(),
         ]);
     }

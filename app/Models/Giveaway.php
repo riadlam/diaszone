@@ -68,19 +68,45 @@ class Giveaway extends Model
             return false;
         }
 
-        $email = strtolower(trim((string) config('giveaway.wheel_admin_email', 'riad.laamari@gmail.com')));
+        $email = strtolower(trim((string) config('giveaway.wheel_admin_email', 'riadlaamari@gmail.com')));
 
         return strtolower(trim((string) $user->email)) === $email;
     }
 
     public static function drawLiveEnabled(): bool
     {
-        return (bool) config('giveaway.draw_live', false);
+        return (bool) config('giveaway.draw_live', true);
     }
 
     public static function winnerRevealEnabled(): bool
     {
-        return (bool) config('giveaway.winner_reveal_enabled', false);
+        return (bool) config('giveaway.winner_reveal_enabled', true);
+    }
+
+    public static function featuredSlug(): string
+    {
+        return trim((string) config('giveaway.featured_slug', 'weekly-pass'));
+    }
+
+    public static function featured(): ?self
+    {
+        $slug = static::featuredSlug();
+        if ($slug === '') {
+            return null;
+        }
+
+        return static::query()->where('slug', $slug)->first();
+    }
+
+    public static function resolveForDisplay(?string $slug = null): ?self
+    {
+        if (filled($slug)) {
+            return static::query()->where('slug', $slug)->first();
+        }
+
+        return static::featured()
+            ?? static::currentActive()
+            ?? static::query()->orderByDesc('starts_at')->first();
     }
 
     public function scopeActiveWindow(Builder $query, $moment = null): Builder
