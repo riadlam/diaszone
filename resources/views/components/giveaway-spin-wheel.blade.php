@@ -52,13 +52,17 @@
     </div>
 
     <div class="gw-wheel__actions">
-        <button type="button" class="gw-wheel__spin" data-gw-spin>
+        <button type="button" class="gw-wheel__spin" data-gw-spin disabled>
             {{ __('giveaway.wheel_spin') }}
         </button>
     </div>
 
     <div class="gw-wheel__modal" data-gw-modal hidden>
         <div class="gw-wheel__modal-card">
+            <div class="gw-wheel__sprinkles" data-gw-sprinkles aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
             <p class="gw-wheel__modal-badge" data-gw-modal-badge></p>
             <h3 data-gw-modal-title></h3>
             <p class="gw-wheel__modal-name" data-gw-modal-name></p>
@@ -253,6 +257,8 @@
 }
 .gw-wheel__modal[hidden] { display: none !important; }
 .gw-wheel__modal-card {
+    position: relative;
+    overflow: hidden;
     width: min(100%, 340px);
     padding: 1.35rem 1.2rem 1.2rem;
     border-radius: 1.2rem;
@@ -261,6 +267,38 @@
     border: 1px solid rgba(245, 215, 110, 0.35);
     box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
+.gw-wheel__sprinkles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+.gw-wheel__sprinkles span {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #fde68a;
+    box-shadow: 0 0 8px rgba(253, 230, 138, 0.9);
+    opacity: 0;
+    animation: gwSprinkle 1.8s ease-in-out infinite;
+}
+.gw-wheel__modal.is-celebrate .gw-wheel__sprinkles span { opacity: 1; }
+.gw-wheel__sprinkles span:nth-child(1) { top: 12%; left: 14%; animation-delay: 0s; }
+.gw-wheel__sprinkles span:nth-child(2) { top: 18%; right: 16%; animation-delay: 0.2s; }
+.gw-wheel__sprinkles span:nth-child(3) { top: 40%; left: 8%; animation-delay: 0.35s; width: 4px; height: 4px; }
+.gw-wheel__sprinkles span:nth-child(4) { top: 36%; right: 10%; animation-delay: 0.5s; }
+.gw-wheel__sprinkles span:nth-child(5) { bottom: 28%; left: 18%; animation-delay: 0.65s; width: 6px; height: 6px; }
+.gw-wheel__sprinkles span:nth-child(6) { bottom: 22%; right: 20%; animation-delay: 0.8s; }
+.gw-wheel__sprinkles span:nth-child(7) { top: 58%; left: 22%; animation-delay: 0.95s; width: 3px; height: 3px; }
+.gw-wheel__sprinkles span:nth-child(8) { top: 62%; right: 24%; animation-delay: 1.1s; }
+.gw-wheel__sprinkles span:nth-child(9) { top: 8%; left: 48%; animation-delay: 0.4s; width: 4px; height: 4px; }
+.gw-wheel__sprinkles span:nth-child(10) { bottom: 12%; left: 46%; animation-delay: 1.25s; }
+@keyframes gwSprinkle {
+    0%, 100% { opacity: 0.2; -webkit-transform: translate3d(0, 4px, 0) scale(0.7); transform: translate3d(0, 4px, 0) scale(0.7); }
+    50% { opacity: 1; -webkit-transform: translate3d(0, -6px, 0) scale(1.25); transform: translate3d(0, -6px, 0) scale(1.25); }
+}
+.gw-wheel__modal-card > *:not(.gw-wheel__sprinkles) { position: relative; z-index: 1; }
 .gw-wheel__modal-badge {
     display: inline-flex;
     margin: 0 0 0.5rem;
@@ -332,7 +370,7 @@
     width: 100%;
     height: 100%;
     pointer-events: none;
-    z-index: 15;
+    z-index: 30;
 }
 @keyframes gwWheelPulse {
     0%, 100% { opacity: 0.55; -webkit-transform: scale(1); transform: scale(1); }
@@ -340,6 +378,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
     .gw-wheel__glow { animation: none !important; }
+    .gw-wheel__sprinkles span { animation: none !important; opacity: 0.7; }
 }
 </style>
 
@@ -376,6 +415,7 @@
     let segments = [];
     let rotation = 0;
     let spinning = false;
+    let playersReady = false;
     let confettiBits = [];
     let confettiRaf = 0;
 
@@ -519,19 +559,24 @@
     }
 
     function burstConfetti() {
-        if (reduceMotion || !confettiCanvas) return;
-        const w = root.clientWidth;
-        const h = root.clientHeight;
-        confettiBits = Array.from({ length: 70 }, () => ({
-            x: w * 0.5 + (Math.random() - 0.5) * 40,
-            y: h * 0.35,
-            vx: (Math.random() - 0.5) * 7,
-            vy: -Math.random() * 8 - 2,
-            g: 0.18 + Math.random() * 0.08,
-            life: 70 + Math.random() * 40,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            s: 3 + Math.random() * 4,
+        if (!confettiCanvas || !confettiCtx) return;
+        resize();
+        const w = root.clientWidth || 320;
+        const h = root.clientHeight || 420;
+        const palette = colors.concat(['#f5d76e', '#fde68a', '#ffffff', '#f9a8d4']);
+        const makeBits = (count) => Array.from({ length: count }, () => ({
+            x: w * 0.5 + (Math.random() - 0.5) * (w * 0.55),
+            y: h * 0.28 + Math.random() * 40,
+            vx: (Math.random() - 0.5) * 9,
+            vy: -Math.random() * 10 - 3,
+            g: 0.16 + Math.random() * 0.1,
+            life: 90 + Math.random() * 50,
+            color: palette[Math.floor(Math.random() * palette.length)],
+            s: 3 + Math.random() * 5,
+            rot: Math.random() * Math.PI,
+            spin: (Math.random() - 0.5) * 0.25,
         }));
+        confettiBits = makeBits(reduceMotion ? 36 : 120);
         cancelAnimationFrame(confettiRaf);
         const step = () => {
             confettiCtx.clearRect(0, 0, w, h);
@@ -540,13 +585,23 @@
                 b.vy += b.g;
                 b.x += b.vx;
                 b.y += b.vy;
+                b.rot += b.spin;
                 b.life -= 1;
+                confettiCtx.save();
+                confettiCtx.translate(b.x, b.y);
+                confettiCtx.rotate(b.rot);
                 confettiCtx.fillStyle = b.color;
-                confettiCtx.fillRect(b.x, b.y, b.s, b.s * 0.7);
+                confettiCtx.fillRect(-b.s / 2, -b.s * 0.35, b.s, b.s * 0.7);
+                confettiCtx.restore();
             });
             if (confettiBits.length) confettiRaf = requestAnimationFrame(step);
         };
         confettiRaf = requestAnimationFrame(step);
+        if (!reduceMotion) {
+            setTimeout(() => {
+                confettiBits = confettiBits.concat(makeBits(50));
+            }, 220);
+        }
     }
 
     function showModal(payload) {
@@ -560,6 +615,7 @@
         if (modalJoined) modalJoined.textContent = winner.joined_label || '—';
         modalText.textContent = payload.message || '';
         modal.hidden = false;
+        modal.classList.add('is-celebrate');
         burstConfetti();
     }
 
@@ -582,8 +638,13 @@
         return data;
     }
 
+    function winnerIndexFromSegments(winnerId, list) {
+        const idx = list.findIndex((row) => Number(row.entry_id) === Number(winnerId));
+        return idx >= 0 ? idx : 0;
+    }
+
     async function onSpin() {
-        if (spinning) return;
+        if (spinning || !playersReady) return;
         const pool = Array.isArray(cfg.participants) ? cfg.participants : [];
         if (!pool.length) {
             setStatus(cfg.text?.noParticipants || 'No approved players yet');
@@ -592,16 +653,21 @@
         spinning = true;
         spinBtn.disabled = true;
         modal.hidden = true;
+        modal.classList.remove('is-celebrate');
         try {
-            setStatus(cfg.text?.loading || 'Loading…');
+            setStatus(cfg.text?.spinning || 'Spinning…');
             const data = await requestSpin();
             const finalSegments = Array.isArray(data.segments) && data.segments.length
                 ? data.segments
-                : pool.slice();
-            await loadNamesOntoWheel(pool, finalSegments);
-            setStatus(cfg.text?.spinning || 'Spinning…');
-            const idx = Number.isInteger(data.winner_index) ? data.winner_index : 0;
-            const target = targetRotationFor(idx, finalSegments.length);
+                : segments.slice();
+            // Keep all players on the wheel; only reorder for a fair land.
+            segments = finalSegments.slice();
+            draw();
+            const winnerId = data.winner?.entry_id;
+            const idx = Number.isInteger(data.winner_index)
+                ? data.winner_index
+                : winnerIndexFromSegments(winnerId, segments);
+            const target = targetRotationFor(idx, segments.length);
             await animateTo(target);
             setStatus(data.winner?.full_name || data.winner?.name || '');
             showModal(data);
@@ -609,22 +675,45 @@
             setStatus(err.message || cfg.text?.error || 'Error');
         } finally {
             spinning = false;
-            spinBtn.disabled = false;
+            spinBtn.disabled = !playersReady;
             spinBtn.textContent = cfg.text?.spin || 'Spin';
         }
     }
 
+    async function bootstrapPlayers() {
+        const pool = Array.isArray(cfg.participants) ? cfg.participants : [];
+        spinBtn.disabled = true;
+        resize();
+        if (!pool.length) {
+            segments = Array.from({ length: 8 }, (_, i) => ({
+                entry_id: -i - 1,
+                name: '· · ·',
+                initial: '·',
+            }));
+            draw();
+            setStatus(cfg.text?.noParticipants || 'No approved players yet');
+            return;
+        }
+        // Shuffle once for a lively idle wheel, then cascade every name in.
+        const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+        await loadNamesOntoWheel(pool, shuffled);
+        playersReady = true;
+        spinBtn.disabled = false;
+        setStatus(cfg.text?.ready || 'Ready');
+    }
+
     spinBtn?.addEventListener('click', onSpin);
-    modalClose?.addEventListener('click', () => { modal.hidden = true; });
+    modalClose?.addEventListener('click', () => {
+        modal.hidden = true;
+        modal.classList.remove('is-celebrate');
+    });
     window.addEventListener('resize', resize, { passive: true });
 
-    // Idle placeholder slices
     segments = Array.from({ length: 8 }, (_, i) => ({
         entry_id: -i - 1,
         name: '· · ·',
         initial: '·',
     }));
-    resize();
-    setStatus(cfg.text?.ready || 'Ready');
+    bootstrapPlayers();
 })();
 </script>
