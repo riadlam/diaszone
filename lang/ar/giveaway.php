@@ -92,7 +92,7 @@ return [
     'winner_eyebrow' => 'تهانينا',
     'winner_title' => 'أنت الفائز!',
     'winner_body' => 'لقد فزت بهدية DiasZone. سنواصل معك بتفاصيل الجائزة.',
-    'announced_eyebrow' => 'نتائج الهدية',
+    'announced_eyebrow' => 'نتائج السحب',
     'announced_title' => 'والفائز هو…',
     'announced_body' => 'شكراً لكل من شارك. مبروك للفائز!',
     'more_giveaways_soon' => 'هدايا كثيرة قادمة قريباً — تابع صفحتنا على فيسبوك لتبقى على اطلاع.',
