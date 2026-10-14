@@ -7,7 +7,7 @@ return [
     |--------------------------------------------------------------------------
     | Only this logged-in email can see and spin the giveaway draw wheel.
     */
-    'wheel_admin_email' => env('GIVEAWAY_WHEEL_ADMIN_EMAIL', 'riad.laamari@gmail.com'),
+    'wheel_admin_email' => env('GIVEAWAY_WHEEL_ADMIN_EMAIL', 'riadlaamari@gmail.com'),
 
     /*
     |--------------------------------------------------------------------------
