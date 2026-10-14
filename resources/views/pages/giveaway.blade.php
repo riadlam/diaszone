@@ -794,6 +794,7 @@
         default => 'bg-slate-100 text-slate-700',
     };
     $enrolleeNames = $enrollees->map(fn ($row) => $row->displayFirstName())->values();
+    $giveawayOpen = $giveaway?->isCurrentlyActive() ?? false;
 @endphp
 
 <div class="dz-gw dz-gw-shell py-5 sm:py-8">
@@ -821,6 +822,7 @@
                     <h1 class="text-2xl font-black text-slate-900">{{ __('giveaway.no_active') }}</h1>
                 </div>
             @else
+                @if($giveawayOpen)
                 <section class="dz-gw-hero">
                     <img src="{{ $giveaway->heroImageUrl() }}" alt="" class="dz-gw-hero__bg" loading="eager">
                     <div class="dz-gw-hero__overlay"></div>
@@ -1014,6 +1016,7 @@
                     @endif
                 </section>
                 @endif
+                @endif {{-- $giveawayOpen: hide hero + how-to-join when ended --}}
 
                 @if(!empty($winnerReveal))
                     <section class="dz-gw-winner" data-gw-winner aria-live="polite">
@@ -1043,6 +1046,7 @@
                     </section>
                 @endif
 
+                @if($giveawayOpen || !empty($canSpinGiveaway))
                 <section class="dz-gw-panel dz-gw-enrolled">
                     <div class="flex items-center justify-center gap-2 mb-1">
                         <h2 class="text-sm font-black text-slate-900">{{ __('giveaway.enrolled_label') }}</h2>
@@ -1056,6 +1060,7 @@
                         @endforelse
                     </div>
                 </section>
+                @endif
 
                 @if(!empty($canSpinGiveaway) && $giveaway)
                     @include('components.giveaway-spin-wheel', [
@@ -1066,6 +1071,7 @@
                     ])
                 @endif
 
+                @if($giveawayOpen)
                 @guest
                     <section class="dz-gw-panel">
                         <h2 class="text-lg font-black text-slate-900">{{ __('giveaway.login_title') }}</h2>
@@ -1090,11 +1096,8 @@
                             <p class="mt-3 text-xs font-bold text-rose-700">{{ __('giveaway.declined_fix_hint') }}</p>
                         </div>
                     </section>
-                @elseif(! $giveaway->isCurrentlyActive() && ! $entrySubmitted)
-                    <section class="dz-gw-panel">
-                        <p class="font-bold text-slate-700">{{ __('giveaway.closed') }}</p>
-                    </section>
                 @endguest
+                @endif
             @endunless
         </div>
     </div>

@@ -195,6 +195,9 @@ class GiveawayWheelFeatureTest extends TestCase
 
         $giveaway = $this->makeGiveaway([
             'facebook_page_url' => 'https://facebook.com/diaszone',
+            'starts_at' => now()->subDays(3),
+            'ends_at' => now()->subMinute(),
+            'is_active' => true,
         ]);
         $winnerUser = $this->makeUser('Winner User');
         $outsider = $this->makeUser('Outsider User');
@@ -211,6 +214,8 @@ class GiveawayWheelFeatureTest extends TestCase
             ->assertSee('Winner User', false)
             ->assertSee(__('giveaway.more_giveaways_soon'), false)
             ->assertSee(__('giveaway.follow_facebook'), false)
+            ->assertDontSee(__('giveaway.how_title'), false)
+            ->assertDontSee(__('giveaway.countdown_label'), false)
             ->assertDontSee('data-gw-winner', false);
 
         $this->actingAs($outsider)
