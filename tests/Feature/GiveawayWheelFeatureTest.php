@@ -194,6 +194,8 @@ class GiveawayWheelFeatureTest extends TestCase
         ]);
 
         $giveaway = $this->makeGiveaway([
+            'title' => '3x Weekly Diamond Pass',
+            'description' => '3x Weekly Diamond Pass for Mobile Legends',
             'facebook_page_url' => 'https://facebook.com/diaszone',
             'starts_at' => now()->subDays(3),
             'ends_at' => now()->subMinute(),
@@ -214,6 +216,7 @@ class GiveawayWheelFeatureTest extends TestCase
             ->assertSee('Winner User', false)
             ->assertSee(__('giveaway.more_giveaways_soon'), false)
             ->assertSee(__('giveaway.follow_facebook'), false)
+            ->assertSee('3x Weekly Diamond Pass for Mobile Legends', false)
             ->assertDontSee(__('giveaway.how_title'), false)
             ->assertDontSee(__('giveaway.countdown_label'), false)
             ->assertDontSee('data-gw-winner', false);

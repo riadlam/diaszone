@@ -101,9 +101,15 @@ class GiveawayController extends Controller
                 }
 
                 // Public result card for everyone (guests + signed-in). Winner also keeps personal card above.
+                $prizeLabel = trim((string) ($giveaway->description ?: ''));
+                if ($prizeLabel === '') {
+                    $prizeLabel = trim((string) $giveaway->title);
+                }
                 $winnerAnnouncement = [
                     'name' => $winnerName,
                     'entry_id' => $winnerEntry->id,
+                    'title' => (string) $giveaway->title,
+                    'prize' => $prizeLabel,
                 ];
             }
         }

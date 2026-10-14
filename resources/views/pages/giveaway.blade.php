@@ -618,7 +618,9 @@
 .dz-gw-winner {
     position: relative;
     overflow: hidden;
-    margin-bottom: 0.85rem;
+    width: 100%;
+    max-width: 28rem;
+    margin: 0 auto 0.85rem;
     padding: 1.35rem 1.1rem 1.45rem;
     border-radius: 1.25rem;
     text-align: center;
@@ -681,8 +683,10 @@
     50% { opacity: 1; -webkit-transform: translate3d(0, -6px, 0) scale(1.2); transform: translate3d(0, -6px, 0) scale(1.2); }
 }
 .dz-gw-announced {
-    margin-bottom: 0.85rem;
-    padding: 1.2rem 1.1rem 1.3rem;
+    width: 100%;
+    max-width: 28rem;
+    margin: 0 auto 0.85rem;
+    padding: 1.35rem 1.2rem 1.4rem;
     border-radius: 1.25rem;
     text-align: center;
     color: #1e1b4b;
@@ -700,8 +704,16 @@
     text-transform: uppercase;
     color: #7c3aed;
 }
+.dz-gw-announced__prize {
+    margin: 0.45rem auto 0;
+    max-width: 22rem;
+    font-size: 0.92rem;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #5b21b6;
+}
 .dz-gw-announced__title {
-    margin: 0.35rem 0 0;
+    margin: 0.75rem 0 0;
     font-size: 1.2rem;
     font-weight: 900;
     color: #312e81;
@@ -1033,6 +1045,9 @@
                 @if(!empty($winnerAnnouncement))
                     <section class="dz-gw-announced" data-gw-announced aria-live="polite">
                         <p class="dz-gw-announced__eyebrow">{{ __('giveaway.announced_eyebrow') }}</p>
+                        <p class="dz-gw-announced__prize">
+                            {{ __('giveaway.announced_prize', ['prize' => $winnerAnnouncement['prize'] ?? $giveaway->title]) }}
+                        </p>
                         <h2 class="dz-gw-announced__title">{{ __('giveaway.announced_title') }}</h2>
                         <p class="dz-gw-announced__name">{{ $winnerAnnouncement['name'] }}</p>
                         <p class="dz-gw-announced__body">{{ __('giveaway.announced_body') }}</p>

@@ -93,6 +93,7 @@ return [
     'winner_title' => 'Vous avez gagné !',
     'winner_body' => 'Vous avez gagné ce giveaway DiasZone. Nous vous contacterons pour le prix.',
     'announced_eyebrow' => 'Résultats',
+    'announced_prize' => 'Lot : :prize',
     'announced_title' => 'Et le gagnant est…',
     'announced_body' => 'Merci à tous les participants. Bravo au gagnant !',
     'more_giveaways_soon' => 'D’autres giveaways arrivent bientôt — suivez notre page Facebook pour rester informé.',
