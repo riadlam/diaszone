@@ -4,18 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Giveaway;
 use App\Models\GiveawayEntry;
+use App\Services\GiveawayDrawService;
 use App\Services\GiveawayReferralService;
 use App\Services\GiveawayTelegramNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GiveawayController extends Controller
 {
     public function __construct(
         private readonly GiveawayReferralService $referralService,
-        private readonly GiveawayTelegramNotifier $telegramNotifier
+        private readonly GiveawayTelegramNotifier $telegramNotifier,
+        private readonly GiveawayDrawService $drawService
     ) {}
 
     public function show(Request $request, ?string $slug = null)
@@ -30,6 +33,10 @@ class GiveawayController extends Controller
                 'entry' => null,
                 'enrollees' => collect(),
                 'enrolleeCount' => 0,
+                'canSpinGiveaway' => false,
+                'giveawayParticipants' => [],
+                'winnerReveal' => null,
+                'drawLiveEnabled' => false,
             ]);
         }
 
@@ -56,6 +63,27 @@ class GiveawayController extends Controller
             ->limit(40)
             ->get();
 
+        $canSpinGiveaway = Giveaway::isWheelAdmin(Auth::user());
+        $giveawayParticipants = $canSpinGiveaway
+            ? $this->drawService->approvedParticipants($giveaway)->all()
+            : [];
+
+        $winnerReveal = null;
+        if (
+            Giveaway::winnerRevealEnabled()
+            && $giveaway->hasWinner()
+            && Auth::check()
+        ) {
+            $giveaway->loadMissing('winnerEntry.user:id,name');
+            $winnerEntry = $giveaway->winnerEntry;
+            if ($winnerEntry && (int) $winnerEntry->user_id === (int) Auth::id()) {
+                $winnerReveal = [
+                    'name' => $winnerEntry->displayFirstName(),
+                    'entry_id' => $winnerEntry->id,
+                ];
+            }
+        }
+
         return view('pages.giveaway', [
             'giveaway' => $giveaway,
             'entry' => $entry,
@@ -64,7 +92,34 @@ class GiveawayController extends Controller
                 ->where('giveaway_id', $giveaway->id)
                 ->where('status', GiveawayEntry::STATUS_APPROVED)
                 ->count(),
+            'canSpinGiveaway' => $canSpinGiveaway,
+            'giveawayParticipants' => $giveawayParticipants,
+            'winnerReveal' => $winnerReveal,
+            'drawLiveEnabled' => Giveaway::drawLiveEnabled(),
         ]);
+    }
+
+    public function spin(Request $request, string $slug)
+    {
+        if (! Giveaway::isWheelAdmin(Auth::user())) {
+            abort(403);
+        }
+
+        $giveaway = Giveaway::query()->where('slug', $slug)->firstOrFail();
+
+        try {
+            $result = $this->drawService->spin(
+                $giveaway,
+                forceRedraw: (bool) $request->boolean('force_redraw')
+            );
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json($result);
     }
 
     public function uploadScreenshot(Request $request, string $slug)

@@ -64,4 +64,32 @@ return [
     'secs' => 'Secs',
     'ended' => 'Ended',
     'not_started' => 'Starts soon',
+
+    // Admin draw wheel
+    'wheel_aria' => 'Giveaway lucky wheel draw',
+    'wheel_eyebrow' => 'Admin draw desk',
+    'wheel_title' => 'Lucky wheel',
+    'wheel_hub' => 'Draw',
+    'wheel_preview_hint' => 'Preview mode — spins animate only. No winner is saved yet.',
+    'wheel_live_hint' => 'Live mode — spinning will lock a winner in the database.',
+    'wheel_pool_count' => ':count approved players in the pool',
+    'wheel_ready' => 'Ready when you are',
+    'wheel_loading' => 'Loading players onto the wheel…',
+    'wheel_spinning' => 'Building tension…',
+    'wheel_spin' => 'Spin the wheel',
+    'wheel_close' => 'Close',
+    'wheel_preview_badge' => 'Preview',
+    'wheel_live_badge' => 'Live',
+    'wheel_preview_title' => 'Preview winner',
+    'wheel_live_title' => 'Winner locked',
+    'wheel_preview_result' => 'Preview only — enable GIVEAWAY_DRAW_LIVE to save winners.',
+    'wheel_winner_locked' => 'Winner saved. Public sparkles stay off until GIVEAWAY_WINNER_REVEAL_ENABLED is true.',
+    'wheel_no_participants' => 'No approved players to draw yet.',
+    'wheel_already_drawn' => 'A winner is already locked for this giveaway.',
+    'wheel_error' => 'Could not spin the wheel. Try again.',
+
+    // Winner reveal (gated)
+    'winner_eyebrow' => 'Congratulations',
+    'winner_title' => 'You’re the winner!',
+    'winner_body' => 'You won this DiasZone giveaway. Stay tuned — we’ll contact you with the prize details.',
 ];

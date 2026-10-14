@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\PublicMedia;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -21,12 +22,15 @@ class Giveaway extends Model
         'is_active',
         'instructions',
         'hero_image',
+        'winner_entry_id',
+        'winner_drawn_at',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'is_active' => 'boolean',
+        'winner_drawn_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -46,6 +50,37 @@ class Giveaway extends Model
     public function referrals(): HasMany
     {
         return $this->hasMany(GiveawayReferral::class);
+    }
+
+    public function winnerEntry(): BelongsTo
+    {
+        return $this->belongsTo(GiveawayEntry::class, 'winner_entry_id');
+    }
+
+    public function hasWinner(): bool
+    {
+        return $this->winner_entry_id !== null;
+    }
+
+    public static function isWheelAdmin(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $email = strtolower(trim((string) config('giveaway.wheel_admin_email', 'riad.laamari@gmail.com')));
+
+        return strtolower(trim((string) $user->email)) === $email;
+    }
+
+    public static function drawLiveEnabled(): bool
+    {
+        return (bool) config('giveaway.draw_live', false);
+    }
+
+    public static function winnerRevealEnabled(): bool
+    {
+        return (bool) config('giveaway.winner_reveal_enabled', false);
     }
 
     public function scopeActiveWindow(Builder $query, $moment = null): Builder

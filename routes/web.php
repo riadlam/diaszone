@@ -87,6 +87,10 @@ Route::middleware(['auth', 'throttle:20,1'])->group(function () {
     Route::get('/giveaway/{slug}/my-screenshot', [GiveawayController::class, 'screenshot'])
         ->where('slug', '[a-z0-9-]+')
         ->name('giveaway.screenshot');
+    Route::post('/giveaway/{slug}/spin', [GiveawayController::class, 'spin'])
+        ->where('slug', '[a-z0-9-]+')
+        ->middleware('throttle:10,1')
+        ->name('giveaway.spin');
 });
 
 Route::get('/mobilelegends', [HomeController::class, 'mobileLegends'])->name('mobilelegends');

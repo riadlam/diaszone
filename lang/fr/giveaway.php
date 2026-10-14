@@ -64,4 +64,32 @@ return [
     'secs' => 'Sec',
     'ended' => 'Terminé',
     'not_started' => 'Bientôt',
+
+    // Admin draw wheel
+    'wheel_aria' => 'Tirage de la roue du giveaway',
+    'wheel_eyebrow' => 'Bureau de tirage admin',
+    'wheel_title' => 'Roue de la chance',
+    'wheel_hub' => 'Tirage',
+    'wheel_preview_hint' => 'Mode aperçu — la roue s’anime seulement. Aucun gagnant n’est enregistré.',
+    'wheel_live_hint' => 'Mode live — le tirage enregistrera un gagnant.',
+    'wheel_pool_count' => ':count joueurs approuvés dans le tirage',
+    'wheel_ready' => 'Prêt',
+    'wheel_loading' => 'Chargement des joueurs sur la roue…',
+    'wheel_spinning' => 'La tension monte…',
+    'wheel_spin' => 'Lancer la roue',
+    'wheel_close' => 'Fermer',
+    'wheel_preview_badge' => 'Aperçu',
+    'wheel_live_badge' => 'Live',
+    'wheel_preview_title' => 'Gagnant (aperçu)',
+    'wheel_live_title' => 'Gagnant enregistré',
+    'wheel_preview_result' => 'Aperçu seulement — activez GIVEAWAY_DRAW_LIVE pour enregistrer.',
+    'wheel_winner_locked' => 'Gagnant enregistré. Les étincelles publiques restent off tant que GIVEAWAY_WINNER_REVEAL_ENABLED est false.',
+    'wheel_no_participants' => 'Aucun joueur approuvé pour le tirage.',
+    'wheel_already_drawn' => 'Un gagnant est déjà enregistré pour ce giveaway.',
+    'wheel_error' => 'Impossible de lancer la roue. Réessayez.',
+
+    // Winner reveal (gated)
+    'winner_eyebrow' => 'Félicitations',
+    'winner_title' => 'Vous avez gagné !',
+    'winner_body' => 'Vous avez gagné ce giveaway DiasZone. Nous vous contacterons pour le prix.',
 ];

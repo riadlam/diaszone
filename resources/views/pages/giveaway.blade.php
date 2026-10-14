@@ -615,9 +615,76 @@
     padding: 0.4rem 0.65rem;
     background: #fff;
 }
+.dz-gw-winner {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0.85rem;
+    padding: 1.35rem 1.1rem 1.45rem;
+    border-radius: 1.25rem;
+    text-align: center;
+    color: #fff;
+    background:
+        radial-gradient(120% 90% at 50% 0%, rgba(245, 215, 110, 0.28), transparent 55%),
+        linear-gradient(135deg, #6d28d9 0%, #a21caf 45%, #db2777 100%);
+    border: 1px solid rgba(255,255,255,0.22);
+    box-shadow: 0 16px 36px rgba(109, 40, 217, 0.28);
+}
+.dz-gw-winner__eyebrow {
+    margin: 0;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.85);
+}
+.dz-gw-winner__title {
+    margin: 0.35rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 900;
+}
+.dz-gw-winner__name {
+    margin: 0.55rem 0 0;
+    font-size: 1.7rem;
+    font-weight: 900;
+    color: #fde68a;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+.dz-gw-winner__body {
+    margin: 0.45rem auto 0;
+    max-width: 26rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.9);
+}
+.dz-gw-winner__sparks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.dz-gw-winner__sparks span {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fde68a;
+    box-shadow: 0 0 10px rgba(253, 230, 138, 0.85);
+    animation: dzGwSparkle 2.4s ease-in-out infinite;
+}
+.dz-gw-winner__sparks span:nth-child(1) { top: 18%; left: 12%; animation-delay: 0s; }
+.dz-gw-winner__sparks span:nth-child(2) { top: 28%; right: 14%; animation-delay: 0.35s; }
+.dz-gw-winner__sparks span:nth-child(3) { bottom: 22%; left: 18%; animation-delay: 0.7s; }
+.dz-gw-winner__sparks span:nth-child(4) { bottom: 18%; right: 20%; animation-delay: 1s; }
+.dz-gw-winner__sparks span:nth-child(5) { top: 42%; left: 8%; animation-delay: 1.3s; width: 4px; height: 4px; }
+.dz-gw-winner__sparks span:nth-child(6) { top: 16%; right: 28%; animation-delay: 1.6s; width: 5px; height: 5px; }
+@keyframes dzGwSparkle {
+    0%, 100% { opacity: 0.25; -webkit-transform: translate3d(0, 0, 0) scale(0.8); transform: translate3d(0, 0, 0) scale(0.8); }
+    50% { opacity: 1; -webkit-transform: translate3d(0, -6px, 0) scale(1.2); transform: translate3d(0, -6px, 0) scale(1.2); }
+}
+
 /* Keep light motion even when iOS “Reduce Motion” is on */
 @media (prefers-reduced-motion: reduce) {
     .dz-gw-floater { -webkit-animation-duration: 14s !important; animation-duration: 14s !important; }
+    .dz-gw-winner__sparks span { animation: none !important; opacity: 0.7; }
     .dz-gw-hero__bg { -webkit-animation-duration: 24s !important; animation-duration: 24s !important; }
     .dz-gw-hero__shine { -webkit-animation-duration: 8s !important; animation-duration: 8s !important; }
     .dz-gw-count__cell,
@@ -882,6 +949,18 @@
                 </section>
                 @endif
 
+                @if(!empty($winnerReveal))
+                    <section class="dz-gw-winner" data-gw-winner aria-live="polite">
+                        <div class="dz-gw-winner__sparks" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <p class="dz-gw-winner__eyebrow">{{ __('giveaway.winner_eyebrow') }}</p>
+                        <h2 class="dz-gw-winner__title">{{ __('giveaway.winner_title') }}</h2>
+                        <p class="dz-gw-winner__name">{{ $winnerReveal['name'] }}</p>
+                        <p class="dz-gw-winner__body">{{ __('giveaway.winner_body') }}</p>
+                    </section>
+                @endif
+
                 <section class="dz-gw-panel dz-gw-enrolled">
                     <div class="flex items-center justify-center gap-2 mb-1">
                         <h2 class="text-sm font-black text-slate-900">{{ __('giveaway.enrolled_label') }}</h2>
@@ -895,6 +974,15 @@
                         @endforelse
                     </div>
                 </section>
+
+                @if(!empty($canSpinGiveaway) && $giveaway)
+                    @include('components.giveaway-spin-wheel', [
+                        'giveawayParticipants' => $giveawayParticipants ?? [],
+                        'spinUrl' => route('giveaway.spin', $giveaway->slug),
+                        'drawLiveEnabled' => $drawLiveEnabled ?? false,
+                        'giveawayTitle' => $giveaway->title,
+                    ])
+                @endif
 
                 @guest
                     <section class="dz-gw-panel">

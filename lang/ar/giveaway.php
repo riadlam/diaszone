@@ -64,4 +64,32 @@ return [
     'secs' => 'ثوانٍ',
     'ended' => 'انتهت',
     'not_started' => 'تبدأ قريباً',
+
+    // Admin draw wheel
+    'wheel_aria' => 'عجلة سحب الهدية',
+    'wheel_eyebrow' => 'لوحة السحب للإدارة',
+    'wheel_title' => 'عجلة الحظ',
+    'wheel_hub' => 'سحب',
+    'wheel_preview_hint' => 'وضع المعاينة — الحركة فقط دون حفظ فائز.',
+    'wheel_live_hint' => 'الوضع المباشر — السحب سيحفظ فائزاً في قاعدة البيانات.',
+    'wheel_pool_count' => ':count لاعبين معتمدين في السحب',
+    'wheel_ready' => 'جاهز',
+    'wheel_loading' => 'تحميل اللاعبين على العجلة…',
+    'wheel_spinning' => 'التشويق يزداد…',
+    'wheel_spin' => 'أدِر العجلة',
+    'wheel_close' => 'إغلاق',
+    'wheel_preview_badge' => 'معاينة',
+    'wheel_live_badge' => 'مباشر',
+    'wheel_preview_title' => 'فائز المعاينة',
+    'wheel_live_title' => 'تم تثبيت الفائز',
+    'wheel_preview_result' => 'معاينة فقط — فعّل GIVEAWAY_DRAW_LIVE لحفظ الفائز.',
+    'wheel_winner_locked' => 'تم حفظ الفائز. الإعلان العام يبقى معطّلاً حتى تفعيل GIVEAWAY_WINNER_REVEAL_ENABLED.',
+    'wheel_no_participants' => 'لا يوجد لاعبون معتمدون للسحب بعد.',
+    'wheel_already_drawn' => 'تم تثبيت فائز لهذا الـ giveaway مسبقاً.',
+    'wheel_error' => 'تعذّر تدوير العجلة. حاول مجدداً.',
+
+    // Winner reveal (gated)
+    'winner_eyebrow' => 'تهانينا',
+    'winner_title' => 'أنت الفائز!',
+    'winner_body' => 'لقد فزت بهدية DiasZone. سنواصل معك بتفاصيل الجائزة.',
 ];
