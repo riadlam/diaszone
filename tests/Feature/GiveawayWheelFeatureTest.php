@@ -104,7 +104,10 @@ class GiveawayWheelFeatureTest extends TestCase
         config(['giveaway.draw_live' => false]);
 
         $giveaway = $this->makeGiveaway();
-        $entry = $this->makeApprovedEntry($giveaway, $this->makeUser('Alice Player'));
+        $alice = $this->makeUser('Alice Player');
+        $bob = $this->makeUser('Bob Player');
+        $entry = $this->makeApprovedEntry($giveaway, $alice);
+        $this->makeApprovedEntry($giveaway, $bob);
         $admin = $this->wheelAdmin();
 
         $response = $this->actingAs($admin)
@@ -115,11 +118,36 @@ class GiveawayWheelFeatureTest extends TestCase
                 'preview' => true,
             ]);
 
-        $response->assertJsonPath('winner.entry_id', $entry->id);
+        $this->assertCount(2, $response->json('segments'));
+        $this->assertContains($response->json('winner.entry_id'), [$entry->id, GiveawayEntry::query()->where('user_id', $bob->id)->value('id')]);
+        $this->assertNotEmpty($response->json('winner.full_name'));
+        $this->assertNotEmpty($response->json('winner.email'));
+        $this->assertArrayHasKey('topups', $response->json('winner'));
+        $this->assertArrayHasKey('joined_label', $response->json('winner'));
 
         $giveaway->refresh();
         $this->assertNull($giveaway->winner_entry_id);
         $this->assertNull($giveaway->winner_drawn_at);
+    }
+
+    public function test_spin_loads_all_approved_players_on_wheel(): void
+    {
+        config(['giveaway.draw_live' => false]);
+
+        $giveaway = $this->makeGiveaway();
+        foreach (range(1, 15) as $i) {
+            $this->makeApprovedEntry($giveaway, $this->makeUser("Player {$i}"));
+        }
+        $admin = $this->wheelAdmin();
+
+        $this->actingAs($admin)
+            ->postJson(route('giveaway.spin', $giveaway->slug))
+            ->assertOk()
+            ->assertJsonPath('preview', true)
+            ->assertJsonCount(15, 'segments');
+
+        $giveaway->refresh();
+        $this->assertNull($giveaway->winner_entry_id);
     }
 
     public function test_live_spin_persists_winner_once(): void

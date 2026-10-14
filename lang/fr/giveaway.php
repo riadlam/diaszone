@@ -82,11 +82,14 @@ return [
     'wheel_live_badge' => 'Live',
     'wheel_preview_title' => 'Gagnant (aperçu)',
     'wheel_live_title' => 'Gagnant enregistré',
-    'wheel_preview_result' => 'Aperçu seulement — activez GIVEAWAY_DRAW_LIVE pour enregistrer.',
+    'wheel_preview_result' => 'Aperçu seulement — rien n’est enregistré.',
     'wheel_winner_locked' => 'Gagnant enregistré. Les étincelles publiques restent off tant que GIVEAWAY_WINNER_REVEAL_ENABLED est false.',
     'wheel_no_participants' => 'Aucun joueur approuvé pour le tirage.',
     'wheel_already_drawn' => 'Un gagnant est déjà enregistré pour ce giveaway.',
     'wheel_error' => 'Impossible de lancer la roue. Réessayez.',
+    'wheel_meta_topups' => 'Recharges',
+    'wheel_meta_joined' => 'Inscrit',
+    'wheel_meta_email' => 'Email',
 
     // Winner reveal (gated)
     'winner_eyebrow' => 'Félicitations',

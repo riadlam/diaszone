@@ -21,6 +21,9 @@
             'liveTitle' => __('giveaway.wheel_live_title'),
             'error' => __('giveaway.wheel_error'),
             'noParticipants' => __('giveaway.wheel_no_participants'),
+            'metaTopups' => __('giveaway.wheel_meta_topups'),
+            'metaJoined' => __('giveaway.wheel_meta_joined'),
+            'metaEmail' => __('giveaway.wheel_meta_email'),
         ],
     ];
 @endphp
@@ -59,6 +62,17 @@
             <p class="gw-wheel__modal-badge" data-gw-modal-badge></p>
             <h3 data-gw-modal-title></h3>
             <p class="gw-wheel__modal-name" data-gw-modal-name></p>
+            <p class="gw-wheel__modal-email" data-gw-modal-email></p>
+            <div class="gw-wheel__modal-stats">
+                <div class="gw-wheel__stat">
+                    <span class="gw-wheel__stat-label" data-gw-stat-topups-label>{{ __('giveaway.wheel_meta_topups') }}</span>
+                    <strong class="gw-wheel__stat-value" data-gw-modal-topups>—</strong>
+                </div>
+                <div class="gw-wheel__stat">
+                    <span class="gw-wheel__stat-label" data-gw-stat-joined-label>{{ __('giveaway.wheel_meta_joined') }}</span>
+                    <strong class="gw-wheel__stat-value" data-gw-modal-joined>—</strong>
+                </div>
+            </div>
             <p class="gw-wheel__modal-text" data-gw-modal-text></p>
             <button type="button" class="gw-wheel__spin" data-gw-modal-close>{{ __('giveaway.wheel_close') }}</button>
         </div>
@@ -239,9 +253,9 @@
 }
 .gw-wheel__modal[hidden] { display: none !important; }
 .gw-wheel__modal-card {
-    width: min(100%, 320px);
-    padding: 1.25rem 1.15rem;
-    border-radius: 1.15rem;
+    width: min(100%, 340px);
+    padding: 1.35rem 1.2rem 1.2rem;
+    border-radius: 1.2rem;
     text-align: center;
     background: linear-gradient(160deg, #2a1450, #1a1030);
     border: 1px solid rgba(245, 215, 110, 0.35);
@@ -265,15 +279,52 @@
     font-weight: 900;
 }
 .gw-wheel__modal-name {
-    margin: 0.55rem 0 0.35rem;
-    font-size: 1.55rem;
+    margin: 0.55rem 0 0.2rem;
+    font-size: 1.45rem;
     font-weight: 900;
     color: var(--gw-gold);
+    line-height: 1.2;
+    word-break: break-word;
+}
+.gw-wheel__modal-email {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.72);
+    word-break: break-all;
+}
+.gw-wheel__modal-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+    margin: 0.95rem 0 0.75rem;
+}
+.gw-wheel__stat {
+    padding: 0.65rem 0.5rem;
+    border-radius: 0.85rem;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.gw-wheel__stat-label {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+}
+.gw-wheel__stat-value {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: #fff;
 }
 .gw-wheel__modal-text {
     margin: 0 0 1rem;
-    font-size: 0.8rem;
-    color: rgba(255,255,255,0.75);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: rgba(255,255,255,0.7);
 }
 .gw-wheel__confetti {
     position: absolute;
@@ -312,6 +363,9 @@
     const modalBadge = root.querySelector('[data-gw-modal-badge]');
     const modalTitle = root.querySelector('[data-gw-modal-title]');
     const modalName = root.querySelector('[data-gw-modal-name]');
+    const modalEmail = root.querySelector('[data-gw-modal-email]');
+    const modalTopups = root.querySelector('[data-gw-modal-topups]');
+    const modalJoined = root.querySelector('[data-gw-modal-joined]');
     const modalText = root.querySelector('[data-gw-modal-text]');
     const modalClose = root.querySelector('[data-gw-modal-close]');
     const confettiCanvas = root.querySelector('[data-gw-confetti]');
@@ -337,6 +391,14 @@
         draw();
     }
 
+    function segmentLabel(seg, n, size) {
+        const name = (seg?.name || '?').trim() || '?';
+        if (n >= 24) return (seg?.initial || name.slice(0, 1)).toUpperCase();
+        if (n >= 16) return name.slice(0, 6);
+        if (n >= 12) return name.slice(0, 8);
+        return name.slice(0, 10);
+    }
+
     function draw() {
         const size = canvas.clientWidth || 320;
         const cx = size / 2;
@@ -346,6 +408,11 @@
 
         const n = Math.max(segments.length, 1);
         const arc = (Math.PI * 2) / n;
+        const fontPx = n >= 24
+            ? Math.max(9, Math.floor(size * 0.028))
+            : n >= 14
+                ? Math.max(10, Math.floor(size * 0.032))
+                : Math.max(11, Math.floor(size * 0.042));
 
         ctx.save();
         ctx.translate(cx, cy);
@@ -361,7 +428,7 @@
             ctx.fillStyle = colors[i % colors.length];
             ctx.fill();
             ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = n >= 20 ? 1 : 2;
             ctx.stroke();
 
             const seg = segments[i];
@@ -370,9 +437,8 @@
             ctx.rotate(start + arc / 2);
             ctx.textAlign = 'right';
             ctx.fillStyle = '#fff';
-            ctx.font = '700 ' + Math.max(11, Math.floor(size * 0.042)) + 'px system-ui,sans-serif';
-            const label = (seg.name || '?').slice(0, 10);
-            ctx.fillText(label, radius - 16, 4);
+            ctx.font = '700 ' + fontPx + 'px system-ui,sans-serif';
+            ctx.fillText(segmentLabel(seg, n, size), radius - (n >= 20 ? 10 : 16), 4);
             ctx.restore();
         }
 
@@ -404,22 +470,19 @@
         loadbar?.classList.add('is-on');
         setStatus(cfg.text?.loading || 'Loading players…');
 
-        const target = finalSegments.length ? finalSegments : pool.slice(0, 8);
+        const target = finalSegments.length ? finalSegments : pool.slice();
         const steps = target.length;
+        const stepDelay = steps > 0 ? Math.max(18, Math.min(85, Math.floor(1400 / steps))) : 40;
         for (let i = 0; i < steps; i++) {
             segments = target.slice(0, i + 1);
-            // pad with placeholders for a fuller wheel while loading
-            while (segments.length < Math.min(8, steps) && i < steps - 1) {
-                segments.push({ entry_id: -1 - segments.length, name: '···', initial: '·' });
-            }
             if (loadfill) loadfill.style.width = Math.round(((i + 1) / steps) * 100) + '%';
             draw();
-            if (!reduceMotion) await wait(90 + Math.random() * 70);
+            if (!reduceMotion) await wait(stepDelay + Math.random() * 20);
         }
         segments = target.slice();
         draw();
         if (loadfill) loadfill.style.width = '100%';
-        await wait(reduceMotion ? 0 : 220);
+        await wait(reduceMotion ? 0 : 180);
         loadbar?.classList.remove('is-on');
         if (loadfill) loadfill.style.width = '0%';
     }
@@ -488,9 +551,13 @@
 
     function showModal(payload) {
         const preview = !!payload.preview;
+        const winner = payload.winner || {};
         modalBadge.textContent = preview ? (cfg.text?.previewBadge || 'PREVIEW') : (cfg.text?.liveBadge || 'LIVE');
         modalTitle.textContent = preview ? (cfg.text?.previewTitle || 'Preview winner') : (cfg.text?.liveTitle || 'Winner locked');
-        modalName.textContent = payload.winner?.name || '—';
+        modalName.textContent = winner.full_name || winner.name || '—';
+        if (modalEmail) modalEmail.textContent = winner.email || '—';
+        if (modalTopups) modalTopups.textContent = String(Number.isFinite(Number(winner.topups)) ? Number(winner.topups) : 0);
+        if (modalJoined) modalJoined.textContent = winner.joined_label || '—';
         modalText.textContent = payload.message || '';
         modal.hidden = false;
         burstConfetti();
@@ -530,13 +597,13 @@
             const data = await requestSpin();
             const finalSegments = Array.isArray(data.segments) && data.segments.length
                 ? data.segments
-                : pool.slice(0, 8);
+                : pool.slice();
             await loadNamesOntoWheel(pool, finalSegments);
             setStatus(cfg.text?.spinning || 'Spinning…');
             const idx = Number.isInteger(data.winner_index) ? data.winner_index : 0;
             const target = targetRotationFor(idx, finalSegments.length);
             await animateTo(target);
-            setStatus(data.winner?.name || '');
+            setStatus(data.winner?.full_name || data.winner?.name || '');
             showModal(data);
         } catch (err) {
             setStatus(err.message || cfg.text?.error || 'Error');

@@ -82,11 +82,14 @@ return [
     'wheel_live_badge' => 'مباشر',
     'wheel_preview_title' => 'فائز المعاينة',
     'wheel_live_title' => 'تم تثبيت الفائز',
-    'wheel_preview_result' => 'معاينة فقط — فعّل GIVEAWAY_DRAW_LIVE لحفظ الفائز.',
+    'wheel_preview_result' => 'معاينة فقط — لم يُحفظ أي شيء بعد.',
     'wheel_winner_locked' => 'تم حفظ الفائز. الإعلان العام يبقى معطّلاً حتى تفعيل GIVEAWAY_WINNER_REVEAL_ENABLED.',
     'wheel_no_participants' => 'لا يوجد لاعبون معتمدون للسحب بعد.',
     'wheel_already_drawn' => 'تم تثبيت فائز لهذا الـ giveaway مسبقاً.',
     'wheel_error' => 'تعذّر تدوير العجلة. حاول مجدداً.',
+    'wheel_meta_topups' => 'شحنات',
+    'wheel_meta_joined' => 'انضم',
+    'wheel_meta_email' => 'البريد',
 
     // Winner reveal (gated)
     'winner_eyebrow' => 'تهانينا',

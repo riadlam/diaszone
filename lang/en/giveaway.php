@@ -82,11 +82,14 @@ return [
     'wheel_live_badge' => 'Live',
     'wheel_preview_title' => 'Preview winner',
     'wheel_live_title' => 'Winner locked',
-    'wheel_preview_result' => 'Preview only — enable GIVEAWAY_DRAW_LIVE to save winners.',
+    'wheel_preview_result' => 'Preview only — nothing is saved yet.',
     'wheel_winner_locked' => 'Winner saved. Public sparkles stay off until GIVEAWAY_WINNER_REVEAL_ENABLED is true.',
     'wheel_no_participants' => 'No approved players to draw yet.',
     'wheel_already_drawn' => 'A winner is already locked for this giveaway.',
     'wheel_error' => 'Could not spin the wheel. Try again.',
+    'wheel_meta_topups' => 'Top-ups',
+    'wheel_meta_joined' => 'Joined',
+    'wheel_meta_email' => 'Email',
 
     // Winner reveal (gated)
     'winner_eyebrow' => 'Congratulations',

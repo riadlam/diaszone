@@ -10,8 +10,6 @@ use RuntimeException;
 
 class GiveawayDrawService
 {
-    public const MAX_SEGMENTS = 12;
-
     /**
      * @return Collection<int, array{entry_id: int, name: string, initial: string}>
      */
@@ -20,10 +18,10 @@ class GiveawayDrawService
         return GiveawayEntry::query()
             ->where('giveaway_id', $giveaway->id)
             ->where('status', GiveawayEntry::STATUS_APPROVED)
-            ->with('user:id,name')
+            ->with('user:id,name,email,created_at')
             ->orderBy('id')
             ->get()
-            ->map(fn (GiveawayEntry $entry) => $this->serializeParticipant($entry))
+            ->map(fn (GiveawayEntry $entry) => $this->serializeSegment($entry))
             ->values();
     }
 
@@ -31,7 +29,16 @@ class GiveawayDrawService
      * @return array{
      *     ok: bool,
      *     preview: bool,
-     *     winner: array{entry_id: int, name: string, initial: string},
+     *     winner: array{
+     *         entry_id: int,
+     *         name: string,
+     *         initial: string,
+     *         full_name: string,
+     *         email: string,
+     *         topups: int,
+     *         joined_at: string|null,
+     *         joined_label: string
+     *     },
      *     segments: list<array{entry_id: int, name: string, initial: string}>,
      *     winner_index: int,
      *     message: string
@@ -53,7 +60,7 @@ class GiveawayDrawService
         $winnerEntry = GiveawayEntry::query()
             ->where('giveaway_id', $giveaway->id)
             ->where('status', GiveawayEntry::STATUS_APPROVED)
-            ->with('user:id,name')
+            ->with('user:id,name,email,created_at')
             ->inRandomOrder()
             ->first();
 
@@ -61,7 +68,7 @@ class GiveawayDrawService
             throw new RuntimeException(__('giveaway.wheel_no_participants'));
         }
 
-        $winner = $this->serializeParticipant($winnerEntry);
+        $winner = $this->serializeWinner($winnerEntry);
         $segments = $this->buildSegments($participants, $winner);
         $winnerIndex = collect($segments)->search(fn ($row) => (int) $row['entry_id'] === (int) $winner['entry_id']);
         if ($winnerIndex === false) {
@@ -95,38 +102,39 @@ class GiveawayDrawService
     }
 
     /**
+     * Put every approved player on the wheel (winner always included).
+     *
      * @param  Collection<int, array{entry_id: int, name: string, initial: string}>  $participants
      * @param  array{entry_id: int, name: string, initial: string}  $winner
      * @return list<array{entry_id: int, name: string, initial: string}>
      */
     public function buildSegments(Collection $participants, array $winner): array
     {
-        $pool = $participants
-            ->reject(fn ($row) => (int) $row['entry_id'] === (int) $winner['entry_id'])
+        $segments = $participants
+            ->map(fn ($row) => [
+                'entry_id' => (int) $row['entry_id'],
+                'name' => (string) $row['name'],
+                'initial' => (string) $row['initial'],
+            ])
             ->shuffle()
-            ->values();
+            ->values()
+            ->all();
 
-        $slots = min(self::MAX_SEGMENTS, max(6, $participants->count()));
-        $othersNeeded = max(0, $slots - 1);
-        $segments = $pool->take($othersNeeded)->all();
-        $segments[] = $winner;
-        shuffle($segments);
-
-        // Ensure uniqueness and pad if tiny pool by cycling names carefully.
-        while (count($segments) < 6 && $participants->isNotEmpty()) {
-            $segments[] = $participants[$participants->count() % max(1, count($segments))] ?? $winner;
-            if (count($segments) > 20) {
-                break;
-            }
+        if ($segments === []) {
+            return [[
+                'entry_id' => (int) $winner['entry_id'],
+                'name' => (string) $winner['name'],
+                'initial' => (string) $winner['initial'],
+            ]];
         }
 
-        return array_values($segments);
+        return $segments;
     }
 
     /**
      * @return array{entry_id: int, name: string, initial: string}
      */
-    public function serializeParticipant(GiveawayEntry $entry): array
+    public function serializeSegment(GiveawayEntry $entry): array
     {
         $name = $entry->displayFirstName();
 
@@ -134,6 +142,45 @@ class GiveawayDrawService
             'entry_id' => (int) $entry->id,
             'name' => $name,
             'initial' => mb_strtoupper(mb_substr($name, 0, 1)),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     entry_id: int,
+     *     name: string,
+     *     initial: string,
+     *     full_name: string,
+     *     email: string,
+     *     topups: int,
+     *     joined_at: string|null,
+     *     joined_label: string
+     * }
+     */
+    public function serializeWinner(GiveawayEntry $entry): array
+    {
+        $user = $entry->user;
+        $fullName = trim((string) ($user?->name ?? ''));
+        if ($fullName === '') {
+            $fullName = $entry->displayFirstName();
+        }
+
+        $joinedAt = $user?->created_at;
+        $joinedLabel = $joinedAt
+            ? $joinedAt->timezone(config('app.timezone'))->format('d M Y')
+            : '—';
+
+        $segment = $this->serializeSegment($entry);
+
+        return [
+            'entry_id' => $segment['entry_id'],
+            'name' => $segment['name'],
+            'initial' => $segment['initial'],
+            'full_name' => $fullName,
+            'email' => (string) ($user?->email ?? ''),
+            'topups' => (int) ($user?->deliveredTopupsCount() ?? 0),
+            'joined_at' => $joinedAt?->toIso8601String(),
+            'joined_label' => $joinedLabel,
         ];
     }
 }
