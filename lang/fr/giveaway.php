@@ -95,4 +95,6 @@ return [
     'announced_eyebrow' => 'Résultats',
     'announced_title' => 'Et le gagnant est…',
     'announced_body' => 'Merci à tous les participants. Bravo au gagnant !',
+    'more_giveaways_soon' => 'D’autres giveaways arrivent bientôt — suivez notre page Facebook pour rester informé.',
+    'follow_facebook' => 'Suivre sur Facebook',
 ];

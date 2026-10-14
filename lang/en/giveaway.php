@@ -95,4 +95,6 @@ return [
     'announced_eyebrow' => 'Giveaway results',
     'announced_title' => 'And the winner is…',
     'announced_body' => 'Thanks to everyone who joined. Congrats to our winner!',
+    'more_giveaways_soon' => 'More giveaways are coming soon — follow our Facebook page to stay tuned.',
+    'follow_facebook' => 'Follow us on Facebook',
 ];

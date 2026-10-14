@@ -92,23 +92,19 @@ class GiveawayController extends Controller
             if ($winnerEntry) {
                 $winnerName = trim((string) ($winnerEntry->user?->name ?? '')) ?: $winnerEntry->displayFirstName();
                 $isPersonalWinner = Auth::check() && (int) $winnerEntry->user_id === (int) Auth::id();
-                $isParticipant = $entry && in_array($entry->status, [
-                    GiveawayEntry::STATUS_PENDING,
-                    GiveawayEntry::STATUS_APPROVED,
-                ], true);
-                $isAdmin = Giveaway::isWheelAdmin(Auth::user());
 
                 if ($isPersonalWinner) {
                     $winnerReveal = [
                         'name' => $winnerName,
                         'entry_id' => $winnerEntry->id,
                     ];
-                } elseif ($isParticipant || $isAdmin) {
-                    $winnerAnnouncement = [
-                        'name' => $winnerName,
-                        'entry_id' => $winnerEntry->id,
-                    ];
                 }
+
+                // Public result card for everyone (guests + signed-in). Winner also keeps personal card above.
+                $winnerAnnouncement = [
+                    'name' => $winnerName,
+                    'entry_id' => $winnerEntry->id,
+                ];
             }
         }
 

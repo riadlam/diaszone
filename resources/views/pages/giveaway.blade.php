@@ -719,6 +719,33 @@
     line-height: 1.45;
     color: #4c1d95;
 }
+.dz-gw-announced__soon {
+    margin: 0.85rem auto 0;
+    max-width: 26rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.45;
+    color: #312e81;
+}
+.dz-gw-announced__fb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 0.9rem;
+    padding: 0.7rem 1.15rem;
+    border-radius: 0.85rem;
+    background: #1877F2;
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 800;
+    box-shadow: 0 8px 18px rgba(24, 119, 242, 0.28);
+}
+.dz-gw-announced__fb img {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.15rem;
+}
 
 /* Keep light motion even when iOS “Reduce Motion” is on */
 @media (prefers-reduced-motion: reduce) {
@@ -998,12 +1025,21 @@
                         <p class="dz-gw-winner__name">{{ $winnerReveal['name'] }}</p>
                         <p class="dz-gw-winner__body">{{ __('giveaway.winner_body') }}</p>
                     </section>
-                @elseif(!empty($winnerAnnouncement))
+                @endif
+
+                @if(!empty($winnerAnnouncement))
                     <section class="dz-gw-announced" data-gw-announced aria-live="polite">
                         <p class="dz-gw-announced__eyebrow">{{ __('giveaway.announced_eyebrow') }}</p>
                         <h2 class="dz-gw-announced__title">{{ __('giveaway.announced_title') }}</h2>
                         <p class="dz-gw-announced__name">{{ $winnerAnnouncement['name'] }}</p>
                         <p class="dz-gw-announced__body">{{ __('giveaway.announced_body') }}</p>
+                        <p class="dz-gw-announced__soon">{{ __('giveaway.more_giveaways_soon') }}</p>
+                        @if($giveaway->facebook_page_url)
+                            <a href="{{ $giveaway->facebook_page_url }}" target="_blank" rel="noopener noreferrer" class="dz-gw-announced__fb">
+                                <img src="{{ $fbIcon }}" alt="" width="16" height="16">
+                                {{ __('giveaway.follow_facebook') }}
+                            </a>
+                        @endif
                     </section>
                 @endif
 

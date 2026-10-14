@@ -95,4 +95,6 @@ return [
     'announced_eyebrow' => 'نتائج الهدية',
     'announced_title' => 'والفائز هو…',
     'announced_body' => 'شكراً لكل من شارك. مبروك للفائز!',
+    'more_giveaways_soon' => 'هدايا كثيرة قادمة قريباً — تابع صفحتنا على فيسبوك لتبقى على اطلاع.',
+    'follow_facebook' => 'تابعنا على فيسبوك',
 ];
