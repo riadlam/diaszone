@@ -75,7 +75,7 @@ return [
     'wheel_pool_count' => ':count لاعبين معتمدين في السحب',
     'wheel_ready' => 'جاهز',
     'wheel_loading' => 'تحميل اللاعبين على العجلة…',
-    'wheel_spinning' => 'التشويق يزداد…',
+    'wheel_spinning' => 'Spinning…',
     'wheel_spin' => 'أدِر العجلة',
     'wheel_close' => 'إغلاق',
     'wheel_preview_badge' => 'معاينة',

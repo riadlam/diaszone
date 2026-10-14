@@ -75,7 +75,7 @@ return [
     'wheel_pool_count' => ':count approved players in the pool',
     'wheel_ready' => 'Ready when you are',
     'wheel_loading' => 'Loading players onto the wheel…',
-    'wheel_spinning' => 'Building tension…',
+    'wheel_spinning' => 'Spinning…',
     'wheel_spin' => 'Spin the wheel',
     'wheel_close' => 'Close',
     'wheel_preview_badge' => 'Preview',

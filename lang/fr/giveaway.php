@@ -75,7 +75,7 @@ return [
     'wheel_pool_count' => ':count joueurs approuvés dans le tirage',
     'wheel_ready' => 'Prêt',
     'wheel_loading' => 'Chargement des joueurs sur la roue…',
-    'wheel_spinning' => 'La tension monte…',
+    'wheel_spinning' => 'Spinning…',
     'wheel_spin' => 'Lancer la roue',
     'wheel_close' => 'Fermer',
     'wheel_preview_badge' => 'Aperçu',
