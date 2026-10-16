@@ -103,7 +103,7 @@ class CheckDigiflazzOrderStatus extends Command
                         $completedCount = DB::table('digiflazz_statuses')
                             ->where('order_id', $order->id)
                             ->where(function ($q) {
-                                $q->whereRaw("LOWER(status) = 'sukses'")
+                                $q->whereRaw("LOWER(status) IN ('sukses', 'success')")
                                   ->orWhere('rc', '00');
                             })
                             ->count();

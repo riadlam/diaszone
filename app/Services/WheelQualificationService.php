@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\DigiflazzStatus;
 use App\Models\Order;
+use App\Models\VipResellerStatus;
 use App\Models\WheelEvent;
 use App\Models\WheelSpinLedger;
 use App\Models\WheelUserProgress;
@@ -61,7 +62,51 @@ class WheelQualificationService
     }
 
     /**
-     * Backfill all qualifying Digiflazz successes for an event window.
+     * Credit one spin for a successful VIP Reseller delivery (ML packs).
+     * Idempotent via unique source_key (event:{id}:vip:{trxid}).
+     */
+    public function creditFromVipResellerStatus(VipResellerStatus|DigiflazzStatus $status): bool
+    {
+        if (! $this->isSuccessfulVipOrDigiStatus($status)) {
+            return false;
+        }
+
+        $order = $status->order_id
+            ? Order::with(['diamondPack', 'orderItems.diamondPack'])->find($status->order_id)
+            : null;
+
+        if (! $order || ! $order->user_id) {
+            return false;
+        }
+
+        if (! $this->orderQualifiesForVip($order, $status)) {
+            return false;
+        }
+
+        $event = $this->activeEventCovering($order->created_at);
+        if (! $event) {
+            return false;
+        }
+
+        $sourceKey = $this->sourceKeyForVipStatus($event->id, $status);
+
+        return $this->creditSpin(
+            userId: (int) $order->user_id,
+            event: $event,
+            sourceType: 'vipreseller_status',
+            sourceKey: $sourceKey,
+            digiflazzStatusId: $status->id,
+            orderId: $order->id,
+            meta: [
+                'ref_id' => $status->ref_id ?? null,
+                'trxid' => $status->trxid,
+                'provider' => 'vipreseller',
+            ]
+        );
+    }
+
+    /**
+     * Backfill all qualifying Digiflazz + VIP Reseller successes for an event window.
      */
     public function backfillEvent(WheelEvent $event): int
     {
@@ -69,7 +114,7 @@ class WheelQualificationService
 
         DigiflazzStatus::query()
             ->where(function ($q) {
-                $q->whereRaw('LOWER(status) = ?', ['sukses'])
+                $q->whereRaw('LOWER(status) IN (?, ?)', ['sukses', 'success'])
                     ->orWhere('rc', '00');
             })
             ->whereHas('order', function ($q) use ($event) {
@@ -91,6 +136,14 @@ class WheelQualificationService
                 foreach ($statuses as $status) {
                     $order = $status->order;
                     if (! $order || ! $this->isMobileLegendsTopup($order, $status)) {
+                        continue;
+                    }
+
+                    $isVip = $this->statusLooksLikeVip($status, $order);
+                    if ($isVip) {
+                        if ($this->creditFromVipResellerStatus($status)) {
+                            $credited++;
+                        }
                         continue;
                     }
 
@@ -231,6 +284,16 @@ class WheelQualificationService
 
     private function orderQualifies(Order $order, DigiflazzStatus $status): bool
     {
+        return $this->orderPassesPaidGates($order) && $this->isMobileLegendsTopup($order, $status);
+    }
+
+    private function orderQualifiesForVip(Order $order, VipResellerStatus|DigiflazzStatus $status): bool
+    {
+        return $this->orderPassesPaidGates($order) && $this->isMobileLegendsTopup($order, $status);
+    }
+
+    private function orderPassesPaidGates(Order $order): bool
+    {
         $paymentMethod = strtolower((string) $order->payment_method);
         // Free coupon orders do not earn spins; paid Flexy / Algerie Post / crypto do.
         if ($paymentMethod === 'coupon_free') {
@@ -241,13 +304,18 @@ class WheelQualificationService
             return false;
         }
 
-        return $this->isMobileLegendsTopup($order, $status);
+        return true;
     }
 
-    private function isMobileLegendsTopup(Order $order, DigiflazzStatus $status): bool
+    private function isMobileLegendsTopup(Order $order, VipResellerStatus|DigiflazzStatus $status): bool
     {
-        $pack = $status->diamondPack
-            ?? ($status->diamond_pack_id ? $status->diamondPack()->first() : null);
+        $pack = null;
+        if (method_exists($status, 'diamondPack')) {
+            $pack = $status->diamondPack
+                ?? ($status->diamond_pack_id ? $status->diamondPack()->first() : null);
+        } elseif (! empty($status->diamond_pack_id)) {
+            $pack = \App\Models\DiamondPack::query()->find($status->diamond_pack_id);
+        }
 
         if (! $pack && $status->order_item_id) {
             $item = $order->orderItems->firstWhere('id', $status->order_item_id);
@@ -261,10 +329,38 @@ class WheelQualificationService
         return $pack && $pack->game_type === self::GAME_TYPE;
     }
 
+    private function statusLooksLikeVip(DigiflazzStatus $status, Order $order): bool
+    {
+        $provider = strtolower((string) data_get($status->additional_data, 'provider', ''));
+        if ($provider === 'vipreseller') {
+            return true;
+        }
+
+        if ($status->diamond_pack_id) {
+            $pack = $status->diamondPack ?? \App\Models\DiamondPack::query()->find($status->diamond_pack_id);
+            if ($pack?->usesVipReseller()) {
+                return true;
+            }
+        }
+
+        if ($status->order_item_id) {
+            $item = $order->orderItems->firstWhere('id', $status->order_item_id);
+
+            return (bool) $item?->diamondPack?->usesVipReseller();
+        }
+
+        return (bool) $order->diamondPack?->usesVipReseller();
+    }
+
     private function isSuccessfulStatus(DigiflazzStatus $status): bool
     {
+        return $this->isSuccessfulVipOrDigiStatus($status);
+    }
+
+    private function isSuccessfulVipOrDigiStatus(VipResellerStatus|DigiflazzStatus $status): bool
+    {
         return in_array(strtolower((string) $status->status), ['sukses', 'success'], true)
-            || (string) $status->rc === '00';
+            || (string) ($status->rc ?? '') === '00';
     }
 
     private function sourceKeyForStatus(int $eventId, DigiflazzStatus $status): string
@@ -272,6 +368,14 @@ class WheelQualificationService
         $identity = $status->trxid ?: ($status->ref_id ?: ('id:'.$status->id));
 
         return 'event:'.$eventId.':df:'.$identity;
+    }
+
+    private function sourceKeyForVipStatus(int $eventId, VipResellerStatus|DigiflazzStatus $status): string
+    {
+        $identity = $status->trxid
+            ?: (($status->ref_id ?? null) ?: ('id:'.$status->id));
+
+        return 'event:'.$eventId.':vip:'.$identity;
     }
 
     private function firstRewardId(WheelEvent $event): ?int

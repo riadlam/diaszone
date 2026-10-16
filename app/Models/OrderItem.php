@@ -96,15 +96,38 @@ class OrderItem extends Model
         $this->loadMissing('diamondPack');
 
         if ($this->diamondPack?->usesVipReseller()) {
-            return $this->digiflazzStatuses()
-                ->whereRaw("LOWER(status) = 'success'")
+            $byItem = $this->digiflazzStatuses()
+                ->where(function ($q) {
+                    $q->whereRaw("LOWER(status) IN ('success', 'sukses')")
+                        ->orWhere('rc', '00');
+                })
+                ->count();
+
+            if ($byItem > 0) {
+                return $byItem;
+            }
+
+            // Fallback when VIP rows were saved without order_item_id.
+            return DigiflazzStatus::query()
+                ->where('order_id', $this->order_id)
+                ->where(function ($q) {
+                    $q->where('diamond_pack_id', $this->diamond_pack_id)
+                        ->orWhere('buyer_sku_code', trim((string) ($this->diamondPack->vip_reseller_code ?? '')));
+                })
+                ->where(function ($q) {
+                    $q->whereRaw("LOWER(status) IN ('success', 'sukses')")
+                        ->orWhere('rc', '00');
+                })
                 ->count();
         }
 
         if ($this->vipreseller_pack_id) {
-            return \App\Models\VipResellerStatus::query()
+            return VipResellerStatus::query()
                 ->where('order_item_id', $this->id)
-                ->where('status', 'success')
+                ->where(function ($q) {
+                    $q->whereRaw("LOWER(status) IN ('success', 'sukses')")
+                        ->orWhere('rc', '00');
+                })
                 ->count();
         }
 

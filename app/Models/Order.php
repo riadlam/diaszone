@@ -106,7 +106,10 @@ class Order extends Model
         $required = max(1, (int) ($this->quantity ?? 1));
         if ($this->diamondPack->usesVipReseller()) {
             $done = $this->vipResellerStatuses()
-                ->whereRaw("LOWER(status) = 'success'")
+                ->where(function ($q) {
+                    $q->whereRaw("LOWER(status) IN ('success', 'sukses')")
+                        ->orWhere('rc', '00');
+                })
                 ->count();
         } else {
             $done = $this->successfulDigiflazzTopupsCount();

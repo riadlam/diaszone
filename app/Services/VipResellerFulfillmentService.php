@@ -266,8 +266,18 @@ class VipResellerFulfillmentService
             $order->save();
         }
 
-        if ($mappedStatus === 'success' && $order->status !== 'completed') {
-            if ($this->allVipItemsDelivered($order)) {
+        if ($mappedStatus === 'success') {
+            try {
+                app(WheelQualificationService::class)->creditFromVipResellerStatus($status);
+            } catch (\Throwable $e) {
+                Log::warning('VIP fulfill: wheel spin credit failed', [
+                    'order_id' => $order->id,
+                    'trxid' => $trxid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if ($order->status !== 'completed' && $this->allVipItemsDelivered($order)) {
                 $order->status = 'completed';
                 $order->save();
 

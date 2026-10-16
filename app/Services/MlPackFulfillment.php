@@ -54,7 +54,7 @@ class MlPackFulfillment
         $mapped = 'error';
         if (($result['result'] ?? false) === true) {
             $mapped = match (strtolower((string) ($apiData['status'] ?? 'waiting'))) {
-                'success', 'completed', 'paid' => 'success',
+                'success', 'completed', 'paid', 'sukses' => 'success',
                 'processing' => 'processing',
                 default => 'waiting',
             };
@@ -83,7 +83,19 @@ class MlPackFulfillment
             ],
         ];
 
-        VipResellerStatus::upsertByTrxid($statusData);
+        $status = VipResellerStatus::upsertByTrxid($statusData);
+
+        if ($mapped === 'success') {
+            try {
+                app(WheelQualificationService::class)->creditFromVipResellerStatus($status);
+            } catch (\Throwable $e) {
+                Log::warning('ML VIP place: wheel spin credit failed', [
+                    'order_id' => $order->id,
+                    'trxid' => $statusData['trxid'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         Log::info('ML pack routed to VIP Reseller', [
             'order_id' => $order->id,
